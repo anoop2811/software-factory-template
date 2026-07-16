@@ -1,0 +1,8 @@
+#!/bin/bash
+# Tracked pre-push hook. Enable with: git config core.hooksPath .githooks
+# (factory-init sets this in adopter repositories.)
+# Note: client-side hooks are advisory — anyone can disable them. The server
+# side (branch protection, CI) is the real boundary; this is the fast local rail.
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+"$REPO_ROOT/scripts/hooks/direct-main-push-block.sh"

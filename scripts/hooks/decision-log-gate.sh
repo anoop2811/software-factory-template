@@ -96,6 +96,15 @@ for sha in $COMMITS; do
     continue
   fi
 
+  # Skip merge commits (2+ parents). A merge authors no new change; the
+  # governance change it carries is attributed to the real commit, which is
+  # checked on its own. Without this, CI's synthetic refs/pull/N/merge commit
+  # (message "Merge ... into ...") fails the Decision check for changes it
+  # only inherits.
+  if [ "$(git rev-list --no-walk --count --merges "$sha" 2>/dev/null || echo 0)" -gt 0 ]; then
+    continue
+  fi
+
   short=$(git log --format='%h' -1 "$sha")
   CHANGED=$(git diff --name-only "$sha^" "$sha" 2>/dev/null || true)
 

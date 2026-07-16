@@ -91,3 +91,32 @@ fetch-only, pinned, and short enough to actually read — and to say so where
 the command is offered.
 
 Provenance: founder request for a curl-based install, 2026-07-16.
+
+## Decision 6 (2026-07-16): Existence checks verify git-tracking, not just presence
+
+What: `hook-existence-check.sh` asserts that each required script is tracked
+by git (`git ls-files --error-unmatch`), not merely that the file exists on
+disk. A file present in a working tree but never committed passes every local
+check and then vanishes in CI's clean clone. The tracked pre-push hook
+(`.githooks/pre-push`) is enrolled in this list.
+
+Why: an untracked-but-present enforcement script is a silent hole — the gate
+it belongs to fails open in every fresh checkout while looking healthy
+locally. Checking tracking closes the "works on my machine, missing in a clean
+clone" failure class that this repository itself hit.
+
+Provenance: CI failure on the first push to main, 2026-07-16.
+
+## Decision 7 (2026-07-16): The decision-log gate skips merge commits
+
+What: `decision-log-gate.sh` ignores commits with two or more parents. A merge
+commit authors no new change; the governance change it carries is attributed
+to the real commit, which the gate checks on its own.
+
+Why: CI checks out a synthetic `refs/pull/N/merge` commit whose message is
+`Merge ... into ...`. Its diff against the base includes the branch's
+governance-path changes, but its message references no Decision, so the gate
+failed a merge for changes it only inherited. This passed locally and in `act`
+(both check out the branch head, not a merge ref) and failed only on GitHub.
+
+Provenance: PR #1 CI failure that reproduced only under a merge ref, 2026-07-16.

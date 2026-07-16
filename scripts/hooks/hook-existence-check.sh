@@ -37,7 +37,17 @@ HOOK_SCRIPTS=(
 
 ERRORS=0
 
+IN_REPO=0
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 && IN_REPO=1
+
 for SCRIPT in "${HOOK_SCRIPTS[@]}"; do
+  # A file that exists locally but is not tracked passes every local check
+  # and then fails in CI's clean clone — check tracking, not just presence.
+  if [ "$IN_REPO" -eq 1 ] && ! git ls-files --error-unmatch "$SCRIPT" >/dev/null 2>&1; then
+    echo "HOOK-EXISTENCE FAIL: $SCRIPT exists locally but is NOT tracked by git (would be missing in a clean clone)"
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
   if [ ! -f "$SCRIPT" ]; then
     echo "HOOK-EXISTENCE FAIL: $SCRIPT does not exist"
     ERRORS=$((ERRORS + 1))

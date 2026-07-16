@@ -1,0 +1,3 @@
+# Protected paths require human review on every change — no auto-merge.
+# GitHub branch protection must require review on these paths.
+/__PROTECTED_PATH__/ __GITHUB_OWNER__

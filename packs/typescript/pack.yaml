@@ -1,0 +1,15 @@
+# TypeScript/JavaScript language pack — maturity: experimental
+# (no real repository has adopted this pack yet; the label changes to beta
+# on first real adoption, per Decision 3. Claiming more would be a claim
+# without observation.)
+#
+# Blessed stack: Vitest, ESLint (flat config) + typescript-eslint,
+# osv-scanner, Stryker for mutation testing.
+
+pack_name: typescript
+maturity: experimental
+test_file_patterns: "\\.test\\.[jt]sx?$ \\.spec\\.[jt]sx?$"
+check_command: "npm run check"
+
+# Planned files (not yet present — see docs/DECISION_LOG.md Decision 3):
+#   eslint.config.js, vitest.config.ts, workflows/ci.yml, Makefile.pack

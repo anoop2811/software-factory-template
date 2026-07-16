@@ -1,0 +1,14 @@
+# Software Factory configuration (Decision 2). Flat key: value only.
+# Lists are space-separated on one line. Parsed by scripts/lib/config.sh.
+# This is the template's own self-hosting configuration — the template runs
+# its own factory. Adopters get a generated version of this file from
+# factory-init.
+
+project_name: software-factory-template
+decision_log: docs/DECISION_LOG.md
+docs_root: docs
+citation_prefix: ""
+protected_paths: "scripts/hooks scripts/lib .github/workflows AGENTS.md"
+test_file_patterns: ""
+language_packs: ""
+check_command: "./scripts/selftest/run.sh"

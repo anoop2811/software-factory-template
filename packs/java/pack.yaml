@@ -1,0 +1,15 @@
+# Java / Spring Boot language pack — maturity: experimental
+# (no real repository has adopted this pack yet; the label changes to beta
+# on first real adoption, per Decision 3.)
+#
+# Blessed stack: JUnit 5 + AssertJ, Checkstyle + ErrorProne, OWASP
+# dependency-check, PIT for mutation testing. Gradle wrapper preferred;
+# Maven wrapper supported.
+
+pack_name: java
+maturity: experimental
+test_file_patterns: "src/test/.*(Test|Tests|IT)\\.java$"
+check_command: "./gradlew check"
+
+# Planned files (not yet present — see docs/DECISION_LOG.md Decision 3):
+#   checkstyle.xml, workflows/ci.yml, Makefile.pack

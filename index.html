@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>softwareaifactory.sh — enforcement you can execute</title>
+<meta name="description" content="A software factory template for AI coding agents. Deterministic gates, role separation, and a verification contract — every control an executable script, every script proven by watching it fail.">
+<meta property="og:title" content="softwareaifactory.sh — enforcement you can execute">
+<meta property="og:description" content="A software factory template for AI coding agents: deterministic gates, break/fix-proven checks, and a verification contract.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://softwareaifactory.sh/">
+<meta name="twitter:card" content="summary">
+<link rel="canonical" href="https://softwareaifactory.sh/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23101216'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234CC46E' text-anchor='middle'%3E%24_%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0B0D12;
+    --bg2: #0E1117;
+    --surface: #12151C;
+    --surface2: #161A22;
+    --edge: #222733;
+    --edge-soft: #1B202A;
+    --fg: #E8EAEF;
+    --muted: #9BA1AD;
+    --faint: #626977;
+    --green: #4CC46E;
+    --green-dim: rgba(76,196,110,.13);
+    --red: #F0605A;
+    --red-dim: rgba(240,96,90,.12);
+    --blue: #7AA2F7;
+    --blue-dim: rgba(122,162,247,.12);
+    --violet: #A78BFA;
+    --violet-dim: rgba(167,139,250,.12);
+    --amber: #E5B15C;
+    --amber-dim: rgba(229,177,92,.12);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --glow-term: 0 0 0 1px var(--edge), 0 24px 80px -24px rgba(76,196,110,.18), 0 24px 80px -40px rgba(122,162,247,.22);
+    --shadow-card: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px -18px rgba(0,0,0,.6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 2px; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 28px; }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(11,13,18,.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--edge-soft);
+  }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 58px; }
+  .domain { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--fg); }
+  .domain:hover { text-decoration: none; }
+  .domain .sh { color: var(--green); }
+  nav { display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 500; }
+  nav a { color: var(--muted); }
+  nav a:hover { color: var(--fg); text-decoration: none; }
+  .nav-gh {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    padding: 7px 13px; border: 1px solid var(--edge); border-radius: 8px;
+    color: var(--fg) !important; background: var(--surface);
+    transition: border-color 130ms ease;
+  }
+  .nav-gh:hover { border-color: var(--faint); text-decoration: none; }
+  .nav-gh svg { width: 15px; height: 15px; fill: currentColor; }
+  @media (max-width: 560px) { nav a:not(.nav-gh) { display: none; } }
+
+  /* ── Hero ───────────────────────────────────────────── */
+  .hero { position: relative; padding: 84px 0 60px; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background-image:
+      linear-gradient(var(--edge-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--edge-soft) 1px, transparent 1px);
+    background-size: 46px 46px;
+    opacity: .5;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 80%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 80%);
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: -20% -10%; z-index: -2; pointer-events: none;
+    background:
+      radial-gradient(600px 380px at 12% 0%, rgba(76,196,110,.14), transparent 65%),
+      radial-gradient(640px 400px at 90% 8%, rgba(122,162,247,.13), transparent 65%),
+      radial-gradient(700px 460px at 55% 105%, rgba(167,139,250,.12), transparent 68%);
+  }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px; }
+  .pill {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+    border-radius: 999px; padding: 5px 12px; border: 1px solid var(--edge);
+    color: var(--muted); background: var(--surface);
+  }
+  .pill.green { color: var(--green); background: var(--green-dim); border-color: rgba(76,196,110,.32); }
+  .pill.blue { color: var(--blue); background: var(--blue-dim); border-color: rgba(122,162,247,.32); }
+  .pill.violet { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,.32); }
+  .pill.amber { color: var(--amber); background: var(--amber-dim); border-color: rgba(229,177,92,.32); }
+  .hero h1 {
+    font-size: clamp(32px, 5.8vw, 56px);
+    line-height: 1.07;
+    letter-spacing: -0.03em;
+    font-weight: 760;
+    max-width: 21ch;
+  }
+  .hero h1 .pass-word {
+    background: linear-gradient(93deg, #4CC46E 0%, #3ED3B0 48%, #7AA2F7 105%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .sub {
+    margin-top: 20px;
+    font-size: 18.5px;
+    color: var(--muted);
+    max-width: 56ch;
+  }
+  .cta-row { margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--mono); font-size: 14px; font-weight: 600;
+    padding: 12px 20px;
+    border: 1px solid var(--edge);
+    border-radius: 9px;
+    color: var(--fg);
+    background: var(--surface);
+    transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); border-color: var(--faint); }
+  .btn.primary {
+    background: linear-gradient(180deg, #F4F5F7, #DDE0E6);
+    color: #0B0D12; border-color: transparent; font-weight: 700;
+  }
+  .btn.primary:hover { background: #fff; }
+  .btn svg { width: 16px; height: 16px; fill: currentColor; }
+  @media (prefers-reduced-motion: reduce) { .btn:hover { transform: none; } }
+
+  /* ── Terminal (the signature) ───────────────────────── */
+  .term {
+    margin-top: 52px;
+    background: #0A0C10;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--glow-term);
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--edge-soft);
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #FF5F57; } .dot.y { background: #FEBC2E; } .dot.g { background: #28C840; }
+  .term-title { margin-left: 8px; }
+  .term-bar .right { margin-left: auto; }
+  .term-body {
+    padding: 22px 22px 26px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: #C9CDD4;
+    min-height: 310px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .term-body .dim { color: var(--faint); }
+  .term-body .ok { color: var(--green); }
+  .term-body .no { color: var(--red); font-weight: 600; }
+  .term-body .prompt { color: var(--blue); }
+  .term-body .warn { color: var(--amber); }
+  .cursor { display: inline-block; width: 8px; height: 15px; background: #C9CDD4; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+  .term-note { margin-top: 12px; font-size: 12.5px; color: var(--faint); font-family: var(--mono); }
+
+  /* ── Sections ───────────────────────────────────────── */
+  section { padding: 76px 0 20px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    letter-spacing: .02em; display: block; margin-bottom: 12px;
+  }
+  .eyebrow.green { color: var(--green); }
+  .eyebrow.amber { color: var(--amber); }
+  .eyebrow.violet { color: var(--violet); }
+  .eyebrow.blue { color: var(--blue); }
+  h2 { font-size: clamp(24px, 3.4vw, 31px); letter-spacing: -0.02em; line-height: 1.2; font-weight: 720; }
+  .lede { margin-top: 14px; color: var(--muted); max-width: 62ch; }
+
+  /* ── Why: stats + ask/block + pipeline ──────────────── */
+  .stats { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 700px) { .stats { grid-template-columns: 1fr; } }
+  .stat {
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+    padding: 22px 20px; box-shadow: var(--shadow-card);
+  }
+  .stat .n { font-family: var(--mono); font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+  .stat:nth-child(1) .n { color: var(--amber); }
+  .stat:nth-child(2) .n { color: var(--red); }
+  .stat:nth-child(3) .n { color: var(--green); }
+  .stat p { margin-top: 10px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+  .askblock { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .askblock { grid-template-columns: 1fr; } }
+  .codecard {
+    border-radius: 12px; border: 1px solid var(--edge);
+    background: #0A0C10; overflow: hidden; box-shadow: var(--shadow-card);
+  }
+  .codecard .cc-head {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
+    padding: 10px 16px; border-bottom: 1px solid var(--edge-soft);
+  }
+  .codecard.ask .cc-head { color: var(--amber); background: var(--amber-dim); }
+  .codecard.block .cc-head { color: var(--green); background: var(--green-dim); }
+  .codecard pre {
+    font-family: var(--mono); font-size: 13px; line-height: 1.9; padding: 16px 18px;
+    color: #C9CDD4; overflow-x: auto;
+  }
+  .codecard.ask pre { color: var(--faint); }
+  .codecard .c-dim { color: var(--faint); }
+  .codecard .c-red { color: var(--red); font-weight: 600; }
+  .codecard .c-green { color: var(--green); }
+  .codecard .c-amber { color: var(--amber); }
+  .credit { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
+
+  .pipeline { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow-card); }
+  .chip {
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    border-radius: 8px; padding: 8px 14px; border: 1px solid;
+  }
+  .chip.break { color: var(--amber); border-color: rgba(229,177,92,.4); background: var(--amber-dim); }
+  .chip.fail { color: var(--red); border-color: rgba(240,96,90,.4); background: var(--red-dim); }
+  .chip.revert { color: var(--blue); border-color: rgba(122,162,247,.4); background: var(--blue-dim); }
+  .chip.pass { color: var(--green); border-color: rgba(76,196,110,.4); background: var(--green-dim); }
+  .arrow { color: var(--faint); font-family: var(--mono); }
+  .pipeline p { flex-basis: 100%; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
+
+  .aside-note { margin-top: 22px; font-size: 13.5px; color: var(--faint); font-style: italic; max-width: 62ch; }
+
+  /* ── Differences ────────────────────────────────────── */
+  section.band { background: var(--bg2); border-top: 1px solid var(--edge-soft); border-bottom: 1px solid var(--edge-soft); padding-bottom: 68px; margin-top: 52px; }
+  .diff-list { margin-top: 34px; display: grid; gap: 10px; }
+  .diff-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    border-radius: 11px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .diff-row > div { padding: 16px 20px; font-size: 15px; display: flex; align-items: baseline; gap: 10px; }
+  .diff-row .them { color: var(--faint); background: rgba(0,0,0,.22); border-right: 1px solid var(--edge-soft); }
+  .diff-row .mark { font-family: var(--mono); font-weight: 700; flex: none; }
+  .diff-row .them .mark { color: var(--faint); }
+  .diff-row .us .mark { color: var(--green); }
+  .diff-row code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.05); border: 1px solid var(--edge-soft); padding: 1px 6px; border-radius: 5px; color: var(--fg); }
+  .diff-row .them code { color: var(--faint); }
+  @media (max-width: 660px) {
+    .diff-row { grid-template-columns: 1fr; }
+    .diff-row .them { border-right: none; border-bottom: 1px solid var(--edge-soft); }
+  }
+
+  /* ── Inside ─────────────────────────────────────────── */
+  .grid3 { margin-top: 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 740px) { .grid3 { grid-template-columns: 1fr; } }
+  .cell {
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+    padding: 22px 20px; box-shadow: var(--shadow-card);
+    border-top: 3px solid var(--green);
+  }
+  .cell.c-blue { border-top-color: var(--blue); }
+  .cell.c-violet { border-top-color: var(--violet); }
+  .cell h3 { font-size: 16.5px; margin-bottom: 8px; }
+  .cell p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .cell .mono-label {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--green);
+    display: inline-block; margin-bottom: 12px;
+    background: var(--green-dim); border: 1px solid rgba(76,196,110,.3); border-radius: 6px; padding: 3px 8px;
+  }
+  .cell.c-blue .mono-label { color: var(--blue); background: var(--blue-dim); border-color: rgba(122,162,247,.3); }
+  .cell.c-violet .mono-label { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,.3); }
+
+  table { margin-top: 34px; border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14.5px; background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-card); }
+  th, td { text-align: left; padding: 13px 18px; }
+  thead tr { background: rgba(0,0,0,.28); }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; border-bottom: 1px solid var(--edge-soft); }
+  tbody tr + tr td { border-top: 1px solid var(--edge-soft); }
+  .badge {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    border-radius: 999px; padding: 4px 12px; white-space: nowrap;
+  }
+  .badge.tested { color: var(--green); background: var(--green-dim); border: 1px solid rgba(76,196,110,.35); }
+  .badge.exp { color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--edge); }
+  .table-note { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
+
+  .qs {
+    margin-top: 36px;
+    background: #0A0C10; border: 1px solid var(--edge); border-radius: 12px;
+    padding: 20px 22px;
+    font-family: var(--mono); font-size: 13px; line-height: 2;
+    color: #C9CDD4;
+    overflow-x: auto;
+    white-space: pre;
+    box-shadow: var(--shadow-card);
+  }
+  .qs .dim { color: var(--faint); }
+  .qs .prompt { color: var(--blue); }
+
+  /* ── Final CTA ──────────────────────────────────────── */
+  .cta-final {
+    margin-top: 84px; padding: 76px 0 84px;
+    position: relative; overflow: hidden;
+    border-top: 1px solid var(--edge-soft);
+    text-align: center;
+  }
+  .cta-final::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(680px 320px at 15% 0%, rgba(76,196,110,.16), transparent 65%),
+      radial-gradient(680px 320px at 85% 100%, rgba(167,139,250,.16), transparent 65%);
+  }
+  .cta-final h2 { font-size: clamp(26px, 4vw, 38px); }
+  .cta-final p { color: var(--muted); margin-top: 12px; }
+  .cta-final .cta-row { margin-top: 28px; justify-content: center; }
+
+  /* ── Footer ─────────────────────────────────────────── */
+  footer { border-top: 1px solid var(--edge-soft); padding: 30px 0 48px; font-size: 13.5px; color: var(--faint); background: var(--bg2); }
+  footer .wrap { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+  footer .fdomain { font-family: var(--mono); font-weight: 700; color: var(--fg); }
+  footer .fdomain .sh { color: var(--green); }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="domain" href="#">softwareaifactory<span class="sh">.sh</span></a>
+    <nav>
+      <a href="#why">Why</a>
+      <a href="#differs">How it differs</a>
+      <a href="#inside">Inside</a>
+      <a href="#install">Install</a>
+      <a class="nav-gh" href="https://github.com/anoop2811/software-factory-template">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div class="pills">
+        <span class="pill green">selftest: 16 passed, 0 failed</span>
+        <span class="pill blue">MIT licensed</span>
+        <span class="pill violet">break/fix proven</span>
+        <span class="pill amber">three harnesses, one canon</span>
+      </div>
+      <h1>Your AI agents follow rules.<br>Ours <span class="pass-word">exit&nbsp;non-zero</span> if they don't.</h1>
+      <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we ship our own product with — it's what survived after an agent burned us.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://github.com/anoop2811/software-factory-template">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          View on GitHub
+        </a>
+        <a class="btn" href="https://github.com/anoop2811/software-factory-template/fork">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>
+          Fork the template
+        </a>
+      </div>
+
+      <div class="term" aria-label="Terminal demonstration: a gate blocking an agent, then the self-test suite">
+        <div class="term-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="term-title">watch a gate fire</span>
+          <span class="right">bash</span>
+        </div>
+        <div class="term-body" id="term"><span class="cursor"></span></div>
+      </div>
+      <p class="term-note"># Actual behavior of scripts/hooks/test-edit-denial.sh and scripts/selftest/run.sh — not a mock.</p>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <span class="eyebrow amber">$ [1/4] why this exists</span>
+      <h2>Prose rules decay. Exit codes don't.</h2>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="n">4</div>
+          <p>consecutive review rounds before the pattern was undeniable</p>
+        </div>
+        <div class="stat">
+          <div class="n">100%</div>
+          <p>of false "verified" claims were checks that had never been run</p>
+        </div>
+        <div class="stat">
+          <div class="n">0</div>
+          <p>checks that actually ran and lied</p>
+        </div>
+      </div>
+
+      <div class="askblock">
+        <div class="codecard ask">
+          <div class="cc-head">a rule that asks</div>
+          <pre><span class="c-dim"># INSTRUCTIONS.md</span>
+- never edit test files
+- always verify before claiming done
+
+<span class="c-amber">compliance: whatever the model
+remembers today</span></pre>
+        </div>
+        <div class="codecard block">
+          <div class="cc-head">a rule that blocks</div>
+          <pre><span class="c-dim">$</span> ./scripts/hooks/test-edit-denial.sh
+<span class="c-red">DENIED: implementer role cannot
+edit test files.</span>
+<span class="c-dim">exit code:</span> <span class="c-red">2</span>
+
+<span class="c-green">compliance: not optional</span></pre>
+        </div>
+      </div>
+      <p class="credit">The underlying idea — computational controls beat inferential ones — comes from Birgitte Böckeler at Thoughtworks. We just kept applying it until nothing important was left as prose.</p>
+
+      <div class="pipeline" aria-label="Break fix proof pipeline">
+        <span class="chip break">break</span><span class="arrow">→</span>
+        <span class="chip fail">FAIL</span><span class="arrow">→</span>
+        <span class="chip revert">revert</span><span class="arrow">→</span>
+        <span class="chip pass">PASS</span>
+        <p>A check you've only seen passing proves nothing. Every gate ships with this proof in CI — and the installer runs it on your machine before it will say "done."</p>
+      </div>
+
+      <p class="aside-note">To be clear: this is how we build, not how you should. There are other serious takes on agent reliability worth your time. This is just the one we can vouch for, since we live in it daily.</p>
+    </div>
+  </section>
+
+  <section id="differs" class="band">
+    <div class="wrap">
+      <span class="eyebrow green">$ [2/4] how this approach differs</span>
+      <h2>Six places we chose differently.</h2>
+      <p class="lede">The common patterns exist for good reasons. These are the choices that survived our failures.</p>
+      <div class="diff-list">
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>Rules live in prompts. Compliance is inference.</span></div>
+          <div class="us"><span class="mark">$</span><span>Rules are hooks in the write path. <code>exit 2</code> is a fact.</span></div>
+        </div>
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>Checks are trusted because they pass.</span></div>
+          <div class="us"><span class="mark">$</span><span>Every gate proven <strong>break → FAIL → revert → PASS</strong>, in CI.</span></div>
+        </div>
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>"Verified" means the agent said so.</span></div>
+          <div class="us"><span class="mark">$</span><span><code>WROTE</code> / <code>RAN</code> / <code>OBSERVED</code> — no evidence, no "verified." The commit lint enforces it.</span></div>
+        </div>
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>One session writes the code, the tests, and the approval.</span></div>
+          <div class="us"><span class="mark">$</span><span>Spec-writer writes tests. The implementer can't touch them. The reviewer is a different model.</span></div>
+        </div>
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>One platform. The workflow is the lock-in.</span></div>
+          <div class="us"><span class="mark">$</span><span>One canon generates adapters for opencode, Claude Code, and Codex. Models are swappable.</span></div>
+        </div>
+        <div class="diff-row">
+          <div class="them"><span class="mark">·</span><span>"Self-improving" agents grade their own improvements.</span></div>
+          <div class="us"><span class="mark">$</span><span>The ratchet: tightens automatically, loosens only by recorded human decision.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="inside">
+    <div class="wrap">
+      <span class="eyebrow violet">$ [3/4] what's inside</span>
+      <h2>Small, inspectable, and honest about its own maturity.</h2>
+      <div class="grid3">
+        <div class="cell">
+          <span class="mono-label">scripts/hooks/</span>
+          <h3>Deterministic gates</h3>
+          <p>Test-edit denial, evidence-checking commit lint, decision gate, drift checks — all configured by one flat <span style="font-family:var(--mono)">factory.yaml</span>. Hooks stay byte-identical across adopters; upgrades are file copies.</p>
+        </div>
+        <div class="cell c-blue">
+          <span class="mono-label">.opencode/ · .claude/ · .codex/</span>
+          <h3>Five agent roles</h3>
+          <p>Defined once, generated per harness, separated by permissions the hooks enforce — not by politeness.</p>
+        </div>
+        <div class="cell c-violet">
+          <span class="mono-label">scripts/selftest/</span>
+          <h3>Break/fix proofs</h3>
+          <p>The suite violates each rule on purpose and asserts the gate fires. <span style="font-family:var(--mono)">factory-init</span> won't claim success until it passes on your repo.</p>
+        </div>
+      </div>
+
+      <table aria-label="Language pack maturity">
+        <thead><tr><th>Language pack</th><th>Blessed stack</th><th>Maturity</th></tr></thead>
+        <tbody>
+          <tr><td>Go</td><td>Ginkgo + Gomega · golangci-lint · gosec · govulncheck · gremlins</td><td><span class="badge tested">battle-tested</span></td></tr>
+          <tr><td>TypeScript</td><td>Vitest · ESLint (flat) · Stryker</td><td><span class="badge exp">experimental</span></td></tr>
+          <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ · Checkstyle + ErrorProne · PIT</td><td><span class="badge exp">experimental</span></td></tr>
+        </tbody>
+      </table>
+      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = fixtures only. Labels change on real adoption — not before.</p>
+
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <span class="eyebrow blue">$ [4/4] install</span>
+      <h2>One command in. Proof before "done."</h2>
+      <p class="lede">The installer only fetches — a pinned copy of the template, into one folder. It runs nothing it downloaded. It's also short enough to read first, which we'd recommend on principle.</p>
+      <div class="qs" aria-label="Install commands"><span class="dim"># fetch the template (pinned ref, ~/.software-factory-template)</span>
+<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh
+
+<span class="dim"># then, from the repo you want to govern:</span>
+<span class="prompt">$</span> cd your-project && ~/.software-factory-template/scripts/factory-init.sh
+
+<span class="dim"># rather read before you run? so would we:</span>
+<span class="prompt">$</span> curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh</div>
+      <div class="stats" style="margin-top:16px;">
+        <div class="stat"><div class="n" style="color:var(--blue)">1</div><p>installer fetches a pinned copy — and executes none of it</p></div>
+        <div class="stat"><div class="n" style="color:var(--amber)">2</div><p>factory-init asks a few questions, writes factory.yaml, installs the gates</p></div>
+        <div class="stat"><div class="n" style="color:var(--green)">3</div><p>init breaks a rule on purpose, watches the gate fire, and only then says "done"</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-final">
+    <div class="wrap">
+      <h2>Clone it. Break a rule.<br>Watch the gate fire.</h2>
+      <p>The fastest way to evaluate this template is to try to violate it. That is also the point.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="https://github.com/anoop2811/software-factory-template">View on GitHub</a>
+        <a class="btn" href="https://github.com/anoop2811/software-factory-template/fork">Fork the template</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><span class="fdomain">softwareaifactory<span class="sh">.sh</span></span> · MIT · one team's pattern, offered as-is</span>
+    <span><a href="https://github.com/anoop2811/software-factory-template">github.com/anoop2811/software-factory-template</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var lines = [
+    ["prompt", "$ FACTORY_AGENT_ROLE=implementer \\"],
+    ["prompt", "    ./scripts/hooks/test-edit-denial.sh pkg/parser_test.go"],
+    ["no",     "DENIED: implementer role cannot edit test files (pattern: _test\\.go). Generator/evaluator separation."],
+    ["dim",    "exit code: 2"],
+    ["",       ""],
+    ["prompt", "$ ./scripts/selftest/run.sh"],
+    ["warn",   "[2/4] test-edit-denial"],
+    ["ok",     "  ok: deny implementer on _test.go"],
+    ["ok",     "  ok: deny implementer on .spec.ts (second pattern)"],
+    ["ok",     "  ok: allow spec-writer on test file"],
+    ["warn",   "[4/4] decision-log-gate"],
+    ["ok",     "  ok: protected path without Decision ref fails"],
+    ["ok",     "  ok: protected path with Decision ref passes"],
+    ["",       ""],
+    ["ok",     "selftest: 16 passed, 0 failed"],
+    ["dim",    "exit code: 0"]
+  ];
+  var term = document.getElementById("term");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function render(upTo, partial) {
+    var html = "";
+    for (var i = 0; i < upTo; i++) {
+      var cls = lines[i][0], text = lines[i][1];
+      html += cls ? '<span class="' + cls + '">' + text + "</span>\n" : "\n";
+    }
+    if (partial !== undefined && upTo < lines.length) {
+      var cls2 = lines[upTo][0];
+      var frag = lines[upTo][1].slice(0, partial);
+      html += cls2 ? '<span class="' + cls2 + '">' + frag + "</span>" : frag;
+    }
+    html += '<span class="cursor"></span>';
+    term.innerHTML = html;
+  }
+
+  if (reduced) { render(lines.length); return; }
+
+  var line = 0;
+  function typeLine() {
+    if (line >= lines.length) { render(lines.length); return; }
+    var isCommand = lines[line][0] === "prompt";
+    if (!isCommand) {
+      render(line + 1);
+      line++;
+      setTimeout(typeLine, lines[line - 1][1] === "" ? 120 : 190);
+      return;
+    }
+    var chars = 0, full = lines[line][1].length;
+    (function typeChar() {
+      chars += 2;
+      render(line, chars);
+      if (chars < full) { setTimeout(typeChar, 14); }
+      else { line++; setTimeout(typeLine, 260); }
+    })();
+  }
+  setTimeout(typeLine, 500);
+})();
+</script>
+
+</body>
+</html>

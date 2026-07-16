@@ -1,0 +1,10 @@
+linters:
+  enable:
+    - gosec
+    - govet
+    - staticcheck
+    - revive
+    - gocritic
+    - bodyclose
+    - errorlint
+    - nilerr

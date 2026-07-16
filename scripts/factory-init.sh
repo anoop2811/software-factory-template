@@ -1,0 +1,312 @@
+#!/bin/bash
+set -euo pipefail
+
+# scripts/setup.sh
+# Installs the software factory into an existing project (or a new empty dir).
+#
+# This script:
+#   1. Asks for project-specific values (name, GitHub owner, protected path, etc.)
+#   2. Copies all template files into the target project
+#   3. Substitutes identity/model values in harness configs (opencode
+#      cannot read factory.yaml); enforcement values go to factory.yaml
+#   4. Makes all hook scripts executable
+#   5. Initializes memory/, wiki/, specs/ directories
+#   6. Runs prereq-check.sh
+#
+# Usage:
+#   ./setup.sh /path/to/target-project    # install into existing project
+#   ./setup.sh /path/to/new-project       # create dir and install
+#   ./setup.sh .                           # install into current dir
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+TARGET_DIR="${1:-.}"
+TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || mkdir -p "$TARGET_DIR" && cd "$TARGET_DIR" && pwd)"
+
+# ── Detect the stack (informational; packs are installed explicitly) ──
+DETECTED=""
+[ -f "$TARGET_DIR/go.mod" ] && DETECTED="$DETECTED go"
+[ -f "$TARGET_DIR/package.json" ] && DETECTED="$DETECTED typescript"
+{ [ -f "$TARGET_DIR/pom.xml" ] || [ -f "$TARGET_DIR/build.gradle" ] || [ -f "$TARGET_DIR/build.gradle.kts" ]; } && DETECTED="$DETECTED java"
+
+echo "=== Software Factory Template Setup ==="
+echo "Template dir: $TEMPLATE_DIR"
+echo "Target dir:   $TARGET_DIR"
+if [ -n "$DETECTED" ]; then echo "Detected stack(s):$DETECTED — install the matching packs/ after init"; fi
+echo ""
+
+# ── Collect project-specific values ──────────────────────────────────
+read -rp "Project name (e.g., MyProject): " PROJECT_NAME
+read -rp "Project slug — lowercase, for paths (e.g., myproject): " PROJECT_SLUG
+read -rp "GitHub owner for CODEOWNERS (e.g., @yourname): " GITHUB_OWNER
+read -rp "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
+read -rp "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
+read -rp "Blueprint/spec source dir (or leave empty if none): " BLUEPRINT_DIR
+read -rp "Citation prefix for spec docs (e.g., ${PROJECT_SLUG^^}_ or leave empty): " CITATION_PREFIX
+read -rp "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
+read -rp "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
+read -rp "Go version for CI (e.g., 1.26): " GO_VERSION
+
+# Defaults
+DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
+FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
+GO_VERSION="${GO_VERSION:-1.26}"
+CITATION_PREFIX="${CITATION_PREFIX:-SPEC_}"
+
+echo ""
+echo "=== Summary ==="
+echo "  Project name:     $PROJECT_NAME"
+echo "  Project slug:     $PROJECT_SLUG"
+echo "  GitHub owner:     $GITHUB_OWNER"
+echo "  Protected path:   $PROTECTED_PATH"
+echo "  Blueprint dir:    ${BLUEPRINT_DIR:-none}"
+echo "  Citation prefix:  $CITATION_PREFIX"
+echo "  Default model:    $DEFAULT_MODEL"
+echo "  Frontier model:   $FRONTIER_MODEL"
+echo "  Go version:       $GO_VERSION"
+echo ""
+read -rp "Proceed? (y/N): " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy] ]]; then
+  echo "Aborted."
+  exit 1
+fi
+
+# ── Write factory.yaml (Decision 2: runtime config, not substitution) ──
+echo ""
+echo "Writing factory.yaml..."
+cat > "$TARGET_DIR/factory.yaml" <<FACTORYEOF
+# Software Factory configuration. Flat key: value only — one value per line.
+# Lists are space-separated. Parsed by scripts/lib/config.sh. See Decision 2
+# in the template's docs/DECISION_LOG.md.
+project_name: $PROJECT_SLUG
+decision_log: docs/DECISION_LOG.md
+docs_root: ${BLUEPRINT_DIR:-docs}
+citation_prefix: "$CITATION_PREFIX"
+protected_paths: "$PROTECTED_PATH"
+test_file_patterns: ""
+language_packs: ""
+check_command: ""
+FACTORYEOF
+echo "  wrote: factory.yaml (arm test_file_patterns/check_command via a language pack)"
+
+# ── Backup existing files ─────────────────────────────────────────────
+echo ""
+echo "Backing up existing files..."
+
+BACKUP_SUFFIX=".factory-backup.$(date +%Y%m%d%H%M%S)"
+BACKED_UP=0
+
+backup_file() {
+  local file="$1"
+  if [ -f "$file" ] && [ -s "$file" ]; then
+    cp "$file" "${file}${BACKUP_SUFFIX}"
+    echo "  backed up: $file -> $(basename "$file")${BACKUP_SUFFIX}"
+    BACKED_UP=$((BACKED_UP + 1))
+  fi
+}
+
+# Files that would be overwritten by cp (not merged)
+BACKUP_FILES=(
+  "$TARGET_DIR/opencode.json"
+  "$TARGET_DIR/AGENTS.md"
+  "$TARGET_DIR/Makefile"
+  "$TARGET_DIR/.golangci.yml"
+  "$TARGET_DIR/.gitignore"
+  "$TARGET_DIR/.github/CODEOWNERS"
+  "$TARGET_DIR/.github/workflows/ci.yml"
+  "$TARGET_DIR/docs/FACTORY_RULES.md"
+  "$TARGET_DIR/README.md"
+  "$TARGET_DIR/.opencode/plugin/factory-hooks.ts"
+  "$TARGET_DIR/.opencode/package.json"
+)
+
+for FILE in "${BACKUP_FILES[@]}"; do
+  backup_file "$FILE"
+done
+
+# Hook scripts: back up any that already exist (cp overwrites individual files)
+for FILE in "$TARGET_DIR/scripts/hooks/"*.sh; do
+  [ -f "$FILE" ] && backup_file "$FILE"
+done
+
+for FILE in "$TARGET_DIR/.opencode/agent/"*.md; do
+  [ -f "$FILE" ] && backup_file "$FILE"
+done
+
+for FILE in "$TARGET_DIR/.codex/agents/"*.toml "$TARGET_DIR/.codex/config.toml"; do
+  [ -f "$FILE" ] && backup_file "$FILE"
+done
+
+if [ "$BACKED_UP" -gt 0 ]; then
+  echo "  ($BACKED_UP file(s) backed up with suffix ${BACKUP_SUFFIX})"
+else
+  echo "  (no existing files to back up)"
+fi
+
+# ── Copy template files ──────────────────────────────────────────────
+echo ""
+echo "Copying template files..."
+
+# Directories to create
+mkdir -p "$TARGET_DIR/.opencode/plugin"
+mkdir -p "$TARGET_DIR/.opencode/agent"
+mkdir -p "$TARGET_DIR/.codex/agents"
+mkdir -p "$TARGET_DIR/scripts/hooks"
+mkdir -p "$TARGET_DIR/.github/workflows"
+mkdir -p "$TARGET_DIR/docs/adr"
+mkdir -p "$TARGET_DIR/memory/lessons"
+mkdir -p "$TARGET_DIR/wiki"
+mkdir -p "$TARGET_DIR/specs"
+mkdir -p "$TARGET_DIR/eval/golden-tasks"
+mkdir -p "$TARGET_DIR/eval/results"
+
+# Copy files (using cp -r for directories, cp for files)
+cp "$TEMPLATE_DIR/scripts/hooks/"*.sh "$TARGET_DIR/scripts/hooks/"
+cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/scripts/sync-claude.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/scripts/sync-codex.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/scripts/harness-structural-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/scripts/citation-lint.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/.opencode/plugin/factory-hooks.ts" "$TARGET_DIR/.opencode/plugin/"
+cp "$TEMPLATE_DIR/.opencode/agent/"*.md "$TARGET_DIR/.opencode/agent/"
+cp "$TEMPLATE_DIR/.opencode/package.json" "$TARGET_DIR/.opencode/"
+cp "$TEMPLATE_DIR/.opencode/.gitignore" "$TARGET_DIR/.opencode/"
+cp "$TEMPLATE_DIR/.codex/config.toml" "$TARGET_DIR/.codex/"
+cp "$TEMPLATE_DIR/.codex/agents/"*.toml "$TARGET_DIR/.codex/agents/"
+cp "$TEMPLATE_DIR/opencode.json" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/AGENTS.md" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/Makefile" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/.golangci.yml" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/.gitignore" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/.github/CODEOWNERS" "$TARGET_DIR/.github/"
+cp "$TEMPLATE_DIR/.github/workflows/ci.yml" "$TARGET_DIR/.github/workflows/"
+cp "$TEMPLATE_DIR/docs/FACTORY_RULES.md" "$TARGET_DIR/docs/"
+cp "$TEMPLATE_DIR/memory/lessons/001-verification-contract.md" "$TARGET_DIR/memory/lessons/"
+cp "$TEMPLATE_DIR/README.md" "$TARGET_DIR/"
+
+# Copy specs template if it exists
+cp "$TEMPLATE_DIR/specs/TEMPLATE.md" "$TARGET_DIR/specs/" 2>/dev/null || true
+
+# ── Substitute placeholders ───────────────────────────────────────────
+echo "Substituting placeholders..."
+
+# Build the citation prefix uppercase (e.g., MYPROJECT_)
+CITATION_PREFIX_UPPER=$(echo "$PROJECT_SLUG" | tr '[:lower:]' '[:upper:]')_
+
+# Files to substitute
+SUBSTITUTE_FILES=(
+  "$TARGET_DIR/opencode.json"
+  "$TARGET_DIR/AGENTS.md"
+  "$TARGET_DIR/Makefile"
+  "$TARGET_DIR/.github/CODEOWNERS"
+  "$TARGET_DIR/.github/workflows/ci.yml"
+  "$TARGET_DIR/.opencode/plugin/factory-hooks.ts"
+  "$TARGET_DIR/.opencode/agent/spec-writer.md"
+  "$TARGET_DIR/.opencode/agent/implementer.md"
+  "$TARGET_DIR/.opencode/agent/refactorer.md"
+  "$TARGET_DIR/.opencode/agent/wiki-maintainer.md"
+  "$TARGET_DIR/.opencode/agent/reviewer.md"
+  "$TARGET_DIR/scripts/hooks/test-edit-denial.sh"
+  "$TARGET_DIR/scripts/hooks/loop-close-check.sh"
+  "$TARGET_DIR/scripts/hooks/hook-existence-check.sh"
+  "$TARGET_DIR/scripts/hooks/shared-script-enforcement.sh"
+  "$TARGET_DIR/scripts/hooks/commit-message-lint.sh"
+  "$TARGET_DIR/scripts/hooks/diff-aware-check.sh"
+  "$TARGET_DIR/scripts/hooks/decision-log-gate.sh"
+  "$TARGET_DIR/scripts/hooks/ginkgo-only-check.sh"
+  "$TARGET_DIR/scripts/hooks/direct-main-push-block.sh"
+  "$TARGET_DIR/scripts/citation-lint.sh"
+  "$TARGET_DIR/scripts/sync-claude.sh"
+  "$TARGET_DIR/scripts/sync-codex.sh"
+  "$TARGET_DIR/scripts/harness-structural-eval.sh"
+  "$TARGET_DIR/scripts/prereq-check.sh"
+  "$TARGET_DIR/scripts/pre-push-check.sh"
+  "$TARGET_DIR/.codex/config.toml"
+  "$TARGET_DIR/.codex/agents/implementer.toml"
+  "$TARGET_DIR/.codex/agents/refactorer.toml"
+  "$TARGET_DIR/.codex/agents/reviewer.toml"
+  "$TARGET_DIR/.codex/agents/spec-writer.toml"
+  "$TARGET_DIR/.codex/agents/wiki-maintainer.toml"
+  "$TARGET_DIR/docs/FACTORY_RULES.md"
+  "$TARGET_DIR/memory/lessons/001-verification-contract.md"
+  "$TARGET_DIR/README.md"
+)
+
+for FILE in "${SUBSTITUTE_FILES[@]}"; do
+  if [ -f "$FILE" ]; then
+    sed -i.bak \
+      -e "s|__PROJECT_NAME__|$PROJECT_NAME|g" \
+      -e "s|__PROJECT_SLUG__|$PROJECT_SLUG|g" \
+      -e "s|__GITHUB_OWNER__|$GITHUB_OWNER|g" \
+      -e "s|__OPENCODE_USERNAME__|$OPENCODE_USERNAME|g" \
+      -e "s|__DEFAULT_MODEL__|$DEFAULT_MODEL|g" \
+      -e "s|__FRONTIER_MODEL__|$FRONTIER_MODEL|g" \
+      "$FILE"
+    rm -f "$FILE.bak"
+  fi
+done
+
+# ── Make scripts executable ───────────────────────────────────────────
+echo "Making scripts executable..."
+chmod +x "$TARGET_DIR/scripts/hooks/"*.sh
+chmod +x "$TARGET_DIR/scripts/prereq-check.sh"
+chmod +x "$TARGET_DIR/scripts/golden-task-eval.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/sync-claude.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/sync-codex.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/harness-structural-eval.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/citation-lint.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
+
+# ── Create factory.config ────────────────────────────────────────────
+cat > "$TARGET_DIR/factory.config" <<EOF
+# factory.config — project-specific values for the software factory
+# Generated by setup.sh. Edit and re-run setup.sh to update.
+PROJECT_NAME="$PROJECT_NAME"
+PROJECT_SLUG="$PROJECT_SLUG"
+GITHUB_OWNER="$GITHUB_OWNER"
+OPENCODE_USERNAME="$OPENCODE_USERNAME"
+PROTECTED_PATH="$PROTECTED_PATH"
+BLUEPRINT_DIR="$BLUEPRINT_DIR"
+CITATION_PREFIX="$CITATION_PREFIX_UPPER"
+DEFAULT_MODEL="$DEFAULT_MODEL"
+FRONTIER_MODEL="$FRONTIER_MODEL"
+GO_VERSION="$GO_VERSION"
+EOF
+
+# ── Install opencode plugin deps ─────────────────────────────────────
+echo ""
+echo "Installing opencode plugin dependencies..."
+if [ -f "$TARGET_DIR/.opencode/package.json" ]; then
+  (cd "$TARGET_DIR/.opencode" && npm install 2>/dev/null || echo "  npm install failed — run manually in .opencode/")
+fi
+
+# ── Done ─────────────────────────────────────────────────────────────
+echo ""
+echo "=== Setup complete ==="
+echo ""
+echo "Next steps:"
+echo "  1. Run prereq-check:    ./scripts/prereq-check.sh"
+echo "  2. Sync adapters:       make sync-harnesses"
+echo "  3. Start opencode:      opencode"
+echo "  4. Review AGENTS.md and edit the Project section for your project"
+echo "  5. Add your protected code to $PROTECTED_PATH/"
+echo "  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push"
+echo ""
+echo "factory.config saved — re-run setup.sh to update placeholders."
+
+# ── Post-install attestation (Verification Contract rule 3) ───────────
+# The installer does not say "done" — it proves the installed gates fire.
+echo ""
+echo "=== Post-install attestation: break/fix self-test of installed gates ==="
+if (cd "$TARGET_DIR" && ./scripts/selftest/run.sh); then
+  echo ""
+  echo "factory-init: gates proven. Install a language pack (packs/) to arm"
+  echo "test_file_patterns and check_command, then commit."
+else
+  echo ""
+  echo "factory-init: INSTALL NOT VERIFIED — a gate failed its break/fix proof."
+  echo "Do not rely on enforcement until this passes."
+  exit 1
+fi

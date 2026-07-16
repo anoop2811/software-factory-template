@@ -1,0 +1,28 @@
+# Go pack Makefile targets — merged into the adopter's Makefile by
+# factory-init. Requires the Go pack's blessed stack (pack.yaml).
+
+.PHONY: test lint sec mutate
+
+test:
+	go test -race -v ./...
+
+lint:
+	golangci-lint run ./...
+	./scripts/hooks/ginkgo-only-check.sh
+
+sec:
+	gosec ./...
+	govulncheck ./...
+
+# Mutation testing: scope to your highest-stakes package(s), not ./... —
+# whole-repo mutation runs are slow enough that they stop being run.
+mutate:
+	@echo "Set a target package first, e.g.: gremlins unleash ./internal/<core>/..."
+
+# Extend the core `check` target:
+check: test lint sec citation-hooks
+
+citation-hooks:
+	./scripts/citation-lint.sh
+	./scripts/hooks/shared-script-enforcement.sh
+	./scripts/hooks/hook-existence-check.sh

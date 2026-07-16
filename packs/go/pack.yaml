@@ -1,0 +1,20 @@
+# Go language pack — maturity: battle-tested
+# (a production service shipped under this exact stack and gate set).
+#
+# factory-init merges these keys into the adopter's factory.yaml and copies
+# the pack's files into place. One blessed stack per language (Decision 3):
+# Ginkgo v2 + Gomega tests, golangci-lint, gosec, govulncheck, gremlins.
+#
+# Versions are resolved by factory-init against each tool's release page at
+# install time — never pinned here from memory (they would rot).
+
+pack_name: go
+maturity: battle-tested
+test_file_patterns: "_test\\.go([^[:alnum:]_]|$)"
+check_command: "make check"
+
+# Files installed by factory-init:
+#   .golangci.yml        -> repository root
+#   hooks/ginkgo-only-check.sh -> scripts/hooks/ (enforces the blessed test stack)
+#   workflows/ci.yml     -> .github/workflows/ci.yml (lint, sec, vuln, test, gates)
+#   Makefile.pack        -> merged into the adopter's Makefile

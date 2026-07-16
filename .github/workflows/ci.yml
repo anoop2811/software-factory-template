@@ -1,0 +1,65 @@
+name: Template CI
+
+# The template's own factory: every gate it ships is proven here by
+# break/fix self-tests (scripts/selftest/run.sh) — a check that has only
+# ever been seen passing is unverified.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Break/fix self-tests (every gate proven)
+        run: ./scripts/selftest/run.sh
+
+      - name: Structural harness eval (adapter wiring proven)
+        run: make eval
+
+      - name: Shell syntax
+        run: |
+          find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          find scripts -name '*.sh' -print0 | xargs -0 shellcheck -S warning -x
+
+      - name: Set up Go (for pinned actionlint)
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: actionlint
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
+
+      - name: hook-existence-check
+        run: ./scripts/hooks/hook-existence-check.sh
+
+      - name: commit-message-lint (PR range)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_SHA" 2>/dev/null || true
+          for sha in $(git rev-list "$BASE_SHA..HEAD"); do
+            ./scripts/hooks/commit-message-lint.sh "$sha"
+          done
+
+      - name: decision-log-gate (PR range)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/hooks/decision-log-gate.sh "$BASE_SHA" HEAD

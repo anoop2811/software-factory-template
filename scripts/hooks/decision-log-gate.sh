@@ -107,6 +107,21 @@ for sha in $COMMITS; do
   # Check if the commit message references a Decision number
   MESSAGE=$(git log --format='%B' -1 "$sha")
   if echo "$MESSAGE" | grep -qiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+|ADR-[0-9]+|decision.log'; then
+    # A reference is not enough: numbered Decisions must exist in the log.
+    MISSING=0
+    if [ -f "$DECISION_LOG" ]; then
+      for NUM in $(echo "$MESSAGE" | grep -oiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+' | grep -oE '[0-9]+' | sort -u); do
+        if ! grep -qE "^## Decision $NUM\b" "$DECISION_LOG"; then
+          echo "DECISION-LOG-GATE FAIL: commit $short references Decision $NUM,"
+          echo "  but $DECISION_LOG has no '## Decision $NUM' entry. Record it first."
+          MISSING=1
+        fi
+      done
+    fi
+    if [ "$MISSING" -ne 0 ]; then
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
     echo "decision-log-gate: OK $short (governance paths changed, Decision ref found)"
     continue
   fi

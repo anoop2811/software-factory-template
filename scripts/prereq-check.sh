@@ -56,7 +56,8 @@ check() {
 }
 
 check_go() {
-  local min_version="$(factory_config_get go_min_version)"
+  local min_version
+  min_version="$(factory_config_get go_min_version)"
   if [ -z "$min_version" ]; then
     echo "  skip: no go_min_version in factory.yaml (no Go pack installed)"
     return 0

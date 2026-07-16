@@ -117,6 +117,12 @@ git -C "$GATE_DIR" commit -q --amend -m "feat: touch protected path
 Implements Decision 1."
 check "protected path with Decision ref passes" 0 \
   "$(cd "$GATE_DIR" && run_status "$TEMPLATE_ROOT/scripts/hooks/decision-log-gate.sh" "$BASE_SHA" HEAD)"
+# BREAK: referencing a Decision that is not in the log must fail.
+git -C "$GATE_DIR" commit -q --amend -m "feat: touch protected path
+
+Implements Decision 99."
+check "reference to absent Decision fails" 1 \
+  "$(cd "$GATE_DIR" && run_status "$TEMPLATE_ROOT/scripts/hooks/decision-log-gate.sh" "$BASE_SHA" HEAD)"
 unset FACTORY_CONFIG
 
 echo ""

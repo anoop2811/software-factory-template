@@ -213,3 +213,36 @@ with nothing new exposed. An adopter who wants a dedicated address can set one.
 
 Provenance: founder direction, 2026-07-16 — make the repository welcoming to
 contributions with the docs a strong open-source project carries.
+
+## Decision 12 (2026-07-17): The Java/Spring Boot pack reaches Go parity on a modernized, verified stack
+
+What: The `java` pack now ships the same class of artifacts the Go pack does —
+a CI workflow (`workflows/ci.yml`), a root config the adopter applies
+(`quality.gradle`), `Makefile.pack` targets, and a dialect gate
+(`hooks/junit5-only-check.sh`, with a break/fix fixture in the selftest). The
+blessed stack named in Decision 3 is amended to the current best-of-breed,
+all open-source and verified 2026-07-17 against each tool's release page:
+Spotless 8.8.0 + palantir-java-format 2.96.0 (replacing Checkstyle — auto-fix
+over nagging), Error Prone 2.50.0, SpotBugs 6.5.x + find-sec-bugs 1.14.0,
+OSV-Scanner (replacing OWASP Dependency-Check — the `govulncheck` analog, no
+NVD API key), PIT 1.19.0 + pitest-junit5-plugin 1.2.2, and Testcontainers 2.x
+added for real integration tests. `factory-init` gained a JDK-version prompt,
+a generalized pack-file copy, and — fixing a latent bug that affected the Go
+pack too — substitution of `__PROTECTED_PATH__` in the installed pack workflow.
+
+Why: a pack that reads as using dated tooling undercuts the template's whole
+claim. Checkstyle-for-formatting and OWASP Dependency-Check are still fine but
+carry friction (manual style rules; an NVD API key and CPE false positives)
+that the modern equivalents remove. Every version was resolved against the
+tool's release page rather than from memory, per the project's standing rule.
+The stack now lines up category-for-category with Go (format, correctness,
+security, deps, mutation), so the two packs are conceptually one design.
+
+Honesty: the `java` pack stays `experimental`. The label tracks adoption, not
+completeness — the full stack and CI ship, but no real repository has adopted
+it, so it cannot claim more. This refines Decision 3's gloss ("fixtures only")
+which no longer fits a complete-but-unadopted pack.
+
+Provenance: founder direction, 2026-07-17 — build the Java pack to Go parity,
+and first confirm the tools are current best-of-breed and open-source, not
+dated. Versions verified via each tool's release page, 2026-07-17.

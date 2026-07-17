@@ -51,9 +51,9 @@ The second idea is the Verification Contract: only claim what you've observed. T
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins | battle-tested |
 | TypeScript | Vitest, ESLint flat config, Stryker | experimental |
-| Java / Spring Boot | JUnit 5 + AssertJ, Checkstyle + ErrorProne, PIT | experimental |
+| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless, Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT | experimental |
 
-Labels are evidence, not roadmap: battle-tested means a real project shipped under the pack, beta means at least one real repo adopted it, experimental means only fixtures exist.
+Labels are evidence, not roadmap: battle-tested means a real project shipped under the pack, beta means at least one real repo adopted it, experimental means no proven adopter yet (the stack may ship complete, as Java's does — the label tracks adoption, not completeness).
 
 ## Documentation
 

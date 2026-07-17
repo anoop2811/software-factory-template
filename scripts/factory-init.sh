@@ -76,11 +76,13 @@ ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION
 ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
 ask "Go version for CI (e.g., 1.26): " GO_VERSION
+ask "Java (JDK) version for CI (e.g., 25): " JAVA_VERSION
 
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
 FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
 GO_VERSION="${GO_VERSION:-1.26}"
+JAVA_VERSION="${JAVA_VERSION:-25}"
 CITATION_PREFIX="${CITATION_PREFIX:-SPEC_}"
 
 echo ""
@@ -94,6 +96,7 @@ echo "  Citation prefix:  $CITATION_PREFIX"
 echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
 echo "  Go version:       $GO_VERSION"
+echo "  Java version:     $JAVA_VERSION"
 echo ""
 ask "Proceed? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy] ]]; then
@@ -311,6 +314,7 @@ CITATION_PREFIX="$CITATION_PREFIX_UPPER"
 DEFAULT_MODEL="$DEFAULT_MODEL"
 FRONTIER_MODEL="$FRONTIER_MODEL"
 GO_VERSION="$GO_VERSION"
+JAVA_VERSION="$JAVA_VERSION"
 EOF
 
 # ── Install opencode plugin deps ─────────────────────────────────────
@@ -378,17 +382,25 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
     set_factory_key language_packs "$PACK"
     echo "  armed factory.yaml: test_file_patterns, check_command (maturity: $P_MATURITY)"
 
-    # Copy pack-specific files that exist (Go ships these; TS/Java do not yet).
-    if [ -f "$PACK_DIR/.golangci.yml" ]; then
-      cp "$PACK_DIR/.golangci.yml" "$TARGET_DIR/"
-      echo "  copied: .golangci.yml"
-    fi
+    # Copy pack root files that land at the repository root (Go's .golangci.yml,
+    # Java's quality.gradle). pack.yaml is metadata and is not shipped.
+    for pf in "$PACK_DIR"/*; do
+      [ -f "$pf" ] || continue
+      case "$(basename "$pf")" in
+        pack.yaml) continue ;;
+      esac
+      cp "$pf" "$TARGET_DIR/"
+      echo "  copied: $(basename "$pf")"
+    done
     if [ -d "$PACK_DIR/hooks" ]; then
       cp "$PACK_DIR/hooks/"*.sh "$TARGET_DIR/scripts/hooks/" 2>/dev/null && \
         chmod +x "$TARGET_DIR/scripts/hooks/"*.sh && echo "  copied: pack hooks"
     fi
     if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
-      sed "s|__GO_VERSION__|$GO_VERSION|g" "$PACK_DIR/workflows/ci.yml" \
+      sed -e "s|__GO_VERSION__|$GO_VERSION|g" \
+          -e "s|__JAVA_VERSION__|$JAVA_VERSION|g" \
+          -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
+        "$PACK_DIR/workflows/ci.yml" \
         > "$TARGET_DIR/.github/workflows/${PACK}-pack.yml"
       echo "  installed: .github/workflows/${PACK}-pack.yml"
     fi
@@ -398,10 +410,20 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
       printf 'go_min_version: "%s"\n' "$GO_VERSION" >> "$TARGET_DIR/factory.yaml"
       echo "  set: go_min_version"
     fi
+    P_JMIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get java_min_version')"
+    if [ -n "$P_JMIN" ]; then
+      printf 'java_min_version: "%s"\n' "$JAVA_VERSION" >> "$TARGET_DIR/factory.yaml"
+      echo "  set: java_min_version"
+    fi
 
     if [ "$P_MATURITY" != "battle-tested" ]; then
-      echo "  NOTE: '$PACK' is experimental — test patterns and check command are"
-      echo "        armed, but no linter/CI stack configs ship for this pack yet."
+      if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
+        echo "  NOTE: '$PACK' is $P_MATURITY — the full stack and CI ship, but no"
+        echo "        real repository has adopted it yet. Report back if you do."
+      else
+        echo "  NOTE: '$PACK' is $P_MATURITY — test patterns and check command are"
+        echo "        armed, but no linter/CI stack configs ship for this pack yet."
+      fi
     fi
   fi
 fi

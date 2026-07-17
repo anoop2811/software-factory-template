@@ -77,12 +77,14 @@ ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
 ask "Go version for CI (e.g., 1.26): " GO_VERSION
 ask "Java (JDK) version for CI (e.g., 25): " JAVA_VERSION
+ask "Node.js version for CI (e.g., 24): " NODE_VERSION
 
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
 FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
+NODE_VERSION="${NODE_VERSION:-24}"
 CITATION_PREFIX="${CITATION_PREFIX:-SPEC_}"
 
 echo ""
@@ -97,6 +99,7 @@ echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
 echo "  Go version:       $GO_VERSION"
 echo "  Java version:     $JAVA_VERSION"
+echo "  Node version:     $NODE_VERSION"
 echo ""
 ask "Proceed? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy] ]]; then
@@ -315,6 +318,7 @@ DEFAULT_MODEL="$DEFAULT_MODEL"
 FRONTIER_MODEL="$FRONTIER_MODEL"
 GO_VERSION="$GO_VERSION"
 JAVA_VERSION="$JAVA_VERSION"
+NODE_VERSION="$NODE_VERSION"
 EOF
 
 # ── Install opencode plugin deps ─────────────────────────────────────
@@ -404,6 +408,7 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
     if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
       sed -e "s|__GO_VERSION__|$GO_VERSION|g" \
           -e "s|__JAVA_VERSION__|$JAVA_VERSION|g" \
+          -e "s|__NODE_VERSION__|$NODE_VERSION|g" \
           -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
         "$PACK_DIR/workflows/ci.yml" \
         > "$TARGET_DIR/.github/workflows/${PACK}-pack.yml"
@@ -419,6 +424,11 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
     if [ -n "$P_JMIN" ]; then
       printf 'java_min_version: "%s"\n' "$JAVA_VERSION" >> "$TARGET_DIR/factory.yaml"
       echo "  set: java_min_version"
+    fi
+    P_NMIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get node_min_version')"
+    if [ -n "$P_NMIN" ]; then
+      printf 'node_min_version: "%s"\n' "$NODE_VERSION" >> "$TARGET_DIR/factory.yaml"
+      echo "  set: node_min_version"
     fi
 
     if [ "$P_MATURITY" != "battle-tested" ]; then

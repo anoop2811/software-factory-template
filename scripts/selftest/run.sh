@@ -158,6 +158,20 @@ if [ -x "$JUNIT_HOOK" ]; then
     "$(run_status "$JUNIT_HOOK" "$JSAND")"
 fi
 
+# Break/fix: the TypeScript pack's vitest-only-check must reject a non-Vitest
+# test framework import and accept a Vitest one.
+VITEST_HOOK="$TEMPLATE_ROOT/packs/typescript/hooks/vitest-only-check.sh"
+if [ -x "$VITEST_HOOK" ]; then
+  VSAND="$SANDBOX/vitest"
+  mkdir -p "$VSAND/src"
+  printf "import { describe } from 'jest';\n" > "$VSAND/src/app.test.ts"
+  check "vitest-only-check rejects non-Vitest import" 1 \
+    "$(run_status "$VITEST_HOOK" "$VSAND")"
+  printf "import { describe } from 'vitest';\n" > "$VSAND/src/app.test.ts"
+  check "vitest-only-check accepts Vitest" 0 \
+    "$(run_status "$VITEST_HOOK" "$VSAND")"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

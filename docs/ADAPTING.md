@@ -59,14 +59,14 @@ The core — the Verification Contract, agent roles, harness canon and adapters,
 | Pack | Stack | Maturity |
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins (mutation) | battle-tested |
-| TypeScript | Vitest, ESLint flat config, Stryker (mutation) | experimental |
+| TypeScript | Vitest, Biome (format + lint), tsc, Stryker (mutation), OSV-Scanner | experimental |
 | Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation) | experimental |
 
 The labels mean:
 
 - **battle-tested** — a real project shipped under this pack. The Go pack built a production service; its hooks (`ginkgo-only-check.sh`, for one) have caught real drift.
 - **beta** — at least one real repository has adopted it, nothing has shipped under it yet.
-- **experimental** — no proven adopter yet. The stack may ship complete — Java's does, with CI, formatter, and gates — but the label tracks adoption, not completeness. Treat its choices as proposals.
+- **experimental** — no proven adopter yet. The stack may ship complete — Java's and TypeScript's do, with CI, formatter, and gates — but the label tracks adoption, not completeness. Treat its choices as proposals.
 
 A label changes only on evidence: a pack moves up when a real project adopts it, not when its fixtures pass.
 

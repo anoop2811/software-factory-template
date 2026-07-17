@@ -16,6 +16,8 @@ Usage: factory <command> [args]
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
+  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
+              touches your factory.yaml, content, or customized files
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
   help        Show this message
@@ -30,6 +32,7 @@ CMD="${1:-help}"
 case "$CMD" in
   init)     SCRIPT="$DIR/scripts/factory-init.sh" ;;
   doctor)   SCRIPT="$DIR/scripts/factory-doctor.sh" ;;
+  upgrade)  SCRIPT="$DIR/scripts/factory-upgrade.sh" ;;
   check)    SCRIPT="$DIR/scripts/pre-push-check.sh" ;;
   selftest) SCRIPT="$DIR/scripts/selftest/run.sh" ;;
   help|-h|--help) usage; exit 0 ;;

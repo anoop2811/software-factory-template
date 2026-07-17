@@ -172,6 +172,21 @@ if [ -x "$VITEST_HOOK" ]; then
     "$(run_status "$VITEST_HOOK" "$VSAND")"
 fi
 
+# Break/fix: wiki-lint requires provenance on every content page.
+WIKI_HOOK="$HOOKS/wiki-lint.sh"
+if [ -x "$WIKI_HOOK" ]; then
+  WLWIKI="$SANDBOX/wl/wiki"
+  mkdir -p "$WLWIKI"
+  WLCFG="$SANDBOX/wl/factory.yaml"
+  printf 'wiki_root: %s\n' "$WLWIKI" > "$WLCFG"
+  printf '# Page\nA claim with no source.\n' > "$WLWIKI/page.md"
+  check "wiki-lint rejects a page without provenance" 1 \
+    "$(FACTORY_CONFIG="$WLCFG" run_status "$WIKI_HOOK")"
+  printf '# Page\nA claim. Source: pkg/thing.go:3\n' > "$WLWIKI/page.md"
+  check "wiki-lint accepts a cited page" 0 \
+    "$(FACTORY_CONFIG="$WLCFG" run_status "$WIKI_HOOK")"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

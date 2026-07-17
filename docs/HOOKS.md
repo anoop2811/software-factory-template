@@ -201,3 +201,25 @@ $ echo $?
 ```
 
 Two deliberate defaults: an unset or non-implementer role allows (a missing env var must not block the spec-writer, whose job is writing tests), and empty `test_file_patterns` disables the check entirely.
+
+## wiki-lint.sh
+
+The "lint" operation of the LLM-maintained wiki pattern (raw sources → agent-written wiki → lint). An agent can write a wiki fast but won't reliably keep every page cited and every cross-reference real; this gate does. Ingest and query are the model's job — lint is the deterministic control that keeps the result honest.
+
+**Fires when:** CI and `make check`, every commit; also surfaced by `factory doctor`. Skips (with a note) when there are no wiki content pages — a wiki with only its index/README has nothing to lint.
+
+**Exit codes:** 0 pass or skip, 1 a page lacks provenance or a link doesn't resolve.
+
+**Configuration:** reads `wiki_root` from `factory.yaml` (default `wiki`).
+
+v1 enforces two invariants on every content page (the index/README are exempt):
+- **Provenance** — each page cites a source: a `file:line` reference, a URL with a date, or `observed YYYY-MM-DD`.
+- **Live cross-references** — every wiki-local markdown link and `[[wikilink]]` resolves to a file that exists.
+
+```
+WIKI-LINT FAIL: wiki/store.md has no provenance — cite a source (file:line, a URL with a date, or 'observed YYYY-MM-DD')
+WIKI-LINT FAIL: wiki/api.md links to a missing page: store.md
+wiki-lint: 2 problem(s) found
+```
+
+Orphan detection and source-drift/staleness are planned (Decision 15). This is what makes `wiki/README.md`'s "lint-gated at merge" a fact rather than a convention.

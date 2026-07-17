@@ -13,6 +13,7 @@ check: selftest
 	./scripts/citation-lint.sh
 	./scripts/hooks/shared-script-enforcement.sh
 	./scripts/hooks/hook-existence-check.sh
+	./scripts/hooks/wiki-lint.sh
 
 prereq-check:
 	./scripts/prereq-check.sh

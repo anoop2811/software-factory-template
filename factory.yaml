@@ -12,3 +12,4 @@ protected_paths: "scripts/hooks scripts/lib .github/workflows AGENTS.md"
 test_file_patterns: ""
 language_packs: ""
 check_command: "./scripts/selftest/run.sh"
+wiki_root: wiki

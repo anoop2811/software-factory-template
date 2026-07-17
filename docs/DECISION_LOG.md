@@ -305,3 +305,29 @@ even then the hooks stay shell and the binary stays optional.
 
 Provenance: founder question — do we need a Go CLI instead of Makefile
 commands? — 2026-07-17.
+
+## Decision 15 (2026-07-17): wiki-lint operationalizes the LLM-maintained wiki pattern
+
+What: `scripts/hooks/wiki-lint.sh` enforces the "lint" operation of the
+LLM-maintained wiki pattern (raw sources -> agent-written wiki -> lint). v1
+requires every `wiki/` content page to carry provenance (a `file:line`
+citation, a URL with a date, or `observed YYYY-MM-DD`) and every wiki-local
+markdown link and `[[wikilink]]` to resolve. It reads `wiki_root` from
+`factory.yaml` (default `wiki`), skips when there is no wiki, and runs in CI,
+`make check`, and `factory doctor` with a break/fix fixture in the self-test.
+Orphan detection and source-drift/staleness are planned v2.
+
+Why: an agent can write a wiki quickly but cannot be trusted to keep every page
+cited and every cross-reference real — so an LLM-maintained wiki is only
+trustworthy if a deterministic gate makes a dishonest page fail the build. That
+gate is the template's whole thesis applied to knowledge: ingest and query are
+the model's job, lint is ours. Until this shipped, `wiki/README.md` claimed
+pages were "lint-gated at merge" with nothing enforcing it — an overclaim this
+decision removes by making it true. The pattern is Karpathy's LLM-wiki; we do
+not advertise its benefit on the landing page until the lint that earns the
+claim is in place.
+
+Provenance: founder direction, 2026-07-17 — actually use the wiki pattern for
+adopter projects, not just ship an empty folder and a role prompt. Pattern:
+Andrej Karpathy's LLM-wiki gist (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f,
+read 2026-07-17).

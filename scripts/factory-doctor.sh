@@ -52,6 +52,7 @@ PP="$(factory_config_get protected_paths)"
 DL="$(factory_config_get decision_log)"
 LP="$(factory_config_get language_packs)"
 DR="$(factory_config_get docs_root)"
+WR="$(factory_config_get wiki_root wiki)"
 
 echo
 echo "Gates"
@@ -110,6 +111,13 @@ if [ -d .opencode/plugin ]; then
   armed "shared-script-enforce  adapters must call scripts/hooks, not reimplement them"
 else
   inert "shared-script-enforce  no .opencode/plugin present"
+fi
+
+# wiki-lint (the LLM-wiki pattern's lint operation)
+if [ -d "$WR" ] && find "$WR" -type f -name '*.md' ! -name 'README.md' ! -name 'INDEX.md' 2>/dev/null | grep -q .; then
+  armed "wiki-lint              every wiki/ content page must cite a source and resolve its links"
+else
+  inert "wiki-lint              no wiki content pages yet (wiki_root: $WR)"
 fi
 
 # pack dialect gate (only when a pack is installed)

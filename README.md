@@ -12,7 +12,7 @@
 ```bash
 # one shot — fetch, then set up the current repo:
 cd your-project
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go
 ```
 
 The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?

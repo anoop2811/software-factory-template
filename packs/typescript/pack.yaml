@@ -8,8 +8,8 @@
 
 pack_name: typescript
 maturity: experimental
-test_file_patterns: "\\.test\\.[jt]sx?$ \\.spec\\.[jt]sx?$"
-check_command: "npm run check"
+test_file_patterns: "\.test\.[jt]sx?$ \.spec\.[jt]sx?$"
+check_command: "npm test"
 
 # Planned files (not yet present — see docs/DECISION_LOG.md Decision 3):
 #   eslint.config.js, vitest.config.ts, workflows/ci.yml, Makefile.pack

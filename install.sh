@@ -33,7 +33,7 @@ FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 DO_INIT=0
 case "${1:-}" in
-  init) DO_INIT=1 ;;
+  init) DO_INIT=1; shift ;;   # remaining args (e.g. --pack go) pass to factory-init
   "") : ;;
   *)
     printf '%s\n' "install: unknown argument '$1' (did you mean 'init'?)" >&2
@@ -77,4 +77,5 @@ say "install: running factory-init against the current directory:"
 say "    $TARGET_DIR"
 say ""
 # factory-init reads its prompts from /dev/tty, so it works through the pipe.
-exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR"
+# Any remaining args (e.g. --pack go) pass straight through.
+exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"

@@ -122,6 +122,7 @@ protected_paths: "$PROTECTED_PATH"
 test_file_patterns: ""
 language_packs: ""
 check_command: ""
+wiki_root: wiki
 FACTORYEOF
 echo "  wrote: factory.yaml (arm test_file_patterns/check_command via a language pack)"
 
@@ -191,6 +192,7 @@ mkdir -p "$TARGET_DIR/.github/workflows"
 mkdir -p "$TARGET_DIR/docs/adr"
 mkdir -p "$TARGET_DIR/memory/lessons"
 mkdir -p "$TARGET_DIR/wiki"
+cp "$TEMPLATE_DIR/wiki/README.md" "$TARGET_DIR/wiki/" 2>/dev/null || true
 mkdir -p "$TARGET_DIR/specs"
 mkdir -p "$TARGET_DIR/eval/golden-tasks"
 mkdir -p "$TARGET_DIR/eval/results"

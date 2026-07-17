@@ -54,6 +54,9 @@ jobs:
       - name: citation-lint
         run: ./scripts/citation-lint.sh
 
+      - name: wiki-lint
+        run: ./scripts/hooks/wiki-lint.sh
+
       - name: vitest-only-check
         run: ./scripts/hooks/vitest-only-check.sh
 

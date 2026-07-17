@@ -50,6 +50,9 @@ jobs:
       - name: hook-existence-check
         run: ./scripts/hooks/hook-existence-check.sh
 
+      - name: wiki-lint
+        run: ./scripts/hooks/wiki-lint.sh
+
       - name: commit-message-lint (PR range)
         if: github.event_name == 'pull_request'
         env:

@@ -52,6 +52,9 @@ jobs:
       - name: citation-lint
         run: ./scripts/citation-lint.sh
 
+      - name: wiki-lint
+        run: ./scripts/hooks/wiki-lint.sh
+
       - name: ginkgo-only-check
         run: ./scripts/hooks/ginkgo-only-check.sh
 

@@ -18,6 +18,10 @@
 
 If the self-test fails, the installation is not successful, and factory-init says so.
 
+## factory doctor
+
+`./factory doctor` reports the health of an installed factory at any time — not just at install. It classifies every gate as **armed** (configured and live), **inert** (present but not yet configured — e.g. no `citation_prefix`), or **stale** (a verification claim has expired); checks that every hook and generated adapter is intact and that `protected_paths` are covered by CODEOWNERS; then runs the same break/fix self-test so you watch each armed gate fire. It exits non-zero on real breakage (a missing hook, adapter drift, a failing proof); inert gates are a choice, not a fault. The `factory` command is a plain-shell dispatcher — `factory init | doctor | check | selftest` — nothing compiled, nothing to install.
+
 ## factory.yaml reference
 
 Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no nesting; lists are space-separated on one line; values may be double-quoted; a trailing `# comment` is stripped. Anything more expressive belongs in a hook, not in configuration.
@@ -77,9 +81,11 @@ A label changes only on evidence: a pack moves up when a real project adopts it,
 3. When you split agent roles (spec-writer vs implementer), set `test_file_patterns` to arm generator/evaluator separation.
 4. When your specs cite a docs tree, set `citation_prefix` and `docs_root` to arm citation linting.
 
+Run `./factory doctor` between each step: what it reports as **inert** is exactly your remaining checklist, and what it reports as **armed** is proven live.
+
 ## Upgrading
 
-Hooks read `factory.yaml` instead of containing substituted values, so an upgrade is: copy the new `scripts/hooks/`, `scripts/lib/`, and workflow files over yours, review the diff (they're governance-sensitive paths — the decision-log gate will remind you), and re-run the break/fix self-test. Your `factory.yaml` is untouched.
+Hooks read `factory.yaml` instead of containing substituted values, so an upgrade is: copy the new `scripts/hooks/`, `scripts/lib/`, and workflow files over yours, review the diff (they're governance-sensitive paths — the decision-log gate will remind you), and re-run the break/fix self-test. Your `factory.yaml` is untouched. Then `./factory doctor` to confirm every gate is armed and live.
 
 ## Writing your own hooks
 

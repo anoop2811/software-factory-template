@@ -28,7 +28,7 @@ TARGET_ARG="."
 PACKS=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --pack) PACKS="$PACKS ${2:-}"; shift 2 ;;
+    --pack) PACKS="$PACKS ${2:-}"; if [ $# -ge 2 ]; then shift 2; else shift; fi ;;
     --pack=*) PACKS="$PACKS ${1#*=}"; shift ;;
     *) TARGET_ARG="$1"; shift ;;
   esac
@@ -399,6 +399,7 @@ if [ -n "${PACKS// /}" ]; then
   # shellcheck disable=SC2086  # PACKS is a space-separated list — split on purpose.
   for PACK in $PACKS; do
     [ "$PACK" = "none" ] && continue
+    case " $INSTALLED " in *" $PACK "*) continue ;; esac   # dedupe repeats
     PACK_DIR="$TEMPLATE_DIR/packs/$PACK"
     if [ ! -f "$PACK_DIR/pack.yaml" ]; then
       echo "factory-init: unknown pack '$PACK' (have: go typescript java). Skipping."

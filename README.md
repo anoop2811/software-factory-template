@@ -23,6 +23,13 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 
 `factory-init.sh` detects your stack, writes `factory.yaml`, installs the hooks, then runs a break/fix self-test so you watch a gate fire before it declares success. Afterward, try pushing straight to `main`, or committing with the message `fix: verified the thing`. Both get blocked. That's the product.
 
+## Getting started
+
+1. Read [docs/CONCEPTS.md](docs/CONCEPTS.md) (~5 min) — why the gates exist.
+2. Run `factory-init` in your repo to install the hooks and prove they fire.
+3. Read [docs/ADAPTING.md](docs/ADAPTING.md) "Adopting incrementally" to arm gates one at a time.
+4. Open [docs/HOOKS.md](docs/HOOKS.md) when a gate blocks you and you want to know why.
+
 ## The idea
 
 A prompt that says "never edit test files" is a request an agent may or may not honor. A shell hook that exits 2 on the edit is a fact. Put the control in a hook, not in the prompt — that principle is due to Birgitte Böckeler (Thoughtworks), and this template applies it to commit discipline, push gates, role separation, and citation integrity.
@@ -55,6 +62,9 @@ Labels are evidence, not roadmap: battle-tested means a real project shipped und
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like
 - [docs/PATTERNS.md](docs/PATTERNS.md) — failure patterns we hit in practice, and the fixes
 - [docs/FACTORY_RULES.md](docs/FACTORY_RULES.md) — the operational rulebook agents read
+- [docs/GLOSSARY.md](docs/GLOSSARY.md) — terms defined
+- [specs/TEMPLATE.md](specs/TEMPLATE.md) — a spec template to copy
+- [eval/README.md](eval/README.md) — how the template evaluates agent quality
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md)
 
 ## License

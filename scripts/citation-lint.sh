@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/config.sh
 . "$SCRIPT_DIR/lib/config.sh"
 
-BLUEPRINT_DIR="$(factory_config_get docs_root)"
+DOCS_ROOT="$(factory_config_get docs_root)"
 CITATION_PREFIX="$(factory_config_get citation_prefix)"
 ERRORS=0
 
@@ -24,8 +24,8 @@ if [ -z "$CITATION_PREFIX" ]; then
   exit 0
 fi
 
-if [ -z "$BLUEPRINT_DIR" ] || [ ! -d "$BLUEPRINT_DIR" ]; then
-  echo "citation-lint: docs_root ($BLUEPRINT_DIR) not found — skipping"
+if [ -z "$DOCS_ROOT" ] || [ ! -d "$DOCS_ROOT" ]; then
+  echo "citation-lint: docs_root ($DOCS_ROOT) not found — skipping"
   exit 0
 fi
 
@@ -53,11 +53,11 @@ for CITATION in $CITATIONS; do
   FILE=$(echo "$CITATION" | cut -d: -f1)
   LINE=$(echo "$CITATION" | cut -d: -f2)
 
-  # Find the file in the blueprint
-  FOUND=$(find "$BLUEPRINT_DIR" -name "$FILE" -print -quit 2>/dev/null || true)
+  # Find the file in the docs_root
+  FOUND=$(find "$DOCS_ROOT" -name "$FILE" -print -quit 2>/dev/null || true)
 
   if [ -z "$FOUND" ]; then
-    echo "CITATION-LINT FAIL: $CITATION — file not found in $BLUEPRINT_DIR/"
+    echo "CITATION-LINT FAIL: $CITATION — file not found in $DOCS_ROOT/"
     ERRORS=$((ERRORS + 1))
     continue
   fi

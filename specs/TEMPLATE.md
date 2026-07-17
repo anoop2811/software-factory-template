@@ -31,7 +31,7 @@ How does this work? Include:
 - API surface (function signatures)
 - Error handling strategy
 
-Cite the formal spec for every claim: `// per spec.md:L42`
+Cite your spec source for every claim, by file and line: `// per docs/SPEC.md:L42`
 
 ## 4. Acceptance criteria
 

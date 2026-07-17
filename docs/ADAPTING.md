@@ -33,6 +33,20 @@ Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no 
 | `language_packs` | Space-separated list of active packs. | `go` |
 | `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"make check"` |
 
+A complete `factory.yaml` for an HTTP API project, using the template's own real keys:
+
+```yaml
+project_name: billing-api
+decision_log: docs/DECISION_LOG.md
+docs_root: docs
+citation_prefix: ""
+protected_paths: "internal/billing scripts/hooks .github/workflows"
+test_file_patterns: "_test\.go$"
+check_command: "make check"
+```
+
+Every key is optional in the sense that an empty value disables the gate it arms — `citation_prefix: ""` above turns citation linting off, and a blank `test_file_patterns` would turn off the test-edit denial.
+
 Two boundaries worth stating plainly:
 
 - **`factory.yaml` is configuration, not policy.** A change that weakens what a hook enforces — removing a protected path, blanking `test_file_patterns` — is a governance change, and your review should treat it as one. The decision-log gate treats `factory.yaml` itself as governance-sensitive.
@@ -69,4 +83,11 @@ Hooks read `factory.yaml` instead of containing substituted values, so an upgrad
 
 ## Writing your own hooks
 
-Drop a script in `scripts/hooks/`, register it in `hook-existence-check.sh`, and ship it with a break/fix fixture proving it catches the defect it exists for. `docs/examples/hooks/field-coverage-check.sh` is the worked example of the pattern; see [HOOKS.md](HOOKS.md).
+A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the worked example of the whole pattern; see [HOOKS.md](HOOKS.md).
+
+1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then `factory_config_get <key>` — the same way every shipped hook reads `factory.yaml`, so your gate stays byte-identical across adopters too.
+2. **Register it** in `scripts/hooks/hook-existence-check.sh`, so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net).
+3. **Add a break/fix case** to `scripts/selftest/run.sh`: introduce the exact violation, assert the gate fires, revert, assert it passes. A gate you have only watched pass proves nothing.
+4. **Wire it into CI** so the gate runs on every pull request, not just locally.
+
+For a spec to write your gates against, `specs/TEMPLATE.md` is a spec template to copy. For how the template measures agent quality end to end, see [eval/README.md](../eval/README.md).

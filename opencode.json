@@ -19,7 +19,7 @@
       "*": "ask"
     },
     "external_directory": {
-      "__BLUEPRINT_DIR__/**": "allow",
+      "__DOCS_ROOT__/**": "allow",
       "*": "ask"
     }
   },
@@ -27,9 +27,9 @@
     "paths": [".opencode/skills"]
   },
   "references": {
-    "blueprint": {
-      "path": "__BLUEPRINT_DIR__",
-      "description": "The __PROJECT_NAME__ spec source — immutable docs. Source of truth for all product decisions."
+    "spec": {
+      "path": "__DOCS_ROOT__",
+      "description": "The __PROJECT_NAME__ spec source — immutable docs. Source of truth for all decisions."
     }
   },
   "agent": {
@@ -52,7 +52,7 @@
       "permission": { "edit": "ask", "bash": "ask" }
     },
     "wiki-maintainer": {
-      "description": "Reads raw/ sources and writes wiki/ pages. Supervised — every edit is a PR and requires human review.",
+      "description": "Reads your spec source and writes wiki/ pages. Supervised — every edit is a PR and requires human review.",
       "mode": "subagent",
       "model": "__DEFAULT_MODEL__",
       "permission": { "edit": "ask", "bash": "deny" }

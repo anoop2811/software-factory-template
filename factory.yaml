@@ -13,3 +13,4 @@ test_file_patterns: ""
 language_packs: ""
 check_command: "./scripts/selftest/run.sh"
 wiki_root: wiki
+wiki_staleness: false

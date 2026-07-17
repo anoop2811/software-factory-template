@@ -123,6 +123,7 @@ test_file_patterns: ""
 language_packs: ""
 check_command: ""
 wiki_root: wiki
+wiki_staleness: false
 FACTORYEOF
 echo "  wrote: factory.yaml (arm test_file_patterns/check_command via a language pack)"
 

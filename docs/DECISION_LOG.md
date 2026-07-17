@@ -356,3 +356,26 @@ safely upgrade itself mid-run.
 
 Provenance: founder request — do we need a way to upgrade the template in an
 existing repo? — 2026-07-17.
+
+## Decision 17 (2026-07-17): wiki-lint v2 — reachability and opt-in freshness
+
+What: `wiki-lint` gains the two checks deferred from Decision 15, completing
+Karpathy's "lint" operation. **Reachability** (always on when an index exists):
+every content page must be linked from some other wiki page, or it is an
+orphan and fails. It is gated on the presence of a `README.md`/`INDEX.md` so an
+index-less wiki has no false positives. **Freshness** (opt-in via
+`wiki_staleness: true`, default false): a content page whose cited source file
+has a newer last-commit time than the page itself is flagged stale. Both ship
+with break/fix fixtures (the staleness one drives git commit timestamps), and
+`factory doctor` reports the mode.
+
+Why: an orphaned page is knowledge nothing can reach — the compounding graph
+has a hole. And a page whose source moved on is the "contradiction" Karpathy's
+lint is meant to catch; making it fail forces a re-review, the same discipline
+the Verification Contract applies to claims. Staleness is opt-in because it is
+the most aggressive check — it fires on every source change until the page is
+re-touched — so a team enables it deliberately. Reachability is gated on an
+index so it never punishes a wiki that has not adopted one.
+
+Provenance: founder direction, 2026-07-17 — build the deferred wiki-lint v2
+(orphan detection + source-drift/staleness).

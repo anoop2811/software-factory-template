@@ -203,6 +203,7 @@ cp "$TEMPLATE_DIR/scripts/hooks/"*.sh "$TARGET_DIR/scripts/hooks/"
 cp "$TEMPLATE_DIR/scripts/lib/config.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
 cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -219,6 +220,7 @@ cp "$TEMPLATE_DIR/.codex/agents/"*.toml "$TARGET_DIR/.codex/agents/"
 cp "$TEMPLATE_DIR/opencode.json" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/AGENTS.md" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/Makefile" "$TARGET_DIR/"
+cp "$TEMPLATE_DIR/factory" "$TARGET_DIR/" && chmod +x "$TARGET_DIR/factory"
 cp "$TEMPLATE_DIR/.gitignore" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/.github/CODEOWNERS" "$TARGET_DIR/.github/"
 cp "$TEMPLATE_DIR/.github/workflows/ci.yml" "$TARGET_DIR/.github/workflows/"
@@ -283,6 +285,7 @@ for FILE in "${SUBSTITUTE_FILES[@]}"; do
       -e "s|__PROJECT_SLUG__|$PROJECT_SLUG|g" \
       -e "s|__GITHUB_OWNER__|$GITHUB_OWNER|g" \
       -e "s|__OPENCODE_USERNAME__|$OPENCODE_USERNAME|g" \
+      -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
       -e "s|__DEFAULT_MODEL__|$DEFAULT_MODEL|g" \
       -e "s|__FRONTIER_MODEL__|$FRONTIER_MODEL|g" \
       "$FILE"
@@ -300,6 +303,7 @@ chmod +x "$TARGET_DIR/scripts/sync-codex.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/harness-structural-eval.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/citation-lint.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/factory-doctor.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/.githooks/pre-push" 2>/dev/null || true
 
@@ -339,6 +343,7 @@ echo "  3. Start opencode:      opencode"
 echo "  4. Review AGENTS.md and edit the Project section for your project"
 echo "  5. Add your protected code to $PROTECTED_PATH/"
 echo "  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push"
+echo "  7. Check health anytime: ./factory doctor"
 echo ""
 echo "factory.config saved — re-run setup.sh to update placeholders."
 

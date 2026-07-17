@@ -31,11 +31,13 @@ jobs:
       - name: Shell syntax
         run: |
           find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          bash -n factory
 
       - name: shellcheck
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q shellcheck
           find scripts -name '*.sh' -print0 | xargs -0 shellcheck -S warning -x
+          shellcheck -S warning -x factory
 
       - name: Set up Go (for pinned actionlint)
         uses: actions/setup-go@v6

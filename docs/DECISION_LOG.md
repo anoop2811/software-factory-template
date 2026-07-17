@@ -331,3 +331,28 @@ Provenance: founder direction, 2026-07-17 — actually use the wiki pattern for
 adopter projects, not just ship an empty folder and a role prompt. Pattern:
 Andrej Karpathy's LLM-wiki gist (https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f,
 read 2026-07-17).
+
+## Decision 16 (2026-07-17): `factory upgrade` — framework-only, report the rest
+
+What: `factory upgrade [--ref <tag>] [--source <dir>]` re-fetches the template
+and refreshes the byte-identical framework files an adopter already has — the
+hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and
+installed pack dialect hooks. It never introduces new files, never touches
+`factory.yaml`, the adopter's content (`wiki/` pages, `memory/lessons/`,
+`specs/`, `docs/DECISION_LOG.md`), or their code, and never overwrites
+identity/customizable files (`opencode.json`, agent prompts, `AGENTS.md`,
+`README.md`, `CODEOWNERS`, `Makefile`) — it *reports* which of those differ from
+upstream so the adopter reconciles them. It records `.factory-version`, runs
+`factory doctor`, and leaves everything as an uncommitted diff for review.
+
+Why: Decision 2 (runtime config) is what makes this safe — the hooks carry no
+placeholders, so refreshing them is a byte-identical copy, and `factory.config`
+holds the substitution values if a future version needs them. Framework-only is
+the conservative default: it can update where behaviour lives (the gates)
+without any chance of clobbering an adopter's customizations. Full
+re-substitution of identity files was considered and deferred; framework-only +
+report never destroys work. The copy is an atomic rename, so the upgrader can
+safely upgrade itself mid-run.
+
+Provenance: founder request — do we need a way to upgrade the template in an
+existing repo? — 2026-07-17.

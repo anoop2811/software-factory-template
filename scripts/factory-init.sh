@@ -206,6 +206,7 @@ cp "$TEMPLATE_DIR/scripts/lib/config.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
 cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/factory-upgrade.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -306,6 +307,7 @@ chmod +x "$TARGET_DIR/scripts/harness-structural-eval.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/citation-lint.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-doctor.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/factory-upgrade.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/.githooks/pre-push" 2>/dev/null || true
 

@@ -85,7 +85,14 @@ Run `./factory doctor` between each step: what it reports as **inert** is exactl
 
 ## Upgrading
 
-Hooks read `factory.yaml` instead of containing substituted values, so an upgrade is: copy the new `scripts/hooks/`, `scripts/lib/`, and workflow files over yours, review the diff (they're governance-sensitive paths — the decision-log gate will remind you), and re-run the break/fix self-test. Your `factory.yaml` is untouched. Then `./factory doctor` to confirm every gate is armed and live.
+```bash
+./factory upgrade            # pull framework updates over this repo
+./factory upgrade --ref v1.2 # or pin a specific template ref
+```
+
+`factory upgrade` re-fetches the template and refreshes the byte-identical framework files you already have — the hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and any installed pack dialect hooks. This is safe precisely because of Decision 2: the hooks contain no substituted values, so refreshing them is a clean copy.
+
+It **never** touches your `factory.yaml`, your content (`wiki/` pages, `memory/lessons/`, `specs/`, `docs/DECISION_LOG.md`), or your code, and it **never overwrites** your identity/customizable files (`opencode.json`, the agent prompts, `AGENTS.md`, `README.md`, `CODEOWNERS`, `Makefile`) — it only *reports* which of those differ from upstream, so you decide whether to adopt the change. It records the version in `.factory-version`, runs `factory doctor`, and leaves everything as an uncommitted diff. Review it (the changed hooks are governance-sensitive — the decision-log gate will remind you), then commit.
 
 ## Writing your own hooks
 

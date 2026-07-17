@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '__NODE_VERSION__'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Biome (format + lint)
+        run: npx @biomejs/biome@2.5.4 ci .
+
+      - name: Types (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Tests (Vitest)
+        run: npx vitest run
+
+      - name: Mutation testing (scoped in stryker.config.json)
+        run: npx -p @stryker-mutator/core@9.6.1 -p @stryker-mutator/vitest-runner@9.6.1 stryker run
+        continue-on-error: true
+
+      - name: OSV-Scanner (dependency CVEs)
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
+        with:
+          scan-args: |-
+            --recursive
+            ./
+
+      - name: actionlint
+        run: actionlint
+
+      - name: citation-lint
+        run: ./scripts/citation-lint.sh
+
+      - name: vitest-only-check
+        run: ./scripts/hooks/vitest-only-check.sh
+
+      - name: shared-script-enforcement
+        run: ./scripts/hooks/shared-script-enforcement.sh
+
+      - name: hook-existence-check
+        run: ./scripts/hooks/hook-existence-check.sh
+
+      - name: diff-aware-check
+        run: ./scripts/hooks/diff-aware-check.sh origin/${{ github.base_ref || 'main' }} HEAD
+
+      - name: decision-log-gate
+        if: github.event_name == 'pull_request'
+        run: ./scripts/hooks/decision-log-gate.sh origin/${{ github.base_ref }} ${{ github.event.pull_request.head.sha }}
+
+      - name: pending-lessons-push-block
+        run: ./scripts/hooks/pending-lessons-push-block.sh
+
+      - name: commit-message-lint
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "$BASE" 2>/dev/null || true
+          for sha in $(git rev-list "$BASE..$HEAD_SHA"); do
+            echo "--- $sha ---"
+            ./scripts/hooks/commit-message-lint.sh "$sha"
+          done
+
+      - name: Claude config drift check
+        run: |
+          chmod +x scripts/sync-claude.sh
+          make sync-claude
+          if ! git diff --quiet .claude/ .mcp.json; then
+            echo "DRIFT: Claude config does not match opencode.json sync output."
+            echo "Run 'make sync-claude' locally and commit the changes."
+            git diff --stat .claude/ .mcp.json
+            exit 1
+          fi
+
+      - name: Codex config drift check
+        run: |
+          chmod +x scripts/sync-codex.sh
+          make sync-codex
+          if ! git diff --quiet .codex/; then
+            echo "DRIFT: Codex config does not match canonical opencode role sources."
+            echo "Run 'make sync-codex' locally and commit the changes."
+            git diff --stat .codex/
+            exit 1
+          fi
+
+      - name: Harness structural parity
+        run: |
+          ./scripts/harness-structural-eval.sh --harness=opencode
+          ./scripts/harness-structural-eval.sh --harness=claude
+          ./scripts/harness-structural-eval.sh --harness=codex
+
+  golden-task-eval:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '__NODE_VERSION__'
+
+      - name: Golden-task evals
+        run: ./scripts/golden-task-eval.sh --harness=opencode
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

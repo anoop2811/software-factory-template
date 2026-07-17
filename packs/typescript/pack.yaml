@@ -1,15 +1,31 @@
 # TypeScript/JavaScript language pack — maturity: experimental
-# (no real repository has adopted this pack yet; the label changes to beta
-# on first real adoption, per Decision 3. Claiming more would be a claim
-# without observation.)
+# (the full stack and CI now ship, but no real repository has adopted this
+# pack yet; the label changes to beta on first real adoption, per Decision 3
+# and Decision 13.)
 #
-# Blessed stack: Vitest, ESLint (flat config) + typescript-eslint,
-# osv-scanner, Stryker for mutation testing.
+# Blessed stack — one per language (Decision 3), verified current 2026-07-17
+# against each tool's release page (re-check before adoption; pinned so a
+# compromised @latest can't enter the gate path):
+#   Format + lint: Biome 2.5.4 (one fast tool, replaces ESLint + Prettier)
+#   Types:         tsc --noEmit (your project's TypeScript — the type ground truth)
+#   Tests:         Vitest 4.1.10
+#   Mutation:      Stryker 9.6.1 + @stryker-mutator/vitest-runner
+#   Dependencies:  OSV-Scanner (osv.dev) — the govulncheck analog, shared with the Java pack
+# Package manager: npm. Node.js 24 (Active LTS).
+#
+# Recommended devDependencies for local dev (CI pins these itself via npx):
+#   @biomejs/biome@2.5.4  vitest@4.1.10  typescript
+#   @stryker-mutator/core@9.6.1  @stryker-mutator/vitest-runner@9.6.1
 
 pack_name: typescript
 maturity: experimental
 test_file_patterns: "\.test\.[jt]sx?$ \.spec\.[jt]sx?$"
-check_command: "npm test"
+check_command: "npx @biomejs/biome ci . && npx tsc --noEmit && npx vitest run && ./scripts/hooks/vitest-only-check.sh"
 
-# Planned files (not yet present — see docs/DECISION_LOG.md Decision 3):
-#   eslint.config.js, vitest.config.ts, workflows/ci.yml, Makefile.pack
+# Files installed by factory-init:
+#   biome.json                  -> repository root (format + lint config)
+#   stryker.config.json         -> repository root (mutation config, vitest runner)
+#   hooks/vitest-only-check.sh  -> scripts/hooks/ (enforces the Vitest dialect)
+#   workflows/ci.yml            -> .github/workflows/typescript-pack.yml
+#                                  (format, types, tests, mutation, deps, gates)
+node_min_version: "24"

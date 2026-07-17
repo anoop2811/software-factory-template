@@ -1,0 +1,37 @@
+# TypeScript pack Makefile targets — merged into the adopter's Makefile by
+# factory-init. Requires Node.js and the TypeScript pack's blessed stack
+# (pack.yaml). Tools are pinned at the npx call so a compromised @latest can't
+# enter the gate path.
+
+.PHONY: format lint types test sec mutate
+
+format:
+	npx @biomejs/biome@2.5.4 format --write .
+
+lint:
+	npx @biomejs/biome@2.5.4 ci .
+	./scripts/hooks/vitest-only-check.sh
+
+types:
+	npx tsc --noEmit
+
+test:
+	npx vitest run
+
+sec:
+	@command -v osv-scanner >/dev/null 2>&1 \
+		&& osv-scanner scan source -r . \
+		|| echo "osv-scanner not installed locally — CI runs it (osv.dev)"
+
+# Mutation testing: scope `mutate` in stryker.config.json to your highest-stakes
+# module(s) first — a whole-app run is slow enough to get skipped.
+mutate:
+	npx -p @stryker-mutator/core@9.6.1 -p @stryker-mutator/vitest-runner@9.6.1 stryker run
+
+# Extend the core `check` target:
+check: lint types test sec citation-hooks
+
+citation-hooks:
+	./scripts/citation-lint.sh
+	./scripts/hooks/shared-script-enforcement.sh
+	./scripts/hooks/hook-existence-check.sh

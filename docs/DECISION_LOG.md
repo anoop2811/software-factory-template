@@ -246,3 +246,33 @@ which no longer fits a complete-but-unadopted pack.
 Provenance: founder direction, 2026-07-17 — build the Java pack to Go parity,
 and first confirm the tools are current best-of-breed and open-source, not
 dated. Versions verified via each tool's release page, 2026-07-17.
+
+## Decision 13 (2026-07-17): The TypeScript pack reaches Go/Java parity on a Biome-centered stack
+
+What: The `typescript` pack now ships the same class of artifacts as the Go and
+Java packs — a CI workflow, root config (`biome.json`, `stryker.config.json`),
+`Makefile.pack`, and a dialect gate (`hooks/vitest-only-check.sh`, with a
+break/fix fixture in the selftest). The blessed stack named in Decision 3 is
+amended to the current best-of-breed, all open-source and verified 2026-07-17:
+Biome 2.5.4 (format + lint in one fast tool, replacing ESLint + Prettier),
+`tsc --noEmit` for type correctness (the adopter's own TypeScript), Vitest
+4.1.10, Stryker 9.6.1 with the Vitest runner, and OSV-Scanner for dependency
+CVEs (shared with the Java pack). Package manager is npm; Node.js 24 (Active
+LTS). `factory-init` gained a Node-version prompt and `__NODE_VERSION__`
+substitution.
+
+Why: Biome collapses formatting and linting into one Rust tool that is 25-35x
+faster than ESLint + Prettier and needs no separate formatter — the same
+"auto-fix over nagging, one tool" move the Java pack made with Spotless. `tsc`
+stays the type ground truth. CI pins each tool at its `npx` call so a
+compromised `@latest` cannot enter the gate path, and the pack lines up
+category-for-category with Go and Java (format, types/correctness, tests,
+mutation, deps), making the three packs one design.
+
+Honesty: the `typescript` pack stays `experimental` — the full stack ships but
+no real repository has adopted it, per the label semantics clarified in
+Decision 12.
+
+Provenance: founder direction, 2026-07-17 — build the TypeScript pack to
+parity on the absolute-best toolchain, choosing Biome and npm. Versions
+verified via each tool's release page, 2026-07-17.

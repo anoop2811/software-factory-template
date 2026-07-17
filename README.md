@@ -13,6 +13,9 @@
 # one shot — fetch, then set up the current repo:
 cd your-project
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go
+
+# polyglot? pass several — e.g. a Go backend with a TypeScript frontend:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typescript
 ```
 
 The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?

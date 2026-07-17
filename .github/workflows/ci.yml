@@ -50,6 +50,9 @@ jobs:
       - name: hook-existence-check
         run: ./scripts/hooks/hook-existence-check.sh
 
+      - name: copy-manifest-check
+        run: ./scripts/hooks/copy-manifest-check.sh
+
       - name: wiki-lint
         run: ./scripts/hooks/wiki-lint.sh
 

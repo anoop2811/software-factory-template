@@ -400,3 +400,25 @@ git at CI time, with a break/fix fixture.
 
 Provenance: founder bug report, 2026-07-17 — a live `curl … | sh -s -- init
 --pack go` aborted copying `.opencode/package.json`.
+
+## Decision 19 (2026-07-17): factory-init installs multiple packs and only asks for relevant versions
+
+What: `factory-init` accepts more than one language pack — `--pack go,typescript`
+(comma-separated) or a repeated `--pack` — because real apps are polyglot (a Go
+backend, a React/TypeScript frontend). Packs are selected before the version
+prompts, and only the versions the selected packs need are asked (a Go-only
+install no longer prompts for a JDK or Node version). Multiple packs merge
+cleanly: `test_file_patterns` becomes the union, `check_command` the packs'
+checks joined with `&&`, and each pack's root config, dialect hook, per-language
+CI workflow, and version key install side by side. `language_packs` records the
+space-separated set.
+
+Why: the single-pack model forced a false choice on any multi-language repo and
+asked for versions of languages the project doesn't use — a confusing, sloppy
+first impression. The data model already allowed it (`language_packs` was always
+space-separated); only the installer lagged. Merging by union/`&&` means the
+test-edit hook denies test files in every selected language and the diff-aware
+check runs every language's suite.
+
+Provenance: founder question — a Go backend with a React/TS frontend still gets
+asked for Java and Node versions; how do we handle polyglot? — 2026-07-17.

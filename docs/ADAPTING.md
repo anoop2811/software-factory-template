@@ -60,6 +60,8 @@ Two boundaries worth stating plainly:
 
 The core — the Verification Contract, agent roles, harness canon and adapters, the commit/decision/push gates — is language-agnostic. Packs carry the stack opinions: one blessed stack per language, no alternatives matrix. A template that supports everything enforces nothing.
 
+Real apps are often polyglot, so `factory-init` takes more than one pack — `--pack go,typescript` (comma-separated) or a repeated `--pack`. It asks only for the versions the selected packs need, and merges them: `test_file_patterns` becomes the union, `check_command` the packs' checks joined with `&&`, and each pack's config, dialect hook, and CI workflow install side by side.
+
 | Pack | Stack | Maturity |
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins (mutation) | battle-tested |

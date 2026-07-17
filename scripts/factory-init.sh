@@ -21,16 +21,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Parse args: an optional target dir (first non-flag) and --pack <lang>.
+# Parse args: an optional target dir (first non-flag) and one or more packs.
+# Packs may be comma-separated (--pack go,typescript) or repeated (--pack go
+# --pack typescript) — real apps are polyglot (a Go backend, a TS frontend).
 TARGET_ARG="."
-PACK=""
+PACKS=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --pack) PACK="${2:-}"; shift 2 ;;
-    --pack=*) PACK="${1#*=}"; shift ;;
+    --pack) PACKS="$PACKS ${2:-}"; shift 2 ;;
+    --pack=*) PACKS="$PACKS ${1#*=}"; shift ;;
     *) TARGET_ARG="$1"; shift ;;
   esac
 done
+PACKS="$(printf '%s' "$PACKS" | tr ',' ' ')"
 
 TARGET_DIR="$TARGET_ARG"
 # Resolve to an absolute path, creating the directory if it does not exist.
@@ -75,9 +78,21 @@ ask "Spec/docs source dir (or leave empty if none): " DOCS_ROOT
 ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
 ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
-ask "Go version for CI (e.g., 1.26): " GO_VERSION
-ask "Java (JDK) version for CI (e.g., 25): " JAVA_VERSION
-ask "Node.js version for CI (e.g., 24): " NODE_VERSION
+# Pick language pack(s) before asking versions, so we only ask for the versions
+# the selected packs actually need.
+if [ -z "${PACKS// /}" ] && [ -r /dev/tty ] && [ -t 1 ]; then
+  echo ""
+  echo "Language pack(s) — arm test patterns + check command (space-separated):"
+  echo "  go          battle-tested"
+  echo "  typescript  experimental"
+  echo "  java        experimental"
+  ask "Pack(s)? [go typescript java / none]: " PACKS
+  PACKS="$(printf '%s' "$PACKS" | tr ',' ' ')"
+fi
+
+case " $PACKS " in *" go "*) ask "Go version for CI (e.g., 1.26): " GO_VERSION ;; esac
+case " $PACKS " in *" java "*) ask "Java (JDK) version for CI (e.g., 25): " JAVA_VERSION ;; esac
+case " $PACKS " in *" typescript "*) ask "Node.js version for CI (e.g., 24): " NODE_VERSION ;; esac
 
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
@@ -97,9 +112,10 @@ echo "  Docs source:      ${DOCS_ROOT:-none}"
 echo "  Citation prefix:  $CITATION_PREFIX"
 echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
-echo "  Go version:       $GO_VERSION"
-echo "  Java version:     $JAVA_VERSION"
-echo "  Node version:     $NODE_VERSION"
+echo "  Language pack(s): $([ -n "${PACKS// /}" ] && printf '%s' "$PACKS" | sed 's/^ *//' || echo none)"
+case " $PACKS " in *" go "*) echo "  Go version:       $GO_VERSION" ;; esac
+case " $PACKS " in *" java "*) echo "  Java version:     $JAVA_VERSION" ;; esac
+case " $PACKS " in *" typescript "*) echo "  Node version:     $NODE_VERSION" ;; esac
 echo ""
 ask "Proceed? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy] ]]; then
@@ -372,34 +388,36 @@ set_factory_key() {
   printf '%s' "$out" > "$file"
 }
 
-if [ -z "$PACK" ] && [ -r /dev/tty ] && [ -t 1 ]; then
-  echo ""
-  echo "Language pack (arms test patterns + check command):"
-  echo "  go          battle-tested"
-  echo "  typescript  experimental"
-  echo "  java        experimental"
-  ask "Install a pack? [go/typescript/java/none]: " PACK
-fi
+pack_config() {  # read one key from a pack.yaml
+  FACTORY_CONFIG="$1/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get "'"$2"'"'
+}
 
-if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
-  PACK_DIR="$TEMPLATE_DIR/packs/$PACK"
-  if [ ! -f "$PACK_DIR/pack.yaml" ]; then
-    echo "factory-init: unknown pack '$PACK' (have: go typescript java). Skipping."
-  else
+if [ -n "${PACKS// /}" ]; then
+  ALL_PATTERNS=""
+  ALL_CHECK=""
+  INSTALLED=""
+  # shellcheck disable=SC2086  # PACKS is a space-separated list — split on purpose.
+  for PACK in $PACKS; do
+    [ "$PACK" = "none" ] && continue
+    PACK_DIR="$TEMPLATE_DIR/packs/$PACK"
+    if [ ! -f "$PACK_DIR/pack.yaml" ]; then
+      echo "factory-init: unknown pack '$PACK' (have: go typescript java). Skipping."
+      continue
+    fi
     echo ""
     echo "Installing '$PACK' pack..."
-    P_MATURITY="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get maturity')"
-    P_PATTERNS="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get test_file_patterns')"
-    P_CHECK="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get check_command')"
-    set_factory_key test_file_patterns "$P_PATTERNS"
-    set_factory_key check_command "$P_CHECK"
-    set_factory_key language_packs "$PACK"
-    echo "  armed factory.yaml: test_file_patterns, check_command (maturity: $P_MATURITY)"
+    P_MATURITY="$(pack_config "$PACK_DIR" maturity)"
+    P_PATTERNS="$(pack_config "$PACK_DIR" test_file_patterns)"
+    P_CHECK="$(pack_config "$PACK_DIR" check_command)"
+    [ -n "$P_PATTERNS" ] && ALL_PATTERNS="$ALL_PATTERNS $P_PATTERNS"
+    if [ -n "$P_CHECK" ]; then
+      if [ -n "$ALL_CHECK" ]; then ALL_CHECK="$ALL_CHECK && $P_CHECK"; else ALL_CHECK="$P_CHECK"; fi
+    fi
+    INSTALLED="$INSTALLED $PACK"
 
-    # Copy pack root files that land at the repository root (Go's .golangci.yml,
-    # Java's quality.gradle). pack.yaml is metadata and is not shipped. dotglob
-    # is required so dotfiles like .golangci.yml are matched; a subshell scopes
-    # it so the option does not leak into the rest of the installer.
+    # Copy pack root files (Go's .golangci.yml, Java's quality.gradle, TS's
+    # biome.json/stryker.config.json). dotglob so dotfiles match; a subshell
+    # scopes the option so it does not leak into the rest of the installer.
     (
       shopt -s dotglob nullglob
       for pf in "$PACK_DIR"/*; do
@@ -425,31 +443,24 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
       echo "  installed: .github/workflows/${PACK}-pack.yml"
     fi
 
-    P_MIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get go_min_version')"
-    if [ -n "$P_MIN" ]; then
-      printf 'go_min_version: "%s"\n' "$GO_VERSION" >> "$TARGET_DIR/factory.yaml"
-      echo "  set: go_min_version"
-    fi
-    P_JMIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get java_min_version')"
-    if [ -n "$P_JMIN" ]; then
-      printf 'java_min_version: "%s"\n' "$JAVA_VERSION" >> "$TARGET_DIR/factory.yaml"
-      echo "  set: java_min_version"
-    fi
-    P_NMIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get node_min_version')"
-    if [ -n "$P_NMIN" ]; then
-      printf 'node_min_version: "%s"\n' "$NODE_VERSION" >> "$TARGET_DIR/factory.yaml"
-      echo "  set: node_min_version"
-    fi
+    [ -n "$(pack_config "$PACK_DIR" go_min_version)" ] && \
+      { printf 'go_min_version: "%s"\n' "$GO_VERSION" >> "$TARGET_DIR/factory.yaml"; echo "  set: go_min_version"; }
+    [ -n "$(pack_config "$PACK_DIR" java_min_version)" ] && \
+      { printf 'java_min_version: "%s"\n' "$JAVA_VERSION" >> "$TARGET_DIR/factory.yaml"; echo "  set: java_min_version"; }
+    [ -n "$(pack_config "$PACK_DIR" node_min_version)" ] && \
+      { printf 'node_min_version: "%s"\n' "$NODE_VERSION" >> "$TARGET_DIR/factory.yaml"; echo "  set: node_min_version"; }
 
     if [ "$P_MATURITY" != "battle-tested" ]; then
-      if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
-        echo "  NOTE: '$PACK' is $P_MATURITY — the full stack and CI ship, but no"
-        echo "        real repository has adopted it yet. Report back if you do."
-      else
-        echo "  NOTE: '$PACK' is $P_MATURITY — test patterns and check command are"
-        echo "        armed, but no linter/CI stack configs ship for this pack yet."
-      fi
+      echo "  NOTE: '$PACK' is $P_MATURITY — the full stack ships, but no real repository has adopted it yet."
     fi
+  done
+
+  if [ -n "${INSTALLED// /}" ]; then
+    set_factory_key test_file_patterns "$(printf '%s' "$ALL_PATTERNS" | sed 's/^ *//; s/  */ /g; s/ *$//')"
+    set_factory_key check_command "$ALL_CHECK"
+    set_factory_key language_packs "$(printf '%s' "$INSTALLED" | sed 's/^ *//; s/  */ /g; s/ *$//')"
+    echo ""
+    echo "  armed factory.yaml for:$INSTALLED"
   fi
 fi
 
@@ -459,11 +470,11 @@ echo ""
 echo "=== Post-install attestation: break/fix self-test of installed gates ==="
 if (cd "$TARGET_DIR" && ./scripts/selftest/run.sh); then
   echo ""
-  if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
-    echo "factory-init: gates proven and armed for the '$PACK' pack. Commit when ready."
+  if [ -n "${INSTALLED:-}" ] && [ -n "${INSTALLED// /}" ]; then
+    echo "factory-init: gates proven and armed for:$INSTALLED. Commit when ready."
   else
     echo "factory-init: gates proven. Install a language pack to arm the"
-    echo "test-edit hook and check command: re-run with --pack go|typescript|java."
+    echo "test-edit hook and check command: re-run with --pack go,typescript,java."
   fi
 else
   echo ""

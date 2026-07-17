@@ -76,6 +76,8 @@ The labels mean:
 
 A label changes only on evidence: a pack moves up when a real project adopts it, not when its fixtures pass.
 
+**Frameworks ride on the language pack; they don't get their own.** React and Vue use the TypeScript pack — Biome auto-applies its `react`/`vue` rule domains when it sees the framework in your `package.json` — and Spring Boot uses the Java pack, whose JUnit 5 + Testcontainers stack *is* Spring Boot's blessed testing. `factory-init` detects these and points you at the right pack. A framework-specific invariant beyond that (say, "no field injection" for Spring) is a custom dialect hook, the same shape as `ginkgo-only`/`vitest-only` — not a new pack. This is deliberate: one blessed stack per language keeps the opinion sharp (Decision 3), where a framework-per-pack matrix would not.
+
 ## Adopting incrementally
 
 1. Run `factory-init.sh`; leave `citation_prefix` and `test_file_patterns` empty for now — the commit and push gates the self-test just proved are already doing work.

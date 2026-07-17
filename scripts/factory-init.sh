@@ -62,10 +62,23 @@ DETECTED=""
 [ -f "$TARGET_DIR/package.json" ] && DETECTED="$DETECTED typescript"
 { [ -f "$TARGET_DIR/pom.xml" ] || [ -f "$TARGET_DIR/build.gradle" ] || [ -f "$TARGET_DIR/build.gradle.kts" ]; } && DETECTED="$DETECTED java"
 
+# Frameworks ride on a language pack — detect them to point at the right pack.
+FRAMEWORKS=""
+if [ -f "$TARGET_DIR/package.json" ]; then
+  grep -q '"react"' "$TARGET_DIR/package.json" 2>/dev/null && FRAMEWORKS="$FRAMEWORKS react"
+  grep -q '"vue"' "$TARGET_DIR/package.json" 2>/dev/null && FRAMEWORKS="$FRAMEWORKS vue"
+fi
+for __gf in pom.xml build.gradle build.gradle.kts; do
+  [ -f "$TARGET_DIR/$__gf" ] && grep -qi 'spring-boot' "$TARGET_DIR/$__gf" 2>/dev/null && { FRAMEWORKS="$FRAMEWORKS spring-boot"; break; }
+done
+
 echo "=== Software Factory Template Setup ==="
 echo "Template dir: $TEMPLATE_DIR"
 echo "Target dir:   $TARGET_DIR"
 if [ -n "$DETECTED" ]; then echo "Detected stack(s):$DETECTED — install the matching packs/ after init"; fi
+case " $FRAMEWORKS " in *" react "*) echo "  React detected      → --pack typescript (Biome's react rules auto-apply)" ;; esac
+case " $FRAMEWORKS " in *" vue "*) echo "  Vue detected        → --pack typescript (Biome's vue rules auto-apply)" ;; esac
+case " $FRAMEWORKS " in *" spring-boot "*) echo "  Spring Boot detected → --pack java (JUnit 5 + Testcontainers stack)" ;; esac
 echo ""
 
 # ── Collect project-specific values ──────────────────────────────────

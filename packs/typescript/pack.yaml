@@ -6,7 +6,9 @@
 # Blessed stack — one per language (Decision 3), verified current 2026-07-17
 # against each tool's release page (re-check before adoption; pinned so a
 # compromised @latest can't enter the gate path):
-#   Format + lint: Biome 2.5.4 (one fast tool, replaces ESLint + Prettier)
+#   Format + lint: Biome 2.5.4 (one fast tool, replaces ESLint + Prettier).
+#                  React and Vue rule domains are enabled — Biome auto-applies
+#                  them when it sees the framework in package.json.
 #   Types:         tsc --noEmit (your project's TypeScript — the type ground truth)
 #   Tests:         Vitest 4.1.10
 #   Mutation:      Stryker 9.6.1 + @stryker-mutator/vitest-runner

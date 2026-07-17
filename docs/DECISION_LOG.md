@@ -120,3 +120,24 @@ failed a merge for changes it only inherited. This passed locally and in `act`
 (both check out the branch head, not a merge ref) and failed only on GitHub.
 
 Provenance: PR #1 CI failure that reproduced only under a merge ref, 2026-07-16.
+
+## Decision 8 (2026-07-16): One-shot init, and factory-init works end-to-end
+
+What: `install.sh init` (`curl … | sh -s -- init`) fetches the template and
+then runs `factory-init` against the current directory in one step. The bare
+command stays fetch-only; the `init` word is explicit consent to modify the
+current repo. To make this work, `factory-init`'s prompts read from `/dev/tty`
+so they survive a pipe, and the copy manifest was reconciled with the current
+file layout.
+
+Why: the one-shot flow forced the first real end-to-end run of `factory-init`,
+which surfaced that it had never completed: an interactive-prompt path
+incompatible with pipes, a `${VAR^^}` expansion that fails on bash 3.2, a
+target-path resolver that embedded a newline on existing directories, and a
+copy manifest missing `scripts/lib/config.sh` (sourced by every hook),
+`scripts/selftest/run.sh` (the attestation), `scripts/pre-push-check.sh`, and
+`.githooks/pre-push`, plus a stale `.golangci.yml` reference left by the
+core/packs split. All fixed; a scratch-repo run now completes with the
+break/fix attestation passing (selftest 17/17) inside the target.
+
+Provenance: founder request for a one-shot installer, 2026-07-16.

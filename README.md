@@ -10,8 +10,9 @@
 ## Quick start
 
 ```bash
-curl -fsSL https://softwareaifactory.sh/install.sh | sh
-cd your-project && ~/.software-factory-template/scripts/factory-init.sh
+# one shot — fetch, then set up the current repo:
+cd your-project
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init
 ```
 
 The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?

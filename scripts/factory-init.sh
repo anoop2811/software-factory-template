@@ -22,7 +22,25 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 TARGET_DIR="${1:-.}"
-TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || mkdir -p "$TARGET_DIR" && cd "$TARGET_DIR" && pwd)"
+# Resolve to an absolute path, creating the directory if it does not exist.
+# (Grouping matters: the old one-liner ran pwd twice on an existing dir and
+# embedded a newline in the path.)
+mkdir -p "$TARGET_DIR"
+TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
+
+# Prompt helper. Reads from the controlling terminal (/dev/tty) when available,
+# so prompts work even when this script is reached through a pipe
+# (curl ... | sh -s -- init), where stdin carries the installer, not the user.
+# Falls back to stdin when there is no tty (CI, tests).
+ask() {
+  local __prompt="$1" __var="$2" __reply=""
+  if [ -r /dev/tty ] && [ -t 1 ]; then
+    read -rp "$__prompt" __reply < /dev/tty
+  else
+    read -rp "$__prompt" __reply || true
+  fi
+  printf -v "$__var" '%s' "$__reply"
+}
 
 # ── Detect the stack (informational; packs are installed explicitly) ──
 DETECTED=""
@@ -37,16 +55,16 @@ if [ -n "$DETECTED" ]; then echo "Detected stack(s):$DETECTED — install the ma
 echo ""
 
 # ── Collect project-specific values ──────────────────────────────────
-read -rp "Project name (e.g., MyProject): " PROJECT_NAME
-read -rp "Project slug — lowercase, for paths (e.g., myproject): " PROJECT_SLUG
-read -rp "GitHub owner for CODEOWNERS (e.g., @yourname): " GITHUB_OWNER
-read -rp "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
-read -rp "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
-read -rp "Blueprint/spec source dir (or leave empty if none): " BLUEPRINT_DIR
-read -rp "Citation prefix for spec docs (e.g., ${PROJECT_SLUG^^}_ or leave empty): " CITATION_PREFIX
-read -rp "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
-read -rp "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
-read -rp "Go version for CI (e.g., 1.26): " GO_VERSION
+ask "Project name (e.g., MyProject): " PROJECT_NAME
+ask "Project slug — lowercase, for paths (e.g., myproject): " PROJECT_SLUG
+ask "GitHub owner for CODEOWNERS (e.g., @yourname): " GITHUB_OWNER
+ask "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
+ask "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
+ask "Blueprint/spec source dir (or leave empty if none): " BLUEPRINT_DIR
+ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
+ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
+ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
+ask "Go version for CI (e.g., 1.26): " GO_VERSION
 
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
@@ -66,7 +84,7 @@ echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
 echo "  Go version:       $GO_VERSION"
 echo ""
-read -rp "Proceed? (y/N): " CONFIRM
+ask "Proceed? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy] ]]; then
   echo "Aborted."
   exit 1
@@ -111,7 +129,6 @@ BACKUP_FILES=(
   "$TARGET_DIR/opencode.json"
   "$TARGET_DIR/AGENTS.md"
   "$TARGET_DIR/Makefile"
-  "$TARGET_DIR/.golangci.yml"
   "$TARGET_DIR/.gitignore"
   "$TARGET_DIR/.github/CODEOWNERS"
   "$TARGET_DIR/.github/workflows/ci.yml"
@@ -160,9 +177,16 @@ mkdir -p "$TARGET_DIR/wiki"
 mkdir -p "$TARGET_DIR/specs"
 mkdir -p "$TARGET_DIR/eval/golden-tasks"
 mkdir -p "$TARGET_DIR/eval/results"
+mkdir -p "$TARGET_DIR/scripts/lib"
+mkdir -p "$TARGET_DIR/scripts/selftest"
+mkdir -p "$TARGET_DIR/.githooks"
 
 # Copy files (using cp -r for directories, cp for files)
 cp "$TEMPLATE_DIR/scripts/hooks/"*.sh "$TARGET_DIR/scripts/hooks/"
+cp "$TEMPLATE_DIR/scripts/lib/config.sh" "$TARGET_DIR/scripts/lib/"
+cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
+cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-claude.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -178,7 +202,6 @@ cp "$TEMPLATE_DIR/.codex/agents/"*.toml "$TARGET_DIR/.codex/agents/"
 cp "$TEMPLATE_DIR/opencode.json" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/AGENTS.md" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/Makefile" "$TARGET_DIR/"
-cp "$TEMPLATE_DIR/.golangci.yml" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/.gitignore" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/.github/CODEOWNERS" "$TARGET_DIR/.github/"
 cp "$TEMPLATE_DIR/.github/workflows/ci.yml" "$TARGET_DIR/.github/workflows/"
@@ -258,6 +281,8 @@ chmod +x "$TARGET_DIR/scripts/sync-codex.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/harness-structural-eval.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/citation-lint.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/.githooks/pre-push" 2>/dev/null || true
 
 # ── Create factory.config ────────────────────────────────────────────
 cat > "$TARGET_DIR/factory.config" <<EOF

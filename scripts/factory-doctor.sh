@@ -115,7 +115,7 @@ fi
 
 # wiki-lint (the LLM-wiki pattern's lint operation)
 if [ -d "$WR" ] && find "$WR" -type f -name '*.md' ! -name 'README.md' ! -name 'INDEX.md' 2>/dev/null | grep -q .; then
-  armed "wiki-lint              every wiki/ page must cite a source and resolve its links"
+  armed "wiki-lint              every wiki/ content page must cite a source and resolve its links"
 else
   inert "wiki-lint              no wiki content pages yet (wiki_root: $WR)"
 fi

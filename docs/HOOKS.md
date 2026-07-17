@@ -206,7 +206,7 @@ Two deliberate defaults: an unset or non-implementer role allows (a missing env 
 
 The "lint" operation of the LLM-maintained wiki pattern (raw sources → agent-written wiki → lint). An agent can write a wiki fast but won't reliably keep every page cited and every cross-reference real; this gate does. Ingest and query are the model's job — lint is the deterministic control that keeps the result honest.
 
-**Fires when:** CI and `make check`, every commit; also surfaced by `factory doctor`. Skips silently when there is no wiki to lint.
+**Fires when:** CI and `make check`, every commit; also surfaced by `factory doctor`. Skips (with a note) when there are no wiki content pages — a wiki with only its index/README has nothing to lint.
 
 **Exit codes:** 0 pass or skip, 1 a page lacks provenance or a link doesn't resolve.
 

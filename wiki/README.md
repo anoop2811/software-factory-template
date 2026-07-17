@@ -15,7 +15,8 @@ Two rules keep it honest:
   worse than no page: it becomes a stale fact asserted with confidence.
 
 This isn't a convention you have to remember: `scripts/hooks/wiki-lint.sh`
-enforces it. Every page here must cite a source and every cross-reference must
-resolve, or the build fails — it runs in CI, in `make check`, and shows up in
+enforces it. Every content page must cite a source and every cross-reference
+must resolve, or the build fails (this index page is exempt from the citation
+rule) — it runs in CI, in `make check`, and shows up in
 `factory doctor`. That is the "lint" half of the pattern; writing and querying
 the pages is the agent's job.

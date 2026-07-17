@@ -60,25 +60,35 @@ for PLUGIN_FILE in "$PLUGIN_DIR"/*.ts; do
 done
 
 # Generated adapters must delegate to the same script and make the implementer
-# role explicit at the hook boundary.
-if ! grep -q 'scripts/hooks/test-edit-denial.sh' .claude/settings.json 2>/dev/null; then
-  echo "SHARED-SCRIPT FAIL: .claude/settings.json does not call test-edit-denial.sh"
-  ERRORS=$((ERRORS + 1))
+# role explicit at the hook boundary. These files are produced by
+# sync-claude.sh / sync-codex.sh — if they are absent (a fresh clone before
+# `make sync-harnesses`), skip rather than fail, the way hook-existence-check
+# treats a missing script. The drift check runs sync first, so real
+# divergence is still caught there.
+if [ -f .claude/settings.json ]; then
+  if ! grep -q 'scripts/hooks/test-edit-denial.sh' .claude/settings.json; then
+    echo "SHARED-SCRIPT FAIL: .claude/settings.json does not call test-edit-denial.sh"
+    ERRORS=$((ERRORS + 1))
+  fi
+  if ! grep -q 'FACTORY_AGENT_ROLE=implementer' .claude/agents/implementer.md 2>/dev/null; then
+    echo "SHARED-SCRIPT FAIL: Claude implementer hook does not set FACTORY_AGENT_ROLE"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo "shared-script-enforcement: no .claude adapter yet — run 'make sync-harnesses' (skipping)"
 fi
 
-if ! grep -q 'FACTORY_AGENT_ROLE=implementer' .claude/agents/implementer.md 2>/dev/null; then
-  echo "SHARED-SCRIPT FAIL: Claude implementer hook does not set FACTORY_AGENT_ROLE"
-  ERRORS=$((ERRORS + 1))
-fi
-
-if ! grep -q 'scripts/hooks/test-edit-denial.sh' .codex/agents/implementer.toml 2>/dev/null; then
-  echo "SHARED-SCRIPT FAIL: .codex/agents/implementer.toml does not call test-edit-denial.sh"
-  ERRORS=$((ERRORS + 1))
-fi
-
-if ! grep -q 'FACTORY_AGENT_ROLE=implementer' .codex/agents/implementer.toml 2>/dev/null; then
-  echo "SHARED-SCRIPT FAIL: Codex implementer hook does not set FACTORY_AGENT_ROLE"
-  ERRORS=$((ERRORS + 1))
+if [ -f .codex/agents/implementer.toml ]; then
+  if ! grep -q 'scripts/hooks/test-edit-denial.sh' .codex/agents/implementer.toml; then
+    echo "SHARED-SCRIPT FAIL: .codex/agents/implementer.toml does not call test-edit-denial.sh"
+    ERRORS=$((ERRORS + 1))
+  fi
+  if ! grep -q 'FACTORY_AGENT_ROLE=implementer' .codex/agents/implementer.toml; then
+    echo "SHARED-SCRIPT FAIL: Codex implementer hook does not set FACTORY_AGENT_ROLE"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo "shared-script-enforcement: no .codex adapter yet — run 'make sync-harnesses' (skipping)"
 fi
 
 if [ "$ERRORS" -gt 0 ]; then

@@ -7,6 +7,8 @@
 - Roles are split so the agent that writes tests never writes implementation — and the split is hook-enforced.
 - This file explains why the rules exist. The rulebook agents actually read is [FACTORY_RULES.md](FACTORY_RULES.md).
 
+New to the vocabulary? See [GLOSSARY.md](GLOSSARY.md).
+
 ## Computational controls beat inferential ones
 
 An inferential control is a rule an agent is asked to follow: a line in a prompt, a "please always" in a system message. It works until the context window rotates it out, the model changes, or the agent decides the rule doesn't apply this time.
@@ -91,6 +93,23 @@ The separation is only real because it's hook-enforced. Telling a session "you a
 
 opencode is the canonical harness. `opencode.json` and `.opencode/agent/*.md` are the source of truth; `scripts/sync-claude.sh` and `scripts/sync-codex.sh` generate the Claude Code and Codex configurations. CI runs the sync and fails if the committed files drift, so a hand-edited adapter can't ship.
 
+### The two config layers
+
+Project-specific values are split across two mechanisms, for two different reasons. It helps to see the split plainly.
+
+- **Enforcement values are read at runtime.** `protected_paths`, `test_file_patterns`, `check_command`, `citation_prefix`, and `docs_root` live in `factory.yaml`. The hooks read them at runtime through `scripts/lib/config.sh`, so the hook scripts stay byte-identical across every adopter — nothing in them is edited at install time.
+- **Identity and model values are substituted once.** The project name, the GitHub owner, and the model strings in `opencode.json` and the agent `.md` files are substituted a single time, at install, by `factory-init`. This is not a stylistic choice: `opencode.json` can't read `factory.yaml`, so the harness config has no way to pull those values at runtime. They have to be baked in when the files are copied.
+
+Two layers, two reasons: runtime config keeps hooks identical and upgradable; install-time substitution fills in the values the harness config can't look up for itself.
+
+```
+opencode.json (canon) ──sync──> .claude/ , .codex/ (adapters)
+
+factory.yaml ──runtime──> hooks
+agent roles  ──write-time──> hooks
+CI           ──────────────> hooks
+```
+
 ## Runtime configuration: factory.yaml
 
 Project-specific values — protected paths, test file patterns, the decision-log location, the citation prefix — live in `factory.yaml` at the repo root, read at runtime by `scripts/lib/config.sh`. The format is deliberately constrained (flat `key: value`, space-separated lists, no nesting) so the parser stays a few lines of shell. Anything more expressive belongs in a hook.
@@ -104,5 +123,7 @@ Every decision about the factory goes in `docs/DECISION_LOG.md` before the code 
 ## The memory loop
 
 At session end, lessons worth keeping go to `memory/lessons/NNN-*.md` with provenance — a file and line, a fetched URL with date, or "observed YYYY-MM-DD via \<action\>". A lesson without provenance is worse than no lesson; it becomes a stale fact asserted with confidence.
+
+The template ships exactly one lesson (`001-verification-contract.md`) to prove the pattern; adopters accumulate their own from there.
 
 The loop closes by escalation: a per-turn reminder flag, a session-end check that records pending lessons (`loop-close-check.sh`), and a push block (`pending-lessons-push-block.sh`) that turns the ignorable nudge into a gate.

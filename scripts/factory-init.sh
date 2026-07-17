@@ -71,7 +71,7 @@ ask "Project slug — lowercase, for paths (e.g., myproject): " PROJECT_SLUG
 ask "GitHub owner for CODEOWNERS (e.g., @yourname): " GITHUB_OWNER
 ask "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
 ask "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
-ask "Blueprint/spec source dir (or leave empty if none): " BLUEPRINT_DIR
+ask "Spec/docs source dir (or leave empty if none): " DOCS_ROOT
 ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
 ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
@@ -89,7 +89,7 @@ echo "  Project name:     $PROJECT_NAME"
 echo "  Project slug:     $PROJECT_SLUG"
 echo "  GitHub owner:     $GITHUB_OWNER"
 echo "  Protected path:   $PROTECTED_PATH"
-echo "  Blueprint dir:    ${BLUEPRINT_DIR:-none}"
+echo "  Docs source:      ${DOCS_ROOT:-none}"
 echo "  Citation prefix:  $CITATION_PREFIX"
 echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
@@ -110,7 +110,7 @@ cat > "$TARGET_DIR/factory.yaml" <<FACTORYEOF
 # in the template's docs/DECISION_LOG.md.
 project_name: $PROJECT_SLUG
 decision_log: docs/DECISION_LOG.md
-docs_root: ${BLUEPRINT_DIR:-docs}
+docs_root: ${DOCS_ROOT:-docs}
 citation_prefix: "$CITATION_PREFIX"
 protected_paths: "$PROTECTED_PATH"
 test_file_patterns: ""
@@ -270,8 +270,10 @@ SUBSTITUTE_FILES=(
 
 for FILE in "${SUBSTITUTE_FILES[@]}"; do
   if [ -f "$FILE" ]; then
+    DOCS_ROOT_RESOLVED="${DOCS_ROOT:-docs}"
     sed -i.bak \
       -e "s|__PROJECT_NAME__|$PROJECT_NAME|g" \
+      -e "s|__DOCS_ROOT__|$DOCS_ROOT_RESOLVED|g" \
       -e "s|__PROJECT_SLUG__|$PROJECT_SLUG|g" \
       -e "s|__GITHUB_OWNER__|$GITHUB_OWNER|g" \
       -e "s|__OPENCODE_USERNAME__|$OPENCODE_USERNAME|g" \
@@ -304,7 +306,7 @@ PROJECT_SLUG="$PROJECT_SLUG"
 GITHUB_OWNER="$GITHUB_OWNER"
 OPENCODE_USERNAME="$OPENCODE_USERNAME"
 PROTECTED_PATH="$PROTECTED_PATH"
-BLUEPRINT_DIR="$BLUEPRINT_DIR"
+DOCS_ROOT="$DOCS_ROOT"
 CITATION_PREFIX="$CITATION_PREFIX_UPPER"
 DEFAULT_MODEL="$DEFAULT_MODEL"
 FRONTIER_MODEL="$FRONTIER_MODEL"

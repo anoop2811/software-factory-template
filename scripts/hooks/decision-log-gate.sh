@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Governance-sensitive paths (files that, if changed, likely implement a
 # decision):
-#   - __PROTECTED_PATH__/          (permanently human-reviewed)
+#   - protected_paths from factory.yaml (permanently human-reviewed)
 #   - opencode.json           (canonical config)
 #   - .opencode/              (agents, plugin, skills)
 #   - .claude/                (Claude adapter)

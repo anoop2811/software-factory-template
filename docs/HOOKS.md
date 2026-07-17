@@ -11,6 +11,16 @@ On the fail-open: if a hook script is missing or unexecutable, edits proceed wit
 
 ---
 
+## citation-lint.sh
+
+Resolves every `<citation_prefix>*.md:NN` reference in code and docs against your spec source, so a citation can't point at a file or line that doesn't exist.
+
+**Fires when:** CI and `make check`, every commit. Skips silently when `citation_prefix` is empty (the check is opt-in).
+
+**Exit codes:** 0 pass or skip, 1 a citation doesn't resolve.
+
+**Configuration:** reads `citation_prefix` and `docs_root` from `factory.yaml`.
+
 ## commit-message-lint.sh
 
 Rejects malformed commit messages and any "verified"/"fixed"/"works" claim lacking a command-and-output citation.
@@ -37,6 +47,8 @@ Requires commits touching governance-sensitive paths to reference a Decision num
 
 **Exit codes:** 0 pass, 1 fail.
 
+**Configuration:** reads `protected_paths` and `decision_gate_cutoff` from `factory.yaml`.
+
 ```
 DECISION-LOG-GATE FAIL: commit 3fa9c12 touches governance-sensitive paths
   but does not reference a Decision number or ADR in the commit message.
@@ -54,6 +66,8 @@ Maps changed files to the re-verification they invalidate, and runs those checks
 **Fires when:** CI on every PR, the pre-push gate, and `make diff-aware`. Diffs working tree vs HEAD, or a base..head range.
 
 **Exit codes:** 0 all dispatched checks passed (or none needed), 1 any failed.
+
+**Configuration:** reads `protected_paths` and `check_command` from `factory.yaml`.
 
 ```
 $ ./scripts/hooks/diff-aware-check.sh
@@ -176,6 +190,8 @@ Denies test-file edits to the implementer role — generator/evaluator separatio
 **Fires when:** as a pre-tool-use hook in the agent's write path, not in CI. Accepts Claude Code/Codex JSON on stdin or an opencode file-path argument; all adapters call this same script. Only acts if `FACTORY_AGENT_ROLE` is exactly `implementer` and the path matches a pattern in `test_file_patterns`.
 
 **Exit codes:** 0 allow, 2 deny.
+
+**Configuration:** reads `test_file_patterns` from `factory.yaml`.
 
 ```
 $ FACTORY_AGENT_ROLE=implementer ./scripts/hooks/test-edit-denial.sh pkg/parser/parser_test.go

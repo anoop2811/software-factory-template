@@ -47,7 +47,7 @@ Boundaries worth remembering:
 
 **go.sum is tracked.** The dependency hash-lock is committed, not gitignored, and CI tool versions are pinned, never `@latest`.
 
-**CODEOWNERS enforces protected paths.** `__PROTECTED_PATH__/` gets a CODEOWNERS rule requiring review, and branch protection requires that review before merge. This one is platform-enforced, not hook-enforced — a hook that exits 0 either way is decorative, and the decorative version was removed.
+**CODEOWNERS enforces protected paths.** Your protected paths (from `factory.yaml` `protected_paths`) get a CODEOWNERS rule requiring review, and branch protection requires that review before merge. This one is platform-enforced, not hook-enforced — a hook that exits 0 either way is decorative, and the decorative version was removed.
 
 ## What belongs in AGENTS.md vs this file
 

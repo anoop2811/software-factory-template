@@ -166,3 +166,28 @@ and check command but ship no linter/CI configs yet, and say so at install.
 
 Provenance: founder question — should install offer go/typescript/java? —
 2026-07-16.
+
+## Decision 10 (2026-07-16): Config references are project-agnostic; a glossary and onboarding depth are added
+
+What: The docs and canon describe configuration by the `factory.yaml` key that
+sets it (`protected_paths`, `docs_root`, `test_file_patterns`, `citation_prefix`)
+rather than by any single project's paths, and every unsubstituted placeholder
+is either a live install-time slot or removed. The spec-source directory slot is
+renamed `__DOCS_ROOT__` and added to `factory-init`'s substitution list; a stale
+`__CITATION_PREFIX__` example that no substitution filled is replaced with a
+concrete path. A `docs/GLOSSARY.md` defines the load-bearing terms, `wiki/README.md`
+explains the agent-maintained wiki, and `CONCEPTS.md`, `ADAPTING.md`, `HOOKS.md`,
+and `README.md` gain a two-config-layers explanation, a full `factory.yaml`
+example, a hook-authoring walkthrough, and per-hook configuration keys.
+
+Why: a placeholder that no code substitutes ships as literal text — `__DOCS_ROOT__`
+reached `opencode.json`'s permission paths verbatim, and an empty spec-source
+answer would have expanded its glob to `/**`, granting the repository root. Naming
+config by its `factory.yaml` key rather than an example path makes the docs read
+the same for every adopter and removes the drift where a doc names a directory a
+given project happens to use. The glossary and onboarding depth close the gap
+between the concepts the docs assume and the ones a first-time adopter has.
+
+Provenance: docs review, 2026-07-16 — flagged undefined terms, thin onboarding,
+and config references pinned to specific paths; the dead-placeholder class was
+found while resolving them.

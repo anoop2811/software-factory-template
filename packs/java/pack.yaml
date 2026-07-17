@@ -7,6 +7,8 @@
 # against each tool's release page (re-check before adoption; pinned so a
 # compromised @latest can't enter the gate path):
 #   Tests:         JUnit Jupiter + AssertJ + Mockito + Testcontainers 2.x
+#                  (this is also Spring Boot's blessed testing stack — Spring
+#                  Boot projects use this pack; @ServiceConnection wires it up)
 #   Format:        Spotless 8.8.0 + palantir-java-format 2.96.0 (auto-fix)
 #   Correctness:   Error Prone 2.50.0 via net.ltgt.errorprone 5.1.0 (compile-time)
 #   Bugs+security: SpotBugs 6.5.x + find-sec-bugs 1.14.0 (bytecode)

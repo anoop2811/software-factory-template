@@ -422,3 +422,27 @@ check runs every language's suite.
 
 Provenance: founder question — a Go backend with a React/TS frontend still gets
 asked for Java and Node versions; how do we handle polyglot? — 2026-07-17.
+
+## Decision 20 (2026-07-17): frameworks ride on language packs — awareness, not new packs
+
+What: Frameworks do not get their own packs. The TypeScript pack's `biome.json`
+enables Biome's `react` and `vue` linter domains (Biome auto-applies a domain's
+rules when it sees the framework in `package.json`), so a React or Vue app gets
+framework-aware linting from the TypeScript pack. Spring Boot uses the Java pack
+unchanged — its JUnit 5 + Testcontainers stack is Spring Boot's own blessed
+testing approach. `factory-init` detects React, Vue, and Spring Boot (from
+`package.json` / `pom.xml` / `build.gradle`) and prints a hint pointing at the
+right pack.
+
+Why: a pack arms language-level knobs (`test_file_patterns`, `check_command`)
+and ships a language's stack; a framework adds libraries on top but does not
+change what a test file is or what "run the checks" means. A React/Vue/Next/
+Spring-Boot/Quarkus pack matrix is exactly the alternatives explosion Decision 3
+avoids. Biome's domains give real React/Vue rules with no new pack and no false
+positives on non-framework code (the rules only match framework patterns). A
+framework-specific invariant beyond that is a custom dialect hook, the template's
+standard extension point — not a pack.
+
+Provenance: founder direction, 2026-07-17 — add React/Vue-aware rules and
+framework detection hints; frameworks like Spring Boot ride on the language pack.
+Biome domains verified against biomejs.dev/linter/domains, 2026-07-17.

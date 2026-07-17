@@ -10,6 +10,7 @@
   },
   "linter": {
     "enabled": true,
+    "domains": { "react": "recommended", "vue": "recommended" },
     "rules": { "recommended": true }
   },
   "javascript": {

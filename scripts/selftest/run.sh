@@ -229,6 +229,28 @@ if [ -x "$WIKI_HOOK" ]; then
     "$(cd "$SWDIR" && FACTORY_CONFIG="$SWDIR/factory.yaml" run_status "$WIKI_HOOK")"
 fi
 
+# Break/fix: copy-manifest-check flags an install-copy target not tracked by git
+# (the "works locally, missing in a clean clone" class the installer hit).
+CM_HOOK="$HOOKS/copy-manifest-check.sh"
+if [ -x "$CM_HOOK" ]; then
+  CMDIR="$SANDBOX/cm"
+  mkdir -p "$CMDIR/scripts" "$CMDIR/foo"
+  (
+    cd "$CMDIR" || exit 1
+    git init -q -b main
+    git config user.email c@e.i
+    git config user.name c
+    printf 'cp "$TEMPLATE_DIR/foo/bar.txt" "$TARGET_DIR/foo/"\n' > scripts/factory-init.sh
+    printf 'x\n' > foo/bar.txt
+    git add scripts/factory-init.sh && git commit -qm init
+  )
+  check "copy-manifest-check flags an untracked copy target" 1 \
+    "$(run_status "$CM_HOOK" "$CMDIR")"
+  ( cd "$CMDIR" && git add foo/bar.txt && git commit -qm track-bar )
+  check "copy-manifest-check passes when the target is tracked" 0 \
+    "$(run_status "$CM_HOOK" "$CMDIR")"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

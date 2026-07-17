@@ -379,3 +379,24 @@ index so it never punishes a wiki that has not adopted one.
 
 Provenance: founder direction, 2026-07-17 — build the deferred wiki-lint v2
 (orphan detection + source-drift/staleness).
+
+## Decision 18 (2026-07-17): install-manifest files must be git-tracked; a hook enforces it
+
+What: `.opencode/package.json` (which declares the opencode plugin's dependency)
+and `.opencode/.gitignore` were ignored by `.opencode/.gitignore` itself, so
+they lived only in the working tree and were absent from a clean clone.
+factory-init copies them unconditionally, so a real `curl … | sh -s -- init`
+aborted on `cp: .opencode/package.json: No such file or directory`. Both are now
+tracked (the `.opencode/.gitignore` no longer ignores `package.json` or itself),
+and `scripts/hooks/copy-manifest-check.sh` fails the build if any file
+factory-init copies unconditionally is not tracked by git.
+
+Why: this is Decision 6's failure class again — a file present locally but
+untracked passes every local test and then vanishes in the clean clone an
+adopter installs from. Decision 6 fixed it for the hooks; nothing generalized
+the rule to the whole install manifest, so it recurred against `.opencode/`.
+The new hook closes the class: the installer's `cp` list is now verified against
+git at CI time, with a break/fix fixture.
+
+Provenance: founder bug report, 2026-07-17 — a live `curl … | sh -s -- init
+--pack go` aborted copying `.opencode/package.json`.

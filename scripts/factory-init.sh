@@ -383,15 +383,20 @@ if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
     echo "  armed factory.yaml: test_file_patterns, check_command (maturity: $P_MATURITY)"
 
     # Copy pack root files that land at the repository root (Go's .golangci.yml,
-    # Java's quality.gradle). pack.yaml is metadata and is not shipped.
-    for pf in "$PACK_DIR"/*; do
-      [ -f "$pf" ] || continue
-      case "$(basename "$pf")" in
-        pack.yaml) continue ;;
-      esac
-      cp "$pf" "$TARGET_DIR/"
-      echo "  copied: $(basename "$pf")"
-    done
+    # Java's quality.gradle). pack.yaml is metadata and is not shipped. dotglob
+    # is required so dotfiles like .golangci.yml are matched; a subshell scopes
+    # it so the option does not leak into the rest of the installer.
+    (
+      shopt -s dotglob nullglob
+      for pf in "$PACK_DIR"/*; do
+        [ -f "$pf" ] || continue
+        case "$(basename "$pf")" in
+          pack.yaml|.DS_Store) continue ;;
+        esac
+        cp "$pf" "$TARGET_DIR/"
+        echo "  copied: $(basename "$pf")"
+      done
+    )
     if [ -d "$PACK_DIR/hooks" ]; then
       cp "$PACK_DIR/hooks/"*.sh "$TARGET_DIR/scripts/hooks/" 2>/dev/null && \
         chmod +x "$TARGET_DIR/scripts/hooks/"*.sh && echo "  copied: pack hooks"

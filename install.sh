@@ -12,6 +12,13 @@ set -eu
 #       explicit consent to modify the current directory — the bare command
 #       never touches your project.
 #
+#   curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
+#       Refresh the machine-wide template cache, then upgrade the repo you're in
+#       (a reviewable diff — nothing committed), just like 'init' acts on the
+#       current directory. Upgrades THIS repo, not every repo on the machine:
+#       each repo owns its committed, governance-gated framework files. Locally,
+#       './factory upgrade' does the same thing without curl.
+#
 # What the fetch does, in full:
 #   1. Clones the template (shallow, at a pinned ref) into $FACTORY_HOME
 #      (default: ~/.software-factory-template)
@@ -32,11 +39,13 @@ FACTORY_REF="${FACTORY_REF:-main}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 DO_INIT=0
+DO_UPGRADE=0
 case "${1:-}" in
   init) DO_INIT=1; shift ;;   # remaining args (e.g. --pack go) pass to factory-init
+  upgrade) DO_UPGRADE=1; shift ;;   # refresh the machine-wide template cache
   "") : ;;
   *)
-    printf '%s\n' "install: unknown argument '$1' (did you mean 'init'?)" >&2
+    printf '%s\n' "install: unknown argument '$1' (did you mean 'init' or 'upgrade'?)" >&2
     exit 2
     ;;
 esac
@@ -52,9 +61,36 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+# upgrade: refresh the machine-wide template cache, then apply the framework
+# update to the repo you're in (a reviewable diff — nothing is committed). Like
+# 'init', it acts on the current directory. It upgrades THIS repo, not every
+# repo on the machine — each repo owns its committed, governance-gated framework
+# files, so you upgrade them where you are.
+if [ "$DO_UPGRADE" -eq 1 ]; then
+  if [ -d "$FACTORY_HOME/.git" ]; then
+    say "install: refreshing the template at $FACTORY_HOME to '$FACTORY_REF'..."
+    git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
+    git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
+  else
+    say "install: cloning the template into $FACTORY_HOME..."
+    git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"
+  fi
+  if [ -f "$TARGET_DIR/factory.yaml" ]; then
+    say "install: applying framework updates to the current directory:"
+    say "    $TARGET_DIR"
+    say ""
+    cd "$TARGET_DIR"
+    exec "$FACTORY_HOME/scripts/factory-upgrade.sh" --source "$FACTORY_HOME"
+  fi
+  say "install: template cache updated. No factory.yaml here, so no project was"
+  say "  upgraded — run this from inside a factory repo, or 'init' one first."
+  exit 0
+fi
+
 if [ -e "$FACTORY_HOME" ]; then
   say "install: $FACTORY_HOME already exists (reusing it)."
-  say "  To update the template: rm -rf \"$FACTORY_HOME\" and run this installer again."
+  say "  To update it to the latest template:"
+  say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade"
 else
   say "install: cloning $FACTORY_REPO at ref '$FACTORY_REF' into $FACTORY_HOME"
   git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"

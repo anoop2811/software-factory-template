@@ -466,3 +466,23 @@ rejected for the word "frameworks".
 
 Provenance: observed 2026-07-17 — a `feat:` commit body containing "frameworks"
 was rejected by commit-message-lint as an uncited "works" claim.
+
+## Decision 22 (2026-07-17): `install.sh upgrade` upgrades the repo you're in, curl-able
+
+What: `curl … | sh -s -- upgrade` refreshes the machine-wide template cache
+(`$FACTORY_HOME`) and then applies the framework update to the current directory
+— symmetric with `install.sh init`, which also acts on the current directory. It
+runs `factory-upgrade.sh --source "$FACTORY_HOME"` against the repo you invoked
+it from, landing a reviewable diff. `./factory upgrade` remains the equivalent
+local command for a repo that is already set up.
+
+Why: the first design made upgrading a two-step dance — curl to refresh a hidden
+cache, then `cd` and run `./factory upgrade` — which felt strange, because `init`
+already operates on the current directory. `upgrade` should be symmetric. The
+one thing that genuinely cannot be a single machine-wide command is upgrading
+*every* repo at once: each repo owns committed, governance-gated framework files,
+so they are upgraded where you stand — but "the repo I'm in" is exactly one
+curl away, as it should be.
+
+Provenance: founder question — why can't `install --upgrade` upgrade the
+folder I'm already in? — 2026-07-17.

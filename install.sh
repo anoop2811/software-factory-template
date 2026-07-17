@@ -71,19 +71,25 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
     say "install: refreshing the template at $FACTORY_HOME to '$FACTORY_REF'..."
     git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
     git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
+  elif [ -e "$FACTORY_HOME" ]; then
+    say "install: $FACTORY_HOME exists but is not a template checkout." >&2
+    say "  Remove it and re-run, or set FACTORY_HOME to a different path." >&2
+    exit 1
   else
     say "install: cloning the template into $FACTORY_HOME..."
     git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"
   fi
-  if [ -f "$TARGET_DIR/factory.yaml" ]; then
-    say "install: applying framework updates to the current directory:"
-    say "    $TARGET_DIR"
+  # Apply to the current repo. Resolve its root via git so running from a
+  # subdirectory upgrades the whole repo, not just where you happen to stand.
+  REPO_ROOT="$( (cd "$TARGET_DIR" && git rev-parse --show-toplevel) 2>/dev/null || true)"
+  if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/factory.yaml" ]; then
+    say "install: applying framework updates to $REPO_ROOT ..."
     say ""
-    cd "$TARGET_DIR"
+    cd "$REPO_ROOT"
     exec "$FACTORY_HOME/scripts/factory-upgrade.sh" --source "$FACTORY_HOME"
   fi
-  say "install: template cache updated. No factory.yaml here, so no project was"
-  say "  upgraded — run this from inside a factory repo, or 'init' one first."
+  say "install: template cache updated. This isn't a factory repo, so nothing was"
+  say "  upgraded — run 'upgrade' from inside one, or 'init' to set one up."
   exit 0
 fi
 

@@ -210,11 +210,13 @@ The "lint" operation of the LLM-maintained wiki pattern (raw sources → agent-w
 
 **Exit codes:** 0 pass or skip, 1 a page lacks provenance or a link doesn't resolve.
 
-**Configuration:** reads `wiki_root` from `factory.yaml` (default `wiki`).
+**Configuration:** reads `wiki_root` (default `wiki`) and `wiki_staleness` (default `false`, opt-in) from `factory.yaml`.
 
-v1 enforces two invariants on every content page (the index/README are exempt):
+It enforces, on every content page (the index/README are exempt):
 - **Provenance** — each page cites a source: a `file:line` reference, a URL with a date, or `observed YYYY-MM-DD`.
 - **Live cross-references** — every wiki-local markdown link and `[[wikilink]]` resolves to a file that exists.
+- **Reachability** — when an index (README/INDEX) exists, every content page is linked from some other wiki page; nothing is orphaned.
+- **Freshness** (opt-in, `wiki_staleness: true`) — a page whose cited source file changed after the page did is flagged stale, forcing a re-review and re-commit.
 
 ```
 WIKI-LINT FAIL: wiki/store.md has no provenance — cite a source (file:line, a URL with a date, or 'observed YYYY-MM-DD')
@@ -222,4 +224,4 @@ WIKI-LINT FAIL: wiki/api.md links to a missing page: store.md
 wiki-lint: 2 problem(s) found
 ```
 
-Orphan detection and source-drift/staleness are planned (Decision 15). This is what makes `wiki/README.md`'s "lint-gated at merge" a fact rather than a convention.
+This is what makes `wiki/README.md`'s "lint-gated at merge" a fact rather than a convention.

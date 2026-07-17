@@ -11,16 +11,19 @@ set -uo pipefail
 # (agent answers from the wiki) are the model's job. This gate is ours: it
 # fails the build when a page is not honest.
 #
-# v1 enforces two invariants (see docs/CONCEPTS.md):
+# It enforces (Decision 15, extended in Decision 17; see docs/CONCEPTS.md):
 #   1. Provenance — every content page cites a source: a file:line reference,
 #      a URL with a date, or `observed YYYY-MM-DD`.
 #   2. Live cross-references — every wiki-local markdown link and [[wikilink]]
 #      resolves to a file that exists.
-# Orphan detection and source-drift/staleness are planned (Decision 15).
+#   3. Reachability — when an index (README/INDEX) is present, every content
+#      page is linked from some other wiki page; nothing is orphaned.
+#   4. Freshness (opt-in: wiki_staleness) — a page whose cited source file
+#      changed after the page did is flagged stale, forcing a re-review.
 #
-# Reads wiki_root from factory.yaml (default: wiki). Skips (with a note) when
-# there are no wiki content pages to lint.
-# Exit 0 = clean or skip, 1 = a missing citation or a broken link.
+# Reads wiki_root (default: wiki) and wiki_staleness (default: false) from
+# factory.yaml. Skips (with a note) when there are no wiki content pages.
+# Exit 0 = clean or skip, 1 = a missing citation, broken link, orphan, or stale page.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../lib/config.sh
@@ -30,6 +33,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 1
 
 WIKI="$(factory_config_get wiki_root wiki)"
+STALE_CHECK="$(factory_config_get wiki_staleness false)"
 
 if [ ! -d "$WIKI" ]; then
   echo "wiki-lint: no $WIKI/ directory — skipping"
@@ -81,9 +85,45 @@ while IFS= read -r page; do
   done < <(grep -oE '\[\[[^]]+\]\]' "$page" | sed -E 's/^\[\[//; s/\]\]$//')
 done < <(find "$WIKI" -type f -name '*.md' | sort)
 
+# (3) Reachability — when an index exists, every content page must be linked
+# from some other wiki page. A page nothing points to is dead knowledge.
+if [ -f "$WIKI/README.md" ] || [ -f "$WIKI/INDEX.md" ]; then
+  while IFS= read -r page; do
+    [ -n "$page" ] || continue
+    b="$(basename "$page")"
+    name="${b%.md}"
+    ref=0
+    if grep -rlF --include='*.md' -- "$b" "$WIKI" 2>/dev/null | grep -qvF -- "$page"; then ref=1; fi
+    if grep -rlF --include='*.md' -- "[[$name]]" "$WIKI" 2>/dev/null | grep -qvF -- "$page"; then ref=1; fi
+    if [ "$ref" -eq 0 ]; then
+      echo "WIKI-LINT FAIL: $page is an orphan — no other wiki page links to it (add a link from your index)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done < <(find "$WIKI" -type f -name '*.md' ! -name 'README.md' ! -name 'INDEX.md' | sort)
+fi
+
+# (4) Freshness (opt-in) — flag a page whose cited source changed after it.
+if [ "$STALE_CHECK" = "true" ] && git rev-parse --show-toplevel >/dev/null 2>&1; then
+  while IFS= read -r page; do
+    [ -n "$page" ] || continue
+    page_t="$(git log -1 --format=%ct -- "$page" 2>/dev/null || true)"
+    [ -n "$page_t" ] || continue
+    while IFS= read -r src; do
+      [ -n "$src" ] || continue
+      [ -f "$src" ] || continue
+      src_t="$(git log -1 --format=%ct -- "$src" 2>/dev/null || true)"
+      [ -n "$src_t" ] || continue
+      if [ "$src_t" -gt "$page_t" ]; then
+        echo "WIKI-LINT FAIL: $page is stale — its source $src changed after the page (re-review and re-commit the page)"
+        ERRORS=$((ERRORS + 1))
+      fi
+    done < <(grep -oE '[A-Za-z0-9_./-]*[A-Za-z][A-Za-z0-9_./-]*:L?[0-9]+' "$page" | sed -E 's/:L?[0-9]+$//' | sort -u)
+  done < <(find "$WIKI" -type f -name '*.md' ! -name 'README.md' ! -name 'INDEX.md' | sort)
+fi
+
 if [ "$ERRORS" -gt 0 ]; then
   echo "wiki-lint: $ERRORS problem(s) found"
   exit 1
 fi
 
-echo "wiki-lint: every wiki content page is cited and its cross-references resolve"
+echo "wiki-lint: every wiki content page is cited, reachable, and its cross-references resolve"

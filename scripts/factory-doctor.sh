@@ -115,7 +115,8 @@ fi
 
 # wiki-lint (the LLM-wiki pattern's lint operation)
 if [ -d "$WR" ] && find "$WR" -type f -name '*.md' ! -name 'README.md' ! -name 'INDEX.md' 2>/dev/null | grep -q .; then
-  armed "wiki-lint              every wiki/ content page must cite a source and resolve its links"
+  if [ "$(factory_config_get wiki_staleness false)" = "true" ]; then WMODE="cited, reachable, fresh"; else WMODE="cited, reachable (staleness opt-in)"; fi
+  armed "wiki-lint              every wiki/ content page: $WMODE, links resolve"
 else
   inert "wiki-lint              no wiki content pages yet (wiki_root: $WR)"
 fi

@@ -185,6 +185,48 @@ if [ -x "$WIKI_HOOK" ]; then
   printf '# Page\nA claim. Source: pkg/thing.go:3\n' > "$WLWIKI/page.md"
   check "wiki-lint accepts a cited page" 0 \
     "$(FACTORY_CONFIG="$WLCFG" run_status "$WIKI_HOOK")"
+
+  # Reachability: an index present + an unlinked page is an orphan.
+  OWIKI="$SANDBOX/wlo/wiki"
+  mkdir -p "$OWIKI"
+  OCFG="$SANDBOX/wlo/factory.yaml"
+  printf 'wiki_root: %s\n' "$OWIKI" > "$OCFG"
+  printf '# Index\n' > "$OWIKI/README.md"
+  printf '# P\nCites pkg/x.go:3\n' > "$OWIKI/p.md"
+  check "wiki-lint flags an orphan page" 1 \
+    "$(FACTORY_CONFIG="$OCFG" run_status "$WIKI_HOOK")"
+  printf '# Index\n[P](p.md)\n' > "$OWIKI/README.md"
+  check "wiki-lint clears once the page is linked" 0 \
+    "$(FACTORY_CONFIG="$OCFG" run_status "$WIKI_HOOK")"
+
+  # Freshness (opt-in): a page older than its cited source is stale.
+  SWDIR="$SANDBOX/wls"
+  mkdir -p "$SWDIR/wiki" "$SWDIR/pkg"
+  (
+    cd "$SWDIR" || exit 1
+    git init -q -b main
+    git config user.email s@e.i
+    git config user.name s
+    printf 'wiki_root: wiki\nwiki_staleness: true\n' > factory.yaml
+    printf 'x\n' > pkg/x.go
+    printf '# P\nCites pkg/x.go:1\n' > wiki/p.md
+    printf '# Index\n[P](p.md)\n' > wiki/README.md
+    GIT_AUTHOR_DATE='2020-01-01T00:00:00' GIT_COMMITTER_DATE='2020-01-01T00:00:00' git add -A
+    GIT_AUTHOR_DATE='2020-01-01T00:00:00' GIT_COMMITTER_DATE='2020-01-01T00:00:00' git commit -qm init
+    printf 'x2\n' > pkg/x.go
+    GIT_AUTHOR_DATE='2021-01-01T00:00:00' GIT_COMMITTER_DATE='2021-01-01T00:00:00' git add pkg/x.go
+    GIT_AUTHOR_DATE='2021-01-01T00:00:00' GIT_COMMITTER_DATE='2021-01-01T00:00:00' git commit -qm src-later
+  )
+  check "wiki-lint (staleness) flags a page older than its source" 1 \
+    "$(cd "$SWDIR" && FACTORY_CONFIG="$SWDIR/factory.yaml" run_status "$WIKI_HOOK")"
+  (
+    cd "$SWDIR" || exit 1
+    printf '# P\nCites pkg/x.go:1 reviewed\n' > wiki/p.md
+    GIT_AUTHOR_DATE='2022-01-01T00:00:00' GIT_COMMITTER_DATE='2022-01-01T00:00:00' git add wiki/p.md
+    GIT_AUTHOR_DATE='2022-01-01T00:00:00' GIT_COMMITTER_DATE='2022-01-01T00:00:00' git commit -qm page-reviewed
+  )
+  check "wiki-lint (staleness) clears after the page is re-committed" 0 \
+    "$(cd "$SWDIR" && FACTORY_CONFIG="$SWDIR/factory.yaml" run_status "$WIKI_HOOK")"
 fi
 
 echo ""

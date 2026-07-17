@@ -13,14 +13,17 @@
 #   Dependencies:  OSV-Scanner (osv.dev) — the govulncheck analog, shared with the Java pack
 # Package manager: npm. Node.js 24 (Active LTS).
 #
-# Recommended devDependencies for local dev (CI pins these itself via npx):
-#   @biomejs/biome@2.5.4  vitest@4.1.10  typescript
-#   @stryker-mutator/core@9.6.1  @stryker-mutator/vitest-runner@9.6.1
+# Add these devDependencies so tsc and vitest resolve from node_modules (the
+# type-check and tests run the project's own pinned versions, not a download):
+#   vitest@4.1.10  typescript
+# Biome and Stryker are pinned by CI at their npx call, so they are optional
+# locally: @biomejs/biome@2.5.4, @stryker-mutator/core@9.6.1,
+# @stryker-mutator/vitest-runner@9.6.1.
 
 pack_name: typescript
 maturity: experimental
 test_file_patterns: "\.test\.[jt]sx?$ \.spec\.[jt]sx?$"
-check_command: "npx @biomejs/biome ci . && npx tsc --noEmit && npx vitest run && ./scripts/hooks/vitest-only-check.sh"
+check_command: "npx @biomejs/biome@2.5.4 ci . && ./node_modules/.bin/tsc --noEmit && ./node_modules/.bin/vitest run && ./scripts/hooks/vitest-only-check.sh"
 
 # Files installed by factory-init:
 #   biome.json                  -> repository root (format + lint config)

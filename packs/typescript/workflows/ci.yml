@@ -32,10 +32,10 @@ jobs:
         run: npx @biomejs/biome@2.5.4 ci .
 
       - name: Types (tsc --noEmit)
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
 
       - name: Tests (Vitest)
-        run: npx vitest run
+        run: ./node_modules/.bin/vitest run
 
       - name: Mutation testing (scoped in stryker.config.json)
         run: npx -p @stryker-mutator/core@9.6.1 -p @stryker-mutator/vitest-runner@9.6.1 stryker run

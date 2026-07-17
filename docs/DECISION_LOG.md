@@ -264,10 +264,13 @@ substitution.
 Why: Biome collapses formatting and linting into one Rust tool that is 25-35x
 faster than ESLint + Prettier and needs no separate formatter — the same
 "auto-fix over nagging, one tool" move the Java pack made with Spotless. `tsc`
-stays the type ground truth. CI pins each tool at its `npx` call so a
-compromised `@latest` cannot enter the gate path, and the pack lines up
-category-for-category with Go and Java (format, types/correctness, tests,
-mutation, deps), making the three packs one design.
+stays the type ground truth. CI pins the tools the pack introduces — Biome and
+Stryker — at their `npx` call, while type-checking and tests run the adopter's
+own TypeScript and Vitest from `node_modules`, so a missing binary fails fast
+instead of silently downloading an unrelated package (notably, an unrelated
+`tsc` package exists on npm). The pack lines up category-for-category with Go
+and Java (format, types/correctness, tests, mutation, deps), making the three
+packs one design.
 
 Honesty: the `typescript` pack stays `experimental` — the full stack ships but
 no real repository has adopted it, per the label semantics clarified in

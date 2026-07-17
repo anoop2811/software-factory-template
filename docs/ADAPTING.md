@@ -89,12 +89,20 @@ Run `./factory doctor` between each step: what it reports as **inert** is exactl
 
 ## Upgrading
 
+Two ways, same result — a reviewable diff over the repo you're in:
+
 ```bash
+# from inside the repo, no local setup needed:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
+
+# or, if you're already set up:
 ./factory upgrade            # pull framework updates over this repo
 ./factory upgrade --ref v1.2 # or pin a specific template ref
 ```
 
-`factory upgrade` re-fetches the template and refreshes the byte-identical framework files you already have — the hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and any installed pack dialect hooks. This is safe precisely because of Decision 2: the hooks contain no substituted values, so refreshing them is a clean copy.
+`install.sh upgrade` refreshes the machine-wide template cache (`$FACTORY_HOME`, used by future `factory-init`) and then applies the update to the current repo — it acts on the directory you're in, just like `init`. `./factory upgrade` does the same locally without curl. Both upgrade **this** repo, not every repo on your machine: each repo owns its committed, governance-gated framework files, so you upgrade them where you are.
+
+Either way it re-fetches the template and refreshes the byte-identical framework files you already have — the hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and any installed pack dialect hooks. This is safe precisely because of Decision 2: the hooks contain no substituted values, so refreshing them is a clean copy.
 
 It **never** touches your `factory.yaml`, your content (`wiki/` pages, `memory/lessons/`, `specs/`, `docs/DECISION_LOG.md`), or your code, and it **never overwrites** your identity/customizable files (`opencode.json`, the agent prompts, `AGENTS.md`, `README.md`, `CODEOWNERS`, `Makefile`) — it only *reports* which of those differ from upstream, so you decide whether to adopt the change. It records the version in `.factory-version`, runs `factory doctor`, and leaves everything as an uncommitted diff. Review it (the changed hooks are governance-sensitive — the decision-log gate will remind you), then commit.
 

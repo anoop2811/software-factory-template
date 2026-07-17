@@ -246,7 +246,61 @@
   .arrow { color: var(--faint); font-family: var(--mono); }
   .pipeline p { flex-basis: 100%; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
 
-  .aside-note { margin-top: 22px; font-size: 13.5px; color: var(--faint); font-style: italic; max-width: 62ch; }
+  .aside-note {
+    margin-top: 26px; font-size: 14.5px; color: var(--muted); max-width: 64ch;
+    border-left: 3px solid var(--edge); padding: 12px 0 12px 16px;
+  }
+  .aside-note strong { color: var(--fg); }
+
+  /* who-it's-for strip */
+  .whofor { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .whofor .tag {
+    font-size: 13px; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 8px;
+    padding: 7px 13px;
+  }
+  .whofor .tag b { color: var(--fg); font-weight: 600; }
+
+  /* config example */
+  .yaml { margin-top: 20px; background: #0A0C10; border: 1px solid var(--edge); border-radius: 10px;
+    padding: 16px 18px; font-family: var(--mono); font-size: 13px; line-height: 1.85; overflow-x: auto; white-space: pre; box-shadow: var(--shadow-card); }
+  .yaml .k { color: var(--blue); } .yaml .v { color: #C9CDD4; } .yaml .c { color: var(--faint); }
+
+  /* callout box (prereqs / after) */
+  .callout { margin-top: 22px; background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 18px 20px; box-shadow: var(--shadow-card); }
+  .callout h3 { font-size: 14px; margin-bottom: 8px; color: var(--fg); }
+  .callout h3 .mono { font-family: var(--mono); color: var(--amber); font-size: 12.5px; }
+  .callout ol, .callout ul { margin: 0; padding-left: 20px; }
+  .callout li { font-size: 14px; color: var(--muted); line-height: 1.7; }
+  .callout li code, .callout li .mono { font-family: var(--mono); font-size: .9em; color: var(--fg); }
+  .callout.green { border-color: rgba(76,196,110,.32); }
+  .callout.green h3 { color: var(--green); }
+  .two-col { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* FAQ */
+  .faq { margin-top: 34px; display: grid; gap: 12px; }
+  .faq details {
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 4px 18px; box-shadow: var(--shadow-card);
+  }
+  .faq summary { cursor: pointer; padding: 14px 0; font-weight: 600; font-size: 15.5px; color: var(--fg); list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before { content: "+ "; color: var(--green); font-family: var(--mono); }
+  .faq details[open] summary::before { content: "− "; }
+  .faq details p { padding: 0 0 16px; margin: 0; font-size: 14.5px; color: var(--muted); line-height: 1.6; }
+
+  /* docs strip */
+  .docs-strip { margin-top: 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .docs-strip { grid-template-columns: 1fr 1fr; } }
+  .docs-strip a {
+    background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 16px 16px; box-shadow: var(--shadow-card); color: var(--fg);
+    transition: border-color 130ms ease;
+  }
+  .docs-strip a:hover { border-color: var(--faint); text-decoration: none; }
+  .docs-strip .dt { font-family: var(--mono); font-size: 12px; color: var(--blue); }
+  .docs-strip .dd { display: block; margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 
   /* ── Differences ────────────────────────────────────── */
   section.band { background: var(--bg2); border-top: 1px solid var(--edge-soft); border-bottom: 1px solid var(--edge-soft); padding-bottom: 68px; margin-top: 52px; }
@@ -352,6 +406,7 @@
       <a href="#differs">How it differs</a>
       <a href="#inside">Inside</a>
       <a href="#install">Install</a>
+      <a href="https://github.com/anoop2811/software-factory-template/tree/main/docs">Docs</a>
       <a class="nav-gh" href="https://github.com/anoop2811/software-factory-template">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
         GitHub
@@ -367,10 +422,15 @@
         <span class="pill green">selftest: 20 passed, 0 failed</span>
         <span class="pill blue">MIT licensed</span>
         <span class="pill violet">break/fix proven</span>
-        <span class="pill amber">three harnesses, one canon</span>
+        <span class="pill amber">opencode · Claude Code · Codex</span>
       </div>
       <h1>Your AI agents follow rules.<br>Ours <span class="pass-word">exit&nbsp;non-zero</span> if they don't.</h1>
-      <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we ship our own product with — it's what survived after an agent burned us.</p>
+      <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we build our own product with — it's what stuck after an agent told us a change was verified when the check had never run.</p>
+      <div class="whofor">
+        <span class="tag">For a <b>solo dev</b> driving one coding agent</span>
+        <span class="tag">or a <b>team</b> whose agents open PRs</span>
+        <span class="tag">on <b>opencode</b>, <b>Claude Code</b>, or <b>Codex</b></span>
+      </div>
       <div class="cta-row">
         <a class="btn primary" href="https://github.com/anoop2811/software-factory-template">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
@@ -398,6 +458,7 @@
     <div class="wrap">
       <span class="eyebrow amber">$ [1/4] why this exists</span>
       <h2>Prose rules decay. Exit codes don't.</h2>
+      <p class="lede">Across four review rounds of the originating factory's own agent-written code, one pattern held:</p>
 
       <div class="stats">
         <div class="stat">
@@ -434,7 +495,7 @@ edit test files.</span>
 <span class="c-green">compliance: not optional</span></pre>
         </div>
       </div>
-      <p class="credit">The underlying idea — computational controls beat inferential ones — comes from Birgitte Böckeler at Thoughtworks. We just kept applying it until nothing important was left as prose.</p>
+      <p class="credit">The underlying idea — computational controls beat inferential ones — comes from Birgitte Böckeler at Thoughtworks. We kept applying it until nothing important was left as prose. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md">Read the full Verification Contract →</a></p>
 
       <div class="pipeline" aria-label="Break fix proof pipeline">
         <span class="chip break">break</span><span class="arrow">→</span>
@@ -452,7 +513,7 @@ edit test files.</span>
     <div class="wrap">
       <span class="eyebrow green">$ [2/4] how this approach differs</span>
       <h2>Six places we chose differently.</h2>
-      <p class="lede">The common patterns exist for good reasons. These are the choices that survived our failures.</p>
+      <p class="lede">The left column is the common default across today's agent tooling — instruction files, trusted-because-green checks, one session doing everything. It exists for good reasons. The right is what survived our failures.</p>
       <div class="diff-list">
         <div class="diff-row">
           <div class="them"><span class="mark">·</span><span>Rules live in prompts. Compliance is inference.</span></div>
@@ -490,7 +551,7 @@ edit test files.</span>
         <div class="cell">
           <span class="mono-label">scripts/hooks/</span>
           <h3>Deterministic gates</h3>
-          <p>Test-edit denial, evidence-checking commit lint, decision gate, drift checks — all configured by one flat <span style="font-family:var(--mono)">factory.yaml</span>. Hooks stay byte-identical across adopters; upgrades are file copies.</p>
+          <p>Test-edit denial, evidence-checking commit lint, decision gate, drift checks — all configured by one flat <span style="font-family:var(--mono)">factory.yaml</span>. Hooks stay byte-identical across adopters; upgrades are file copies. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md">Hook reference →</a></p>
         </div>
         <div class="cell c-blue">
           <span class="mono-label">.opencode/ · .claude/ · .codex/</span>
@@ -512,8 +573,14 @@ edit test files.</span>
           <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ · Checkstyle + ErrorProne · PIT</td><td><span class="badge exp">experimental</span></td></tr>
         </tbody>
       </table>
-      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = fixtures only. Labels change on real adoption — not before.</p>
+      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = fixtures only. Labels change on real adoption — not before. <strong>The core — commit gates, push gates, role separation, the verification contract — is language-agnostic and works with no pack at all.</strong> A pack only arms the test-file pattern and check command for your language, so Python, Rust, or Ruby projects get everything except those two.</p>
 
+      <p class="lede" style="margin-top:28px">Configuration is one flat file — no nesting, no schema to learn:</p>
+      <div class="yaml"><span class="c"># factory.yaml</span>
+<span class="k">project_name:</span> <span class="v">myproject</span>
+<span class="k">protected_paths:</span> <span class="v">"internal/billing scripts/hooks"</span>
+<span class="k">test_file_patterns:</span> <span class="v">"_test\.go$"</span>
+<span class="k">check_command:</span> <span class="v">"make check"</span></div>
     </div>
   </section>
 
@@ -522,6 +589,7 @@ edit test files.</span>
       <span class="eyebrow blue">$ [4/4] install</span>
       <h2>One command in. Proof before "done."</h2>
       <p class="lede">Bare, the installer only fetches — a pinned copy into one folder, running nothing it downloaded. Add <span style="font-family:var(--mono)">init</span> and it also sets up the current repo. The word is your consent; the plain command never touches your project.</p>
+      <p class="table-note" style="margin-top:10px">Needs <code>git</code>, a coding harness (opencode, Claude Code, or Codex), and your language's tools. <span style="font-family:var(--mono)">factory-init</span> runs <span style="font-family:var(--mono)">prereq-check</span> first and tells you what's missing.</p>
       <div class="qs" aria-label="Install commands"><span class="dim"># one shot: fetch, then set up the current repo (prompts you for a few values)</span>
 <span class="prompt">$</span> cd your-project
 <span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init
@@ -539,6 +607,40 @@ edit test files.</span>
         <div class="stat"><div class="n" style="color:var(--blue)">1</div><p>installer fetches a pinned copy — and executes none of it</p></div>
         <div class="stat"><div class="n" style="color:var(--amber)">2</div><p>factory-init asks a few questions, writes factory.yaml, installs the gates</p></div>
         <div class="stat"><div class="n" style="color:var(--green)">3</div><p>init breaks a rule on purpose, watches the gate fire, and only then says "done"</p></div>
+      </div>
+
+      <div class="two-col">
+        <div class="callout green">
+          <h3>After it says "done"</h3>
+          <ol>
+            <li><span class="mono">make sync-harnesses</span> — generate the Claude &amp; Codex adapters from the canon</li>
+            <li>Open your harness (<span class="mono">opencode</span>, Claude Code, or Codex) — the roles are already wired</li>
+            <li>Point the spec-writer at a change; it writes red tests, the implementer makes them pass, a different-model reviewer checks it</li>
+            <li>Install the push gate: <span class="mono">git config core.hooksPath .githooks</span></li>
+          </ol>
+        </div>
+        <div class="callout">
+          <h3>Or just watch it fire — <span class="mono">no install</span></h3>
+          <div class="yaml" style="margin-top:12px"><span class="c"># clone and run the break/fix suite; nothing touches your machine</span>
+<span class="k">$</span> <span class="v">git clone https://github.com/anoop2811/software-factory-template</span>
+<span class="k">$</span> <span class="v">cd software-factory-template &amp;&amp; ./scripts/selftest/run.sh</span>
+<span class="c"># 20 gates break, fire, and pass in front of you</span></div>
+        </div>
+      </div>
+
+      <div class="faq">
+        <details><summary>Does it work with my existing CI?</summary><p>Yes — the gates are shell scripts. Call them from whatever CI you already run, or copy the provided workflow. Nothing assumes a particular CI vendor.</p></details>
+        <details><summary>Can I take just the commit lint, without the role separation?</summary><p>Yes. Every gate is independent. Adopt them one at a time — the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md">adoption guide</a> covers going incremental in a brownfield repo.</p></details>
+        <details><summary>What if I don't use opencode?</summary><p>The canonical config lives in <span class="mono" style="font-family:var(--mono)">opencode.json</span>, but a sync script generates equivalent Claude Code and Codex configs. The enforcement layer is plain shell — it doesn't care which harness drives.</p></details>
+        <details><summary>My language isn't Go, TypeScript, or Java.</summary><p>The core works anyway. Commit gates, push gates, role separation, and the verification contract are language-agnostic. A pack only arms the test-file pattern and check command — set those two in <span class="mono" style="font-family:var(--mono)">factory.yaml</span> by hand and you have the full thing.</p></details>
+        <details><summary>Will it slow down my dev loop?</summary><p>The gates are the fast local rail — a hook that exits in milliseconds. They run where you'd otherwise wait on a human reviewer to notice the same mistake. That trade goes the other way.</p></details>
+      </div>
+
+      <div class="docs-strip">
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md"><span class="dt">CONCEPTS.md</span><span class="dd">The Verification Contract, in full</span></a>
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md"><span class="dt">HOOKS.md</span><span class="dd">Every gate: what it enforces, when it fires</span></a>
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/PATTERNS.md"><span class="dt">PATTERNS.md</span><span class="dd">Six real failures that shaped this</span></a>
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md"><span class="dt">ADAPTING.md</span><span class="dd">Brownfield &amp; incremental adoption</span></a>
       </div>
     </div>
   </section>

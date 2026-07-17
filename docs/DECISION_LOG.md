@@ -279,3 +279,29 @@ Decision 12.
 Provenance: founder direction, 2026-07-17 — build the TypeScript pack to
 parity on the absolute-best toolchain, choosing Biome and npm. Versions
 verified via each tool's release page, 2026-07-17.
+
+## Decision 14 (2026-07-17): A pure-shell `factory` dispatcher and a `factory doctor` health command; no compiled CLI
+
+What: A single shell entrypoint `factory` dispatches subcommands
+(`factory init | doctor | check | selftest`). `factory doctor` reports the
+health of an installed factory: it classifies every gate as armed / inert /
+stale from `factory.yaml`, verifies each hook exists and is executable, checks
+the generated adapters for drift, checks that `protected_paths` are covered by
+CODEOWNERS, and runs the break/fix self-test so the adopter watches each gate
+fire. `make` targets become thin aliases. There is no compiled binary.
+
+Why: the template's value is adoption, and adoption needs trust — an adopter
+has to see that the gates are live in their repo, not just installed. A Go (or
+any compiled) CLI was considered and rejected: it would break three properties
+that are the product's trust story — the enforcement layer is auditable plain
+shell you can read, it has zero install dependency and is language-agnostic,
+and the hooks must stay shell because three harnesses invoke them as shell
+commands and read `factory.yaml` at runtime (Decision 2). A binary would either
+ship as a supply-chain artifact the template itself warns against, or force a
+Go toolchain onto Java/TypeScript adopters. A shell dispatcher gives the clean
+`factory <verb>` surface without any of that cost. Revisit a binary only if a
+real adopter needs Windows support or the orchestration outgrows shell — and
+even then the hooks stay shell and the binary stays optional.
+
+Provenance: founder question — do we need a Go CLI instead of Makefile
+commands? — 2026-07-17.

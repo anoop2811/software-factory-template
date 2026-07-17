@@ -1,10 +1,13 @@
-.PHONY: selftest check eval sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
+.PHONY: selftest doctor check eval sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
 
 # Core factory targets — language-agnostic. Language packs contribute their
 # own test/lint/build targets via packs/<language>/Makefile.pack at init time.
 
 selftest:
 	./scripts/selftest/run.sh
+
+doctor:
+	./scripts/factory-doctor.sh
 
 check: selftest
 	./scripts/citation-lint.sh

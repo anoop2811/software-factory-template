@@ -126,7 +126,9 @@ fi
 PREV_LINE=""
 while IFS= read -r LINE; do
   CLAIMS_VERIFICATION=false
-  if echo "$LINE" | grep -qiE '(verified|fixed|works)'; then
+  # Word-bounded so "frameworks" isn't read as a "works" claim, "prefixed" as
+  # "fixed", etc. BSD grep lacks \b, so match on non-word neighbours / bounds.
+  if echo "$LINE" | grep -qiE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
     # Allow "NOT verified" and "unverified" and "not verified"
     if echo "$LINE" | grep -qiE '(NOT verified|unverified|not verified|NOT_VERIFIED)'; then
       PREV_LINE="$LINE"

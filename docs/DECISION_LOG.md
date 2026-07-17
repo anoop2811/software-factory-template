@@ -446,3 +446,23 @@ standard extension point — not a pack.
 Provenance: founder direction, 2026-07-17 — add React/Vue-aware rules and
 framework detection hints; frameworks like Spring Boot ride on the language pack.
 Biome domains verified against biomejs.dev/linter/domains, 2026-07-17.
+
+## Decision 21 (2026-07-17): commit-message-lint matches claim words at word boundaries
+
+What: `commit-message-lint.sh` matched `verified`/`fixed`/`works` as substrings,
+so it false-flagged ordinary words — "frameworks" tripped the "works" claim
+rule, "prefixed" the "fixed" rule, "workspace" the "works" rule. The match is
+now word-bounded: `(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)`.
+BSD grep (macOS) lacks `\b`, so the boundary is expressed with non-word
+neighbours and string anchors, which is portable. A break/fix fixture proves a
+message containing "frameworks" passes while a bare "the retry logic works"
+still fails.
+
+Why: a gate that fires on innocent words is a false positive that erodes trust
+in the whole system — contributors start reaching for awkward synonyms to dodge
+the lint (which this project did, once). The claim rule should catch the claim,
+not the letters. Found while a commit describing framework awareness was
+rejected for the word "frameworks".
+
+Provenance: observed 2026-07-17 — a `feat:` commit body containing "frameworks"
+was rejected by commit-message-lint as an uncited "works" claim.

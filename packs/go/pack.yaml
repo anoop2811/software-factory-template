@@ -10,11 +10,12 @@
 
 pack_name: go
 maturity: battle-tested
-test_file_patterns: "_test\\.go([^[:alnum:]_]|$)"
-check_command: "make check"
+test_file_patterns: "_test\.go([^[:alnum:]_]|$)"
+check_command: "go test -race ./... && golangci-lint run ./... && ./scripts/hooks/ginkgo-only-check.sh"
 
 # Files installed by factory-init:
 #   .golangci.yml        -> repository root
 #   hooks/ginkgo-only-check.sh -> scripts/hooks/ (enforces the blessed test stack)
 #   workflows/ci.yml     -> .github/workflows/ci.yml (lint, sec, vuln, test, gates)
 #   Makefile.pack        -> merged into the adopter's Makefile
+go_min_version: "1.24"

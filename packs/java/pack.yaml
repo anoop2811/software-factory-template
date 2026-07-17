@@ -8,8 +8,8 @@
 
 pack_name: java
 maturity: experimental
-test_file_patterns: "src/test/.*(Test|Tests|IT)\\.java$"
-check_command: "./gradlew check"
+test_file_patterns: "src/test/.*(Test|Tests|IT)\.java$"
+check_command: "./gradlew test"
 
 # Planned files (not yet present — see docs/DECISION_LOG.md Decision 3):
 #   checkstyle.xml, workflows/ci.yml, Makefile.pack

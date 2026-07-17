@@ -21,7 +21,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-TARGET_DIR="${1:-.}"
+# Parse args: an optional target dir (first non-flag) and --pack <lang>.
+TARGET_ARG="."
+PACK=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --pack) PACK="${2:-}"; shift 2 ;;
+    --pack=*) PACK="${1#*=}"; shift ;;
+    *) TARGET_ARG="$1"; shift ;;
+  esac
+done
+
+TARGET_DIR="$TARGET_ARG"
 # Resolve to an absolute path, creating the directory if it does not exist.
 # (Grouping matters: the old one-liner ran pwd twice on an existing dir and
 # embedded a newline in the path.)
@@ -321,14 +332,90 @@ echo "  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push
 echo ""
 echo "factory.config saved — re-run setup.sh to update placeholders."
 
+# ── Install a language pack (arms the gates for your language) ────────
+# Packs live in the template's packs/<lang>/. Selecting one merges its
+# test_file_patterns and check_command into factory.yaml (so the test-edit
+# hook and the diff-aware check are armed) and copies whatever real files the
+# pack ships. Only Go is battle-tested; TypeScript and Java are experimental
+# scaffolds that arm the patterns but ship no stack configs yet (Decision 3).
+set_factory_key() {
+  # Rewrite one key's line without regex tools — pack values contain backslashes,
+  # pipes, and $ (e.g. the Go pattern _test\.go([^[:alnum:]_]|$)), which sed
+  # would misinterpret. Pure-bash case-glob + literal insertion preserves them.
+  local key="$1" val="$2" file="$TARGET_DIR/factory.yaml" line out=""
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "$key:"*) out="$out$key: \"$val\""$'\n' ;;
+      *)        out="$out$line"$'\n' ;;
+    esac
+  done < "$file"
+  printf '%s' "$out" > "$file"
+}
+
+if [ -z "$PACK" ] && [ -r /dev/tty ] && [ -t 1 ]; then
+  echo ""
+  echo "Language pack (arms test patterns + check command):"
+  echo "  go          battle-tested"
+  echo "  typescript  experimental"
+  echo "  java        experimental"
+  ask "Install a pack? [go/typescript/java/none]: " PACK
+fi
+
+if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
+  PACK_DIR="$TEMPLATE_DIR/packs/$PACK"
+  if [ ! -f "$PACK_DIR/pack.yaml" ]; then
+    echo "factory-init: unknown pack '$PACK' (have: go typescript java). Skipping."
+  else
+    echo ""
+    echo "Installing '$PACK' pack..."
+    P_MATURITY="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get maturity')"
+    P_PATTERNS="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get test_file_patterns')"
+    P_CHECK="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get check_command')"
+    set_factory_key test_file_patterns "$P_PATTERNS"
+    set_factory_key check_command "$P_CHECK"
+    set_factory_key language_packs "$PACK"
+    echo "  armed factory.yaml: test_file_patterns, check_command (maturity: $P_MATURITY)"
+
+    # Copy pack-specific files that exist (Go ships these; TS/Java do not yet).
+    if [ -f "$PACK_DIR/.golangci.yml" ]; then
+      cp "$PACK_DIR/.golangci.yml" "$TARGET_DIR/"
+      echo "  copied: .golangci.yml"
+    fi
+    if [ -d "$PACK_DIR/hooks" ]; then
+      cp "$PACK_DIR/hooks/"*.sh "$TARGET_DIR/scripts/hooks/" 2>/dev/null && \
+        chmod +x "$TARGET_DIR/scripts/hooks/"*.sh && echo "  copied: pack hooks"
+    fi
+    if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
+      sed "s|__GO_VERSION__|$GO_VERSION|g" "$PACK_DIR/workflows/ci.yml" \
+        > "$TARGET_DIR/.github/workflows/${PACK}-pack.yml"
+      echo "  installed: .github/workflows/${PACK}-pack.yml"
+    fi
+
+    P_MIN="$(FACTORY_CONFIG="$PACK_DIR/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get go_min_version')"
+    if [ -n "$P_MIN" ]; then
+      printf 'go_min_version: "%s"\n' "$GO_VERSION" >> "$TARGET_DIR/factory.yaml"
+      echo "  set: go_min_version"
+    fi
+
+    if [ "$P_MATURITY" != "battle-tested" ]; then
+      echo "  NOTE: '$PACK' is experimental — test patterns and check command are"
+      echo "        armed, but no linter/CI stack configs ship for this pack yet."
+    fi
+  fi
+fi
+
 # ── Post-install attestation (Verification Contract rule 3) ───────────
 # The installer does not say "done" — it proves the installed gates fire.
 echo ""
 echo "=== Post-install attestation: break/fix self-test of installed gates ==="
 if (cd "$TARGET_DIR" && ./scripts/selftest/run.sh); then
   echo ""
-  echo "factory-init: gates proven. Install a language pack (packs/) to arm"
-  echo "test_file_patterns and check_command, then commit."
+  if [ -n "$PACK" ] && [ "$PACK" != "none" ]; then
+    echo "factory-init: gates proven and armed for the '$PACK' pack. Commit when ready."
+  else
+    echo "factory-init: gates proven. Install a language pack to arm the"
+    echo "test-edit hook and check command: re-run with --pack go|typescript|java."
+  fi
 else
   echo ""
   echo "factory-init: INSTALL NOT VERIFIED — a gate failed its break/fix proof."

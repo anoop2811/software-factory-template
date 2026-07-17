@@ -38,7 +38,7 @@ run_status() {
   echo "$status"
 }
 
-echo "[1/4] config parser"
+echo "[1/5] config parser"
 CFG="$SANDBOX/parser.yaml"
 printf 'plain: value\nquoted: "two words"\ncommented: kept # not this\nlist: a b c\n' > "$CFG"
 # shellcheck source=../lib/config.sh
@@ -51,7 +51,7 @@ check "space-separated list" "a b c" "$(factory_config_get list)"
 check "missing key default" "fallback" "$(factory_config_get absent fallback)"
 unset FACTORY_CONFIG
 
-echo "[2/4] test-edit-denial"
+echo "[2/5] test-edit-denial"
 CFG="$SANDBOX/denial.yaml"
 printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|$) \\.spec\\.ts$"\n' > "$CFG"
 export FACTORY_CONFIG="$CFG"
@@ -72,7 +72,7 @@ check "allow when no patterns configured" 0 \
   "$(FACTORY_AGENT_ROLE=implementer run_status "$HOOKS/test-edit-denial.sh" "pkg/parser_test.go")"
 unset FACTORY_CONFIG
 
-echo "[3/4] citation-lint"
+echo "[3/5] citation-lint"
 CITE_DIR="$SANDBOX/cite"
 mkdir -p "$CITE_DIR/docs"
 printf 'line one\nline two\nline three\n' > "$CITE_DIR/docs/TESTPROJ_SPEC.md"
@@ -91,7 +91,7 @@ check "empty prefix skips" 0 \
   "$(cd "$CITE_DIR" && run_status "$TEMPLATE_ROOT/scripts/citation-lint.sh")"
 unset FACTORY_CONFIG
 
-echo "[4/4] decision-log-gate"
+echo "[4/5] decision-log-gate"
 GATE_DIR="$SANDBOX/gate"
 mkdir -p "$GATE_DIR"
 (
@@ -124,6 +124,25 @@ Implements Decision 99."
 check "reference to absent Decision fails" 1 \
   "$(cd "$GATE_DIR" && run_status "$TEMPLATE_ROOT/scripts/hooks/decision-log-gate.sh" "$BASE_SHA" HEAD)"
 unset FACTORY_CONFIG
+
+echo "[5/5] pack patterns arm the test-edit hook"
+# Regression guard: a pack's test_file_patterns must actually deny a matching
+# test file (they were once double-escaped, matching nothing).
+for PACK_YAML in "$TEMPLATE_ROOT"/packs/*/pack.yaml; do
+  PACK_NAME="$(basename "$(dirname "$PACK_YAML")")"
+  PPAT="$(FACTORY_CONFIG="$PACK_YAML" bash -c '. "'"$TEMPLATE_ROOT"'/scripts/lib/config.sh"; factory_config_get test_file_patterns')"
+  PCFG="$SANDBOX/pack-$PACK_NAME.yaml"
+  printf 'test_file_patterns: "%s"\n' "$PPAT" > "$PCFG"
+  case "$PACK_NAME" in
+    go)         PSAMPLE="pkg/foo_test.go" ;;
+    typescript) PSAMPLE="src/app.test.ts" ;;
+    java)       PSAMPLE="src/test/FooTest.java" ;;
+    *)          PSAMPLE="" ;;
+  esac
+  [ -z "$PSAMPLE" ] && continue
+  check "pack '$PACK_NAME' pattern denies $PSAMPLE" 2 \
+    "$(FACTORY_AGENT_ROLE=implementer FACTORY_CONFIG="$PCFG" run_status "$HOOKS/test-edit-denial.sh" "$PSAMPLE")"
+done
 
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"

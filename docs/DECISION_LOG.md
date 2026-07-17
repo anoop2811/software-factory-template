@@ -141,3 +141,28 @@ core/packs split. All fixed; a scratch-repo run now completes with the
 break/fix attestation passing (selftest 17/17) inside the target.
 
 Provenance: founder request for a one-shot installer, 2026-07-16.
+
+## Decision 9 (2026-07-16): factory-init installs a language pack that arms the gates
+
+What: `factory-init` takes `--pack go|typescript|java` (and prompts for one on
+a tty). Selecting a pack merges its `test_file_patterns` and `check_command`
+from `packs/<lang>/pack.yaml` into the generated `factory.yaml` and copies the
+real files the pack ships (Go: `.golangci.yml`, `ginkgo-only-check.sh`, a CI
+workflow). `install.sh init --pack <lang>` passes straight through. Pack
+`check_command` values are now self-contained shell commands, not `make check`
+— the value is `eval`'d by the gates, so depending on Makefile-target merging
+was fragile.
+
+Why: before this, `init` left `test_file_patterns` and `check_command` empty,
+so the test-edit hook and the diff-aware check were inert until hand-editing.
+A pack makes onboarding actually arm the gates for the language. Building it
+surfaced a real defect: pack patterns were double-escaped (`_test\\.go`), so
+`grep -E` matched nothing — the hook was silently disarmed. Fixed to single
+backslash, with a selftest case per pack that fails if a pattern stops
+denying its sample test file.
+
+Honesty: only Go is battle-tested. TypeScript and Java arm their test patterns
+and check command but ship no linter/CI configs yet, and say so at install.
+
+Provenance: founder question — should install offer go/typescript/java? —
+2026-07-16.

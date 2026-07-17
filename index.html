@@ -521,12 +521,14 @@ edit test files.</span>
     <div class="wrap">
       <span class="eyebrow blue">$ [4/4] install</span>
       <h2>One command in. Proof before "done."</h2>
-      <p class="lede">The installer only fetches — a pinned copy of the template, into one folder. It runs nothing it downloaded. It's also short enough to read first, which we'd recommend on principle.</p>
-      <div class="qs" aria-label="Install commands"><span class="dim"># fetch the template (pinned ref, ~/.software-factory-template)</span>
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh
+      <p class="lede">Bare, the installer only fetches — a pinned copy into one folder, running nothing it downloaded. Add <span style="font-family:var(--mono)">init</span> and it also sets up the current repo. The word is your consent; the plain command never touches your project.</p>
+      <div class="qs" aria-label="Install commands"><span class="dim"># one shot: fetch, then set up the current repo (prompts you for a few values)</span>
+<span class="prompt">$</span> cd your-project
+<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init
 
-<span class="dim"># then, from the repo you want to govern:</span>
-<span class="prompt">$</span> cd your-project && ~/.software-factory-template/scripts/factory-init.sh
+<span class="dim"># or fetch only, run the setup yourself later:</span>
+<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh
+<span class="prompt">$</span> ~/.software-factory-template/scripts/factory-init.sh
 
 <span class="dim"># rather read before you run? so would we:</span>
 <span class="prompt">$</span> curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh</div>

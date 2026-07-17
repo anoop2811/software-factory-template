@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/anoop2811/software-factory-template/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue — see SECURITY.md.
+  - name: Question or usage help
+    url: https://github.com/anoop2811/software-factory-template/blob/main/docs/GLOSSARY.md
+    about: Start with the docs and glossary before filing an issue.

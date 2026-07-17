@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a new gate, pack, config key, or capability
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The template's bias is computational controls over conventions: a rule
+        worth adding is usually a rule a script can enforce and a fixture can
+        prove. Proposals framed that way move fastest.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can go wrong today, or what does the template fail to catch or support?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What would you add or change? If it is a gate, what invariant does it enforce, and how could a script check it?
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - New or changed hook / gate
+        - New or changed language pack
+        - New config key (factory.yaml)
+        - Docs or onboarding
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed, and why this one.
+    validations:
+      required: false

@@ -65,7 +65,19 @@ Labels are evidence, not roadmap: battle-tested means a real project shipped und
 - [docs/GLOSSARY.md](docs/GLOSSARY.md) — terms defined
 - [specs/TEMPLATE.md](specs/TEMPLATE.md) — a spec template to copy
 - [eval/README.md](eval/README.md) — how the template evaluates agent quality
-- [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md)
+
+## Contributing
+
+Contributions are welcome. The template runs its own factory, so the gates are
+hooks that reject a bad commit or push, not conventions to remember.
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — the workflow, the gates, and the break/fix fixture rule
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — the standards we hold each other to
+- [SECURITY.md](SECURITY.md) — reporting vulnerabilities privately
+
+New to the codebase? Start with [docs/GLOSSARY.md](docs/GLOSSARY.md) and
+[docs/CONCEPTS.md](docs/CONCEPTS.md). Bug reports and feature requests have issue
+templates; PRs have a checklist tied to the gates above.
 
 ## License
 

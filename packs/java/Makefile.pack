@@ -1,0 +1,34 @@
+# Java pack Makefile targets — merged into the adopter's Makefile by
+# factory-init. Requires the Java pack's blessed stack (pack.yaml) and a
+# Gradle wrapper whose build.gradle applies quality.gradle.
+
+.PHONY: format lint test sec mutate
+
+format:
+	./gradlew spotlessApply
+
+lint:
+	./gradlew spotlessCheck
+	./scripts/hooks/junit5-only-check.sh
+
+test:
+	./gradlew test
+
+sec:
+	./gradlew spotbugsMain
+	@command -v osv-scanner >/dev/null 2>&1 \
+		&& osv-scanner scan source -r . \
+		|| echo "osv-scanner not installed locally — CI runs it (osv.dev)"
+
+# Mutation testing: scope targetClasses in quality.gradle to your highest-stakes
+# package(s) first — a whole-app run is slow enough to get skipped.
+mutate:
+	./gradlew pitest
+
+# Extend the core `check` target:
+check: lint test sec citation-hooks
+
+citation-hooks:
+	./scripts/citation-lint.sh
+	./scripts/hooks/shared-script-enforcement.sh
+	./scripts/hooks/hook-existence-check.sh

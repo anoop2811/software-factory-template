@@ -570,10 +570,10 @@ edit test files.</span>
         <tbody>
           <tr><td>Go</td><td>Ginkgo + Gomega · golangci-lint · gosec · govulncheck · gremlins</td><td><span class="badge tested">battle-tested</span></td></tr>
           <tr><td>TypeScript</td><td>Vitest · ESLint (flat) · Stryker</td><td><span class="badge exp">experimental</span></td></tr>
-          <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ · Checkstyle + ErrorProne · PIT</td><td><span class="badge exp">experimental</span></td></tr>
+          <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ + Testcontainers · Spotless · Error Prone · SpotBugs · OSV-Scanner · PIT</td><td><span class="badge exp">experimental</span></td></tr>
         </tbody>
       </table>
-      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = fixtures only. Labels change on real adoption — not before. <strong>The core — commit gates, push gates, role separation, the verification contract — is language-agnostic and works with no pack at all.</strong> A pack only arms the test-file pattern and check command for your language, so Python, Rust, or Ruby projects get everything except those two.</p>
+      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = no proven adopter yet. Labels change on real adoption — not before. <strong>The core — commit gates, push gates, role separation, the verification contract — is language-agnostic and works with no pack at all.</strong> A pack only arms the test-file pattern and check command for your language, so Python, Rust, or Ruby projects get everything except those two.</p>
 
       <p class="lede" style="margin-top:28px">Configuration is one flat file — no nesting, no schema to learn:</p>
       <div class="yaml"><span class="c"># factory.yaml</span>

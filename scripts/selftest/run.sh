@@ -144,6 +144,20 @@ for PACK_YAML in "$TEMPLATE_ROOT"/packs/*/pack.yaml; do
     "$(FACTORY_AGENT_ROLE=implementer FACTORY_CONFIG="$PCFG" run_status "$HOOKS/test-edit-denial.sh" "$PSAMPLE")"
 done
 
+# Break/fix: the Java pack's junit5-only-check must reject a JUnit 4 import and
+# accept a JUnit 5 (Jupiter) one.
+JUNIT_HOOK="$TEMPLATE_ROOT/packs/java/hooks/junit5-only-check.sh"
+if [ -x "$JUNIT_HOOK" ]; then
+  JSAND="$SANDBOX/junit5"
+  mkdir -p "$JSAND/src/test"
+  printf 'import org.junit.Test;\npublic class FooTest {}\n' > "$JSAND/src/test/FooTest.java"
+  check "junit5-only-check rejects JUnit 4 import" 1 \
+    "$(run_status "$JUNIT_HOOK" "$JSAND")"
+  printf 'import org.junit.jupiter.api.Test;\npublic class FooTest {}\n' > "$JSAND/src/test/FooTest.java"
+  check "junit5-only-check accepts JUnit 5 (Jupiter)" 0 \
+    "$(run_status "$JUNIT_HOOK" "$JSAND")"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

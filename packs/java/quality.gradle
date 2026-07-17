@@ -1,0 +1,68 @@
+// Java quality stack for the software factory. Apply from your build.gradle:
+//
+//     apply from: 'quality.gradle'
+//
+// One blessed stack per language (Decision 3). Versions verified 2026-07-17
+// against each tool's release page and pinned deliberately — a compromised
+// @latest must not be able to enter the gate path silently. Re-check before
+// adoption. This pack is experimental: adjust to your build as needed.
+
+buildscript {
+  repositories {
+    gradlePluginPortal()
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.diffplug.spotless:spotless-plugin-gradle:8.8.0'
+    classpath 'net.ltgt.gradle:gradle-errorprone-plugin:5.1.0'
+    classpath 'com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.9'
+    classpath 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0'
+  }
+}
+
+apply plugin: 'com.diffplug.spotless'
+apply plugin: 'net.ltgt.errorprone'
+apply plugin: 'com.github.spotbugs'
+apply plugin: 'info.solidsoft.pitest'
+
+// --- Formatting: Spotless + palantir-java-format ---------------------------
+// `./gradlew spotlessApply` fixes; `spotlessCheck` gates. Formatting is
+// auto-fixed, not nagged about — the modern default.
+spotless {
+  java {
+    palantirJavaFormat('2.96.0')
+    removeUnusedImports()
+    trimTrailingWhitespace()
+    endWithNewline()
+  }
+}
+
+// --- Correctness: Error Prone (compile-time, from Google) -------------------
+dependencies {
+  errorprone 'com.google.errorprone:error_prone_core:2.50.0'
+}
+tasks.withType(JavaCompile).configureEach {
+  options.errorprone.disableWarningsInGeneratedCode = true
+  // Generated code (MapStruct, Lombok, JPA) produces noise — exclude it.
+  options.errorprone.excludedPaths = '.*/build/generated/.*'
+}
+
+// --- Bugs + security: SpotBugs + find-sec-bugs (bytecode) -------------------
+// find-sec-bugs is the maintained Java security detector set (a SpotBugs
+// plugin). `./gradlew spotbugsMain` runs both.
+dependencies {
+  spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.14.0'
+}
+
+// --- Mutation testing: PIT -------------------------------------------------
+// Scope targetClasses to your highest-stakes package(s) — whole-app mutation
+// runs are slow enough that they stop being run. PIT does NOT auto-detect
+// JUnit 5; the junit5 plugin bridge below is required, or PIT silently finds
+// zero tests and reports nothing.
+pitest {
+  junit5PluginVersion = '1.2.2'
+  targetClasses = ['com.example.*']   // set to your protected package(s)
+  targetTests = ['com.example.*']
+  timestampedReports = false
+  mutationThreshold = 0               // raise once you have a baseline
+}

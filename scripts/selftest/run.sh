@@ -251,6 +251,16 @@ if [ -x "$CM_HOOK" ]; then
     "$(run_status "$CM_HOOK" "$CMDIR")"
 fi
 
+# Break/fix: commit-message-lint matches claim words at word boundaries — the
+# word "frameworks" must not read as a "works" claim, but a bare one still must.
+CML_HOOK="$HOOKS/commit-message-lint.sh"
+if [ -x "$CML_HOOK" ]; then
+  check "commit-lint passes 'frameworks' (not a works claim)" 0 \
+    "$(printf 'feat: framework awareness\n\n- frameworks ride on language packs\n' | run_status "$CML_HOOK")"
+  check "commit-lint flags a bare 'works' claim" 1 \
+    "$(printf 'fix: the retry logic works\n' | run_status "$CML_HOOK")"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

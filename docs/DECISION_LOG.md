@@ -191,3 +191,25 @@ between the concepts the docs assume and the ones a first-time adopter has.
 Provenance: docs review, 2026-07-16 — flagged undefined terms, thin onboarding,
 and config references pinned to specific paths; the dead-placeholder class was
 found while resolving them.
+
+## Decision 11 (2026-07-16): Community-health files, with conduct reports routed through GitHub's private channel
+
+What: The repository adds the standard open-source community files —
+`CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), a pull-request template, and
+bug-report and feature-request issue forms with a template `config.yml` that
+disables blank issues and routes security reports to the private advisory flow.
+The README gains a Contributing section linking all three of CONTRIBUTING,
+CODE_OF_CONDUCT, and SECURITY. Code-of-conduct reports are routed through
+GitHub's private "Report a vulnerability" advisory form rather than a published
+email address.
+
+Why: an inviting project states its standards and gives contributors a shaped
+path in. The issue and PR templates carry the factory's own discipline into the
+contribution flow — the bug form asks for a break/fix reproduction, the PR
+checklist asks for the Decision reference, the sync step, and the fixture. A
+published conduct-report email is a durable identity and spam surface; the
+private advisory form gives reporters a confidential channel to the maintainers
+with nothing new exposed. An adopter who wants a dedicated address can set one.
+
+Provenance: founder direction, 2026-07-16 — make the repository welcoming to
+contributions with the docs a strong open-source project carries.

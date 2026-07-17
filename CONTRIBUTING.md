@@ -6,6 +6,7 @@
 - Decisions go in `docs/DECISION_LOG.md` before the code that implements them.
 - Every new or changed hook ships with a break/fix fixture. No fixture, no merge.
 - Direct pushes to `main` are blocked. Push a feature branch, open a PR.
+- By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Decisions before code
 

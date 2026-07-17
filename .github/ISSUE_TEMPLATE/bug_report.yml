@@ -1,0 +1,51 @@
+name: Bug report
+description: A gate misfires, fails to fire, or the template behaves incorrectly
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The fastest fix comes from a break/fix reproduction:
+        the state, the exact command, and the output showing a gate misfiring or
+        failing to fire. Do not include secrets or private paths.
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: Which hook, script, or file? (e.g. `decision-log-gate.sh`, `factory-init.sh`)
+      placeholder: scripts/hooks/decision-log-gate.sh
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What should the gate or script have done?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: The behavior you observed.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The exact commands and their output. Paste, don't paraphrase.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and shell version, and how the template was installed (curl one-liner, clone, `factory-init`).
+      placeholder: |
+        macOS 15.5, bash 3.2
+        installed via curl one-liner, --pack go
+    validations:
+      required: false

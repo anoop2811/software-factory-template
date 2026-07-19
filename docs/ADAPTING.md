@@ -81,15 +81,25 @@ A label changes only on evidence: a pack moves up when a real project adopts it,
 ## Cost profile (opt-in)
 
 `factory-init` asks for a cost profile alongside the model choices. `standard`
-(the default) keeps the two-tier model routing — a default model for most roles,
-a frontier model for `spec-writer` and `reviewer`. `economy` adds a third,
-cheaper `ECONOMY_MODEL` and routes the low-stakes roles (`refactorer`,
-`wiki-maintainer`, and the opencode `small_model`) to it, while leaving the
-review path on the frontier model. Both values live in `factory.config`, and the
-routing reaches opencode, Claude, and Codex through `make sync-harnesses`. It is
-a routing change only — no gate is relaxed, so the same hooks check the output
-whichever model produced it. See [COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the
-full rationale and the phased plan.
+(the default) keeps two tiers — a default model for most roles, a frontier model
+for `spec-writer` and `reviewer`. `economy` adds a third, cheaper tier for the
+low-stakes roles (`refactorer`, `wiki-maintainer`, the opencode `small_model`),
+while leaving the review path frontier.
+
+Each harness has its own native model namespace, so each carries its own per-tier
+models in `factory.config` — shipped as intelligent defaults, overridable there:
+
+```sh
+DEFAULT_MODEL / FRONTIER_MODEL / ECONOMY_MODEL           # opencode (OpenRouter)
+CLAUDE_FRONTIER_MODEL / CLAUDE_DEFAULT_MODEL / CLAUDE_ECONOMY_MODEL
+CODEX_FRONTIER_MODEL / CODEX_DEFAULT_MODEL / CODEX_ECONOMY_MODEL
+```
+
+`scripts/lib/roles.sh` maps each role to its tier, and `make sync-harnesses`
+writes the right per-tier model into each harness's config; a blank value falls
+back to `inherit`. It is a routing change only — no gate is relaxed, so the same
+hooks check the output whichever model produced it. See
+[COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the full rationale and the matrix.
 
 ## Adopting incrementally
 

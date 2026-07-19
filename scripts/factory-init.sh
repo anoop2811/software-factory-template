@@ -89,15 +89,15 @@ ask "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
 ask "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
 ask "Spec/docs source dir (or leave empty if none): " DOCS_ROOT
 ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
-ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
-ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
+ask "opencode default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
+ask "opencode frontier model (e.g., openrouter/z-ai/glm-5.2): " FRONTIER_MODEL
 ask "Cost profile — 'standard' or 'economy' (economy adds a cheaper tier for low-stakes roles): " COST_PROFILE
 # Normalize case so "Economy"/"ECONOMY" select the profile, and reject anything
 # that is neither — a silent fall-through to standard would be a surprising
 # override of what the user typed.
 COST_PROFILE="$(printf '%s' "${COST_PROFILE:-standard}" | tr '[:upper:]' '[:lower:]')"
 case "$COST_PROFILE" in
-  economy) ask "Economy model — cheaper tier for refactorer, wiki-maintainer, small tasks (e.g., openrouter/anthropic/claude-haiku-4.5): " ECONOMY_MODEL ;;
+  economy) ask "opencode economy model — cheaper tier for refactorer, wiki-maintainer, small tasks (e.g., openrouter/qwen/qwen3-coder): " ECONOMY_MODEL ;;
   standard) : ;;
   *) echo "  (unrecognized cost profile '$COST_PROFILE' — using 'standard')"; COST_PROFILE="standard" ;;
 esac
@@ -119,17 +119,27 @@ case " $PACKS " in *" typescript "*) ask "Node.js version for CI (e.g., 24): " N
 
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
-FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
-# Economy tier resolves __ECONOMY_MODEL__ for the economy-eligible roles
-# (refactorer, wiki-maintainer, small_model). Under 'standard' it collapses to
-# the default model — today's behaviour, no separate cheap model. Under
-# 'economy' it uses the cheaper model (defaulting to the default model if the
-# prompt was skipped). spec-writer and reviewer stay on the frontier model; the
-# profile never downgrades the roles whose job is to catch mistakes.
+FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/z-ai/glm-5.2}"
+# Claude and Codex have their own native model namespaces (opencode can route
+# any provider through OpenRouter; Claude Code cannot, Codex cannot), so each
+# harness carries its own intelligent per-tier defaults. Override any of these
+# in factory.config. sync-claude / sync-codex read them by role tier.
+CLAUDE_FRONTIER_MODEL="${CLAUDE_FRONTIER_MODEL:-claude-opus-4-8}"
+CLAUDE_DEFAULT_MODEL="${CLAUDE_DEFAULT_MODEL:-claude-sonnet-4-6}"
+CODEX_FRONTIER_MODEL="${CODEX_FRONTIER_MODEL:-gpt-5.6-sol}"
+CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5.6-terra}"
+# Economy tier, per harness. Under 'economy' the low-stakes roles (refactorer,
+# wiki-maintainer, opencode small_model) route to a cheaper model. Under
+# 'standard' the economy tier collapses to that harness's default model, so
+# behaviour is unchanged. spec-writer and reviewer stay frontier throughout.
 if [ "$COST_PROFILE" = "economy" ]; then
-  ECONOMY_MODEL="${ECONOMY_MODEL:-$DEFAULT_MODEL}"
+  ECONOMY_MODEL="${ECONOMY_MODEL:-openrouter/qwen/qwen3-coder}"
+  CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
+  CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
 else
   ECONOMY_MODEL="$DEFAULT_MODEL"
+  CLAUDE_ECONOMY_MODEL="$CLAUDE_DEFAULT_MODEL"
+  CODEX_ECONOMY_MODEL="$CODEX_DEFAULT_MODEL"
 fi
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
@@ -257,6 +267,7 @@ mkdir -p "$TARGET_DIR/.githooks"
 # Copy files (using cp -r for directories, cp for files)
 cp "$TEMPLATE_DIR/scripts/hooks/"*.sh "$TARGET_DIR/scripts/hooks/"
 cp "$TEMPLATE_DIR/scripts/lib/config.sh" "$TARGET_DIR/scripts/lib/"
+cp "$TEMPLATE_DIR/scripts/lib/roles.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
 cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
@@ -381,6 +392,12 @@ DEFAULT_MODEL="$DEFAULT_MODEL"
 FRONTIER_MODEL="$FRONTIER_MODEL"
 COST_PROFILE="$COST_PROFILE"
 ECONOMY_MODEL="$ECONOMY_MODEL"
+CLAUDE_FRONTIER_MODEL="$CLAUDE_FRONTIER_MODEL"
+CLAUDE_DEFAULT_MODEL="$CLAUDE_DEFAULT_MODEL"
+CLAUDE_ECONOMY_MODEL="$CLAUDE_ECONOMY_MODEL"
+CODEX_FRONTIER_MODEL="$CODEX_FRONTIER_MODEL"
+CODEX_DEFAULT_MODEL="$CODEX_DEFAULT_MODEL"
+CODEX_ECONOMY_MODEL="$CODEX_ECONOMY_MODEL"
 GO_VERSION="$GO_VERSION"
 JAVA_VERSION="$JAVA_VERSION"
 NODE_VERSION="$NODE_VERSION"

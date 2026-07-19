@@ -116,36 +116,53 @@ mean a mechanical miss is caught before it costs a model-plus-CI cycle.
 
 ## The cost-optimized profile (opt-in)
 
-A new `COST_PROFILE`, chosen at `factory-init` and recorded in `factory.config`
-alongside the model values, defaulting to `standard`:
+A `COST_PROFILE`, chosen at `factory-init` and recorded in `factory.config`
+alongside the models, defaulting to `standard`:
+
+- **`standard`** — the economy-eligible roles collapse to each harness's default
+  model, so there is no third tier and nothing to think about.
+- **`economy`** — turns on a third, cheaper tier and routes the high-volume,
+  low-stakes roles to it: `refactorer`, `wiki-maintainer`, the opencode
+  `small_model`, and — once the eval proves it (see below) — `implementer`.
+  `spec-writer` and `reviewer` stay frontier; the profile never downgrades the
+  roles whose job is to catch mistakes.
+
+### Per-harness models
+
+The three harnesses have different native model namespaces — opencode can route
+any provider through OpenRouter, Claude Code calls Anthropic ids, Codex calls
+OpenAI ids — so each carries its own per-tier models, shipped as intelligent
+defaults and overridable in `factory.config`:
+
+| Tier | opencode (OpenRouter) | Codex | Claude |
+|---|---|---|---|
+| frontier | `openrouter/z-ai/glm-5.2` | `gpt-5.6-sol` | `claude-opus-4-8` |
+| default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
+| economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
 
 ```sh
-# factory.config
-COST_PROFILE="standard"   # or: economy
-ECONOMY_MODEL="..."       # the third tier; used only when COST_PROFILE=economy
+# factory.config (excerpt)
+COST_PROFILE="economy"
+DEFAULT_MODEL="openrouter/z-ai/glm-5.2"       # opencode default
+FRONTIER_MODEL="openrouter/z-ai/glm-5.2"      # opencode frontier
+ECONOMY_MODEL="openrouter/qwen/qwen3-coder"   # opencode economy
+CLAUDE_FRONTIER_MODEL="claude-opus-4-8"
+CLAUDE_DEFAULT_MODEL="claude-sonnet-4-6"
+CLAUDE_ECONOMY_MODEL="claude-haiku-4-5"
+CODEX_FRONTIER_MODEL="gpt-5.6-sol"
+CODEX_DEFAULT_MODEL="gpt-5.6-terra"
+CODEX_ECONOMY_MODEL="gpt-5.6-luna"
 ```
 
-`factory-init` writes the profile into `factory.config` and substitutes the
-economy-eligible roles' `__ECONOMY_MODEL__` placeholder into `opencode.json` and
-`.opencode/agent/*`. Changing the profile later means re-running init (or editing
-the model values and re-running `make sync-harnesses`). It lives with the model
-values in `factory.config`, not in `factory.yaml`, and touches no runtime gate.
-
-- **`standard`** — today's behaviour. The economy-eligible roles collapse to the
-  default model, so there is no third tier and nothing to think about.
-- **`economy`** — introduces a third `ECONOMY_MODEL` tier and routes the
-  high-volume, low-stakes roles to it: `refactorer`, `wiki-maintainer`, the
-  opencode `small_model`, and — once the eval proves it (see below) —
-  `implementer`. `spec-writer` and `reviewer` stay on the frontier model; the
-  profile never downgrades the roles whose job is to catch mistakes.
-
-The routing reaches all three harnesses through `make sync-harnesses`:
-`opencode.json` carries the per-role model natively; `sync-claude` maps an
-Anthropic model onto each Claude subagent (a non-Anthropic model becomes
-`inherit`); and `sync-codex` writes a per-agent `model` when it is a native
-Codex id (a cross-provider slug becomes an inherited model). So a Claude-native
-or Codex-native `ECONOMY_MODEL` routes per role on that harness; a slug the
-harness cannot address falls back to inherit rather than breaking.
+The routing reaches all three harnesses through `make sync-harnesses`. A role's
+tier is a property of the *role*, not the model string (opencode's frontier and
+default can share one model), so `scripts/lib/roles.sh` maps each role to its
+tier — `spec-writer`/`reviewer` → frontier, `refactorer`/`wiki-maintainer` →
+economy, everything else → default — and `sync-claude`/`sync-codex` read that
+tier's model for their harness from `factory.config`. A blank value (or the
+template repo, which has no `factory.config`) falls back to `inherit` rather than
+breaking. It all lives in `factory.config`, not `factory.yaml`, and touches no
+runtime gate.
 
 The profile is a routing change only. It arms no new behaviour and relaxes no
 gate — the same hooks fire regardless of which model did the work. That is the
@@ -231,6 +248,12 @@ the eval, deliberately, and not in the session loop.
   scripts. `implementer` stays on the default model until Phase 4. A break/fix
   fixture in the self-test proves Codex emits a per-agent model for a native id
   and omits it for a slug or placeholder.
+- **Phase 1.5 — per-harness intelligent defaults. (Shipped.)** Each harness
+  carries its own per-tier models (the matrix above) instead of one shared
+  string, so Claude and Codex get real frontier/default/economy ladders out of
+  the box, not just opencode. `scripts/lib/roles.sh` maps role → tier and the
+  sync scripts read each tier's model from `factory.config`. Self-test fixtures
+  prove per-tier routing on both Codex and Claude, and inherit when unset.
 - **Phase 2 — cache-friendly context and a budget audit.** Order the always-on
   context so the cacheable prefix is contiguous; measure the always-loaded
   footprint and move what can be lazy.

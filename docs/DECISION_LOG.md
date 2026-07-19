@@ -516,3 +516,35 @@ for opencode, Claude, and Codex — 2026-07-19. Verified this session: end-to-en
 `factory-init` runs (economy + standard) routed each role as expected across
 opencode.json, `.claude/agents`, and `.codex/agents`; `bash scripts/selftest/run.sh`
 reported "37 passed, 0 failed"; `make check-drift` exited 0.
+
+## Decision 24 (2026-07-19): per-harness intelligent model defaults, keyed by role tier
+
+What: each harness carries its own per-tier models instead of one shared string
+translated per harness. `factory.config` gains `CLAUDE_{FRONTIER,DEFAULT,ECONOMY}_MODEL`
+and `CODEX_{FRONTIER,DEFAULT,ECONOMY}_MODEL` alongside the opencode
+`{FRONTIER,DEFAULT,ECONOMY}_MODEL`; `factory-init` ships them as verified defaults
+(opencode GLM 5.2 / GLM 5.2 / Qwen3-Coder; Codex gpt-5.6-sol / -terra / -luna;
+Claude opus-4-8 / sonnet-4-6 / haiku-4-5), overridable. A new `scripts/lib/roles.sh`
+maps role → tier (spec-writer/reviewer → frontier, refactorer/wiki-maintainer →
+economy, else default); `sync-claude`/`sync-codex` read that tier's model for their
+harness from `factory.config`, falling back to `inherit` when unset (so the
+template repo, which has no `factory.config`, keeps clean committed adapters).
+Under `standard` each harness's economy tier collapses to its default.
+
+Why: opencode's frontier and default are the same model (GLM 5.2), so a generated
+adapter cannot recover a role's tier from the substituted model string — tier has
+to come from the role. And the three harnesses have distinct native namespaces
+(OpenRouter, OpenAI, Anthropic), so one shared model string cannot give all three
+sensible per-tier routing; per-harness defaults give Claude and Codex real
+frontier/default/economy ladders out of the box, not just opencode. Every default
+model was verified current against its source (OpenRouter, Codex models doc,
+Anthropic) rather than assumed.
+
+Provenance: founder direction — set intelligent per-harness model defaults
+(opencode GLM 5.2 + Qwen3-Coder economy; Codex sol/terra/luna; Claude
+opus/sonnet/haiku) — 2026-07-19. Models verified: OpenRouter `qwen/qwen3-coder`
+($0.22/$1.80) and GLM 5.2 pricing; Codex gpt-5.6-sol/terra/luna via
+learn.chatgpt.com/docs/models; Anthropic ids from the model docs. Verified this
+session: end-to-end `factory-init` (economy + standard) routed every role across
+all three harness configs; `bash scripts/selftest/run.sh` reported "40 passed,
+0 failed"; `make check-drift` exited 0.

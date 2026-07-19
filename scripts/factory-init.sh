@@ -92,9 +92,14 @@ ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION
 ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
 ask "Cost profile — 'standard' or 'economy' (economy adds a cheaper tier for low-stakes roles): " COST_PROFILE
-COST_PROFILE="${COST_PROFILE:-standard}"
+# Normalize case so "Economy"/"ECONOMY" select the profile, and reject anything
+# that is neither — a silent fall-through to standard would be a surprising
+# override of what the user typed.
+COST_PROFILE="$(printf '%s' "${COST_PROFILE:-standard}" | tr '[:upper:]' '[:lower:]')"
 case "$COST_PROFILE" in
   economy) ask "Economy model — cheaper tier for refactorer, wiki-maintainer, small tasks (e.g., openrouter/anthropic/claude-haiku-4.5): " ECONOMY_MODEL ;;
+  standard) : ;;
+  *) echo "  (unrecognized cost profile '$COST_PROFILE' — using 'standard')"; COST_PROFILE="standard" ;;
 esac
 # Pick language pack(s) before asking versions, so we only ask for the versions
 # the selected packs actually need.
@@ -124,7 +129,6 @@ FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
 if [ "$COST_PROFILE" = "economy" ]; then
   ECONOMY_MODEL="${ECONOMY_MODEL:-$DEFAULT_MODEL}"
 else
-  COST_PROFILE="standard"
   ECONOMY_MODEL="$DEFAULT_MODEL"
 fi
 GO_VERSION="${GO_VERSION:-1.26}"
@@ -142,7 +146,9 @@ echo "  Docs source:      ${DOCS_ROOT:-none}"
 echo "  Citation prefix:  $CITATION_PREFIX"
 echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
-echo "  Cost profile:     $COST_PROFILE$([ "$COST_PROFILE" = economy ] && echo " (economy model: $ECONOMY_MODEL)")"
+COST_SUMMARY="$COST_PROFILE"
+[ "$COST_PROFILE" = economy ] && COST_SUMMARY="$COST_PROFILE (economy model: $ECONOMY_MODEL)"
+echo "  Cost profile:     $COST_SUMMARY"
 echo "  Language pack(s): $([ -n "${PACKS// /}" ] && printf '%s' "$PACKS" | sed 's/^ *//' || echo none)"
 case " $PACKS " in *" go "*) echo "  Go version:       $GO_VERSION" ;; esac
 case " $PACKS " in *" java "*) echo "  Java version:     $JAVA_VERSION" ;; esac

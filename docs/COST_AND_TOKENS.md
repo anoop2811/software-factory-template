@@ -45,8 +45,10 @@ A cost plan has to help both, and be honest that surface 2 is the larger prize.
   first turn or on any cache miss.
 - **Per-role model routing already exists, two tiers.** `spec-writer` and
   `reviewer` run on `FRONTIER_MODEL`; `implementer`, `refactorer`, and
-  `wiki-maintainer` run on `DEFAULT_MODEL`. Both are set once at
-  `factory-init` and stored in `factory.yaml`.
+  `wiki-maintainer` run on `DEFAULT_MODEL`. Both model strings are chosen at
+  `factory-init`, recorded in `factory.config`, and substituted into the harness
+  configs (`opencode.json` and the agent frontmatter) — the role→model mapping
+  lives there, not in `factory.yaml`, which holds the runtime enforcement values.
 - **`small_model` is pointed at `DEFAULT_MODEL`.** The harness's lightweight-task
   model (titles, summaries) currently uses the default model. That is a cheap
   tier left unused.
@@ -111,11 +113,18 @@ mean a mechanical miss is caught before it costs a model-plus-CI cycle.
 
 ## The cost-optimized profile (opt-in)
 
-A new `cost_profile` in `factory.yaml`, defaulting to `standard`:
+A new `COST_PROFILE`, chosen at `factory-init` and recorded in `factory.config`
+alongside the model values, defaulting to `standard`:
 
-```yaml
-cost_profile: standard   # or: economy
+```sh
+# factory.config
+COST_PROFILE="standard"   # or: economy
+ECONOMY_MODEL="..."       # the third tier; used only when COST_PROFILE=economy
 ```
+
+The profile selects the role→model mapping substituted into the harness configs
+at init (and re-applied by `factory upgrade`). It lives with the model values in
+`factory.config`, not in `factory.yaml`, and touches no runtime gate.
 
 - **`standard`** — today's behaviour. Two model tiers, nothing to think about.
 - **`economy`** — introduces a third `ECONOMY_MODEL` tier and routes the
@@ -177,7 +186,7 @@ An illustrative report:
 Factory this session: 6 deterministic checks enforced in shell (0 model tokens).
   1 fail-fast catch (bad commit blocked before push).
   Model routing: implementer=economy, reviewer=frontier.
-  Review spend avoided (estimate, vs. LLM-enforcing the same rules): ~Nk tokens.
+  Review spend avoided (estimate = N gates x ~R tokens per review pass): ~N*R tokens.
   Method: docs/COST_AND_TOKENS.md.
 ```
 
@@ -201,9 +210,10 @@ the eval, deliberately, and not in the session loop.
 - **Phase 0 — this document.** Make the levers explicit and name "prefer a hook
   over an LLM check" and "keep the prefix cache-friendly" as design values.
 - **Phase 1 — the `economy` tier and profile.** Add `ECONOMY_MODEL` and
-  `cost_profile` to `factory-init` and `factory.yaml`; point `small_model` and
-  the two low-stakes roles at it under `economy`. Leave `implementer` on default
-  until Phase 4.
+  `COST_PROFILE` to `factory-init` and `factory.config`, and substitute the
+  role→model mapping into the harness configs; point `small_model` and the two
+  low-stakes roles at the economy tier under `economy`. Leave `implementer` on
+  default until Phase 4.
 - **Phase 2 — cache-friendly context and a budget audit.** Order the always-on
   context so the cacheable prefix is contiguous; measure the always-loaded
   footprint and move what can be lazy.

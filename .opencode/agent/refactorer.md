@@ -1,7 +1,7 @@
 ---
 description: Cleans up code while keeping tests green without changing behavior.
 mode: subagent
-model: __DEFAULT_MODEL__
+model: __ECONOMY_MODEL__
 permission:
   edit: ask
   bash: ask

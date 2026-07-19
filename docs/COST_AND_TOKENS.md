@@ -1,11 +1,12 @@
-# Cost and tokens (intent)
+# Cost and tokens
 
-**Status: intent, not yet built.** This document describes where the factory
-spends tokens, the levers that reduce that spend, and a phased plan to add an
-opt-in cost profile. Nothing here is shipped — treat it as a proposal to build
-against, not a description of current behaviour. The default stays as it is
-today; cost control is a profile you turn on, not a change to how the factory
-works out of the box.
+**Status: Phase 1 shipped; later phases are intent.** The opt-in `economy` cost
+profile is live — `factory-init` offers it, and it routes the low-stakes roles
+across opencode, Claude, and Codex (see the phased plan below for what has
+landed and what has not). The default is unchanged: cost control is a profile
+you turn on, not a change to how the factory works out of the box. Sections
+describing later phases (context budget, measurement, the eval-gated implementer
+downgrade) remain proposals, and say so.
 
 **In short**
 
@@ -49,9 +50,11 @@ A cost plan has to help both, and be honest that surface 2 is the larger prize.
   `factory-init`, recorded in `factory.config`, and substituted into the harness
   configs (`opencode.json` and the agent frontmatter) — the role→model mapping
   lives there, not in `factory.yaml`, which holds the runtime enforcement values.
-- **`small_model` is pointed at `DEFAULT_MODEL`.** The harness's lightweight-task
-  model (titles, summaries) currently uses the default model. That is a cheap
-  tier left unused.
+- **`small_model` now follows the economy tier.** The opencode lightweight-task
+  model (titles, summaries) was pointed at `DEFAULT_MODEL`; under the `economy`
+  profile it routes to the cheaper `ECONOMY_MODEL` instead. (This lever is
+  opencode-specific — Claude and Codex have no equivalent per-project
+  small-model knob, but they still get the per-role economy routing below.)
 - **Gates are shell, so they are free.** The self-test, `factory doctor`, and
   every hook cost zero model tokens. This is the design already paying off:
   enforcement that would otherwise be an LLM review pass is a shell exit code.
@@ -122,16 +125,27 @@ COST_PROFILE="standard"   # or: economy
 ECONOMY_MODEL="..."       # the third tier; used only when COST_PROFILE=economy
 ```
 
-The profile selects the role→model mapping substituted into the harness configs
-at init (and re-applied by `factory upgrade`). It lives with the model values in
-`factory.config`, not in `factory.yaml`, and touches no runtime gate.
+`factory-init` writes the profile into `factory.config` and substitutes the
+economy-eligible roles' `__ECONOMY_MODEL__` placeholder into `opencode.json` and
+`.opencode/agent/*`. Changing the profile later means re-running init (or editing
+the model values and re-running `make sync-harnesses`). It lives with the model
+values in `factory.config`, not in `factory.yaml`, and touches no runtime gate.
 
-- **`standard`** — today's behaviour. Two model tiers, nothing to think about.
+- **`standard`** — today's behaviour. The economy-eligible roles collapse to the
+  default model, so there is no third tier and nothing to think about.
 - **`economy`** — introduces a third `ECONOMY_MODEL` tier and routes the
   high-volume, low-stakes roles to it: `refactorer`, `wiki-maintainer`, the
-  harness `small_model`, and — once the eval proves it (see below) —
+  opencode `small_model`, and — once the eval proves it (see below) —
   `implementer`. `spec-writer` and `reviewer` stay on the frontier model; the
   profile never downgrades the roles whose job is to catch mistakes.
+
+The routing reaches all three harnesses through `make sync-harnesses`:
+`opencode.json` carries the per-role model natively; `sync-claude` maps an
+Anthropic model onto each Claude subagent (a non-Anthropic model becomes
+`inherit`); and `sync-codex` writes a per-agent `model` when it is a native
+Codex id (a cross-provider slug becomes an inherited model). So a Claude-native
+or Codex-native `ECONOMY_MODEL` routes per role on that harness; a slug the
+harness cannot address falls back to inherit rather than breaking.
 
 The profile is a routing change only. It arms no new behaviour and relaxes no
 gate — the same hooks fire regardless of which model did the work. That is the
@@ -209,11 +223,14 @@ the eval, deliberately, and not in the session loop.
 
 - **Phase 0 — this document.** Make the levers explicit and name "prefer a hook
   over an LLM check" and "keep the prefix cache-friendly" as design values.
-- **Phase 1 — the `economy` tier and profile.** Add `ECONOMY_MODEL` and
-  `COST_PROFILE` to `factory-init` and `factory.config`, and substitute the
-  role→model mapping into the harness configs; point `small_model` and the two
-  low-stakes roles at the economy tier under `economy`. Leave `implementer` on
-  default until Phase 4.
+- **Phase 1 — the `economy` tier and profile. (Shipped.)** `factory-init` prompts
+  for `COST_PROFILE` and records it with `ECONOMY_MODEL` in `factory.config`;
+  the economy-eligible roles (`refactorer`, `wiki-maintainer`, opencode
+  `small_model`) route to the economy tier under `economy` and collapse to the
+  default under `standard`. Routing crosses to Claude and Codex via the sync
+  scripts. `implementer` stays on the default model until Phase 4. A break/fix
+  fixture in the self-test proves Codex emits a per-agent model for a native id
+  and omits it for a slug or placeholder.
 - **Phase 2 — cache-friendly context and a budget audit.** Order the always-on
   context so the cacheable prefix is contiguous; measure the always-loaded
   footprint and move what can be lazy.

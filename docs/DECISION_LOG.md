@@ -486,3 +486,33 @@ curl away, as it should be.
 
 Provenance: founder question — why can't `install --upgrade` upgrade the
 folder I'm already in? — 2026-07-17.
+
+## Decision 23 (2026-07-19): opt-in `economy` cost profile — a third model tier across all three harnesses
+
+What: `factory-init` offers a `COST_PROFILE` (`standard` default, or `economy`),
+recorded with a new `ECONOMY_MODEL` in `factory.config`. Under `economy`, the
+low-stakes roles — `refactorer`, `wiki-maintainer`, and the opencode
+`small_model` — route to a cheaper third tier; `spec-writer` and `reviewer` stay
+on the frontier model and `implementer` on the default. Under `standard` the
+economy-eligible roles collapse to the default model, so behaviour is unchanged.
+Routing reaches all three harnesses: opencode carries the per-role model
+natively; `sync-claude` already maps it onto Claude subagents; `sync-codex` now
+emits a per-agent `model` for a native Codex id (a cross-provider slug or unset
+placeholder is omitted, so the agent inherits — keeping the committed `.codex`
+clean). A self-test fixture proves the Codex emission and its inherit fallback.
+The intent and phased plan live in `docs/COST_AND_TOKENS.md`.
+
+Why: cost is the first question adopters ask, and the two-tier model routing was
+already in place — the economy tier is a third tier plus a profile switch, not a
+new subsystem. Keeping it opt-in preserves the simple default; keeping the
+review path (`spec-writer`, `reviewer`) on the frontier model is what makes
+running a cheaper implementer safe later (Phase 4, eval-gated). Codex per-agent
+`model` is supported in agent TOML files, verified against
+learn.chatgpt.com/docs/agent-configuration/subagents (2026-07-19), so parity
+across the three harnesses is real, not aspirational.
+
+Provenance: founder direction — build Phase 1 of the cost plan and make it work
+for opencode, Claude, and Codex — 2026-07-19. Verified this session: end-to-end
+`factory-init` runs (economy + standard) routed each role as expected across
+opencode.json, `.claude/agents`, and `.codex/agents`; `bash scripts/selftest/run.sh`
+reported "37 passed, 0 failed"; `make check-drift` exited 0.

@@ -119,7 +119,12 @@ for AGENT_NAME in $AGENTS; do
     economy)  CLAUDE_MODEL="${CLAUDE_ECONOMY_MODEL:-inherit}" ;;
     *)        CLAUDE_MODEL="${CLAUDE_DEFAULT_MODEL:-inherit}" ;;
   esac
-  [ -n "$CLAUDE_MODEL" ] || CLAUDE_MODEL="inherit"
+  # A Claude subagent takes an Anthropic model id or "inherit". Empty, a
+  # cross-provider slug (contains "/"), or an unresolved placeholder (contains
+  # "__") is invalid, so fall back to inherit rather than emit it.
+  case "$CLAUDE_MODEL" in
+    ""|*"/"*|*"__"*) CLAUDE_MODEL="inherit" ;;
+  esac
 
   # Translate permission → permissionMode
   PERMISSION_MODE="default"

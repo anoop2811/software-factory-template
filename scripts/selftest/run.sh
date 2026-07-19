@@ -304,6 +304,20 @@ check "claude frontier role -> frontier model" "model: claude-opus-4-8" \
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
 check "claude economy role -> economy model" "model: claude-haiku-4-5" \
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
+check "claude default role -> default model" "model: claude-sonnet-4-6" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/implementer.md" 2>/dev/null || true)"
+# Guard: a cross-provider slug or unresolved placeholder is not a valid native
+# Codex/Claude model, so the sync scripts fall back to inherit rather than emit it.
+cat > "$SYNCROOT/factory.config" <<'CONF'
+CODEX_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
+CLAUDE_FRONTIER_MODEL="__FRONTIER_MODEL__"
+CONF
+( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+( cd "$SYNCROOT" && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
+check "codex omits a cross-provider slug (inherit)" "" \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
+check "claude falls back to inherit on a placeholder" "model: inherit" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
 
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"

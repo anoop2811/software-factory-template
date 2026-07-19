@@ -78,8 +78,14 @@ for AGENT_NAME in $AGENTS; do
     economy)  CODEX_MODEL="${CODEX_ECONOMY_MODEL:-}" ;;
     *)        CODEX_MODEL="${CODEX_DEFAULT_MODEL:-}" ;;
   esac
+  # Emit only a native Codex id. Empty (unset tier), a cross-provider slug
+  # (contains "/"), or an unresolved placeholder (contains "__") would be an
+  # invalid model, so omit the line and let the agent inherit the session model.
   MODEL_LINE=""
-  [ -n "$CODEX_MODEL" ] && printf -v MODEL_LINE 'model = "%s"\n' "$CODEX_MODEL"
+  case "$CODEX_MODEL" in
+    ""|*"/"*|*"__"*) : ;;
+    *) printf -v MODEL_LINE 'model = "%s"\n' "$CODEX_MODEL" ;;
+  esac
 
   AGENT_FILE="$CODEX_AGENT_DIR/${AGENT_NAME}.toml"
   cat > "$AGENT_FILE" <<EOF

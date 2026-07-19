@@ -1,7 +1,7 @@
 ---
 description: Reads your spec source and writes wiki/ pages. Supervised — every edit is a PR and requires human review.
 mode: subagent
-model: __DEFAULT_MODEL__
+model: __ECONOMY_MODEL__
 permission:
   edit: ask
   bash: deny

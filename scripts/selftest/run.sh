@@ -261,6 +261,31 @@ if [ -x "$CML_HOOK" ]; then
     "$(printf 'fix: the retry logic works\n' | run_status "$CML_HOOK")"
 fi
 
+# Break/fix: sync-codex emits a per-agent model only for a native Codex id.
+# Cross-provider slugs and unresolved template placeholders are omitted, so the
+# agent inherits — the same fallback that keeps the committed .codex clean and
+# lets the cost profile route Codex subagents per role.
+CODEX_ROOT="$SANDBOX/codexroot"
+mkdir -p "$CODEX_ROOT/scripts" "$CODEX_ROOT/.opencode/agent"
+cp "$TEMPLATE_ROOT/scripts/sync-codex.sh" "$CODEX_ROOT/scripts/"
+cat > "$CODEX_ROOT/opencode.json" <<'JSON'
+{ "agent": {
+  "native": { "description": "n", "model": "gpt-5.4-mini" },
+  "slug": { "description": "s", "model": "openrouter/anthropic/claude-haiku-4.5" },
+  "placeholder": { "description": "p", "model": "__ECONOMY_MODEL__" }
+} }
+JSON
+for a in native slug placeholder; do
+  printf -- '---\ndescription: x\n---\nBody for %s\n' "$a" > "$CODEX_ROOT/.opencode/agent/$a.md"
+done
+( cd "$CODEX_ROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+check "codex emits native per-agent model" 'model = "gpt-5.4-mini"' \
+  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/native.toml" 2>/dev/null || true)"
+check "codex omits cross-provider slug (inherit)" "" \
+  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/slug.toml" 2>/dev/null || true)"
+check "codex omits unresolved placeholder (inherit)" "" \
+  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/placeholder.toml" 2>/dev/null || true)"
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

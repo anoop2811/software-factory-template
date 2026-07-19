@@ -78,6 +78,19 @@ A label changes only on evidence: a pack moves up when a real project adopts it,
 
 **Frameworks ride on the language pack; they don't get their own.** React and Vue use the TypeScript pack — Biome auto-applies its `react`/`vue` rule domains when it sees the framework in your `package.json` — and Spring Boot uses the Java pack, whose JUnit 5 + Testcontainers stack *is* Spring Boot's blessed testing. `factory-init` detects these and points you at the right pack. A framework-specific invariant beyond that (say, "no field injection" for Spring) is a custom dialect hook, the same shape as `ginkgo-only`/`vitest-only` — not a new pack. This is deliberate: one blessed stack per language keeps the opinion sharp (Decision 3), where a framework-per-pack matrix would not.
 
+## Cost profile (opt-in)
+
+`factory-init` asks for a cost profile alongside the model choices. `standard`
+(the default) keeps the two-tier model routing — a default model for most roles,
+a frontier model for `spec-writer` and `reviewer`. `economy` adds a third,
+cheaper `ECONOMY_MODEL` and routes the low-stakes roles (`refactorer`,
+`wiki-maintainer`, and the opencode `small_model`) to it, while leaving the
+review path on the frontier model. Both values live in `factory.config`, and the
+routing reaches opencode, Claude, and Codex through `make sync-harnesses`. It is
+a routing change only — no gate is relaxed, so the same hooks check the output
+whichever model produced it. See [COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the
+full rationale and the phased plan.
+
 ## Adopting incrementally
 
 1. Run `factory-init.sh`; leave `citation_prefix` and `test_file_patterns` empty for now — the commit and push gates the self-test just proved are already doing work.

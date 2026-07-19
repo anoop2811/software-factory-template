@@ -91,6 +91,11 @@ ask "Spec/docs source dir (or leave empty if none): " DOCS_ROOT
 ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
 ask "Default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
 ask "Frontier model (e.g., openrouter/anthropic/claude-sonnet-4.6): " FRONTIER_MODEL
+ask "Cost profile — 'standard' or 'economy' (economy adds a cheaper tier for low-stakes roles): " COST_PROFILE
+COST_PROFILE="${COST_PROFILE:-standard}"
+case "$COST_PROFILE" in
+  economy) ask "Economy model — cheaper tier for refactorer, wiki-maintainer, small tasks (e.g., openrouter/anthropic/claude-haiku-4.5): " ECONOMY_MODEL ;;
+esac
 # Pick language pack(s) before asking versions, so we only ask for the versions
 # the selected packs actually need.
 if [ -z "${PACKS// /}" ] && [ -r /dev/tty ] && [ -t 1 ]; then
@@ -110,6 +115,18 @@ case " $PACKS " in *" typescript "*) ask "Node.js version for CI (e.g., 24): " N
 # Defaults
 DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
 FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/anthropic/claude-sonnet-4.6}"
+# Economy tier resolves __ECONOMY_MODEL__ for the economy-eligible roles
+# (refactorer, wiki-maintainer, small_model). Under 'standard' it collapses to
+# the default model — today's behaviour, no separate cheap model. Under
+# 'economy' it uses the cheaper model (defaulting to the default model if the
+# prompt was skipped). spec-writer and reviewer stay on the frontier model; the
+# profile never downgrades the roles whose job is to catch mistakes.
+if [ "$COST_PROFILE" = "economy" ]; then
+  ECONOMY_MODEL="${ECONOMY_MODEL:-$DEFAULT_MODEL}"
+else
+  COST_PROFILE="standard"
+  ECONOMY_MODEL="$DEFAULT_MODEL"
+fi
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
 NODE_VERSION="${NODE_VERSION:-24}"
@@ -125,6 +142,7 @@ echo "  Docs source:      ${DOCS_ROOT:-none}"
 echo "  Citation prefix:  $CITATION_PREFIX"
 echo "  Default model:    $DEFAULT_MODEL"
 echo "  Frontier model:   $FRONTIER_MODEL"
+echo "  Cost profile:     $COST_PROFILE$([ "$COST_PROFILE" = economy ] && echo " (economy model: $ECONOMY_MODEL)")"
 echo "  Language pack(s): $([ -n "${PACKS// /}" ] && printf '%s' "$PACKS" | sed 's/^ *//' || echo none)"
 case " $PACKS " in *" go "*) echo "  Go version:       $GO_VERSION" ;; esac
 case " $PACKS " in *" java "*) echo "  Java version:     $JAVA_VERSION" ;; esac
@@ -321,6 +339,7 @@ for FILE in "${SUBSTITUTE_FILES[@]}"; do
       -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
       -e "s|__DEFAULT_MODEL__|$DEFAULT_MODEL|g" \
       -e "s|__FRONTIER_MODEL__|$FRONTIER_MODEL|g" \
+      -e "s|__ECONOMY_MODEL__|$ECONOMY_MODEL|g" \
       "$FILE"
     rm -f "$FILE.bak"
   fi
@@ -354,6 +373,8 @@ DOCS_ROOT="$DOCS_ROOT"
 CITATION_PREFIX="$CITATION_PREFIX_UPPER"
 DEFAULT_MODEL="$DEFAULT_MODEL"
 FRONTIER_MODEL="$FRONTIER_MODEL"
+COST_PROFILE="$COST_PROFILE"
+ECONOMY_MODEL="$ECONOMY_MODEL"
 GO_VERSION="$GO_VERSION"
 JAVA_VERSION="$JAVA_VERSION"
 NODE_VERSION="$NODE_VERSION"

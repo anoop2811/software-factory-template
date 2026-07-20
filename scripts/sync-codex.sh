@@ -17,6 +17,14 @@ for tool in jq awk grep; do
   fi
 done
 
+# Per-harness models come from factory.config (written by factory-init); it is
+# absent in the template repo, so CODEX_*_MODEL stay unset and agents inherit
+# the session model, keeping committed adapters clean. role_tier() maps role→tier.
+# shellcheck source=/dev/null
+[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# shellcheck source=lib/roles.sh
+. "$ROOT_DIR/scripts/lib/roles.sh"
+
 mkdir -p "$CODEX_AGENT_DIR"
 
 cat > "$CODEX_DIR/config.toml" <<'EOF'
@@ -60,15 +68,23 @@ for AGENT_NAME in $AGENTS; do
   fi
 
   # Per-agent model: Codex agent files support a top-level `model` key
-  # (learn.chatgpt.com/docs/agent-configuration/subagents). Emit it only for a
-  # native Codex model id. Cross-provider slugs (contain "/") and unresolved
-  # template placeholders (contain "__") are omitted, so the agent inherits the
-  # session model — the same non-native → inherit fallback sync-claude uses.
-  MODEL=$(jq -r --arg name "$AGENT_NAME" '.agent[$name].model // ""' "$OPENCODE_JSON")
+  # (learn.chatgpt.com/docs/agent-configuration/subagents). The model for this
+  # role is its tier's CODEX_<TIER>_MODEL from factory.config (a native Codex id,
+  # e.g. gpt-5.6-sol). Unset — the template repo, or a blanked tier — omits the
+  # line so the agent inherits the session model.
+  TIER=$(role_tier "$AGENT_NAME")
+  case "$TIER" in
+    frontier) CODEX_MODEL="${CODEX_FRONTIER_MODEL:-}" ;;
+    economy)  CODEX_MODEL="${CODEX_ECONOMY_MODEL:-}" ;;
+    *)        CODEX_MODEL="${CODEX_DEFAULT_MODEL:-}" ;;
+  esac
+  # Emit only a native Codex id. Empty (unset tier), a cross-provider slug
+  # (contains "/"), or an unresolved placeholder (contains "__") would be an
+  # invalid model, so omit the line and let the agent inherit the session model.
   MODEL_LINE=""
-  case "$MODEL" in
+  case "$CODEX_MODEL" in
     ""|*"/"*|*"__"*) : ;;
-    *) printf -v MODEL_LINE 'model = "%s"\n' "$MODEL" ;;
+    *) printf -v MODEL_LINE 'model = "%s"\n' "$CODEX_MODEL" ;;
   esac
 
   AGENT_FILE="$CODEX_AGENT_DIR/${AGENT_NAME}.toml"

@@ -26,6 +26,15 @@ if [ ! -f "$OPENCODE_JSON" ]; then
   exit 1
 fi
 
+# Per-harness, per-tier models live in factory.config (written by factory-init).
+# In the template repo there is no factory.config, so the CLAUDE_*_MODEL values
+# stay unset and every agent falls back to "inherit" — keeping the committed
+# adapters clean. role_tier() maps each role to its tier.
+# shellcheck source=/dev/null
+[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# shellcheck source=lib/roles.sh
+. "$ROOT_DIR/scripts/lib/roles.sh"
+
 mkdir -p "$ROOT_DIR/.claude/agents"
 mkdir -p "$ROOT_DIR/.claude/hooks"
 
@@ -90,7 +99,7 @@ AGENTS=$(jq -r '.agent // {} | keys[]' "$OPENCODE_JSON")
 
 for AGENT_NAME in $AGENTS; do
   DESCRIPTION=$(jq -r --arg name "$AGENT_NAME" '.agent[$name].description // ""' "$OPENCODE_JSON")
-  MODEL=$(jq -r --arg name "$AGENT_NAME" '.agent[$name].model // "inherit"' "$OPENCODE_JSON")
+  TIER=$(role_tier "$AGENT_NAME")
   EDIT_PERM=$(jq -r --arg name "$AGENT_NAME" '.agent[$name].permission.edit // "ask"' "$OPENCODE_JSON")
   ROLE_FILE="$ROOT_DIR/.opencode/agent/${AGENT_NAME}.md"
   if [ ! -f "$ROLE_FILE" ]; then
@@ -102,13 +111,20 @@ for AGENT_NAME in $AGENTS; do
     frontmatter_delimiters >= 2 { print }
   ' "$ROLE_FILE")
 
-  # Translate model: strip openrouter/anthropic/ prefix; convert dots to dashes
-  # (OpenRouter slugs use dots: claude-sonnet-4.6; Anthropic API IDs use dashes: claude-sonnet-4-6)
-  # Non-Anthropic models use "inherit" (Claude can't route them natively)
-  CLAUDE_MODEL="inherit"
-  if echo "$MODEL" | grep -q "anthropic/"; then
-    CLAUDE_MODEL=$(echo "$MODEL" | sed 's|openrouter/anthropic/||' | tr '.' '-')
-  fi
+  # The Claude model for this role is its tier's CLAUDE_<TIER>_MODEL from
+  # factory.config (a Claude model id, e.g. claude-opus-4-8). Unset — as in the
+  # template repo, or when an adopter blanks a tier — falls back to "inherit".
+  case "$TIER" in
+    frontier) CLAUDE_MODEL="${CLAUDE_FRONTIER_MODEL:-inherit}" ;;
+    economy)  CLAUDE_MODEL="${CLAUDE_ECONOMY_MODEL:-inherit}" ;;
+    *)        CLAUDE_MODEL="${CLAUDE_DEFAULT_MODEL:-inherit}" ;;
+  esac
+  # A Claude subagent takes an Anthropic model id or "inherit". Empty, a
+  # cross-provider slug (contains "/"), or an unresolved placeholder (contains
+  # "__") is invalid, so fall back to inherit rather than emit it.
+  case "$CLAUDE_MODEL" in
+    ""|*"/"*|*"__"*) CLAUDE_MODEL="inherit" ;;
+  esac
 
   # Translate permission → permissionMode
   PERMISSION_MODE="default"

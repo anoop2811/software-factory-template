@@ -261,30 +261,63 @@ if [ -x "$CML_HOOK" ]; then
     "$(printf 'fix: the retry logic works\n' | run_status "$CML_HOOK")"
 fi
 
-# Break/fix: sync-codex emits a per-agent model only for a native Codex id.
-# Cross-provider slugs and unresolved template placeholders are omitted, so the
-# agent inherits — the same fallback that keeps the committed .codex clean and
-# lets the cost profile route Codex subagents per role.
-CODEX_ROOT="$SANDBOX/codexroot"
-mkdir -p "$CODEX_ROOT/scripts" "$CODEX_ROOT/.opencode/agent"
-cp "$TEMPLATE_ROOT/scripts/sync-codex.sh" "$CODEX_ROOT/scripts/"
-cat > "$CODEX_ROOT/opencode.json" <<'JSON'
+# Break/fix: sync routes each role to its tier's per-harness model from
+# factory.config (role_tier maps reviewer->frontier, implementer->default,
+# refactorer->economy). With no factory.config the model is unset and the agent
+# inherits the session model — which keeps the committed adapters clean.
+SYNCROOT="$SANDBOX/syncroot"
+mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
+cp "$TEMPLATE_ROOT/scripts/sync-codex.sh" "$TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
+cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$SYNCROOT/scripts/lib/"
+cat > "$SYNCROOT/opencode.json" <<'JSON'
 { "agent": {
-  "native": { "description": "n", "model": "gpt-5.4-mini" },
-  "slug": { "description": "s", "model": "openrouter/anthropic/claude-haiku-4.5" },
-  "placeholder": { "description": "p", "model": "__ECONOMY_MODEL__" }
+  "reviewer": { "description": "r", "permission": { "edit": "deny" } },
+  "implementer": { "description": "i" },
+  "refactorer": { "description": "f" }
 } }
 JSON
-for a in native slug placeholder; do
-  printf -- '---\ndescription: x\n---\nBody for %s\n' "$a" > "$CODEX_ROOT/.opencode/agent/$a.md"
+for a in reviewer implementer refactorer; do
+  printf -- '---\ndescription: x\n---\nBody for %s\n' "$a" > "$SYNCROOT/.opencode/agent/$a.md"
 done
-( cd "$CODEX_ROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
-check "codex emits native per-agent model" 'model = "gpt-5.4-mini"' \
-  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/native.toml" 2>/dev/null || true)"
-check "codex omits cross-provider slug (inherit)" "" \
-  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/slug.toml" 2>/dev/null || true)"
-check "codex omits unresolved placeholder (inherit)" "" \
-  "$(grep -E '^model' "$CODEX_ROOT/.codex/agents/placeholder.toml" 2>/dev/null || true)"
+# No factory.config → every role inherits (no model line emitted).
+( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+check "codex inherits when no factory.config" "" \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
+# With factory.config, each role routes to its tier's per-harness model.
+cat > "$SYNCROOT/factory.config" <<'CONF'
+CODEX_FRONTIER_MODEL="gpt-5.6-sol"
+CODEX_DEFAULT_MODEL="gpt-5.6-terra"
+CODEX_ECONOMY_MODEL="gpt-5.6-luna"
+CLAUDE_FRONTIER_MODEL="claude-opus-4-8"
+CLAUDE_DEFAULT_MODEL="claude-sonnet-4-6"
+CLAUDE_ECONOMY_MODEL="claude-haiku-4-5"
+CONF
+( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+( cd "$SYNCROOT" && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
+check "codex frontier role -> frontier model" 'model = "gpt-5.6-sol"' \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
+check "codex default role -> default model" 'model = "gpt-5.6-terra"' \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/implementer.toml" 2>/dev/null || true)"
+check "codex economy role -> economy model" 'model = "gpt-5.6-luna"' \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/refactorer.toml" 2>/dev/null || true)"
+check "claude frontier role -> frontier model" "model: claude-opus-4-8" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
+check "claude economy role -> economy model" "model: claude-haiku-4-5" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
+check "claude default role -> default model" "model: claude-sonnet-4-6" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/implementer.md" 2>/dev/null || true)"
+# Guard: a cross-provider slug or unresolved placeholder is not a valid native
+# Codex/Claude model, so the sync scripts fall back to inherit rather than emit it.
+cat > "$SYNCROOT/factory.config" <<'CONF'
+CODEX_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
+CLAUDE_FRONTIER_MODEL="__FRONTIER_MODEL__"
+CONF
+( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+( cd "$SYNCROOT" && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
+check "codex omits a cross-provider slug (inherit)" "" \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
+check "claude falls back to inherit on a placeholder" "model: inherit" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
 
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"

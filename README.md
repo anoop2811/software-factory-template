@@ -64,10 +64,23 @@ Labels are evidence, not roadmap: battle-tested means a real project shipped und
 
 Frameworks ride on the language pack, not their own: React and Vue use the TypeScript pack (Biome auto-applies its `react`/`vue` rules), Spring Boot uses the Java pack (JUnit 5 + Testcontainers). `factory-init` detects them and points you at the right pack. Install several at once for polyglot repos — `--pack go,typescript`.
 
+## Cost & models
+
+Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.config`):
+
+| Tier | opencode | Codex | Claude |
+|---|---|---|---|
+| frontier | GLM 5.2 | gpt-5.6-sol | claude-opus-4-8 |
+| default | GLM 5.2 | gpt-5.6-terra | claude-sonnet-4-6 |
+| economy | Qwen3-Coder | gpt-5.6-luna | claude-haiku-4-5 |
+
+It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default profile keeps one tier; the opt-in `economy` profile turns on the cheap third one. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
+
 ## Documentation
 
 - [docs/CONCEPTS.md](docs/CONCEPTS.md) — why the rules exist, including the full Verification Contract
 - [docs/ADAPTING.md](docs/ADAPTING.md) — adopting the factory in an existing project
+- [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md) — the cost profile and per-harness model tiers
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like
 - [docs/PATTERNS.md](docs/PATTERNS.md) — failure patterns we hit in practice, and the fixes
 - [docs/FACTORY_RULES.md](docs/FACTORY_RULES.md) — the operational rulebook agents read

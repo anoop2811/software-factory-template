@@ -43,7 +43,7 @@ set -eu
 # moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
-FACTORY_REF="${FACTORY_REF:-v0.1.0}"
+FACTORY_REF="${FACTORY_REF:-v0.1.1}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 # --ref <ref> (or --ref=<ref>): install from the given branch or tag instead of

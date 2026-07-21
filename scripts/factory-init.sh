@@ -132,15 +132,13 @@ CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5.6-terra}"
 # wiki-maintainer, opencode small_model) route to a cheaper model. Under
 # 'standard' the economy tier collapses to that harness's default model, so
 # behaviour is unchanged. spec-writer and reviewer stay frontier throughout.
-if [ "$COST_PROFILE" = "economy" ]; then
-  ECONOMY_MODEL="${ECONOMY_MODEL:-openrouter/qwen/qwen3-coder}"
-  CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
-  CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
-else
-  ECONOMY_MODEL="$DEFAULT_MODEL"
-  CLAUDE_ECONOMY_MODEL="$CLAUDE_DEFAULT_MODEL"
-  CODEX_ECONOMY_MODEL="$CODEX_DEFAULT_MODEL"
-fi
+# Economy-tier models are stored raw (uncollapsed) for every harness, regardless
+# of profile. The standard/economy collapse is applied at sync time by
+# resolve_tier reading COST_PROFILE — so flipping the profile in factory.config
+# and re-running `make sync-harnesses` re-routes every harness, no re-init.
+ECONOMY_MODEL="${ECONOMY_MODEL:-openrouter/qwen/qwen3-coder}"
+CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
+CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
 NODE_VERSION="${NODE_VERSION:-24}"
@@ -275,6 +273,7 @@ cp "$TEMPLATE_DIR/scripts/factory-upgrade.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/scripts/sync-opencode.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-claude.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-codex.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/harness-structural-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -354,9 +353,6 @@ for FILE in "${SUBSTITUTE_FILES[@]}"; do
       -e "s|__GITHUB_OWNER__|$GITHUB_OWNER|g" \
       -e "s|__OPENCODE_USERNAME__|$OPENCODE_USERNAME|g" \
       -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
-      -e "s|__DEFAULT_MODEL__|$DEFAULT_MODEL|g" \
-      -e "s|__FRONTIER_MODEL__|$FRONTIER_MODEL|g" \
-      -e "s|__ECONOMY_MODEL__|$ECONOMY_MODEL|g" \
       "$FILE"
     rm -f "$FILE.bak"
   fi
@@ -367,6 +363,7 @@ echo "Making scripts executable..."
 chmod +x "$TARGET_DIR/scripts/hooks/"*.sh
 chmod +x "$TARGET_DIR/scripts/prereq-check.sh"
 chmod +x "$TARGET_DIR/scripts/golden-task-eval.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/sync-opencode.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/sync-claude.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/sync-codex.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/harness-structural-eval.sh" 2>/dev/null || true
@@ -388,10 +385,10 @@ OPENCODE_USERNAME="$OPENCODE_USERNAME"
 PROTECTED_PATH="$PROTECTED_PATH"
 DOCS_ROOT="$DOCS_ROOT"
 CITATION_PREFIX="$CITATION_PREFIX_UPPER"
-DEFAULT_MODEL="$DEFAULT_MODEL"
-FRONTIER_MODEL="$FRONTIER_MODEL"
 COST_PROFILE="$COST_PROFILE"
-ECONOMY_MODEL="$ECONOMY_MODEL"
+OPENCODE_FRONTIER_MODEL="$FRONTIER_MODEL"
+OPENCODE_DEFAULT_MODEL="$DEFAULT_MODEL"
+OPENCODE_ECONOMY_MODEL="$ECONOMY_MODEL"
 CLAUDE_FRONTIER_MODEL="$CLAUDE_FRONTIER_MODEL"
 CLAUDE_DEFAULT_MODEL="$CLAUDE_DEFAULT_MODEL"
 CLAUDE_ECONOMY_MODEL="$CLAUDE_ECONOMY_MODEL"
@@ -521,6 +518,15 @@ if [ -n "${PACKS// /}" ]; then
     echo "  armed factory.yaml for:$INSTALLED"
   fi
 fi
+
+# ── Apply per-tier models to every harness from factory.config ────────
+# opencode.json, .claude/agents, and .codex/agents all get their models here,
+# so the repo is ready to use. Reconfiguring later is the same one command:
+# edit factory.config, then `make sync-harnesses`.
+echo ""
+echo "Applying models to opencode, Claude, and Codex..."
+(cd "$TARGET_DIR" && ./scripts/sync-opencode.sh && ./scripts/sync-claude.sh && ./scripts/sync-codex.sh) \
+  || echo "  warning: harness sync did not complete — run 'make sync-harnesses' (jq required)"
 
 # ── Post-install attestation (Verification Contract rule 3) ───────────
 # The installer does not say "done" — it proves the installed gates fire.

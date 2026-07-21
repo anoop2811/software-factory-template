@@ -74,7 +74,7 @@ Each role runs on a cost-appropriate model. The reviewer and spec-writer get a f
 | default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
 | economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
 
-It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
+It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. To reconfigure later, edit `factory.config` (change a model, or flip `COST_PROFILE`) and run `make sync-harnesses` — one edit re-routes all three harnesses. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
 
 ## Documentation
 

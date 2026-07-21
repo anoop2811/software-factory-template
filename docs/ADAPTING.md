@@ -90,16 +90,19 @@ Each harness has its own native model namespace, so each carries its own per-tie
 models in `factory.config` — shipped as intelligent defaults, overridable there:
 
 ```sh
-DEFAULT_MODEL / FRONTIER_MODEL / ECONOMY_MODEL           # opencode (OpenRouter)
-CLAUDE_FRONTIER_MODEL / CLAUDE_DEFAULT_MODEL / CLAUDE_ECONOMY_MODEL
-CODEX_FRONTIER_MODEL / CODEX_DEFAULT_MODEL / CODEX_ECONOMY_MODEL
+OPENCODE_FRONTIER_MODEL / OPENCODE_DEFAULT_MODEL / OPENCODE_ECONOMY_MODEL   # OpenRouter
+CLAUDE_FRONTIER_MODEL   / CLAUDE_DEFAULT_MODEL   / CLAUDE_ECONOMY_MODEL
+CODEX_FRONTIER_MODEL    / CODEX_DEFAULT_MODEL    / CODEX_ECONOMY_MODEL
 ```
 
 `scripts/lib/roles.sh` maps each role to its tier, and `make sync-harnesses`
-writes the right per-tier model into each harness's config; a blank value falls
-back to `inherit`. It is a routing change only — no gate is relaxed, so the same
-hooks check the output whichever model produced it. See
-[COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the full rationale and the matrix.
+writes the right per-tier model into each harness — opencode included. To
+reconfigure later, edit `factory.config` (change a model, or flip `COST_PROFILE`
+between `standard` and `economy`) and run `make sync-harnesses`; the collapse is
+applied at sync time, so one edit re-routes all three harnesses. It is a routing
+change only — no gate is relaxed, so the same hooks check the output whichever
+model produced it. See [COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the full
+rationale and the matrix.
 
 ## Adopting incrementally
 

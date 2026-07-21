@@ -73,7 +73,7 @@ for AGENT_NAME in $AGENTS; do
   # e.g. gpt-5.6-sol). Unset — the template repo, or a blanked tier — omits the
   # line so the agent inherits the session model.
   TIER=$(role_tier "$AGENT_NAME")
-  case "$TIER" in
+  case "$(resolve_tier "${COST_PROFILE:-standard}" "$TIER")" in
     frontier) CODEX_MODEL="${CODEX_FRONTIER_MODEL:-}" ;;
     economy)  CODEX_MODEL="${CODEX_ECONOMY_MODEL:-}" ;;
     *)        CODEX_MODEL="${CODEX_DEFAULT_MODEL:-}" ;;

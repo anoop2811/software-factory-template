@@ -20,3 +20,15 @@ role_tier() {
     *) printf 'default' ;;
   esac
 }
+
+# resolve_tier <cost_profile> <tier> -> effective tier.
+# The economy tier collapses to default unless the cost profile is 'economy'.
+# This is applied at sync time (not baked at init), so flipping COST_PROFILE in
+# factory.config and re-running the sync re-routes every harness.
+resolve_tier() {
+  if [ "$2" = economy ] && [ "$1" != economy ]; then
+    printf 'default'
+  else
+    printf '%s' "$2"
+  fi
+}

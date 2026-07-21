@@ -114,7 +114,7 @@ for AGENT_NAME in $AGENTS; do
   # The Claude model for this role is its tier's CLAUDE_<TIER>_MODEL from
   # factory.config (a Claude model id, e.g. claude-opus-4-8). Unset — as in the
   # template repo, or when an adopter blanks a tier — falls back to "inherit".
-  case "$TIER" in
+  case "$(resolve_tier "${COST_PROFILE:-standard}" "$TIER")" in
     frontier) CLAUDE_MODEL="${CLAUDE_FRONTIER_MODEL:-inherit}" ;;
     economy)  CLAUDE_MODEL="${CLAUDE_ECONOMY_MODEL:-inherit}" ;;
     *)        CLAUDE_MODEL="${CLAUDE_DEFAULT_MODEL:-inherit}" ;;

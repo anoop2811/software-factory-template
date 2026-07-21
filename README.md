@@ -68,13 +68,13 @@ Frameworks ride on the language pack, not their own: React and Vue use the TypeS
 
 Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.config`):
 
-| Tier | opencode | Codex | Claude |
+| Tier | opencode (OpenRouter) | Codex | Claude |
 |---|---|---|---|
-| frontier | GLM 5.2 | gpt-5.6-sol | claude-opus-4-8 |
-| default | GLM 5.2 | gpt-5.6-terra | claude-sonnet-4-6 |
-| economy | Qwen3-Coder | gpt-5.6-luna | claude-haiku-4-5 |
+| frontier | `openrouter/z-ai/glm-5.2` | `gpt-5.6-sol` | `claude-opus-4-8` |
+| default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
+| economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
 
-It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default profile keeps one tier; the opt-in `economy` profile turns on the cheap third one. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
+It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
 
 ## Documentation
 

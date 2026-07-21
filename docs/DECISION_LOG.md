@@ -630,3 +630,28 @@ event is logged, asserts `factory report` shows the block and refuses a
 tokens-saved headline, and asserts `--clear` resets the log; `bash
 scripts/selftest/run.sh` reported "52 passed, 0 failed"; `make check-drift`
 exited 0; a manual `factory report` showed the clean-state and populated output.
+
+## Decision 28 (2026-07-20): factory upgrade adds missing framework files, not just refreshes existing
+
+What: `factory-upgrade.sh` now *adds* a framework file the repo is missing (when
+its parent directory exists), rather than skipping any file the repo does not
+already have. The framework list gains the files introduced since the earlier
+releases — `scripts/lib/roles.sh`, `scripts/lib/events.sh`, `scripts/sync-opencode.sh`,
+`scripts/factory-report.sh` — and the copy helper reports each as "added" vs
+"updated".
+
+Why: a repo installed before a framework file existed did not receive it on
+upgrade, yet the refreshed shipped scripts source it — e.g. `sync-codex.sh` and
+the hooks now source `scripts/lib/roles.sh` / `events.sh`, so an upgraded repo
+that never had those libs failed with "No such file or directory". Framework
+files are byte-identical and non-optional (Decision 2), so adding a missing one
+heals the repo; identity/customizable files are still handled separately and
+never overwritten. Only the parent directory must pre-exist, which `init`
+guarantees.
+
+Provenance: founder report — after `factory upgrade`, `sync-codex.sh` failed on a
+missing `scripts/lib/roles.sh` — 2026-07-20. Verified this session: an end-to-end
+upgrade of a repo missing the new libs added `roles.sh`/`events.sh`/`sync-opencode.sh`/
+`factory-report.sh` and `role_tier` then resolved; a break/fix self-test asserts
+upgrade adds a missing lib; `bash scripts/selftest/run.sh` reported "53 passed,
+0 failed"; `make check-drift` exited 0.

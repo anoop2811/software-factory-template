@@ -367,6 +367,18 @@ check "factory report refuses a tokens-saved headline" "0" \
 check "factory report --clear resets the log" "0" \
   "$(grep -c . "$FACTORY_EVENT_LOG" 2>/dev/null || echo 0)"
 
+# Break/fix: factory upgrade ADDS a new framework lib, not just refreshes existing
+# files. A repo installed before a lib existed must receive it, or the shipped
+# scripts that source it break (the roles.sh/events.sh upgrade regression).
+UPGROOT="$SANDBOX/upgroot"
+mkdir -p "$UPGROOT/scripts/lib"
+( cd "$UPGROOT" && git init -q )
+printf 'project_name: t\nlanguage_packs: ""\n' > "$UPGROOT/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh absent
+( cd "$UPGROOT" && bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+check "factory upgrade adds a missing framework lib" "yes" \
+  "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

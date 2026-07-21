@@ -58,14 +58,18 @@ FRAMEWORK="
 factory
 .githooks/pre-push
 scripts/lib/config.sh
+scripts/lib/roles.sh
+scripts/lib/events.sh
 scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
+scripts/factory-report.sh
 scripts/pre-push-check.sh
 scripts/prereq-check.sh
 scripts/citation-lint.sh
 scripts/golden-task-eval.sh
 scripts/harness-structural-eval.sh
+scripts/sync-opencode.sh
 scripts/sync-claude.sh
 scripts/sync-codex.sh
 "
@@ -76,19 +80,23 @@ copy_framework() {
   local rel="$1"
   local src="$TEMPLATE/$rel"
   [ -f "$src" ] || return 0
-  # Only refresh a file the repo already has — never introduce new files an
-  # adopter didn't install (framework files carry no install-time placeholders,
-  # so a copy is byte-identical by design; Decision 2).
-  [ -f "$rel" ] || return 0
-  if cmp -s "$src" "$rel"; then
+  # Add or refresh the framework file. It carries no install-time placeholders,
+  # so a copy is byte-identical by design (Decision 2). Missing files are added,
+  # not skipped: a repo installed before a framework file existed (e.g. a new
+  # lib that shipped scripts now source) must receive it, or those scripts break.
+  # Only the parent directory must already exist, which init guarantees.
+  [ -d "$(dirname "$rel")" ] || return 0
+  if [ -f "$rel" ] && cmp -s "$src" "$rel"; then
     return 0
   fi
+  local verb="updated"
+  [ -f "$rel" ] || verb="added  "
   # Atomic replace via rename: mv swaps the inode, so if we are updating a file
   # currently being read (this script upgrading itself), the running process
   # keeps reading the old inode and the new version lands for next time.
   cp "$src" "$rel.factory-tmp.$$"
   mv -f "$rel.factory-tmp.$$" "$rel"
-  echo "  updated: $rel"
+  echo "  $verb: $rel"
   copied=$((copied + 1))
 }
 

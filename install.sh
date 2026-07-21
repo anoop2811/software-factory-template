@@ -35,7 +35,7 @@ set -eu
 # tagged release onward the default is that tag, never a moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
-FACTORY_REF="${FACTORY_REF:-main}"
+FACTORY_REF="${FACTORY_REF:-v0.1.0}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 DO_INIT=0

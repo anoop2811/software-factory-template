@@ -599,3 +599,59 @@ install.sh` passed; an isolated parse test covered flag-before-verb,
 flag-after-verb, `--ref=` form, bare fetch, missing-value error (exit 2), env-var
 fallback, and flag-beats-env precedence — each resolved the ref and passthrough
 args as expected.
+
+## Decision 27 (2026-07-20): `factory report` — an honest cost report, no vanity number
+
+What: a `factory report` subcommand (`scripts/factory-report.sh`) prints three
+separated registers — facts the factory computes itself (deterministic gates
+installed at 0 model tokens, cost profile and model tiers, and gate *blocks*
+recorded), one clearly-labeled review-spend estimate, and a pointer to the
+harness for measured token spend. It never prints a "tokens saved" headline. The
+blocks come from a new best-effort logger, `scripts/lib/events.sh`
+(`factory_log_event`), which the five interactive blocking hooks (test-edit-denial,
+commit-message-lint, decision-log-gate, direct-main-push-block,
+pending-lessons-push-block) call right before they exit non-zero. It writes to
+`$FACTORY_EVENT_LOG` or `.factory/events.log` (gitignored) at the repo root, and
+never fails a hook. `factory report --clear` resets the window.
+
+Why: adopters ask "how much does this save?" and the honest answer is not a
+single per-session number — that is a counterfactual comparing the run to one
+that never happened, the exact vanity metric this project refuses. The report
+separates what is *measured* (blocks caught, 0-token enforcement) from what is
+*estimated* (review spend avoided, with its R constant visible) from what the
+factory cannot know (harness token spend). The only real "saved" figure is an
+A/B eval, and the report says so. Logging must never break a hook, so the logger
+swallows every error and returns 0.
+
+Provenance: founder direction — build the honest post-session cost report (full
+MVP with session-catch logging), skip the dangerous-command guard for now —
+2026-07-20. Verified this session: a break/fix self-test fires a gate, asserts an
+event is logged, asserts `factory report` shows the block and refuses a
+tokens-saved headline, and asserts `--clear` resets the log; `bash
+scripts/selftest/run.sh` reported "52 passed, 0 failed"; `make check-drift`
+exited 0; a manual `factory report` showed the clean-state and populated output.
+
+## Decision 28 (2026-07-20): factory upgrade adds missing framework files, not just refreshes existing
+
+What: `factory-upgrade.sh` now *adds* a framework file the repo is missing (when
+its parent directory exists), rather than skipping any file the repo does not
+already have. The framework list gains the files introduced since the earlier
+releases — `scripts/lib/roles.sh`, `scripts/lib/events.sh`, `scripts/sync-opencode.sh`,
+`scripts/factory-report.sh` — and the copy helper reports each as "added" vs
+"updated".
+
+Why: a repo installed before a framework file existed did not receive it on
+upgrade, yet the refreshed shipped scripts source it — e.g. `sync-codex.sh` and
+the hooks now source `scripts/lib/roles.sh` / `events.sh`, so an upgraded repo
+that never had those libs failed with "No such file or directory". Framework
+files are byte-identical and non-optional (Decision 2), so adding a missing one
+heals the repo; identity/customizable files are still handled separately and
+never overwritten. Only the parent directory must pre-exist, which `init`
+guarantees.
+
+Provenance: founder report — after `factory upgrade`, `sync-codex.sh` failed on a
+missing `scripts/lib/roles.sh` — 2026-07-20. Verified this session: an end-to-end
+upgrade of a repo missing the new libs added `roles.sh`/`events.sh`/`sync-opencode.sh`/
+`factory-report.sh` and `role_tier` then resolved; a break/fix self-test asserts
+upgrade adds a missing lib; `bash scripts/selftest/run.sh` reported "53 passed,
+0 failed"; `make check-drift` exited 0.

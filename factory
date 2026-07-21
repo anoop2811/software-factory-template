@@ -20,6 +20,8 @@ Usage: factory <command> [args]
               touches your factory.yaml, content, or customized files
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
+  report      Cost report: gates enforced at 0 tokens, blocks caught, one labeled
+              estimate (factory report --clear resets the block log)
   help        Show this message
 
 Everything here is plain shell. `less` any of it: scripts/factory-doctor.sh, scripts/hooks/*.sh.
@@ -35,6 +37,7 @@ case "$CMD" in
   upgrade)  SCRIPT="$DIR/scripts/factory-upgrade.sh" ;;
   check)    SCRIPT="$DIR/scripts/pre-push-check.sh" ;;
   selftest) SCRIPT="$DIR/scripts/selftest/run.sh" ;;
+  report)   SCRIPT="$DIR/scripts/factory-report.sh" ;;
   help|-h|--help) usage; exit 0 ;;
   *) echo "factory: unknown command '$CMD' (try: factory help)" >&2; exit 2 ;;
 esac

@@ -624,6 +624,7 @@ edit test files.</span>
           <ol>
             <li><span class="mono">make sync-harnesses</span> — generate the Claude &amp; Codex adapters from the canon</li>
             <li><span class="mono">./factory doctor</span> — see which gates are armed, inert, or stale, and watch each armed one fire its break/fix proof</li>
+            <li><span class="mono">./factory report</span> — what the gates caught, enforced at 0 model tokens, plus one labeled cost estimate (never a vanity "tokens saved" number)</li>
             <li>Open your harness (<span class="mono">opencode</span>, Claude Code, or Codex) — the roles are already wired</li>
             <li>Point the spec-writer at a change; it writes red tests, the implementer makes them pass, a different-model reviewer checks it</li>
             <li>Install the push gate: <span class="mono">git config core.hooksPath .githooks</span></li>

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-# shellcheck source=lib/events.sh
+# shellcheck source=../lib/events.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
 
 # scripts/hooks/pending-lessons-push-block.sh

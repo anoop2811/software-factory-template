@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-# shellcheck source=lib/events.sh
+# shellcheck source=../lib/events.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
 
 # Reads the standard Git pre-push ref update stream and rejects every direct

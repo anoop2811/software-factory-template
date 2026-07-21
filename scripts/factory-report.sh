@@ -23,8 +23,13 @@ fi
 # shellcheck source=/dev/null
 [ -f "$DIR/factory.config" ] && . "$DIR/factory.config"
 
-# Rough token cost of one LLM review pass, for the estimate only. Overridable.
+# Rough token cost of one LLM review pass, for the estimate only. Overridable —
+# but it lands in arithmetic below, so a non-integer value falls back to the
+# default rather than crashing the report under set -e.
 R_TOKENS="${FACTORY_REVIEW_TOKENS:-3000}"
+case "$R_TOKENS" in
+  ''|*[!0-9]*) R_TOKENS=3000 ;;
+esac
 
 GATES=$(find "$DIR/scripts/hooks" -maxdepth 1 -name '*.sh' 2>/dev/null | wc -l | tr -d ' ')
 BLOCKS=0

@@ -206,41 +206,48 @@ profile accordingly. A later `factory` report that summarizes per-role model
 assignment (not token counts, which live in the harness) is a possible addition,
 not a commitment.
 
-### A post-session report
+### A post-session report: `factory report` (shipped)
 
-A post-session report shows what the factory actually did for you this session.
-It states three things in three registers and keeps them visibly separate, so
-each number means exactly what it says:
+`factory report` shows what the factory did, in three registers kept visibly
+separate, so each number means exactly what it says:
 
-- **Facts the factory computes itself (no counterfactual).** "This session: N
-  deterministic gates fired, 0 model tokens. K fail-fast catches (a gate stopped
-  a bad path before it generated downstream work)." A hook that exits non-zero
+- **Facts the factory computes itself (no counterfactual).** The deterministic
+  gates installed (enforced in shell, 0 model tokens each), the cost profile and
+  model tiers, and the gate *blocks* recorded — each one a catch a hook made,
+  logged by `scripts/lib/events.sh` when it fired. A hook that exits non-zero
   genuinely cost no model tokens; this is what *happened*, not what was avoided.
-- **Actual spend from the harness (measured, not saved).** If the harness exposes
-  per-role token counts, show them: "implementer X on economy, reviewer Y on
-  frontier." This is real metering and it is what lets an adopter tune the
-  profile — no comparison to a phantom run.
-- **At most one clearly-labeled estimate.** The only defensible "avoided" figure
-  is narrow and anchored: each deterministic gate stands in for one LLM review
-  pass; a review pass over this diff is roughly R tokens; N gates fired, so
-  approximately N×R tokens of *review* spend were avoided — **estimate**, stated
-  with its baseline assumption (that you would otherwise enforce these rules with
-  a model). It is printed as an estimate with a pointer to this method, never as
-  a bare "saved N tokens".
+  The block window resets with `factory report --clear`.
+- **Measured token spend stays with the harness.** The shell factory does not
+  meter tokens; the report points you at your harness's usage output (opencode,
+  Claude Code, and Codex each report per-session counts) rather than scrape a
+  fragile number.
+- **One clearly-labeled estimate.** Each block is a catch an LLM reviewer would
+  have had to make; a review pass is roughly R tokens (default 3000, override
+  `FACTORY_REVIEW_TOKENS`); N blocks → approximately N×R tokens of *review* spend
+  avoided — printed as an **estimate** with its method, never as a bare "saved
+  N tokens".
 
-An illustrative report:
+Actual output, with two blocks recorded:
 
 ```
-Factory this session: 6 deterministic checks enforced in shell (0 model tokens).
-  1 fail-fast catch (bad commit blocked before push).
-  Model routing: implementer=economy, reviewer=frontier.
-  Review spend avoided (estimate = N gates x ~R tokens per review pass): ~N*R tokens.
-  Method: docs/COST_AND_TOKENS.md.
+Facts (deterministic, 0 model tokens)
+  Deterministic gates installed:  11  (run 'factory doctor' for armed/inert)
+  Cost profile:                   economy
+  Gate blocks recorded:           2
+    - 2026-07-20T10:12Z  commit-message-lint     uncited 'verified' claim
+    - 2026-07-20T11:03Z  direct-main-push-block  direct push to main
+
+Estimate (labeled)
+  Review-spend avoided:  ~6000 tokens
+    = 2 block(s) x ~3000 tokens per LLM review pass ...
+
+Not shown: a "tokens saved" headline. A real saved figure comes from an A/B eval.
 ```
 
-Facts first, then one labeled estimate. The report reads as trustworthy because
-every line means what it says — which, for a tool whose pitch is that it does not
-overclaim, is the version that reinforces the product.
+Facts first, then one labeled estimate, and an explicit refusal of the vanity
+number. The report reads as trustworthy because every line means what it says —
+which, for a tool whose pitch is that it does not overclaim, is the version that
+reinforces the product.
 
 ### The only honest source of a real "saved" number
 
@@ -274,8 +281,12 @@ the eval, deliberately, and not in the session loop.
 - **Phase 2 — cache-friendly context and a budget audit.** Order the always-on
   context so the cacheable prefix is contiguous; measure the always-loaded
   footprint and move what can be lazy.
-- **Phase 3 — measurement.** Surface per-role model assignment so adopters can
-  reason about where spend goes.
+- **Phase 3 — measurement. (Shipped.)** `factory report` shows the facts the
+  factory computes (gates enforced at 0 tokens, model routing, and gate blocks
+  caught — logged by `scripts/lib/events.sh`), one labeled review-spend estimate,
+  and a pointer to the harness for measured token spend. It never prints a
+  "tokens saved" headline. A self-test fixture proves a firing logs an event and
+  the report reads it back.
 - **Phase 4 — eval-gated implementer downgrade.** Only after the eval shows a
   cheaper implementer still passes the gates, allow `economy` to route it to
   `ECONOMY_MODEL`.

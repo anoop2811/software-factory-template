@@ -1,5 +1,7 @@
 #!/bin/bash
 set -euo pipefail
+# shellcheck source=lib/events.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
 
 # scripts/hooks/commit-message-lint.sh
 # Computational enforcement of commit message conventions.
@@ -175,6 +177,7 @@ done <<< "$MESSAGE"
 # ── Result ─────────────────────────────────────────────────────────────
 if [ "$ERRORS" -gt 0 ]; then
   echo "commit-message-lint: $ERRORS violation(s) found"
+  factory_log_event "commit-message-lint" "commit message violation"
   exit 1
 fi
 

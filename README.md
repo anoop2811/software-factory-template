@@ -38,6 +38,7 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 1. Read [docs/CONCEPTS.md](docs/CONCEPTS.md) (~5 min) — why the gates exist.
 2. Run `factory-init` in your repo to install the hooks and prove they fire.
 3. Run `./factory doctor` any time to see which gates are armed, inert, or stale — and watch every armed gate fire on its own break/fix proof.
+   - `./factory report` shows what the gates caught, enforced at 0 model tokens, plus one clearly-labeled cost estimate — no vanity "tokens saved" number.
 4. Read [docs/ADAPTING.md](docs/ADAPTING.md) "Adopting incrementally" to arm gates one at a time.
 5. Open [docs/HOOKS.md](docs/HOOKS.md) when a gate blocks you and you want to know why.
 

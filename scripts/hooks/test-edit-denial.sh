@@ -21,6 +21,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
+# shellcheck source=../lib/events.sh
+. "$SCRIPT_DIR/../lib/events.sh"
 
 # Input resolution, in order:
 #   1. argv (opencode plugin, evals, selftests) — never touches stdin, so an
@@ -53,6 +55,7 @@ fi
 for PATTERN in $PATTERNS; do
   if echo "$FILE_PATH" | grep -qE "$PATTERN"; then
     echo "DENIED: implementer role cannot edit test files (pattern: $PATTERN). Generator/evaluator separation." >&2
+    factory_log_event "test-edit-denial" "implementer edited a test file"
     exit 2
   fi
 done

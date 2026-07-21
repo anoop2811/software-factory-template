@@ -1,5 +1,7 @@
 #!/bin/bash
 set -euo pipefail
+# shellcheck source=lib/events.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
 
 # scripts/hooks/pending-lessons-push-block.sh
 # Blocks push if memory/PENDING-LESSONS.md exists — the loop-close check
@@ -71,6 +73,7 @@ fi
 if [ "$ERRORS" -gt 0 ]; then
   echo "pending-lessons-push-block: $ERRORS pending reminder(s) — push blocked"
   echo "  Address the reminder(s) above, or delete the flag file(s) to override."
+  factory_log_event "pending-lessons-push-block" "unaddressed loop-close reminder"
   exit 1
 fi
 

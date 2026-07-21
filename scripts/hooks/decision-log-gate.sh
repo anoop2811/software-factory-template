@@ -38,6 +38,8 @@ HEAD_REF="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
+# shellcheck source=../lib/events.sh
+. "$SCRIPT_DIR/../lib/events.sh"
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}"
 DECISION_LOG="$REPO_ROOT/$(factory_config_get decision_log docs/DECISION_LOG.md)"
@@ -147,6 +149,7 @@ done
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "decision-log-gate: $ERRORS commit(s) lack a Decision reference"
+  factory_log_event "decision-log-gate" "governance change without a Decision reference"
   exit 1
 fi
 

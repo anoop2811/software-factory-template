@@ -599,3 +599,34 @@ install.sh` passed; an isolated parse test covered flag-before-verb,
 flag-after-verb, `--ref=` form, bare fetch, missing-value error (exit 2), env-var
 fallback, and flag-beats-env precedence — each resolved the ref and passthrough
 args as expected.
+
+## Decision 27 (2026-07-20): `factory report` — an honest cost report, no vanity number
+
+What: a `factory report` subcommand (`scripts/factory-report.sh`) prints three
+separated registers — facts the factory computes itself (deterministic gates
+installed at 0 model tokens, cost profile and model tiers, and gate *blocks*
+recorded), one clearly-labeled review-spend estimate, and a pointer to the
+harness for measured token spend. It never prints a "tokens saved" headline. The
+blocks come from a new best-effort logger, `scripts/lib/events.sh`
+(`factory_log_event`), which the five interactive blocking hooks (test-edit-denial,
+commit-message-lint, decision-log-gate, direct-main-push-block,
+pending-lessons-push-block) call right before they exit non-zero. It writes to
+`$FACTORY_EVENT_LOG` or `.factory/events.log` (gitignored) at the repo root, and
+never fails a hook. `factory report --clear` resets the window.
+
+Why: adopters ask "how much does this save?" and the honest answer is not a
+single per-session number — that is a counterfactual comparing the run to one
+that never happened, the exact vanity metric this project refuses. The report
+separates what is *measured* (blocks caught, 0-token enforcement) from what is
+*estimated* (review spend avoided, with its R constant visible) from what the
+factory cannot know (harness token spend). The only real "saved" figure is an
+A/B eval, and the report says so. Logging must never break a hook, so the logger
+swallows every error and returns 0.
+
+Provenance: founder direction — build the honest post-session cost report (full
+MVP with session-catch logging), skip the dangerous-command guard for now —
+2026-07-20. Verified this session: a break/fix self-test fires a gate, asserts an
+event is logged, asserts `factory report` shows the block and refuses a
+tokens-saved headline, and asserts `--clear` resets the log; `bash
+scripts/selftest/run.sh` reported "52 passed, 0 failed"; `make check-drift`
+exited 0; a manual `factory report` showed the clean-state and populated output.

@@ -16,6 +16,11 @@ HOOKS="$TEMPLATE_ROOT/scripts/hooks"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
+# Gate firings during the self-test log to a sandbox event log, not the real
+# repo's .factory/events.log — so running the self-test never pollutes a
+# developer's `factory report`.
+export FACTORY_EVENT_LOG="$SANDBOX/events.log"
+
 PASS=0
 FAIL=0
 
@@ -346,6 +351,21 @@ check "codex omits a cross-provider slug (inherit)" "" \
   "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
 check "claude falls back to inherit on a placeholder" "model: inherit" \
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
+
+# Break/fix: a gate firing records an event, and `factory report` reads it back
+# (facts + one labeled estimate, never a "tokens saved" headline). --clear resets.
+: > "$FACTORY_EVENT_LOG"
+printf 'refs/heads/main a refs/heads/main b\n' | "$HOOKS/direct-main-push-block.sh" >/dev/null 2>&1 || true
+check "a gate firing logs an event" "1" \
+  "$(grep -c 'direct-main-push-block' "$FACTORY_EVENT_LOG" 2>/dev/null || echo 0)"
+REPORT_OUT="$("$TEMPLATE_ROOT/scripts/factory-report.sh" 2>/dev/null || true)"
+check "factory report shows the block" "1" \
+  "$(printf '%s\n' "$REPORT_OUT" | grep -c 'direct-main-push-block' || echo 0)"
+check "factory report refuses a tokens-saved headline" "0" \
+  "$(printf '%s\n' "$REPORT_OUT" | grep -ic 'tokens saved:' || true)"
+"$TEMPLATE_ROOT/scripts/factory-report.sh" --clear >/dev/null 2>&1 || true
+check "factory report --clear resets the log" "0" \
+  "$(grep -c . "$FACTORY_EVENT_LOG" 2>/dev/null || echo 0)"
 
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"

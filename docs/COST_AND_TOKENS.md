@@ -143,9 +143,9 @@ defaults and overridable in `factory.config`:
 ```sh
 # factory.config (excerpt)
 COST_PROFILE="economy"
-DEFAULT_MODEL="openrouter/z-ai/glm-5.2"       # opencode default
-FRONTIER_MODEL="openrouter/z-ai/glm-5.2"      # opencode frontier
-ECONOMY_MODEL="openrouter/qwen/qwen3-coder"   # opencode economy
+OPENCODE_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
+OPENCODE_DEFAULT_MODEL="openrouter/z-ai/glm-5.2"
+OPENCODE_ECONOMY_MODEL="openrouter/qwen/qwen3-coder"
 CLAUDE_FRONTIER_MODEL="claude-opus-4-8"
 CLAUDE_DEFAULT_MODEL="claude-sonnet-4-6"
 CLAUDE_ECONOMY_MODEL="claude-haiku-4-5"
@@ -158,11 +158,28 @@ The routing reaches all three harnesses through `make sync-harnesses`. A role's
 tier is a property of the *role*, not the model string (opencode's frontier and
 default can share one model), so `scripts/lib/roles.sh` maps each role to its
 tier — `spec-writer`/`reviewer` → frontier, `refactorer`/`wiki-maintainer` →
-economy, everything else → default — and `sync-claude`/`sync-codex` read that
-tier's model for their harness from `factory.config`. A blank value (or the
-template repo, which has no `factory.config`) falls back to `inherit` rather than
-breaking. It all lives in `factory.config`, not `factory.yaml`, and touches no
-runtime gate.
+economy, everything else → default. `sync-opencode` writes opencode's models
+into `opencode.json`; `sync-claude`/`sync-codex` write each Claude/Codex
+subagent's model. All three read that tier's model from `factory.config`, and a
+blank value (or the template repo, which has no `factory.config`) falls back to
+`inherit` rather than breaking. It all lives in `factory.config`, not
+`factory.yaml`, and touches no runtime gate.
+
+### Changing it later
+
+Reconfiguring is one edit and one command — no re-init:
+
+```sh
+# change a model, or flip COST_PROFILE between standard and economy, in factory.config
+$ make sync-harnesses
+```
+
+`factory.config` is the single source of truth for every harness's models,
+including opencode. The economy→default collapse is applied at *sync* time (by
+`resolve_tier` reading `COST_PROFILE`), so flipping the profile and re-syncing
+re-routes opencode, Claude, and Codex together — you are never editing three
+places or re-running init to change a tier. `factory-init` runs this same sync at
+the end, so a fresh repo is already wired.
 
 The profile is a routing change only. It arms no new behaviour and relaxes no
 gate — the same hooks fire regardless of which model did the work. That is the

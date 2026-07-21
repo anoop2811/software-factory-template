@@ -262,29 +262,38 @@ if [ -x "$CML_HOOK" ]; then
 fi
 
 # Break/fix: sync routes each role to its tier's per-harness model from
-# factory.config (role_tier maps reviewer->frontier, implementer->default,
-# refactorer->economy). With no factory.config the model is unset and the agent
-# inherits the session model — which keeps the committed adapters clean.
+# factory.config, and the standard/economy collapse is applied at sync time by
+# resolve_tier — so editing factory.config (a model, or the profile) and running
+# the sync re-routes every harness. With no factory.config, sync is a no-op:
+# adapters inherit and opencode keeps its placeholders (committed repo stays clean).
 SYNCROOT="$SANDBOX/syncroot"
 mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
-cp "$TEMPLATE_ROOT/scripts/sync-codex.sh" "$TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
+cp "$TEMPLATE_ROOT/scripts/sync-opencode.sh" "$TEMPLATE_ROOT/scripts/sync-codex.sh" \
+   "$TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
 cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$SYNCROOT/scripts/lib/"
 cat > "$SYNCROOT/opencode.json" <<'JSON'
-{ "agent": {
-  "reviewer": { "description": "r", "permission": { "edit": "deny" } },
-  "implementer": { "description": "i" },
-  "refactorer": { "description": "f" }
+{ "model": "__DEFAULT_MODEL__", "small_model": "__ECONOMY_MODEL__", "agent": {
+  "reviewer": { "description": "r", "model": "__FRONTIER_MODEL__", "permission": { "edit": "deny" } },
+  "implementer": { "description": "i", "model": "__DEFAULT_MODEL__" },
+  "refactorer": { "description": "f", "model": "__ECONOMY_MODEL__" }
 } }
 JSON
 for a in reviewer implementer refactorer; do
-  printf -- '---\ndescription: x\n---\nBody for %s\n' "$a" > "$SYNCROOT/.opencode/agent/$a.md"
+  printf -- '---\ndescription: x\nmodel: __DEFAULT_MODEL__\n---\nBody for %s\n' "$a" > "$SYNCROOT/.opencode/agent/$a.md"
 done
-# No factory.config → every role inherits (no model line emitted).
-( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
+sync_all() { ( cd "$SYNCROOT" && bash scripts/sync-opencode.sh && bash scripts/sync-codex.sh && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true; }
+# No factory.config → sync is a no-op.
+sync_all
 check "codex inherits when no factory.config" "" \
   "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
-# With factory.config, each role routes to its tier's per-harness model.
+check "opencode untouched when no factory.config" "__DEFAULT_MODEL__" \
+  "$(jq -r '.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+# economy profile → all three tiers distinct on every harness.
 cat > "$SYNCROOT/factory.config" <<'CONF'
+COST_PROFILE="economy"
+OPENCODE_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
+OPENCODE_DEFAULT_MODEL="openrouter/z-ai/glm-5.2"
+OPENCODE_ECONOMY_MODEL="openrouter/qwen/qwen3-coder"
 CODEX_FRONTIER_MODEL="gpt-5.6-sol"
 CODEX_DEFAULT_MODEL="gpt-5.6-terra"
 CODEX_ECONOMY_MODEL="gpt-5.6-luna"
@@ -292,28 +301,47 @@ CLAUDE_FRONTIER_MODEL="claude-opus-4-8"
 CLAUDE_DEFAULT_MODEL="claude-sonnet-4-6"
 CLAUDE_ECONOMY_MODEL="claude-haiku-4-5"
 CONF
-( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
-( cd "$SYNCROOT" && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
-check "codex frontier role -> frontier model" 'model = "gpt-5.6-sol"' \
+sync_all
+check "codex frontier role -> sol" 'model = "gpt-5.6-sol"' \
   "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
-check "codex default role -> default model" 'model = "gpt-5.6-terra"' \
-  "$(grep -E '^model' "$SYNCROOT/.codex/agents/implementer.toml" 2>/dev/null || true)"
-check "codex economy role -> economy model" 'model = "gpt-5.6-luna"' \
+check "codex economy role -> luna" 'model = "gpt-5.6-luna"' \
   "$(grep -E '^model' "$SYNCROOT/.codex/agents/refactorer.toml" 2>/dev/null || true)"
-check "claude frontier role -> frontier model" "model: claude-opus-4-8" \
-  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/reviewer.md" 2>/dev/null || true)"
-check "claude economy role -> economy model" "model: claude-haiku-4-5" \
+check "claude economy role -> haiku" "model: claude-haiku-4-5" \
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
-check "claude default role -> default model" "model: claude-sonnet-4-6" \
-  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/implementer.md" 2>/dev/null || true)"
+check "sync-opencode wrote opencode.json economy model" "openrouter/qwen/qwen3-coder" \
+  "$(jq -r '.agent.refactorer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+check "sync-opencode wrote small_model" "openrouter/qwen/qwen3-coder" \
+  "$(jq -r '.small_model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+check "sync-opencode rewrote the role file" "model: openrouter/qwen/qwen3-coder" \
+  "$(grep -E '^model:' "$SYNCROOT/.opencode/agent/refactorer.md" 2>/dev/null || true)"
+# Flip the profile to standard → economy roles collapse to default everywhere.
+sed -i.bak 's/COST_PROFILE="economy"/COST_PROFILE="standard"/' "$SYNCROOT/factory.config"
+rm -f "$SYNCROOT/factory.config.bak"
+sync_all
+check "flip standard: codex economy role collapses to terra" 'model = "gpt-5.6-terra"' \
+  "$(grep -E '^model' "$SYNCROOT/.codex/agents/refactorer.toml" 2>/dev/null || true)"
+check "flip standard: claude economy role collapses to sonnet" "model: claude-sonnet-4-6" \
+  "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
+check "flip standard: opencode economy role collapses to glm" "openrouter/z-ai/glm-5.2" \
+  "$(jq -r '.agent.refactorer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+# A blank opencode frontier/economy value falls back to the default tier rather
+# than crashing under set -u (the distinctive default proves the sync ran).
+cat > "$SYNCROOT/factory.config" <<'CONF'
+COST_PROFILE="economy"
+OPENCODE_DEFAULT_MODEL="fallback-model"
+OPENCODE_FRONTIER_MODEL=""
+OPENCODE_ECONOMY_MODEL=""
+CONF
+( cd "$SYNCROOT" && bash scripts/sync-opencode.sh ) >/dev/null 2>&1 || true
+check "opencode blank tier falls back to default (no crash)" "fallback-model" \
+  "$(jq -r '.agent.reviewer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
 # Guard: a cross-provider slug or unresolved placeholder is not a valid native
 # Codex/Claude model, so the sync scripts fall back to inherit rather than emit it.
 cat > "$SYNCROOT/factory.config" <<'CONF'
 CODEX_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
 CLAUDE_FRONTIER_MODEL="__FRONTIER_MODEL__"
 CONF
-( cd "$SYNCROOT" && bash scripts/sync-codex.sh ) >/dev/null 2>&1 || true
-( cd "$SYNCROOT" && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
+( cd "$SYNCROOT" && bash scripts/sync-codex.sh && bash scripts/sync-claude.sh ) >/dev/null 2>&1 || true
 check "codex omits a cross-provider slug (inherit)" "" \
   "$(grep -E '^model' "$SYNCROOT/.codex/agents/reviewer.toml" 2>/dev/null || true)"
 check "claude falls back to inherit on a placeholder" "model: inherit" \

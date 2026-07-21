@@ -548,3 +548,31 @@ learn.chatgpt.com/docs/models; Anthropic ids from the model docs. Verified this
 session: end-to-end `factory-init` (economy + standard) routed every role across
 all three harness configs; `bash scripts/selftest/run.sh` reported "40 passed,
 0 failed"; `make check-drift` exited 0.
+
+## Decision 25 (2026-07-20): factory.config is the single source of truth for models; reconfigure via one command
+
+What: `factory.config` now holds the raw (uncollapsed) per-tier models for all
+three harnesses (`OPENCODE_*`, `CLAUDE_*`, `CODEX_*`) plus `COST_PROFILE`, and
+`make sync-harnesses` applies them to every harness — including opencode, via a
+new `scripts/sync-opencode.sh` that writes `opencode.json` and the
+`.opencode/agent/*.md` models. The standard/economy collapse moved from init
+time to sync time: `resolve_tier` (in `scripts/lib/roles.sh`) reads `COST_PROFILE`
+and collapses the economy tier to default unless the profile is `economy`. So
+reconfiguring later is one edit to `factory.config` (a model, or flipping the
+profile) and one `make sync-harnesses`; `factory-init` runs the same sync at the
+end so a fresh repo is wired out of the box.
+
+Why: before this, the reconfiguration story was asymmetric and had a footgun —
+opencode models lived only in `opencode.json` (editing `factory.config` did
+nothing for them), and `COST_PROFILE` was baked at init, so flipping it after
+install had no effect. Both surprise adopters. Making sync the single apply-point
+for all harnesses, with the collapse at sync time, means one config file and one
+command reconfigure everything, matching the factory's usual shape.
+
+Provenance: founder direction — make "configure later" clean rather than just
+documented — 2026-07-20. Verified this session: a break/fix self-test drives an
+economy config, a profile flip to standard, and a single-model change, asserting
+re-routing across `opencode.json`, `.claude/agents`, and `.codex/agents`;
+`bash scripts/selftest/run.sh` reported "47 passed, 0 failed"; an end-to-end
+`factory-init` applied models to all three harnesses and a later `factory.config`
+edit + sync re-routed them; `make check-drift` exited 0.

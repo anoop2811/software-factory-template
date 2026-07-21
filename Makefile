@@ -1,4 +1,4 @@
-.PHONY: selftest doctor check eval sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
+.PHONY: selftest doctor check eval sync-opencode sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
 
 # Core factory targets — language-agnostic. Language packs contribute their
 # own test/lint/build targets via packs/<language>/Makefile.pack at init time.
@@ -24,13 +24,16 @@ eval:
 	./scripts/harness-structural-eval.sh --harness=claude
 	./scripts/harness-structural-eval.sh --harness=codex
 
+sync-opencode:
+	./scripts/sync-opencode.sh
+
 sync-claude:
 	./scripts/sync-claude.sh
 
 sync-codex:
 	./scripts/sync-codex.sh
 
-sync-harnesses: sync-claude sync-codex
+sync-harnesses: sync-opencode sync-claude sync-codex
 
 lint-commits:
 	./scripts/hooks/commit-message-lint.sh HEAD

@@ -121,12 +121,17 @@ Two ways, same result — a reviewable diff over the repo you're in:
 # from inside the repo, no local setup needed:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
 
+# upgrade from a specific ref (branch or tag) instead of the pinned release:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+
 # or, if you're already set up:
 ./factory upgrade            # pull framework updates over this repo
 ./factory upgrade --ref v1.2 # or pin a specific template ref
 ```
 
 `install.sh upgrade` refreshes the machine-wide template cache (`$FACTORY_HOME`, used by future `factory-init`) and then applies the update to the current repo — it acts on the directory you're in, just like `init`. `./factory upgrade` does the same locally without curl. Both upgrade **this** repo, not every repo on your machine: each repo owns its committed, governance-gated framework files, so you upgrade them where you are.
+
+Installs and upgrades are **pinned to the latest release by default**, so `curl … | sh` is reproducible. Pass `--ref <branch-or-tag>` (or set the `FACTORY_REF` env var) to install *or* upgrade from a specific ref — `--ref main` tracks the latest unreleased. It works on `init`, `upgrade`, or a bare fetch, before or after the verb. The flag is pipe-safe; the env var must sit on the `sh` invocation, not before `curl`.
 
 Either way it re-fetches the template and refreshes the byte-identical framework files you already have — the hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and any installed pack dialect hooks. This is safe precisely because of Decision 2: the hooks contain no substituted values, so refreshing them is a clean copy.
 

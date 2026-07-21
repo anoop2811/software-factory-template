@@ -19,6 +19,10 @@ curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typ
 
 # later, from inside the repo — pull framework updates (a reviewable diff):
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
+
+# installs and upgrades are pinned to the latest release; --ref takes any branch or tag:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
 ```
 
 The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?

@@ -324,6 +324,17 @@ check "flip standard: claude economy role collapses to sonnet" "model: claude-so
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
 check "flip standard: opencode economy role collapses to glm" "openrouter/z-ai/glm-5.2" \
   "$(jq -r '.agent.refactorer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+# A blank opencode frontier/economy value falls back to the default tier rather
+# than crashing under set -u (the distinctive default proves the sync ran).
+cat > "$SYNCROOT/factory.config" <<'CONF'
+COST_PROFILE="economy"
+OPENCODE_DEFAULT_MODEL="fallback-model"
+OPENCODE_FRONTIER_MODEL=""
+OPENCODE_ECONOMY_MODEL=""
+CONF
+( cd "$SYNCROOT" && bash scripts/sync-opencode.sh ) >/dev/null 2>&1 || true
+check "opencode blank tier falls back to default (no crash)" "fallback-model" \
+  "$(jq -r '.agent.reviewer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
 # Guard: a cross-provider slug or unresolved placeholder is not a valid native
 # Codex/Claude model, so the sync scripts fall back to inherit rather than emit it.
 cat > "$SYNCROOT/factory.config" <<'CONF'

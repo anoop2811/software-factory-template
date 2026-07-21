@@ -40,11 +40,14 @@ fi
 PROFILE="${COST_PROFILE:-standard}"
 
 # opencode_model <tier> -> the model for that tier after the profile collapse.
+# A blank or unset frontier/economy value falls back to the default-tier model
+# (which is required to be set, since the script exits early without it) — the
+# same "blank tier collapses" behaviour sync-claude / sync-codex use.
 opencode_model() {
   eff=$(resolve_tier "$PROFILE" "$1")
   case "$eff" in
-    frontier) printf '%s' "${OPENCODE_FRONTIER_MODEL}" ;;
-    economy)  printf '%s' "${OPENCODE_ECONOMY_MODEL}" ;;
+    frontier) printf '%s' "${OPENCODE_FRONTIER_MODEL:-$OPENCODE_DEFAULT_MODEL}" ;;
+    economy)  printf '%s' "${OPENCODE_ECONOMY_MODEL:-$OPENCODE_DEFAULT_MODEL}" ;;
     *)        printf '%s' "${OPENCODE_DEFAULT_MODEL}" ;;
   esac
 }

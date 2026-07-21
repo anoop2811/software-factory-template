@@ -576,3 +576,26 @@ re-routing across `opencode.json`, `.claude/agents`, and `.codex/agents`;
 `bash scripts/selftest/run.sh` reported "47 passed, 0 failed"; an end-to-end
 `factory-init` applied models to all three harnesses and a later `factory.config`
 edit + sync re-routed them; `make check-drift` exited 0.
+
+## Decision 26 (2026-07-20): installer pins to the release tag by default; --ref overrides it
+
+What: `install.sh` defaults `FACTORY_REF` to the pinned release tag (`v0.1.0`)
+instead of `main`, so `curl … | sh` is reproducible (Decision 5). A `--ref
+<branch-or-tag>` flag overrides it — e.g. `init --ref main` for the latest — and
+is extracted from the args before or after the verb, so it works with `init`,
+`upgrade`, or a bare fetch, and passes nothing extra to `factory-init`.
+Precedence: `--ref` beats the `FACTORY_REF` env var beats the pinned default.
+
+Why: pinning gives adopters a known-good, reproducible install rather than
+whatever is on `main` at that moment; future work reaches users when the next
+tag is cut and this default is bumped. The `FACTORY_REF` env var was already an
+override, but over a curl pipe it must sit on the `sh` invocation, not before
+`curl` — a silent footgun. The flag is pipe-safe and discoverable, and mirrors
+the `--ref` already on `./factory upgrade`.
+
+Provenance: founder direction — pin the release and add a pipe-safe override to
+install from main — 2026-07-20. Verified this session: `shellcheck -S warning
+install.sh` passed; an isolated parse test covered flag-before-verb,
+flag-after-verb, `--ref=` form, bare fetch, missing-value error (exit 2), env-var
+fallback, and flag-beats-env precedence — each resolved the ref and passthrough
+args as expected.

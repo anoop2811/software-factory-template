@@ -19,6 +19,12 @@ set -eu
 #       each repo owns its committed, governance-gated framework files. Locally,
 #       './factory upgrade' does the same thing without curl.
 #
+#   curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
+#       Same as 'init' (or 'upgrade'), but install from the given branch or tag
+#       instead of the pinned release — '--ref main' tracks the latest. Works
+#       with the bare fetch too. Equivalent to the FACTORY_REF env var, but
+#       pipe-safe: the flag can't be mis-attached to curl instead of sh.
+#
 # What the fetch does, in full:
 #   1. Clones the template (shallow, at a pinned ref) into $FACTORY_HOME
 #      (default: ~/.software-factory-template)
@@ -31,12 +37,36 @@ set -eu
 # template. Download this file, read it, then run it:
 #   curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh
 #
-# Pinning: FACTORY_REF selects the git ref (default below). From the first
-# tagged release onward the default is that tag, never a moving branch.
+# Pinning: the default ref is the pinned tag below (reproducible installs). The
+# `--ref <ref>` flag or the FACTORY_REF env var overrides it — e.g. main for the
+# latest. From the first tagged release onward the default is that tag, never a
+# moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
 FACTORY_REF="${FACTORY_REF:-v0.1.0}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
+
+# --ref <ref> (or --ref=<ref>): install from the given branch or tag instead of
+# the pinned default — e.g. `init --ref main` for the latest. Pulled out of the
+# args here so it works before or after the verb, and passes nothing extra to
+# factory-init. Precedence: --ref beats the FACTORY_REF env var beats the default.
+REF_OVERRIDE=""
+_args=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --ref)
+      if [ $# -lt 2 ]; then
+        printf '%s\n' "install: --ref needs a value (e.g. --ref main)" >&2
+        exit 2
+      fi
+      REF_OVERRIDE="$2"; shift 2 ;;
+    --ref=*) REF_OVERRIDE="${1#--ref=}"; shift ;;
+    *) _args="$_args $1"; shift ;;
+  esac
+done
+# shellcheck disable=SC2086  # deliberate re-split; passthrough args carry no spaces
+set -- $_args
+[ -n "$REF_OVERRIDE" ] && FACTORY_REF="$REF_OVERRIDE"
 
 DO_INIT=0
 DO_UPGRADE=0

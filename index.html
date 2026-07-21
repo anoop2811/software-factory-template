@@ -602,6 +602,10 @@ edit test files.</span>
 <span class="dim"># polyglot? pass several — a Go backend with a TS frontend:</span>
 <span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typescript
 
+<span class="dim"># installs and upgrades are pinned to the latest release; --ref takes any branch or tag:</span>
+<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
+<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+
 <span class="dim"># or fetch only, run the setup yourself later:</span>
 <span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh
 <span class="prompt">$</span> ~/.software-factory-template/scripts/factory-init.sh

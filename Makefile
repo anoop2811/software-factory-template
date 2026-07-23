@@ -1,4 +1,4 @@
-.PHONY: selftest doctor check eval sync-opencode sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
+.PHONY: selftest doctor check eval golden-eval sync-opencode sync-claude sync-codex sync-harnesses check-drift lint-commits prereq-check pre-push diff-aware decision-log pending-lessons
 
 # Core factory targets — language-agnostic. Language packs contribute their
 # own test/lint/build targets via packs/<language>/Makefile.pack at init time.
@@ -23,6 +23,9 @@ eval:
 	./scripts/harness-structural-eval.sh --harness=opencode
 	./scripts/harness-structural-eval.sh --harness=claude
 	./scripts/harness-structural-eval.sh --harness=codex
+
+golden-eval:
+	./scripts/golden-task-eval.sh
 
 sync-opencode:
 	./scripts/sync-opencode.sh

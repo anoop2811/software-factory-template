@@ -379,6 +379,35 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh a
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
 
+# Break/fix: the golden-task eval scores a real run — the reference task passes
+# when solved, fails when unsolved, catches a runner that tampers the oracle, and
+# flags a regression from a saved baseline. The mock runner keeps it credential-free.
+GEROOT="$SANDBOX/geval"
+mkdir -p "$GEROOT/eval/golden-tasks/reference-answer" "$GEROOT/eval/runners" "$GEROOT/scripts"
+cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GEROOT/scripts/"
+# Self-contained task + mock runner, so the fixture depends only on the framework
+# script (not on the repo's shipped example files, which an upgrade may not add).
+printf 'Create answer.txt containing FIXED.\n' > "$GEROOT/eval/golden-tasks/reference-answer/task.md"
+printf '#!/bin/sh\ngrep -qx FIXED answer.txt 2>/dev/null\n' > "$GEROOT/eval/golden-tasks/reference-answer/verify.sh"
+cat > "$GEROOT/eval/runners/mock.sh" <<'MOCK'
+#!/bin/sh
+cd "$1" || exit 0
+case "${FACTORY_MOCK_MODE:-pass}" in
+  pass) printf 'FIXED\n' > answer.txt ;;
+  fail) : ;;
+  cheat) printf 'FIXED\n' > answer.txt; : > verify.sh ;;
+esac
+MOCK
+chmod +x "$GEROOT/eval/runners/mock.sh"
+geval_score() { ( cd "$GEROOT" && FACTORY_MOCK_MODE="$1" ./scripts/golden-task-eval.sh 2>/dev/null | grep reference-answer | grep -oE 'score [0-9.]+' | awk '{print $2}' ); }
+geval_exit() { ( cd "$GEROOT" && FACTORY_MOCK_MODE="$1" ./scripts/golden-task-eval.sh >/dev/null 2>&1; echo $? ); }
+check "eval scores a solved task as pass" "1.00" "$(geval_score pass)"
+check "eval scores an unsolved task as fail" "0.00" "$(geval_score fail)"
+check "eval catches a runner tampering the oracle" "0.00" "$(geval_score cheat)"
+( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh --save-baseline >/dev/null 2>&1 )
+check "eval flags a regression from baseline" "1" "$(geval_exit fail)"
+check "eval passes when no regression" "0" "$(geval_exit pass)"
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

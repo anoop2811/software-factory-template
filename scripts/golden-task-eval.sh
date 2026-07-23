@@ -2,105 +2,127 @@
 set -euo pipefail
 
 # scripts/golden-task-eval.sh
-# Runs the golden-task factory evals. These are NOT product tests — they are
-# canonical coding stories run through the full agent loop to detect
-# regressions when a model, prompt, or AGENTS.md changes.
+# Runs the golden-task factory evals. Each task under eval/golden-tasks/<name>/ is
+# a red acceptance spec (task.md) with an oracle (verify.sh, exit 0 = solved). A
+# runner — a real agent, or the deterministic mock — must satisfy it. The score
+# is the pass rate over N runs: verify.sh passes AND the runner did not tamper the
+# oracle. Scores are diffed against a saved baseline; a drop is a regression.
+#
+# These are NOT product tests — they are canonical coding stories run through an
+# agent loop to catch regressions when a model, prompt, or AGENTS.md changes.
 #
 # Usage:
-#   ./scripts/golden-task-eval.sh                    # default harness
-#   ./scripts/golden-task-eval.sh --harness=opencode # specific harness
-#   ./scripts/golden-task-eval.sh --harness=claude   # specific harness
+#   ./scripts/golden-task-eval.sh                                   # mock runner, 1 run
+#   ./scripts/golden-task-eval.sh --runner=eval/runners/opencode.sh --runs=5
+#   ./scripts/golden-task-eval.sh --harness=claude --save-baseline
 #
-# Output: a score per golden task, saved to eval/results/<harness>-current.json.
-# Diffs against eval/results/<harness>-baseline.json. Exits 1 if any score regressed.
-# Does NOT overwrite the baseline — use --save-baseline to update it deliberately.
+# Runner contract: `runner <workdir>` — reads <workdir>/task.md, writes an
+# implementation into <workdir>. Exit status ignored; verify.sh scores. A real
+# runner drives your harness (opencode/Claude/Codex) with your keys. See
+# eval/README.md.
 
-HARNESS="opencode"
+HARNESS="mock"
+RUNNER="eval/runners/mock.sh"
+RUNS=1
 EVAL_DIR="eval/golden-tasks"
 RESULTS_DIR="eval/results"
 SAVE_BASELINE=false
 
-mkdir -p "$RESULTS_DIR"
-
-# Parse args
 for arg in "$@"; do
   case $arg in
-    --harness=*) HARNESS="${arg#*=}" ;;
+    --harness=*)     HARNESS="${arg#*=}" ;;
+    --runner=*)      RUNNER="${arg#*=}" ;;
+    --runs=*)        RUNS="${arg#*=}" ;;
     --save-baseline) SAVE_BASELINE=true ;;
   esac
 done
+case "$RUNS" in ''|*[!0-9]*) RUNS=1 ;; esac
+[ "$RUNS" -ge 1 ] || RUNS=1
 
+mkdir -p "$RESULTS_DIR"
 BASELINE_FILE="$RESULTS_DIR/${HARNESS}-baseline.json"
 CURRENT_FILE="$RESULTS_DIR/${HARNESS}-current.json"
 
-echo "golden-task-eval: harness=$HARNESS"
-echo "golden-task-eval: looking for tasks in $EVAL_DIR/"
+echo "golden-task-eval: harness=$HARNESS runner=$RUNNER runs=$RUNS"
 
-TASKS=$(find "$EVAL_DIR" -name '*.md' -not -name 'README.md' 2>/dev/null | sort || true)
-
+# Tasks are directories under $EVAL_DIR containing task.md + verify.sh.
+TASKS=$(find "$EVAL_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)
 if [ -z "$TASKS" ]; then
-  echo "golden-task-eval: no tasks found (OK — pre-Phase-2)"
-  echo "{\"harness\":\"$HARNESS\",\"tasks\":[],\"status\":\"no-tasks\"}" > "$CURRENT_FILE"
+  echo "golden-task-eval: no tasks in $EVAL_DIR/ (OK — add task dirs to eval it)"
+  printf '{"harness":"%s","tasks":[]}\n' "$HARNESS" > "$CURRENT_FILE"
   exit 0
 fi
 
-# Run each task and score it
-# Phase 2: these are stubs returning "pending". Phase 3 fills in real agent-loop execution.
-CURRENT_RESULTS="{\"harness\":\"$HARNESS\",\"tasks\":["
-FIRST=true
+if [ ! -x "$RUNNER" ]; then
+  echo "golden-task-eval: runner not executable: $RUNNER" >&2
+  exit 1
+fi
+RUNNER_ABS="$(cd "$(dirname "$RUNNER")" && pwd)/$(basename "$RUNNER")"
 
-for TASK in $TASKS; do
-  TASK_NAME=$(basename "$TASK" .md)
-  echo "  - $TASK_NAME: pending (stub — real eval in Phase 3)"
+TMP_RESULTS="$(mktemp)"
+trap 'rm -f "$TMP_RESULTS"' EXIT
 
-  if [ "$FIRST" = true ]; then
-    FIRST=false
-  else
-    CURRENT_RESULTS+=","
+for TASKDIR in $TASKS; do
+  TASK_NAME="$(basename "$TASKDIR")"
+  if [ ! -f "$TASKDIR/verify.sh" ]; then
+    echo "  - $TASK_NAME: SKIP (no verify.sh oracle)"
+    continue
   fi
-  CURRENT_RESULTS+="{\"task\":\"$TASK_NAME\",\"score\":\"pending\"}"
+  passes=0
+  for _ in $(seq 1 "$RUNS"); do
+    work="$(mktemp -d)"
+    cp -R "$TASKDIR"/. "$work"/
+    before="$(cksum "$work/verify.sh" | awk '{print $1, $2}')"
+    ( "$RUNNER_ABS" "$work" ) >/dev/null 2>&1 || true
+    after="$(cksum "$work/verify.sh" 2>/dev/null | awk '{print $1, $2}')"
+    # A run passes only if the oracle is untouched (no cheating) and it exits 0.
+    if [ "$before" = "$after" ] && ( cd "$work" && sh verify.sh ) >/dev/null 2>&1; then
+      passes=$((passes + 1))
+    fi
+    rm -rf "$work"
+  done
+  score="$(awk "BEGIN { printf \"%.2f\", $passes / $RUNS }")"
+  echo "  - $TASK_NAME: $passes/$RUNS passed (score $score)"
+  printf '%s\t%s\t%s\t%s\n' "$TASK_NAME" "$passes" "$RUNS" "$score" >> "$TMP_RESULTS"
 done
 
-CURRENT_RESULTS+="]}"
+python3 - "$HARNESS" "$RUNNER" "$RUNS" "$TMP_RESULTS" "$CURRENT_FILE" <<'PY'
+import json, sys
+harness, runner, runs, tmp, out = sys.argv[1:6]
+tasks = []
+with open(tmp) as f:
+    for line in f:
+        name, passes, r, score = line.rstrip("\n").split("\t")
+        tasks.append({"task": name, "passes": int(passes), "runs": int(r), "score": float(score)})
+with open(out, "w") as fh:
+    json.dump({"harness": harness, "runner": runner, "runs": int(runs), "tasks": tasks}, fh, indent=2)
+PY
 
-echo "$CURRENT_RESULTS" | python3 -m json.tool > "$CURRENT_FILE" 2>/dev/null || echo "$CURRENT_RESULTS" > "$CURRENT_FILE"
-
-# Save as baseline if requested
 if [ "$SAVE_BASELINE" = true ]; then
   cp "$CURRENT_FILE" "$BASELINE_FILE"
   echo "golden-task-eval: baseline saved to $BASELINE_FILE"
   exit 0
 fi
 
-# Diff against baseline if it exists
 if [ -f "$BASELINE_FILE" ]; then
-  BASELINE_SCORES=$(python3 -c "
-import json
-with open('$BASELINE_FILE') as f:
-    data = json.load(f)
-for t in data.get('tasks', []):
-    print(f\"{t['task']}={t['score']}\")
-" 2>/dev/null || echo "")
-
-  CURRENT_SCORES=$(python3 -c "
-import json
-with open('$CURRENT_FILE') as f:
-    data = json.load(f)
-for t in data.get('tasks', []):
-    print(f\"{t['task']}={t['score']}\")
-" 2>/dev/null || echo "")
-
-  if [ "$BASELINE_SCORES" != "$CURRENT_SCORES" ]; then
-    echo "golden-task-eval: REGRESSION DETECTED — scores changed from baseline"
-    diff <(echo "$BASELINE_SCORES") <(echo "$CURRENT_SCORES") || true
-    echo ""
-    echo "If the change is intentional, run with --save-baseline to update."
-    exit 1
-  fi
-
-  echo "golden-task-eval: no regression from baseline"
+  python3 - "$BASELINE_FILE" "$CURRENT_FILE" <<'PY'
+import json, sys
+base = json.load(open(sys.argv[1]))
+cur = json.load(open(sys.argv[2]))
+b = {t["task"]: t["score"] for t in base.get("tasks", [])}
+regressions = [(t["task"], b[t["task"]], t["score"])
+               for t in cur.get("tasks", [])
+               if t["task"] in b and t["score"] < b[t["task"]] - 1e-9]
+if regressions:
+    print("golden-task-eval: REGRESSION DETECTED — a task's pass rate dropped")
+    for name, was, now in regressions:
+        print(f"  {name}: {was:.2f} -> {now:.2f}")
+    print("If the change is intentional, re-run with --save-baseline to update.")
+    sys.exit(1)
+print("golden-task-eval: no regression from baseline")
+PY
 else
-  echo "golden-task-eval: no baseline for harness=$HARNESS — run with --save-baseline to create one"
+  echo "golden-task-eval: no baseline for '$HARNESS' — run with --save-baseline to create one"
 fi
 
 echo "golden-task-eval: done"

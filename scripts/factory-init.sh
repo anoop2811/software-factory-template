@@ -256,8 +256,9 @@ mkdir -p "$TARGET_DIR/memory/lessons"
 mkdir -p "$TARGET_DIR/wiki"
 cp "$TEMPLATE_DIR/wiki/README.md" "$TARGET_DIR/wiki/" 2>/dev/null || true
 mkdir -p "$TARGET_DIR/specs"
-mkdir -p "$TARGET_DIR/eval/golden-tasks"
+mkdir -p "$TARGET_DIR/eval/golden-tasks/reference-answer"
 mkdir -p "$TARGET_DIR/eval/results"
+mkdir -p "$TARGET_DIR/eval/runners"
 mkdir -p "$TARGET_DIR/scripts/lib"
 mkdir -p "$TARGET_DIR/scripts/selftest"
 mkdir -p "$TARGET_DIR/.githooks"
@@ -275,6 +276,9 @@ cp "$TEMPLATE_DIR/scripts/factory-report.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/eval/README.md" "$TARGET_DIR/eval/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/eval/runners/mock.sh" "$TEMPLATE_DIR/eval/runners/example-harness.sh" "$TARGET_DIR/eval/runners/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/task.md" "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/verify.sh" "$TARGET_DIR/eval/golden-tasks/reference-answer/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-opencode.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-claude.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-codex.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -365,6 +369,7 @@ echo "Making scripts executable..."
 chmod +x "$TARGET_DIR/scripts/hooks/"*.sh
 chmod +x "$TARGET_DIR/scripts/prereq-check.sh"
 chmod +x "$TARGET_DIR/scripts/golden-task-eval.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/eval/runners/"*.sh "$TARGET_DIR/eval/golden-tasks/reference-answer/verify.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/sync-opencode.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/sync-claude.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/sync-codex.sh" 2>/dev/null || true

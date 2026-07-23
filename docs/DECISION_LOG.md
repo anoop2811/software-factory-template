@@ -655,3 +655,34 @@ upgrade of a repo missing the new libs added `roles.sh`/`events.sh`/`sync-openco
 `factory-report.sh` and `role_tier` then resolved; a break/fix self-test asserts
 upgrade adds a missing lib; `bash scripts/selftest/run.sh` reported "53 passed,
 0 failed"; `make check-drift` exited 0.
+
+## Decision 29 (2026-07-23): golden-task eval scores real agent runs via a pluggable runner
+
+What: `golden-task-eval.sh` replaces its scoring stub with real scoring. Each task
+is a directory `eval/golden-tasks/<name>/` with `task.md` (a red acceptance spec)
+and `verify.sh` (the oracle, exit 0 = solved). A **runner** — contract
+`runner <workdir>`, which writes an implementation into the task working copy —
+produces the code; the score is the pass rate over N runs, where a run counts only
+if `verify.sh` passes *and* its checksum is unchanged (the runner cannot cheat the
+oracle). Scores diff against a saved baseline; a drop in any task's pass rate exits
+non-zero. A deterministic mock runner (`eval/runners/mock.sh`, no model) and a
+`reference-answer` task ship so the harness self-tests in CI without credentials;
+`example-harness.sh` is the template for a real runner. A break/fix fixture proves
+solved→pass, unsolved→fail, oracle-tamper→fail, and regression→exit 1.
+
+Why: every *gate* was break/fix-proven, but nothing measured whether the *agents*
+produce good code under the factory — the evidence layer the whole "cheaper models
+are safe because the gates catch them" argument leans on. Splitting the expensive,
+non-deterministic part (a live agent) into a pluggable runner keeps the scorer
+deterministic and credential-free (so the factory stays self-provable) while the
+real agent-quality run happens where the keys and project-specific tasks live. It
+is also the foundation for eval-gated model choices (COST_AND_TOKENS Phase 4): a
+role's tier drops only when the eval shows the cheaper model still passes.
+
+Provenance: founder direction — build the eval harness (prove the agents, not just
+the gates) as the next big bet — 2026-07-23. Verified this session: the eval scored
+the reference task pass (1.00) and fail (0.00), caught a runner tampering the oracle
+(0.00), and flagged a regression (exit 1); a break/fix self-test asserts all four;
+`bash scripts/selftest/run.sh` reported "58 passed, 0 failed"; an end-to-end
+`factory-init` copied the eval files, exited 0, and the adopter's `golden-task-eval`
+scored the reference task 1/1; `make check-drift` exited 0.

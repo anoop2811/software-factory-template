@@ -19,6 +19,8 @@ node_modules/
 eval/results/*-current.json
 eval/results/current-run.json
 eval/results/last-run.json
+# Mock-runner results are self-test artifacts, never real baselines
+eval/results/mock-*.json
 
 # Wiki is agent-maintained but tracked (lint-gated at merge)
 # wiki/ is NOT ignored — it's committed and reviewed

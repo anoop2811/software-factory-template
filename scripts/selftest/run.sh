@@ -408,6 +408,17 @@ check "eval catches a runner tampering the oracle" "0.00" "$(geval_score cheat)"
 check "eval flags a regression from baseline" "1" "$(geval_exit fail)"
 check "eval passes when no regression" "0" "$(geval_exit pass)"
 
+# Break/fix: workflow-lint enforces graph hygiene on recipes — a clean recipe
+# passes; a plumbing node (merge) run as an agent fails (coordination is code).
+WLROOT="$SANDBOX/wflint/workflows"
+mkdir -p "$WLROOT"
+printf '# W\n## review\n- role: reviewer\n- kind: fanout\n- over: files\n## verify\n- role: reviewer\n- kind: verify\n' > "$WLROOT/good.md"
+check "workflow-lint passes a clean recipe" 0 \
+  "$(run_status "$HOOKS/workflow-lint.sh" "$WLROOT")"
+printf '# W\n## merge\n- role: reviewer\n- kind: agent\n## verify\n- role: reviewer\n- kind: verify\n' > "$WLROOT/bad.md"
+check "workflow-lint flags a plumbing node run as an agent" 1 \
+  "$(run_status "$HOOKS/workflow-lint.sh" "$WLROOT")"
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

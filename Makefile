@@ -15,6 +15,7 @@ check: selftest
 	./scripts/hooks/hook-existence-check.sh
 	./scripts/hooks/copy-manifest-check.sh
 	./scripts/hooks/wiki-lint.sh
+	./scripts/hooks/workflow-lint.sh
 
 prereq-check:
 	./scripts/prereq-check.sh

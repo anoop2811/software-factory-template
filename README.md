@@ -88,6 +88,7 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 - [docs/CONCEPTS.md](docs/CONCEPTS.md) — why the rules exist, including the full Verification Contract
 - [docs/ADAPTING.md](docs/ADAPTING.md) — adopting the factory in an existing project
 - [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md) — the cost profile and per-harness model tiers
+- [docs/WORKFLOWS.md](docs/WORKFLOWS.md) — workflow recipes (graph engineering) and the workflow-lint gate
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like
 - [docs/PATTERNS.md](docs/PATTERNS.md) — failure patterns we hit in practice, and the fixes
 - [docs/FACTORY_RULES.md](docs/FACTORY_RULES.md) — the operational rulebook agents read

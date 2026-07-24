@@ -48,6 +48,8 @@ A prompt that says "never edit test files" is a request an agent may or may not 
 
 The second idea is the Verification Contract: only claim what you've observed. Three claim levels (WROTE / RAN / OBSERVED), every check proven by watching it fail. See [docs/CONCEPTS.md](docs/CONCEPTS.md).
 
+The third idea is that this is already a graph. The vocabulary everyone's chasing — prompt, loop, harness, graph — maps straight onto what's here: roles are the nodes, gates are the verified edges, the reviewer is the skeptic that never wrote the code, and models tier by role. You don't adopt a graph framework; the graph is the floor, and it runs the same on Claude Code, opencode, and Codex because the roles are canonical. The mapping is in [docs/CONCEPTS.md](docs/CONCEPTS.md).
+
 ## What's inside
 
 | Piece | Where | What it does |

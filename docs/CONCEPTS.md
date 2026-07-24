@@ -9,6 +9,40 @@
 
 New to the vocabulary? See [GLOSSARY.md](GLOSSARY.md).
 
+## Prompt, loop, harness, graph — and where the factory sits
+
+The vocabulary around agents is a ladder, and it is worth being precise about it,
+because most of it is sold as something you must go learn to *become*. A **prompt**
+is a sentence — one ask, one answer. A **loop** is a cycle — an agent iterating
+until a condition holds (the story loop here: spec-writer writes a red test,
+implementer makes it green, reviewer checks it). A **harness** is the floor the
+agent stands on — the roles, the gates, the verification contract; the part that
+holds regardless of what the model improvises. A **graph** is the shape of the
+work itself: nodes that do the thinking, edges that carry results between them.
+
+The factory is the harness and the graph — not as a framework you adopt, but as
+what the architecture already is:
+
+- A **node** is a bounded job, one input and one output. That is a **role** —
+  spec-writer, implementer, reviewer, refactorer, wiki-maintainer — defined once
+  in the canonical opencode config and generated for every harness.
+- An **edge** is a hand-off where data actually moves: not "and then", but "this
+  step's output feeds that step's input." A **gate** is that edge made
+  deterministic — the hook that checks what crosses and exits non-zero if it is
+  wrong. Coordination is code, not a conversation.
+- A **verifier** sits on an edge and tries to kill a finding before it reaches
+  the answer. That is the **reviewer** role — adversarial by design, and never
+  the same model that wrote the code (generator/evaluator separation).
+- **Tiering models per node** — cheap for mechanical work, expensive for judgment
+  — is the **economy cost profile**, routing each role to a model tier.
+
+So "graph engineering" is not a new discipline to bolt on. The factory is already
+a graph: roles are the nodes, gates are the verified edges, the reviewer is the
+skeptic, models tier by role — and it runs the same on Claude Code, opencode, and
+Codex because the roles are canonical. What a workflow *recipe* adds, when you
+want it, is making one specific composition explicit and lintable; the substrate
+is the roles and gates you already have.
+
 ## Computational controls beat inferential ones
 
 An inferential control is a rule an agent is asked to follow: a line in a prompt, a "please always" in a system message. It works until the context window rotates it out, the model changes, or the agent decides the rule doesn't apply this time.

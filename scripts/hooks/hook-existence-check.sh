@@ -26,6 +26,7 @@ HOOK_SCRIPTS=(
   "scripts/hooks/pending-lessons-push-block.sh"
   "scripts/hooks/direct-main-push-block.sh"
   "scripts/hooks/wiki-lint.sh"
+  "scripts/hooks/workflow-lint.sh"
   "scripts/hooks/copy-manifest-check.sh"
   "scripts/citation-lint.sh"
   "scripts/sync-claude.sh"

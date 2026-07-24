@@ -259,6 +259,7 @@ mkdir -p "$TARGET_DIR/specs"
 mkdir -p "$TARGET_DIR/eval/golden-tasks/reference-answer"
 mkdir -p "$TARGET_DIR/eval/results"
 mkdir -p "$TARGET_DIR/eval/runners"
+mkdir -p "$TARGET_DIR/workflows"
 mkdir -p "$TARGET_DIR/scripts/lib"
 mkdir -p "$TARGET_DIR/scripts/selftest"
 mkdir -p "$TARGET_DIR/.githooks"
@@ -279,6 +280,7 @@ cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/nul
 cp "$TEMPLATE_DIR/eval/README.md" "$TARGET_DIR/eval/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/eval/runners/mock.sh" "$TEMPLATE_DIR/eval/runners/example-harness.sh" "$TARGET_DIR/eval/runners/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/task.md" "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/verify.sh" "$TARGET_DIR/eval/golden-tasks/reference-answer/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/workflows/review-diamond.md" "$TEMPLATE_DIR/workflows/eval-fanout.md" "$TEMPLATE_DIR/workflows/README.md" "$TARGET_DIR/workflows/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-opencode.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-claude.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-codex.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true

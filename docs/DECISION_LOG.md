@@ -686,3 +686,36 @@ the reference task pass (1.00) and fail (0.00), caught a runner tampering the or
 `bash scripts/selftest/run.sh` reported "58 passed, 0 failed"; an end-to-end
 `factory-init` copied the eval files, exited 0, and the adopter's `golden-task-eval`
 scored the reference task 1/1; `make check-drift` exited 0.
+
+## Decision 30 (2026-07-23): workflow recipes + workflow-lint — the cross-harness graph substrate
+
+What: workflow "recipes" (`workflows/<name>.md`) are a plain-text graph — each
+`## <node>` block declares `- role:` (a factory role or `code`) and `- kind:`
+(agent | fanout | verify | edge). `scripts/hooks/workflow-lint.sh` (a new gate, in
+`make check`, CI, and hook-existence-check) enforces graph hygiene on them: real
+roles, plumbing as `code` edges not agents, an `edge` is `role: code`, a `fanout`
+declares `over:`, and every recipe has a `verify` node. It fires only if
+`workflows/` has recipes — opt-in. Two reference recipes ship (`review-diamond`,
+`eval-fanout`); `AGENTS.md` points every harness's agent at `workflows/` so each
+runs the same recipe with its native orchestration.
+
+Why: verification showed only Claude Code has a committable workflow *file*;
+opencode and Codex orchestrate at runtime (subagent dispatch, `spawn_agent`). So a
+per-harness generated workflow file is impossible — but the factory's canonical
+model still makes graph engineering cross-harness: define the graph once (a
+recipe), lint the shared definition once (harness-agnostic), and let each harness
+execute it natively. Most of the graph is already the factory (roles are nodes,
+gates are edges, the reviewer is the verifier, models tier by role); the recipe +
+lint are the only new substrate needed, and they avoid fabricating opencode/Codex
+workflow formats that do not exist. Generating a Claude `.claude/workflows/*.js`
+from a recipe is left as an optional Claude-only optimization.
+
+Provenance: founder direction — build the least-common graph-engineering substrate
+so it works for Claude, opencode, and Codex — 2026-07-23; grounded on verification
+that only Claude has a committable workflow artifact
+(learn/adurrr opencode + codex.danielvaughan orchestration, fetched 2026-07-23).
+Verified this session: `workflow-lint` passed the two reference recipes (exit 0)
+and flagged an unknown role, a plumbing node run as an agent, a fanout without
+`over:`, and a missing verifier (exit 1); a break/fix self-test asserts a clean
+recipe passes and a plumbing-agent recipe fails; `bash scripts/selftest/run.sh`
+reported "60 passed, 0 failed"; `make check-drift` exited 0.

@@ -27,6 +27,7 @@ If the user asks you to research and write findings to a doc, write the doc. Don
 - **Spec source is the source of truth.** Every decision goes in the decision log (or an ADR) before code, not after.
 - **No emojis in files** unless the user explicitly asks.
 - **Language conventions come from the installed pack** (`packs/<language>/pack.yaml`): blessed test stack, linters, security scanners. Re-verify tool versions against their release pages before pinning — never pin from memory.
+- **Workflow recipes live in `workflows/`.** When a task matches one — a review, an eval, a fan-out over many files — read the recipe and run its graph with whatever orchestration this harness has (Claude Code workflows, opencode subagents, Codex `spawn_agent`): fan out where nodes are independent, put a verifier before findings count, and keep plumbing (dedupe, merge) as deterministic code, not an agent. `scripts/hooks/workflow-lint.sh` enforces that shape. See `docs/WORKFLOWS.md`.
 
 ## Factory rules — enforced by CI hooks, not by this file
 

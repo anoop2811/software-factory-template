@@ -60,6 +60,7 @@ factory
 scripts/lib/config.sh
 scripts/lib/roles.sh
 scripts/lib/events.sh
+scripts/lib/hookspath.sh
 scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh

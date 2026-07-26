@@ -15,6 +15,7 @@ set -euo pipefail
 #   ./scripts/golden-task-eval.sh                                   # mock runner, 1 run
 #   ./scripts/golden-task-eval.sh --runner=eval/runners/opencode.sh --runs=5
 #   ./scripts/golden-task-eval.sh --harness=claude --save-baseline
+#   ./scripts/golden-task-eval.sh --timeout=600            # per-run cap (default 300s)
 #
 # Runner contract: `runner <workdir>` — reads <workdir>/task.md, writes an
 # implementation into <workdir>. Exit status ignored; verify.sh scores. A real
@@ -24,6 +25,7 @@ set -euo pipefail
 HARNESS="mock"
 RUNNER="eval/runners/mock.sh"
 RUNS=1
+TIMEOUT=300
 EVAL_DIR="eval/golden-tasks"
 RESULTS_DIR="eval/results"
 SAVE_BASELINE=false
@@ -33,9 +35,12 @@ for arg in "$@"; do
     --harness=*)     HARNESS="${arg#*=}" ;;
     --runner=*)      RUNNER="${arg#*=}" ;;
     --runs=*)        RUNS="${arg#*=}" ;;
+    --timeout=*)     TIMEOUT="${arg#*=}" ;;
     --save-baseline) SAVE_BASELINE=true ;;
   esac
 done
+case "$TIMEOUT" in ''|*[!0-9]*) TIMEOUT=300 ;; esac
+[ "$TIMEOUT" -ge 1 ] || TIMEOUT=300
 case "$RUNS" in ''|*[!0-9]*) RUNS=1 ;; esac
 [ "$RUNS" -ge 1 ] || RUNS=1
 
@@ -68,6 +73,28 @@ trap 'rm -f "$TMP_RESULTS" "$TMP_INPUTS"' EXIT
 # baseline is stale, not passing. Missing files contribute nothing.
 fingerprint() { cat "$@" 2>/dev/null | cksum | awk '{print $1 "-" $2}'; }
 
+# run_with_timeout <secs> <cmd>... — a wall-clock cap on one run.
+# A headless agent can HANG rather than fail: a subagent that hits an "ask"
+# permission queues a request nothing will service, and waits forever. Without a
+# cap the eval wedges instead of scoring, so a hang is turned into a failed run.
+# Implemented by hand because macOS ships no timeout(1).
+run_with_timeout() {
+  _rt_secs="$1"; shift
+  "$@" >/dev/null 2>&1 &
+  _rt_pid=$!
+  _rt_waited=0
+  while kill -0 "$_rt_pid" 2>/dev/null; do
+    if [ "$_rt_waited" -ge "$_rt_secs" ]; then
+      kill -9 "$_rt_pid" 2>/dev/null || true
+      wait "$_rt_pid" 2>/dev/null || true
+      return 124
+    fi
+    sleep 1
+    _rt_waited=$((_rt_waited + 1))
+  done
+  wait "$_rt_pid" 2>/dev/null || true
+}
+
 # Inputs that affect every task: the runner (what drives the agent), the shared
 # instructions, and the model tiers. Change any of them and the saved scores were
 # measured against a different system.
@@ -87,11 +114,14 @@ for TASKDIR in $TASKS; do
     continue
   fi
   passes=0
+  timeouts=0
   for _ in $(seq 1 "$RUNS"); do
     work="$(mktemp -d)"
     cp -R "$TASKDIR"/. "$work"/
     before="$(cksum "$work/verify.sh" | awk '{print $1, $2}')"
-    ( "$RUNNER_ABS" "$work" ) >/dev/null 2>&1 || true
+    rt=0
+    run_with_timeout "$TIMEOUT" "$RUNNER_ABS" "$work" || rt=$?
+    if [ "$rt" -eq 124 ]; then timeouts=$((timeouts + 1)); fi
     after="$(cksum "$work/verify.sh" 2>/dev/null | awk '{print $1, $2}')"
     # A run passes only if the oracle is untouched (no cheating) and it exits 0.
     if [ "$before" = "$after" ] && ( cd "$work" && sh verify.sh ) >/dev/null 2>&1; then
@@ -103,7 +133,9 @@ for TASKDIR in $TASKS; do
   # The task's own inputs: the spec and its oracle. If either changes, an old
   # score for this task is no longer a like-for-like comparison.
   task_fp="$(fingerprint "$TASKDIR/task.md" "$TASKDIR/verify.sh")"
-  echo "  - $TASK_NAME: $passes/$RUNS passed (score $score)"
+  TIMEOUT_NOTE=""
+  [ "$timeouts" -gt 0 ] && TIMEOUT_NOTE=" — $timeouts run(s) hit the ${TIMEOUT}s cap (a hung runner counts as failed)"
+  echo "  - $TASK_NAME: $passes/$RUNS passed (score $score)$TIMEOUT_NOTE"
   printf '%s\t%s\t%s\t%s\t%s\n' "$TASK_NAME" "$passes" "$RUNS" "$score" "$task_fp" >> "$TMP_RESULTS"
 done
 

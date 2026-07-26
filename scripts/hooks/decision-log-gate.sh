@@ -39,7 +39,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
 # shellcheck source=../lib/events.sh
-. "$SCRIPT_DIR/../lib/events.sh"
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}"
 DECISION_LOG="$REPO_ROOT/$(factory_config_get decision_log docs/DECISION_LOG.md)"

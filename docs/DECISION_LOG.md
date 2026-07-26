@@ -785,3 +785,70 @@ inherited hooks path; a runner sleeping 600s was capped at 3s and scored 0.00
 with a cap note, while a normal runner still scored 1.00. Four break/fix cases
 cover both; `bash scripts/selftest/run.sh` reported "67 passed, 0 failed";
 `make check-drift` exited 0; `copy-manifest-check` confirmed the new lib ships.
+
+## Decision 33 (2026-07-26): no provider is assumed — a provider picker that only seeds, and blank means inherit
+
+What: `factory-init` asks for a `MODEL_PROVIDER` once (`inherit`, `openrouter`,
+`anthropic`, `openai`, or anything else) instead of prompting for individual
+OpenRouter-shaped model strings. The provider only *seeds* defaults: opencode
+tiers follow the chosen provider, while Claude Code and Codex tiers always use
+Anthropic and OpenAI ids because those harnesses reach nothing else. `inherit`
+writes no model values at all, and `sync-opencode` then *removes* every model pin
+from `opencode.json` and the role frontmatter so each harness keeps its own
+configuration. A provider we do not seed (ollama, bedrock, azure) leaves the
+opencode tiers blank and prints where to set them. `docs/MODELS.md` documents the
+shape, example strings per provider, and which credential each one needs.
+
+Why: the mechanism was already provider-agnostic — any string works, and blank
+already meant inherit for Claude and Codex — but every default, example, and
+prompt was OpenRouter, and nothing in the docs mentioned providers or credentials
+at all. An adopter without an OpenRouter key got defaults that silently did not
+work and no hint why. Seeding from a declared provider keeps the curated tiers for
+people who want them while making "I run my own models" a first-class, one-word
+answer. Stripping rather than skipping on inherit matters: an unresolved
+`__DEFAULT_MODEL__` placeholder left in `opencode.json` would be read as a model
+name, which is worse than no pin at all.
+
+Provenance: founder direction — not everybody has OpenRouter, they could have many
+options; the user should also choose the model — 2026-07-26. opencode's
+`provider/model` string format and its 75+ providers verified against
+opencode.ai/docs/models and /docs/providers, 2026-07-26. Verified this session:
+end-to-end `factory-init` runs for `inherit` (all tiers blank, zero model pins and
+zero placeholders left in `opencode.json` or the role files), `openrouter`,
+`anthropic`, and `openai` (each seeding its own opencode tiers with native
+Claude/Codex tiers alongside), and `ollama` (blank opencode tiers plus a pointer);
+three break/fix self-test cases cover the inherit strip path;
+`bash scripts/selftest/run.sh` reported "70 passed, 0 failed"; `make check-drift`
+exited 0.
+
+## Decision 34 (2026-07-26): a hook enforces even when its optional lib is missing
+
+What: every hook sources `scripts/lib/events.sh` defensively — if the file is
+absent it defines a no-op `factory_log_event` and carries on. `factory-doctor`
+sources `lib/hookspath.sh` the same way and skips only the check that lib powers.
+Load-bearing libs (`config.sh`, which supplies the patterns a gate enforces) are
+still sourced strictly, because a gate that cannot read its configuration must
+not pretend to work.
+
+Why: found by simulating a real upgrade. A repository installed at v0.1.0 runs
+its own `factory upgrade`, which predates the add-missing-files fix (Decision 28)
+— so the hooks get refreshed to versions that source `lib/events.sh` while the
+lib itself is never added. Every gate then aborted on the missing source: it
+failed closed rather than open, so enforcement was not silently lost, but the
+repository was hard-blocked on every commit and push. Enforcement is the hook's
+job; event logging is bookkeeping, and bookkeeping must never be able to break
+enforcement — the same principle `events.sh` already applies internally by
+swallowing its own errors.
+
+Provenance: founder request to check for upgrade bugs, 2026-07-26. Verified this
+session by building adopters from the actual v0.1.0 and v0.1.1 tags and upgrading
+them to main: before the fix, a v0.1.0 repo's refreshed `commit-message-lint` and
+`direct-main-push-block` both aborted with "lib/events.sh: No such file or
+directory"; after it, with `events.sh` still absent, push-block denied `main`
+(exit 1) and allowed a branch (exit 0), commit-lint accepted a valid message and
+rejected an invalid one, and test-edit-denial denied the implementer on a test
+file (exit 2) while allowing a source file and the spec-writer. The v0.1.1 path
+was clean throughout: models intact, no placeholders, `hookspath.sh` and
+`workflow-lint.sh` added, and its self-test reported "63 passed, 0 failed". Two
+break/fix cases now cover a missing `events.sh`; `bash scripts/selftest/run.sh`
+reported "72 passed, 0 failed"; `make check-drift` exited 0.

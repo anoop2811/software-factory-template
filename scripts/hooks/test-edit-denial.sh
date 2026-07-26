@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
 # shellcheck source=../lib/events.sh
-. "$SCRIPT_DIR/../lib/events.sh"
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 # Input resolution, in order:
 #   1. argv (opencode plugin, evals, selftests) — never touches stdin, so an

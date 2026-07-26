@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/events.sh
-. "$SCRIPT_DIR/../lib/events.sh"
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 WF_DIR="${1:-workflows}"
 if [ ! -d "$WF_DIR" ]; then

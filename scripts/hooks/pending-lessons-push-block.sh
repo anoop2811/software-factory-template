@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
+_EVDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/events.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
+if [ -f "$_EVDIR/../lib/events.sh" ]; then . "$_EVDIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 # scripts/hooks/pending-lessons-push-block.sh
 # Blocks push if memory/PENDING-LESSONS.md exists — the loop-close check

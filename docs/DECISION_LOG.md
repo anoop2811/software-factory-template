@@ -751,3 +751,37 @@ code would have printed "no regression"; with `AGENTS.md` changed it reported
 stale for all tasks; a fingerprint-less baseline still compared and warned. Four
 break/fix self-test cases cover it; `bash scripts/selftest/run.sh` reported
 "63 passed, 0 failed"; `make check-drift` exited 0.
+
+## Decision 32 (2026-07-26): doctor asks Git what it will run; the eval caps a hung runner
+
+What: two gaps closed in already-shipped code.
+
+1. `scripts/lib/hookspath.sh` reports what Git will *actually* execute for
+   pre-push — `armed` (this repo's `.githooks`), `hijacked` (`core.hooksPath`
+   points elsewhere), or `absent`. `factory doctor` reports a hijacked path as an
+   INERT push gate, naming the file Git will really run and the one-line fix.
+2. `golden-task-eval.sh` gains a per-run wall-clock cap (`--timeout`, default
+   300s, implemented by hand since macOS ships no `timeout(1)`). A run that hits
+   the cap is counted and reported as failed rather than allowed to wedge the
+   suite. The runner contract and `eval/README.md` now document why: headless
+   `ask` permissions do not fail cleanly.
+
+Why: both were silent failures in code that looked correct. A populated
+`.githooks/pre-push` is not evidence Git will run it — an inherited global
+`core.hooksPath` redirects Git and leaves an installed-looking gate completely
+dead, which is exactly the inert-gate class `factory doctor` exists to surface.
+And a headless agent does not merely fail: the primary session auto-rejects `ask`
+permissions (so a task fails as though the model were incapable) while a subagent
+*hangs* on a permission queue nothing services — an unbounded eval would wait
+forever rather than score.
+
+Provenance: adapted from the originating factory's memory lessons on
+`core.hooksPath` silently disabling repository hooks (observed 2026-07-14) and on
+headless permission semantics (2026-07-05); founder direction to port them,
+2026-07-26. Verified this session: `hookspath_status` returned armed, hijacked,
+and absent across three sandbox repos (hermetic, ignoring global config); a fresh
+`factory-init` on this machine reported the push gate INERT and named the
+inherited hooks path; a runner sleeping 600s was capped at 3s and scored 0.00
+with a cap note, while a normal runner still scored 1.00. Four break/fix cases
+cover both; `bash scripts/selftest/run.sh` reported "67 passed, 0 failed";
+`make check-drift` exited 0; `copy-manifest-check` confirmed the new lib ships.

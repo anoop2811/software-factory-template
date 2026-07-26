@@ -21,6 +21,8 @@ cd "$ROOT" || exit 1
 
 # shellcheck source=lib/config.sh
 . "$SCRIPT_DIR/lib/config.sh"
+# shellcheck source=lib/hookspath.sh
+. "$SCRIPT_DIR/lib/hookspath.sh"
 
 FAIL=0
 WARN=0
@@ -154,6 +156,23 @@ for h in $CORE_HOOKS; do
   elif [ ! -x "$h" ]; then fail "$h is not executable"; MISSING=$((MISSING + 1)); fi
 done
 [ "$MISSING" -eq 0 ] && ok "all core hook scripts present and executable"
+
+# Ask Git what it will actually run for pre-push — a populated .githooks/ is not
+# evidence it will be executed (see scripts/lib/hookspath.sh).
+if [ -f .githooks/pre-push ]; then
+  HP_STATE="$(hookspath_status "$ROOT" | cut -f1)"
+  HP_RESOLVED="$(hookspath_status "$ROOT" | cut -f2)"
+  case "$HP_STATE" in
+    armed)
+      ok "git resolves the pre-push hook to this repo's .githooks" ;;
+    hijacked)
+      warn "core.hooksPath redirects git away from .githooks — the push gate is INERT"
+      line "" "  git runs: $HP_RESOLVED"
+      line "" "  fix: git config core.hooksPath .githooks" ;;
+    *)
+      warn "push gate not installed — run: git config core.hooksPath .githooks" ;;
+  esac
+fi
 
 # Adapter drift: the generated .claude/.codex must match the opencode canon.
 if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then

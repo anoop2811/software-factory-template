@@ -57,6 +57,15 @@ it). A **real** runner drives your harness (opencode / Claude Code / Codex) with
 your keys and budget, so it is opt-in and yours to wire — golden tasks and live
 model runs are inherently project-specific.
 
+**Headless permissions bite first.** A non-interactive run has nobody to approve
+anything, and `ask` permissions do not fail cleanly: the primary session
+auto-*rejects* them, so the task fails as though the model were incapable — while
+a subagent can *hang*, its request joining a queue nothing will service. Grant
+what the task needs as explicit `allow` in your harness config before evaluating,
+or you are scoring your permission settings rather than the agent. Every run is
+capped (`--timeout`, default 300s) so a hang scores 0 instead of wedging the
+suite; a run that hits the cap usually means permissions, not model quality.
+
 ### A baseline can go stale
 
 A saved score only means something against the inputs it was measured on. So each

@@ -416,6 +416,12 @@ check "eval names why the baseline went stale" "1" \
   "$( ( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh 2>&1 || true ) | grep -c 'oracle changed' || true )"
 check "eval does not claim no-regression when stale" "0" \
   "$( ( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh 2>&1 || true ) | grep -c 'no regression from baseline' || true )"
+# A headless agent can hang rather than fail (a subagent waiting on an "ask"
+# permission nothing services). The eval must cap the run, not wedge on it.
+printf '#!/bin/sh\nsleep 30\n' > "$GEROOT/eval/runners/hang.sh"
+chmod +x "$GEROOT/eval/runners/hang.sh"
+check "eval caps a hung runner instead of wedging" "1" \
+  "$( ( cd "$GEROOT" && ./scripts/golden-task-eval.sh --runner=eval/runners/hang.sh --timeout=2 2>&1 || true ) | grep -c 'hit the 2s cap' || true )"
 
 # Break/fix: workflow-lint enforces graph hygiene on recipes — a clean recipe
 # passes; a plumbing node (merge) run as an agent fails (coordination is code).
@@ -427,6 +433,30 @@ check "workflow-lint passes a clean recipe" 0 \
 printf '# W\n## merge\n- role: reviewer\n- kind: agent\n## verify\n- role: reviewer\n- kind: verify\n' > "$WLROOT/bad.md"
 check "workflow-lint flags a plumbing node run as an agent" 1 \
   "$(run_status "$HOOKS/workflow-lint.sh" "$WLROOT")"
+
+# Break/fix: an installed .githooks/pre-push is not proof git will run it. A
+# core.hooksPath pointing elsewhere (commonly inherited from global config)
+# silently makes the push gate inert — factory doctor must detect that.
+# shellcheck source=../lib/hookspath.sh
+. "$TEMPLATE_ROOT/scripts/lib/hookspath.sh"
+HPROOT="$SANDBOX/hookspath"
+mkdir -p "$HPROOT/.githooks"
+# Hermetic: a developer's global core.hooksPath leaks into every fresh repo (that
+# is the hazard being tested), so ignore global/system config to make the three
+# states deterministic on any machine.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+( cd "$HPROOT" && git init -q )
+printf '#!/bin/sh\nexit 0\n' > "$HPROOT/.githooks/pre-push"
+chmod +x "$HPROOT/.githooks/pre-push"
+check "hookspath: absent when core.hooksPath is unset" "absent" \
+  "$(hookspath_status "$HPROOT" | cut -f1)"
+( cd "$HPROOT" && git config core.hooksPath .githooks )
+check "hookspath: armed when it points at .githooks" "armed" \
+  "$(hookspath_status "$HPROOT" | cut -f1)"
+( cd "$HPROOT" && git config core.hooksPath "$SANDBOX/elsewhere-hooks" )
+check "hookspath: hijacked when it points elsewhere" "hijacked" \
+  "$(hookspath_status "$HPROOT" | cut -f1)"
+unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"

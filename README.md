@@ -58,6 +58,8 @@ The third idea is that this is already a graph. The vocabulary everyone's chasin
 | Hooks | `scripts/hooks/` | Deterministic gates on commits, pushes, and CI. Each one in [docs/HOOKS.md](docs/HOOKS.md). |
 | Harness adapters | `scripts/sync-*.sh` | opencode is canonical; the Claude Code and Codex configs are generated from it, and CI fails on drift. |
 | Language packs | `packs/` | The core never mentions a language. Packs carry the stack opinions. |
+| Agent evals | `eval/` | Score agents on real tasks — a red spec plus an oracle, pass rate over N runs. Baselines record what they were measured against, so a changed oracle reports *stale* instead of a false "no regression". |
+| Workflow recipes | `workflows/` | The graph in plain text: nodes are roles, edges are code, findings pass a verifier. `workflow-lint` enforces the shape; one recipe runs natively on all three harnesses. |
 
 ## Pack maturity
 

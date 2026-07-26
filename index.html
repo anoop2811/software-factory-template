@@ -582,6 +582,21 @@ edit test files.</span>
           <h3>Break/fix proofs</h3>
           <p>The suite violates each rule on purpose and asserts the gate fires. <span style="font-family:var(--mono)">factory-init</span> won't claim success until it passes on your repo.</p>
         </div>
+        <div class="cell c-violet">
+          <span class="mono-label">eval/</span>
+          <h3>Agent evals that expire</h3>
+          <p>Score agents on real tasks: a task is a red spec plus an oracle, and the pass rate is measured over N runs &mdash; a run only counts if the oracle passes untampered. Each baseline records what it was measured against, so when the oracle or instructions change it reports <em>stale</em>, not a false &ldquo;no regression.&rdquo; <a href="https://github.com/anoop2811/software-factory-template/blob/main/eval/README.md">Eval reference &rarr;</a></p>
+        </div>
+        <div class="cell">
+          <span class="mono-label">workflows/</span>
+          <h3>The graph, in plain text</h3>
+          <p>A recipe is a graph you can read: nodes are roles, edges are code, findings pass a verifier before they count. <span style="font-family:var(--mono)">workflow-lint</span> enforces that shape &mdash; no agent spawned for plumbing an edge could do. One recipe, run natively by all three harnesses. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/WORKFLOWS.md">Workflows &rarr;</a></p>
+        </div>
+        <div class="cell c-blue">
+          <span class="mono-label">factory report</span>
+          <h3>Cost, without the vanity number</h3>
+          <p>What the gates caught, enforced at zero model tokens, plus one clearly-labeled estimate. It refuses to print &ldquo;tokens saved&rdquo; &mdash; that compares this run to one that never happened. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/COST_AND_TOKENS.md">Cost &amp; models &rarr;</a></p>
+        </div>
       </div>
 
       <table aria-label="Language pack maturity">

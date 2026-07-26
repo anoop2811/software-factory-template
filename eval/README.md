@@ -57,6 +57,29 @@ it). A **real** runner drives your harness (opencode / Claude Code / Codex) with
 your keys and budget, so it is opt-in and yours to wire — golden tasks and live
 model runs are inherently project-specific.
 
+### A baseline can go stale
+
+A saved score only means something against the inputs it was measured on. So each
+result records a fingerprint of those inputs — per task, its `task.md` and
+`verify.sh` oracle; globally, the runner, `AGENTS.md`, and the model tiers from
+`factory.config`. When a fingerprint differs, the eval reports **stale** and exits
+non-zero with the reason:
+
+```
+golden-task-eval: BASELINE STALE — cannot claim 'no regression'
+  reference-answer: its task.md or verify.sh oracle changed
+```
+
+This matters because the failure is silent otherwise. Edit an oracle and the pass
+rate can stay 1.00 while measuring something entirely different — the old code
+would have printed "no regression" and been *wrong*. Stale is not a regression and
+not a pass; it means this run cannot know, which is the Verification Contract
+applied to time (`factory doctor` classifies gates the same way). Re-run with
+`--save-baseline` to re-measure deliberately.
+
+A baseline saved before fingerprinting still compares, with a warning that
+staleness is unchecked — re-baseline once to arm it.
+
 Why this shape: the scorer is deterministic and free to run; the expensive,
 non-deterministic part (a live agent) is a pluggable runner behind a one-line
 contract. That is what lets the *factory itself* stay break/fix-proven while the

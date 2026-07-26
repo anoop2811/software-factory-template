@@ -60,7 +60,25 @@ fi
 RUNNER_ABS="$(cd "$(dirname "$RUNNER")" && pwd)/$(basename "$RUNNER")"
 
 TMP_RESULTS="$(mktemp)"
-trap 'rm -f "$TMP_RESULTS"' EXIT
+TMP_INPUTS="$(mktemp)"
+trap 'rm -f "$TMP_RESULTS" "$TMP_INPUTS"' EXIT
+
+# fingerprint <file>... — a checksum of the concatenated inputs. A score is only
+# comparable to a baseline measured against the same inputs; when they differ the
+# baseline is stale, not passing. Missing files contribute nothing.
+fingerprint() { cat "$@" 2>/dev/null | cksum | awk '{print $1 "-" $2}'; }
+
+# Inputs that affect every task: the runner (what drives the agent), the shared
+# instructions, and the model tiers. Change any of them and the saved scores were
+# measured against a different system.
+# Each input is optional — a missing AGENTS.md or factory.config contributes
+# nothing rather than failing the run (cat/grep exit non-zero under set -e).
+{
+  cat "$RUNNER_ABS" 2>/dev/null || true
+  cat AGENTS.md 2>/dev/null || true
+  grep -E '^(COST_PROFILE|[A-Z]+_(FRONTIER|DEFAULT|ECONOMY)_MODEL)=' factory.config 2>/dev/null || true
+} > "$TMP_INPUTS"
+INPUTS_FP="$(fingerprint "$TMP_INPUTS")"
 
 for TASKDIR in $TASKS; do
   TASK_NAME="$(basename "$TASKDIR")"
@@ -82,20 +100,25 @@ for TASKDIR in $TASKS; do
     rm -rf "$work"
   done
   score="$(awk "BEGIN { printf \"%.2f\", $passes / $RUNS }")"
+  # The task's own inputs: the spec and its oracle. If either changes, an old
+  # score for this task is no longer a like-for-like comparison.
+  task_fp="$(fingerprint "$TASKDIR/task.md" "$TASKDIR/verify.sh")"
   echo "  - $TASK_NAME: $passes/$RUNS passed (score $score)"
-  printf '%s\t%s\t%s\t%s\n' "$TASK_NAME" "$passes" "$RUNS" "$score" >> "$TMP_RESULTS"
+  printf '%s\t%s\t%s\t%s\t%s\n' "$TASK_NAME" "$passes" "$RUNS" "$score" "$task_fp" >> "$TMP_RESULTS"
 done
 
-python3 - "$HARNESS" "$RUNNER" "$RUNS" "$TMP_RESULTS" "$CURRENT_FILE" <<'PY'
+python3 - "$HARNESS" "$RUNNER" "$RUNS" "$TMP_RESULTS" "$CURRENT_FILE" "$INPUTS_FP" <<'PY'
 import json, sys
-harness, runner, runs, tmp, out = sys.argv[1:6]
+harness, runner, runs, tmp, out, inputs_fp = sys.argv[1:7]
 tasks = []
 with open(tmp) as f:
     for line in f:
-        name, passes, r, score = line.rstrip("\n").split("\t")
-        tasks.append({"task": name, "passes": int(passes), "runs": int(r), "score": float(score)})
+        name, passes, r, score, fp = line.rstrip("\n").split("\t")
+        tasks.append({"task": name, "passes": int(passes), "runs": int(r),
+                      "score": float(score), "fingerprint": fp})
 with open(out, "w") as fh:
-    json.dump({"harness": harness, "runner": runner, "runs": int(runs), "tasks": tasks}, fh, indent=2)
+    json.dump({"harness": harness, "runner": runner, "runs": int(runs),
+               "inputs_fingerprint": inputs_fp, "tasks": tasks}, fh, indent=2)
 PY
 
 if [ "$SAVE_BASELINE" = true ]; then
@@ -109,16 +132,46 @@ if [ -f "$BASELINE_FILE" ]; then
 import json, sys
 base = json.load(open(sys.argv[1]))
 cur = json.load(open(sys.argv[2]))
-b = {t["task"]: t["score"] for t in base.get("tasks", [])}
-regressions = [(t["task"], b[t["task"]], t["score"])
+
+# A saved score only means something against the inputs it was measured on. If
+# those changed, the honest answer is "stale" — not "no regression", which would
+# be claiming something this run cannot know.
+stale = []
+base_inputs = base.get("inputs_fingerprint")
+legacy = base_inputs is None
+if not legacy and base_inputs != cur.get("inputs_fingerprint"):
+    stale.append(("all tasks", "the runner, AGENTS.md, or model tiers changed"))
+
+b = {t["task"]: t for t in base.get("tasks", [])}
+for t in cur.get("tasks", []):
+    prev = b.get(t["task"])
+    if not prev:
+        continue  # a new task has nothing to compare against — not a regression
+    pf, cf = prev.get("fingerprint"), t.get("fingerprint")
+    if pf is not None and cf is not None and pf != cf:
+        stale.append((t["task"], "its task.md or verify.sh oracle changed"))
+
+if stale:
+    print("golden-task-eval: BASELINE STALE — cannot claim 'no regression'")
+    for name, reason in stale:
+        print(f"  {name}: {reason}")
+    print("The saved scores were measured against different inputs. Re-run with")
+    print("--save-baseline to re-measure deliberately.")
+    sys.exit(1)
+
+regressions = [(t["task"], b[t["task"]]["score"], t["score"])
                for t in cur.get("tasks", [])
-               if t["task"] in b and t["score"] < b[t["task"]] - 1e-9]
+               if t["task"] in b and t["score"] < b[t["task"]]["score"] - 1e-9]
 if regressions:
     print("golden-task-eval: REGRESSION DETECTED — a task's pass rate dropped")
     for name, was, now in regressions:
         print(f"  {name}: {was:.2f} -> {now:.2f}")
     print("If the change is intentional, re-run with --save-baseline to update.")
     sys.exit(1)
+
+if legacy:
+    print("golden-task-eval: baseline predates fingerprinting — staleness unchecked")
+    print("  Re-run with --save-baseline to record what the scores were measured against.")
 print("golden-task-eval: no regression from baseline")
 PY
 else

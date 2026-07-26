@@ -407,6 +407,15 @@ check "eval catches a runner tampering the oracle" "0.00" "$(geval_score cheat)"
 ( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh --save-baseline >/dev/null 2>&1 )
 check "eval flags a regression from baseline" "1" "$(geval_exit fail)"
 check "eval passes when no regression" "0" "$(geval_exit pass)"
+# Staleness: a saved score only means something against the inputs it was measured
+# on. Change the oracle and the eval must say STALE — not "no regression", which
+# would claim something it cannot know (the score itself is unchanged here).
+printf '#!/bin/sh\n# oracle changed\ngrep -qx FIXED answer.txt 2>/dev/null\n' > "$GEROOT/eval/golden-tasks/reference-answer/verify.sh"
+check "eval flags a stale baseline when the oracle changes" "1" "$(geval_exit pass)"
+check "eval names why the baseline went stale" "1" \
+  "$( ( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh 2>&1 || true ) | grep -c 'oracle changed' || true )"
+check "eval does not claim no-regression when stale" "0" \
+  "$( ( cd "$GEROOT" && FACTORY_MOCK_MODE=pass ./scripts/golden-task-eval.sh 2>&1 || true ) | grep -c 'no regression from baseline' || true )"
 
 # Break/fix: workflow-lint enforces graph hygiene on recipes — a clean recipe
 # passes; a plumbing node (merge) run as an agent fails (coordination is code).

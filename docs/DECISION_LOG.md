@@ -719,3 +719,35 @@ and flagged an unknown role, a plumbing node run as an agent, a fanout without
 `over:`, and a missing verifier (exit 1); a break/fix self-test asserts a clean
 recipe passes and a plumbing-agent recipe fails; `bash scripts/selftest/run.sh`
 reported "60 passed, 0 failed"; `make check-drift` exited 0.
+
+## Decision 31 (2026-07-26): eval baselines carry input fingerprints and go stale
+
+What: `golden-task-eval.sh` records a fingerprint of what each score was measured
+against — per task, its `task.md` plus its `verify.sh` oracle; globally, the runner,
+`AGENTS.md`, and the model-tier lines from `factory.config`. When a fingerprint
+differs from the baseline's, the run reports `BASELINE STALE` with the specific
+invalidation reason and exits non-zero, instead of comparing scores that are not
+like-for-like. Stale is distinct from both pass and regression: it means this run
+cannot know. A baseline written before fingerprinting still compares, with a
+warning that staleness is unchecked, so existing baselines keep working.
+
+Why: the previous compare was silently wrong in a way that mattered. Edit an
+oracle or the instructions and a task's pass rate can stay identical while
+measuring something entirely different — the eval would print "no regression" and
+be confidently incorrect, which is exactly the class of claim the Verification
+Contract exists to prevent. A passed state must carry what it passed against, or
+it decays into an assertion. `factory doctor` already classifies gates as
+armed/inert/stale; this extends the same honesty to saved evidence over time.
+
+Provenance: adapted from a public critique of state-machine factories — that each
+transition should carry an input/code fingerprint, verifier version, and
+invalidation reason, or the system resumes from stale "passed" state after the
+code, rubric, or dependency changes (x.com/swordlight_ai reply to mfishbein,
+read 2026-07-26); founder direction to adopt it, same date. Verified this session:
+with an unchanged setup the eval reported no regression (exit 0); with a lowered
+score it reported REGRESSION (exit 1); with the oracle edited but the score
+unchanged at 1.00 it reported STALE naming the oracle (exit 1) where the previous
+code would have printed "no regression"; with `AGENTS.md` changed it reported
+stale for all tasks; a fingerprint-less baseline still compared and warned. Four
+break/fix self-test cases cover it; `bash scripts/selftest/run.sh` reported
+"63 passed, 0 failed"; `make check-drift` exited 0.

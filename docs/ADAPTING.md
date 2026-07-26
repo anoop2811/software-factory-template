@@ -35,6 +35,7 @@ Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no 
 | `protected_paths` | Space-separated path prefixes treated as governance-sensitive: commits touching them must reference a Decision. | `"internal/billing scripts/hooks"` |
 | `test_file_patterns` | Space-separated regex patterns identifying test files for the test-edit denial hook. Empty disables the denial. | `"_test\.go$"` |
 | `language_packs` | Space-separated list of active packs. | `go` |
+| `local_hooks` | Space-separated paths to hooks *you* wrote. Checked for existence and the execute bit like the shipped ones, and — unlike editing a framework file — survives `factory upgrade`. | `"scripts/hooks/my-gate.sh"` |
 | `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"make check"` |
 
 A complete `factory.yaml` for an HTTP API project, using the template's own real keys:
@@ -147,7 +148,7 @@ It **never** touches your `factory.yaml`, your content (`wiki/` pages, `memory/l
 A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the worked example of the whole pattern; see [HOOKS.md](HOOKS.md).
 
 1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then `factory_config_get <key>` — the same way every shipped hook reads `factory.yaml`, so your gate stays byte-identical across adopters too.
-2. **Register it** in `scripts/hooks/hook-existence-check.sh`, so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net).
+2. **Register it** in `factory.yaml` — `local_hooks: "scripts/hooks/my-gate.sh"` (space-separated) — so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net). Register it there, *not* in `scripts/hooks/hook-existence-check.sh`: that is a framework file, and `factory upgrade` overwrites it byte-for-byte, so a hand-added entry would disappear on your next upgrade.
 3. **Add a break/fix case** to `scripts/selftest/run.sh`: introduce the exact violation, assert the gate fires, revert, assert it passes. A gate you have only watched pass proves nothing.
 4. **Wire it into CI** so the gate runs on every pull request, not just locally.
 

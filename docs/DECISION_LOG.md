@@ -852,3 +852,29 @@ was clean throughout: models intact, no placeholders, `hookspath.sh` and
 `workflow-lint.sh` added, and its self-test reported "63 passed, 0 failed". Two
 break/fix cases now cover a missing `events.sh`; `bash scripts/selftest/run.sh`
 reported "72 passed, 0 failed"; `make check-drift` exited 0.
+
+## Decision 35 (2026-07-26): repo-local hooks are registered in factory.yaml, not in a framework file
+
+What: `hook-existence-check.sh` reads a `local_hooks` key from `factory.yaml` — a
+space-separated list of hooks the adopter wrote — and checks each one for
+existence and the execute bit exactly like the shipped hooks. `factory-init`
+generates the key, and ADAPTING's "writing your own hooks" step now points at it.
+
+Why: the previous instruction told adopters to register their hook by editing
+`scripts/hooks/hook-existence-check.sh`. That file is a framework file, and
+`factory upgrade` refreshes every hook the template ships byte-for-byte — so the
+registration was silently deleted on the adopter's next upgrade, taking with it
+the CI net that catches a missing or non-executable hook. Documentation asked for
+something the upgrade mechanism was guaranteed to undo. Configuration is the only
+place a customization survives (Decision 2), so that is where a local hook is
+declared.
+
+Provenance: found while planning how the originating factory could consume this
+template rather than fork it — it has four repository-local hooks, so it would
+have hit this on its first upgrade; founder direction to fix the template bug
+first, 2026-07-26. Verified this session: with `local_hooks` naming a missing
+hook the check failed and named it; with the hook present and tracked it reported
+OK; with the key blank the hook was not checked at all; the template's own run
+(no local hooks) still exits 0. Three break/fix cases cover it;
+`bash scripts/selftest/run.sh` reported "75 passed, 0 failed"; `make check-drift`
+exited 0.

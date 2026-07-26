@@ -13,6 +13,16 @@ set -euo pipefail
 # This check verifies that every hook script referenced by the plugin and
 # CI exists and is executable. If a script is missing or not executable,
 # this check fails — catching the fail-open condition before it ships.
+#
+# Your own hooks belong in factory.yaml, not in this list. This file is a
+# framework file: `factory upgrade` overwrites it byte-for-byte, so anything
+# added here by hand is lost on the next upgrade. Register repo-local hooks with
+#   local_hooks: "scripts/hooks/my-gate.sh scripts/hooks/other-gate.sh"
+# and they are checked exactly like the shipped ones.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/config.sh
+. "$SCRIPT_DIR/../lib/config.sh"
 
 HOOK_SCRIPTS=(
   "scripts/lib/config.sh"
@@ -37,6 +47,14 @@ HOOK_SCRIPTS=(
   "scripts/pre-push-check.sh"
   ".githooks/pre-push"
 )
+
+# Repo-local hooks, registered in configuration so they survive an upgrade.
+# read -ra rather than mapfile: bash 3.2 (macOS) has no mapfile.
+LOCAL_HOOKS=()
+read -ra LOCAL_HOOKS <<< "$(factory_config_get local_hooks)"
+for LH in "${LOCAL_HOOKS[@]:-}"; do
+  [ -n "$LH" ] && HOOK_SCRIPTS+=( "$LH" )
+done
 
 ERRORS=0
 

@@ -231,6 +231,9 @@ protected_paths: "$PROTECTED_PATH"
 test_file_patterns: ""
 language_packs: ""
 check_command: ""
+# Your own hooks go here, not in hook-existence-check.sh (a framework file
+# that upgrade overwrites). Space-separated paths.
+local_hooks: ""
 wiki_root: wiki
 wiki_staleness: false
 FACTORYEOF

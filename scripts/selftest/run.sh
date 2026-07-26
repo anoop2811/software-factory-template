@@ -468,6 +468,26 @@ NOEV="$SANDBOX/no-events/scripts"
 mkdir -p "$NOEV/hooks" "$NOEV/lib"
 cp "$HOOKS/direct-main-push-block.sh" "$NOEV/hooks/"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$NOEV/lib/"   # deliberately no events.sh
+# Break/fix: a repo-local hook is registered in factory.yaml, not by editing
+# hook-existence-check.sh — that is a framework file upgrade overwrites, so a
+# hand-added entry would vanish. Registered-but-missing must fail; present passes.
+LHROOT="$SANDBOX/localhooks"
+mkdir -p "$LHROOT/scripts/hooks" "$LHROOT/scripts/lib"
+( cd "$LHROOT" && git init -q )
+cp "$HOOKS/hook-existence-check.sh" "$LHROOT/scripts/hooks/"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$LHROOT/scripts/lib/"
+printf 'project_name: t\nlocal_hooks: "scripts/hooks/my-gate.sh"\n' > "$LHROOT/factory.yaml"
+check "local_hooks flags a registered hook that is missing" "1" \
+  "$( ( cd "$LHROOT" && ./scripts/hooks/hook-existence-check.sh 2>&1 || true ) | grep -c 'my-gate.sh.*missing\|missing.*my-gate.sh' || true )"
+printf '#!/bin/sh\nexit 0\n' > "$LHROOT/scripts/hooks/my-gate.sh"
+chmod +x "$LHROOT/scripts/hooks/my-gate.sh"
+( cd "$LHROOT" && git add -A >/dev/null 2>&1 )
+check "local_hooks passes once the hook exists" "1" \
+  "$( ( cd "$LHROOT" && ./scripts/hooks/hook-existence-check.sh 2>&1 || true ) | grep -c 'OK scripts/hooks/my-gate.sh' || true )"
+printf 'project_name: t\nlocal_hooks: ""\n' > "$LHROOT/factory.yaml"
+check "an unregistered local hook is not checked" "0" \
+  "$( ( cd "$LHROOT" && ./scripts/hooks/hook-existence-check.sh 2>&1 || true ) | grep -c 'my-gate' || true )"
+
 check "hook denies with events.sh missing" 1 \
   "$(printf 'refs/heads/main a refs/heads/main b\n' | run_status "$NOEV/hooks/direct-main-push-block.sh")"
 check "hook allows with events.sh missing" 0 \

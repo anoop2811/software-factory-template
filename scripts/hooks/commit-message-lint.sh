@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
+_EVDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/events.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/events.sh"
+if [ -f "$_EVDIR/../lib/events.sh" ]; then . "$_EVDIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 # scripts/hooks/commit-message-lint.sh
 # Computational enforcement of commit message conventions.

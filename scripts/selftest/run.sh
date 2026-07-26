@@ -461,6 +461,17 @@ printf '#!/bin/sh\nexit 0\n' > "$HPROOT/.githooks/pre-push"
 chmod +x "$HPROOT/.githooks/pre-push"
 check "hookspath: absent when core.hooksPath is unset" "absent" \
   "$(hookspath_status "$HPROOT" | cut -f1)"
+# Break/fix: enforcement must not depend on bookkeeping. An older repo whose
+# hooks were refreshed before lib/events.sh shipped has no events.sh — the gate
+# must still deny and allow correctly rather than error on the missing source.
+NOEV="$SANDBOX/no-events/scripts"
+mkdir -p "$NOEV/hooks" "$NOEV/lib"
+cp "$HOOKS/direct-main-push-block.sh" "$NOEV/hooks/"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$NOEV/lib/"   # deliberately no events.sh
+check "hook denies with events.sh missing" 1 \
+  "$(printf 'refs/heads/main a refs/heads/main b\n' | run_status "$NOEV/hooks/direct-main-push-block.sh")"
+check "hook allows with events.sh missing" 0 \
+  "$(printf 'refs/heads/feat a refs/heads/feat b\n' | run_status "$NOEV/hooks/direct-main-push-block.sh")"
 ( cd "$HPROOT" && git config core.hooksPath .githooks )
 check "hookspath: armed when it points at .githooks" "armed" \
   "$(hookspath_status "$HPROOT" | cut -f1)"

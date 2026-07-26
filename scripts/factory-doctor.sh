@@ -21,8 +21,10 @@ cd "$ROOT" || exit 1
 
 # shellcheck source=lib/config.sh
 . "$SCRIPT_DIR/lib/config.sh"
+# Optional: an older repo whose scripts were refreshed before this lib shipped
+# should still get a working doctor, minus the one check it powers.
 # shellcheck source=lib/hookspath.sh
-. "$SCRIPT_DIR/lib/hookspath.sh"
+[ -f "$SCRIPT_DIR/lib/hookspath.sh" ] && . "$SCRIPT_DIR/lib/hookspath.sh"
 
 FAIL=0
 WARN=0
@@ -159,7 +161,7 @@ done
 
 # Ask Git what it will actually run for pre-push — a populated .githooks/ is not
 # evidence it will be executed (see scripts/lib/hookspath.sh).
-if [ -f .githooks/pre-push ]; then
+if [ -f .githooks/pre-push ] && command -v hookspath_status >/dev/null 2>&1; then
   HP_STATE="$(hookspath_status "$ROOT" | cut -f1)"
   HP_RESOLVED="$(hookspath_status "$ROOT" | cut -f2)"
   case "$HP_STATE" in

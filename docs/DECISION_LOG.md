@@ -820,3 +820,35 @@ Claude/Codex tiers alongside), and `ollama` (blank opencode tiers plus a pointer
 three break/fix self-test cases cover the inherit strip path;
 `bash scripts/selftest/run.sh` reported "70 passed, 0 failed"; `make check-drift`
 exited 0.
+
+## Decision 34 (2026-07-26): a hook enforces even when its optional lib is missing
+
+What: every hook sources `scripts/lib/events.sh` defensively — if the file is
+absent it defines a no-op `factory_log_event` and carries on. `factory-doctor`
+sources `lib/hookspath.sh` the same way and skips only the check that lib powers.
+Load-bearing libs (`config.sh`, which supplies the patterns a gate enforces) are
+still sourced strictly, because a gate that cannot read its configuration must
+not pretend to work.
+
+Why: found by simulating a real upgrade. A repository installed at v0.1.0 runs
+its own `factory upgrade`, which predates the add-missing-files fix (Decision 28)
+— so the hooks get refreshed to versions that source `lib/events.sh` while the
+lib itself is never added. Every gate then aborted on the missing source: it
+failed closed rather than open, so enforcement was not silently lost, but the
+repository was hard-blocked on every commit and push. Enforcement is the hook's
+job; event logging is bookkeeping, and bookkeeping must never be able to break
+enforcement — the same principle `events.sh` already applies internally by
+swallowing its own errors.
+
+Provenance: founder request to check for upgrade bugs, 2026-07-26. Verified this
+session by building adopters from the actual v0.1.0 and v0.1.1 tags and upgrading
+them to main: before the fix, a v0.1.0 repo's refreshed `commit-message-lint` and
+`direct-main-push-block` both aborted with "lib/events.sh: No such file or
+directory"; after it, with `events.sh` still absent, push-block denied `main`
+(exit 1) and allowed a branch (exit 0), commit-lint accepted a valid message and
+rejected an invalid one, and test-edit-denial denied the implementer on a test
+file (exit 2) while allowing a source file and the spec-writer. The v0.1.1 path
+was clean throughout: models intact, no placeholders, `hookspath.sh` and
+`workflow-lint.sh` added, and its self-test reported "63 passed, 0 failed". Two
+break/fix cases now cover a missing `events.sh`; `bash scripts/selftest/run.sh`
+reported "72 passed, 0 failed"; `make check-drift` exited 0.

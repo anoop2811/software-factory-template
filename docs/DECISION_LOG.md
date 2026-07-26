@@ -785,3 +785,38 @@ inherited hooks path; a runner sleeping 600s was capped at 3s and scored 0.00
 with a cap note, while a normal runner still scored 1.00. Four break/fix cases
 cover both; `bash scripts/selftest/run.sh` reported "67 passed, 0 failed";
 `make check-drift` exited 0; `copy-manifest-check` confirmed the new lib ships.
+
+## Decision 33 (2026-07-26): no provider is assumed — a provider picker that only seeds, and blank means inherit
+
+What: `factory-init` asks for a `MODEL_PROVIDER` once (`inherit`, `openrouter`,
+`anthropic`, `openai`, or anything else) instead of prompting for individual
+OpenRouter-shaped model strings. The provider only *seeds* defaults: opencode
+tiers follow the chosen provider, while Claude Code and Codex tiers always use
+Anthropic and OpenAI ids because those harnesses reach nothing else. `inherit`
+writes no model values at all, and `sync-opencode` then *removes* every model pin
+from `opencode.json` and the role frontmatter so each harness keeps its own
+configuration. A provider we do not seed (ollama, bedrock, azure) leaves the
+opencode tiers blank and prints where to set them. `docs/MODELS.md` documents the
+shape, example strings per provider, and which credential each one needs.
+
+Why: the mechanism was already provider-agnostic — any string works, and blank
+already meant inherit for Claude and Codex — but every default, example, and
+prompt was OpenRouter, and nothing in the docs mentioned providers or credentials
+at all. An adopter without an OpenRouter key got defaults that silently did not
+work and no hint why. Seeding from a declared provider keeps the curated tiers for
+people who want them while making "I run my own models" a first-class, one-word
+answer. Stripping rather than skipping on inherit matters: an unresolved
+`__DEFAULT_MODEL__` placeholder left in `opencode.json` would be read as a model
+name, which is worse than no pin at all.
+
+Provenance: founder direction — not everybody has OpenRouter, they could have many
+options; the user should also choose the model — 2026-07-26. opencode's
+`provider/model` string format and its 75+ providers verified against
+opencode.ai/docs/models and /docs/providers, 2026-07-26. Verified this session:
+end-to-end `factory-init` runs for `inherit` (all tiers blank, zero model pins and
+zero placeholders left in `opencode.json` or the role files), `openrouter`,
+`anthropic`, and `openai` (each seeding its own opencode tiers with native
+Claude/Codex tiers alongside), and `ollama` (blank opencode tiers plus a pointer);
+three break/fix self-test cases cover the inherit strip path;
+`bash scripts/selftest/run.sh` reported "70 passed, 0 failed"; `make check-drift`
+exited 0.

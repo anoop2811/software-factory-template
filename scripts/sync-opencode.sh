@@ -32,8 +32,26 @@ fi
 # shellcheck source=lib/roles.sh
 . "$ROOT_DIR/scripts/lib/roles.sh"
 
+# No factory.config at all is the template repo itself: leave the committed
+# placeholders alone so the repo stays drift-clean.
+if [ ! -f "$ROOT_DIR/factory.config" ]; then
+  echo "sync-opencode: no factory.config — leaving opencode.json as-is"
+  exit 0
+fi
+
+# A configured repo with blank tiers means "inherit": remove every model pin so
+# opencode falls back to its own configuration. Stripping matters — leaving an
+# unresolved __DEFAULT_MODEL__ placeholder behind would be read as a model name.
 if [ -z "${OPENCODE_DEFAULT_MODEL:-}" ]; then
-  echo "sync-opencode: no OPENCODE_*_MODEL in factory.config — leaving opencode.json as-is"
+  TMP="$OPENCODE_JSON.sync-tmp.$$"
+  jq 'del(.model, .small_model) | (.agent // {}) |= with_entries(.value |= del(.model))' \
+    "$OPENCODE_JSON" > "$TMP" && mv -f "$TMP" "$OPENCODE_JSON"
+  for ROLE_FILE in "$ROOT_DIR/.opencode/agent/"*.md; do
+    [ -f "$ROLE_FILE" ] || continue
+    sed -i.bak '/^model:[[:space:]]*/d' "$ROLE_FILE"
+    rm -f "$ROLE_FILE.bak"
+  done
+  echo "sync-opencode: tiers blank (inherit) — model pins removed; opencode uses its own"
   exit 0
 fi
 

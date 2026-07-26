@@ -89,15 +89,27 @@ ask "opencode username (e.g., ${PROJECT_SLUG}-founder): " OPENCODE_USERNAME
 ask "Protected path — permanently human-reviewed dir (e.g., internal/billing): " PROTECTED_PATH
 ask "Spec/docs source dir (or leave empty if none): " DOCS_ROOT
 ask "Citation prefix for spec docs (e.g., MYPROJECT_ or leave empty): " CITATION_PREFIX
-ask "opencode default model (e.g., openrouter/z-ai/glm-5.2): " DEFAULT_MODEL
-ask "opencode frontier model (e.g., openrouter/z-ai/glm-5.2): " FRONTIER_MODEL
+# Model provider. This only SEEDS default model tiers — every value lands in
+# factory.config as a plain string you can change, and 'inherit' writes none at
+# all. The factory does not assume you use any particular provider or have keys
+# for one; opencode alone reaches 75+ providers via 'provider/model' strings.
+if [ -r /dev/tty ] && [ -t 1 ]; then
+  echo ""
+  echo "Model provider — seeds the default model tiers (override any of them in factory.config):"
+  echo "  inherit     keep whatever each harness already uses — nothing written, no assumptions"
+  echo "  openrouter  one key, many models"
+  echo "  anthropic   Claude models directly"
+  echo "  openai      GPT models directly"
+  echo "  other       e.g. ollama, bedrock, azure — you supply the model strings"
+fi
+ask "Provider? [inherit/openrouter/anthropic/openai/other]: " MODEL_PROVIDER
 ask "Cost profile — 'standard' or 'economy' (economy adds a cheaper tier for low-stakes roles): " COST_PROFILE
 # Normalize case so "Economy"/"ECONOMY" select the profile, and reject anything
 # that is neither — a silent fall-through to standard would be a surprising
 # override of what the user typed.
 COST_PROFILE="$(printf '%s' "${COST_PROFILE:-standard}" | tr '[:upper:]' '[:lower:]')"
 case "$COST_PROFILE" in
-  economy) ask "opencode economy model — cheaper tier for refactorer, wiki-maintainer, small tasks (e.g., openrouter/qwen/qwen3-coder): " ECONOMY_MODEL ;;
+  economy) : ;;
   standard) : ;;
   *) echo "  (unrecognized cost profile '$COST_PROFILE' — using 'standard')"; COST_PROFILE="standard" ;;
 esac
@@ -118,16 +130,44 @@ case " $PACKS " in *" java "*) ask "Java (JDK) version for CI (e.g., 25): " JAVA
 case " $PACKS " in *" typescript "*) ask "Node.js version for CI (e.g., 24): " NODE_VERSION ;; esac
 
 # Defaults
-DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
-FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/z-ai/glm-5.2}"
-# Claude and Codex have their own native model namespaces (opencode can route
-# any provider through OpenRouter; Claude Code cannot, Codex cannot), so each
-# harness carries its own intelligent per-tier defaults. Override any of these
-# in factory.config. sync-claude / sync-codex read them by role tier.
-CLAUDE_FRONTIER_MODEL="${CLAUDE_FRONTIER_MODEL:-claude-opus-4-8}"
-CLAUDE_DEFAULT_MODEL="${CLAUDE_DEFAULT_MODEL:-claude-sonnet-4-6}"
-CODEX_FRONTIER_MODEL="${CODEX_FRONTIER_MODEL:-gpt-5.6-sol}"
-CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5.6-terra}"
+MODEL_PROVIDER="$(printf '%s' "${MODEL_PROVIDER:-inherit}" | tr '[:upper:]' '[:lower:]')"
+# Every tier starts blank — blank is a real, meaningful value here ("inherit"),
+# and under `set -u` an unseeded tier would otherwise abort the install.
+DEFAULT_MODEL="${DEFAULT_MODEL:-}"; FRONTIER_MODEL="${FRONTIER_MODEL:-}"; ECONOMY_MODEL="${ECONOMY_MODEL:-}"
+CLAUDE_FRONTIER_MODEL="${CLAUDE_FRONTIER_MODEL:-}"; CLAUDE_DEFAULT_MODEL="${CLAUDE_DEFAULT_MODEL:-}"; CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-}"
+CODEX_FRONTIER_MODEL="${CODEX_FRONTIER_MODEL:-}"; CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-}"; CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-}"
+# opencode reaches any provider with a 'provider/model' string, so its tiers are
+# seeded from the chosen provider. Claude Code and Codex only ever talk to
+# Anthropic and OpenAI respectively, so their tiers use those native ids
+# whenever we seed at all — they apply only if you actually run that harness.
+case "$MODEL_PROVIDER" in
+  openrouter)
+    DEFAULT_MODEL="${DEFAULT_MODEL:-openrouter/z-ai/glm-5.2}"
+    FRONTIER_MODEL="${FRONTIER_MODEL:-openrouter/z-ai/glm-5.2}"
+    ECONOMY_MODEL="${ECONOMY_MODEL:-openrouter/qwen/qwen3-coder}"
+    ;;
+  anthropic)
+    DEFAULT_MODEL="${DEFAULT_MODEL:-anthropic/claude-sonnet-4-6}"
+    FRONTIER_MODEL="${FRONTIER_MODEL:-anthropic/claude-opus-4-8}"
+    ECONOMY_MODEL="${ECONOMY_MODEL:-anthropic/claude-haiku-4-5}"
+    ;;
+  openai)
+    DEFAULT_MODEL="${DEFAULT_MODEL:-openai/gpt-5.6-terra}"
+    FRONTIER_MODEL="${FRONTIER_MODEL:-openai/gpt-5.6-sol}"
+    ECONOMY_MODEL="${ECONOMY_MODEL:-openai/gpt-5.6-luna}"
+    ;;
+  inherit)
+    : ;;   # zero assumption — every tier stays blank, each harness keeps its own
+  *)
+    echo "  (provider '$MODEL_PROVIDER': set OPENCODE_*_MODEL in factory.config — see docs/MODELS.md)"
+    ;;
+esac
+if [ "$MODEL_PROVIDER" != "inherit" ]; then
+  CLAUDE_FRONTIER_MODEL="${CLAUDE_FRONTIER_MODEL:-claude-opus-4-8}"
+  CLAUDE_DEFAULT_MODEL="${CLAUDE_DEFAULT_MODEL:-claude-sonnet-4-6}"
+  CODEX_FRONTIER_MODEL="${CODEX_FRONTIER_MODEL:-gpt-5.6-sol}"
+  CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5.6-terra}"
+fi
 # Economy tier, per harness. Under 'economy' the low-stakes roles (refactorer,
 # wiki-maintainer, opencode small_model) route to a cheaper model. Under
 # 'standard' the economy tier collapses to that harness's default model, so
@@ -136,9 +176,16 @@ CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5.6-terra}"
 # of profile. The standard/economy collapse is applied at sync time by
 # resolve_tier reading COST_PROFILE — so flipping the profile in factory.config
 # and re-running `make sync-harnesses` re-routes every harness, no re-init.
-ECONOMY_MODEL="${ECONOMY_MODEL:-openrouter/qwen/qwen3-coder}"
-CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
-CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
+if [ "$MODEL_PROVIDER" != "inherit" ]; then
+  CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
+  CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
+fi
+# Blank tiers are meaningful: sync writes nothing and each harness keeps its own
+# model. Say so, or an 'economy' profile with no models looks broken.
+if [ "$MODEL_PROVIDER" = "inherit" ] && [ "$COST_PROFILE" = "economy" ]; then
+  echo "  (economy profile selected with provider 'inherit' — set the model tiers"
+  echo "   in factory.config for it to route anything; see docs/MODELS.md)"
+fi
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
 NODE_VERSION="${NODE_VERSION:-24}"
@@ -152,8 +199,9 @@ echo "  GitHub owner:     $GITHUB_OWNER"
 echo "  Protected path:   $PROTECTED_PATH"
 echo "  Docs source:      ${DOCS_ROOT:-none}"
 echo "  Citation prefix:  $CITATION_PREFIX"
-echo "  Default model:    $DEFAULT_MODEL"
-echo "  Frontier model:   $FRONTIER_MODEL"
+echo "  Model provider:   $MODEL_PROVIDER$([ "$MODEL_PROVIDER" = inherit ] && echo " (no models written — each harness keeps its own)")"
+[ -n "$DEFAULT_MODEL" ] && echo "  Default model:    $DEFAULT_MODEL"
+[ -n "$FRONTIER_MODEL" ] && echo "  Frontier model:   $FRONTIER_MODEL"
 COST_SUMMARY="$COST_PROFILE"
 [ "$COST_PROFILE" = economy ] && COST_SUMMARY="$COST_PROFILE (economy model: $ECONOMY_MODEL)"
 echo "  Cost profile:     $COST_SUMMARY"
@@ -397,6 +445,9 @@ PROTECTED_PATH="$PROTECTED_PATH"
 DOCS_ROOT="$DOCS_ROOT"
 CITATION_PREFIX="$CITATION_PREFIX_UPPER"
 COST_PROFILE="$COST_PROFILE"
+# Which provider seeded the tiers below. Blank tiers mean "inherit": sync writes
+# nothing and each harness keeps its own model. See docs/MODELS.md.
+MODEL_PROVIDER="$MODEL_PROVIDER"
 OPENCODE_FRONTIER_MODEL="$FRONTIER_MODEL"
 OPENCODE_DEFAULT_MODEL="$DEFAULT_MODEL"
 OPENCODE_ECONOMY_MODEL="$ECONOMY_MODEL"

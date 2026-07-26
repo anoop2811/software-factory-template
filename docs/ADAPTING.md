@@ -90,10 +90,15 @@ Each harness has its own native model namespace, so each carries its own per-tie
 models in `factory.config` — shipped as intelligent defaults, overridable there:
 
 ```sh
-OPENCODE_FRONTIER_MODEL / OPENCODE_DEFAULT_MODEL / OPENCODE_ECONOMY_MODEL   # OpenRouter
-CLAUDE_FRONTIER_MODEL   / CLAUDE_DEFAULT_MODEL   / CLAUDE_ECONOMY_MODEL
-CODEX_FRONTIER_MODEL    / CODEX_DEFAULT_MODEL    / CODEX_ECONOMY_MODEL
+MODEL_PROVIDER                                                              # seeds the tiers below
+OPENCODE_FRONTIER_MODEL / OPENCODE_DEFAULT_MODEL / OPENCODE_ECONOMY_MODEL   # any provider/model
+CLAUDE_FRONTIER_MODEL   / CLAUDE_DEFAULT_MODEL   / CLAUDE_ECONOMY_MODEL     # Anthropic ids
+CODEX_FRONTIER_MODEL    / CODEX_DEFAULT_MODEL    / CODEX_ECONOMY_MODEL      # OpenAI ids
 ```
+
+No provider is assumed. `factory-init` asks once and only *seeds* these; choose
+`inherit` and the factory writes no model pins at all, leaving each harness on
+its own configuration. See [MODELS.md](MODELS.md).
 
 `scripts/lib/roles.sh` maps each role to its tier, and `make sync-harnesses`
 writes the right per-tier model into each harness — opencode included. To

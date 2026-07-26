@@ -329,6 +329,17 @@ check "flip standard: claude economy role collapses to sonnet" "model: claude-so
   "$(grep -E '^model:' "$SYNCROOT/.claude/agents/refactorer.md" 2>/dev/null || true)"
 check "flip standard: opencode economy role collapses to glm" "openrouter/z-ai/glm-5.2" \
   "$(jq -r '.agent.refactorer.model' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+# Provider "inherit": blank tiers mean remove every model pin, so opencode falls
+# back to its own config. Leaving an unresolved placeholder would be read as a
+# model name, so stripping — not skipping — is the correct behaviour.
+printf 'COST_PROFILE="standard"\nOPENCODE_DEFAULT_MODEL=""\n' > "$SYNCROOT/factory.config"
+( cd "$SYNCROOT" && bash scripts/sync-opencode.sh ) >/dev/null 2>&1 || true
+check "opencode inherit strips the top-level model pin" "null" \
+  "$(jq -r '.model // "null"' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+check "opencode inherit strips per-agent model pins" "null" \
+  "$(jq -r '.agent.reviewer.model // "null"' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
+check "opencode inherit leaves no placeholder behind" "0" \
+  "$(grep -c '__.*MODEL__' "$SYNCROOT/opencode.json" 2>/dev/null || true)"
 # A blank opencode frontier/economy value falls back to the default tier rather
 # than crashing under set -u (the distinctive default proves the sync ran).
 cat > "$SYNCROOT/factory.config" <<'CONF'

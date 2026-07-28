@@ -26,6 +26,14 @@ silently.
 `pull_request_target` workflow sitting in a repository is an invitation to switch
 on something nobody read.
 
+## If you already have the factory installed
+
+`factory upgrade` offers the lane once. Answer, and the choice is recorded in
+`factory.config` — a repository that declined is never asked again, and neither
+is one that enabled it. If the upgrade runs without a terminal (through a pipe),
+it prints how to enable and leaves the question open rather than recording an
+answer you did not give.
+
 ## What it costs
 
 Tokens on every pull request, at the **frontier tier** — the reviewer is the one

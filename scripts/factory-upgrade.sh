@@ -148,28 +148,56 @@ if [ -x scripts/factory-doctor.sh ]; then
   ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
 fi
 
-# ── Opt-in capabilities you do not have yet ──────────────────────────
-# An upgrade that silently ships a capability nobody hears about is a capability
-# nobody uses. Announce what is available and off, and say what it costs — never
-# switch anything on. Nothing here prompts: an upgrade commonly runs through a
-# pipe (curl … | sh), so this prints and moves on.
-NEW_CAPS=0
-announce() {
-  [ "$NEW_CAPS" -eq 0 ] && { echo ""; echo "Available, and off:"; }
-  NEW_CAPS=$((NEW_CAPS + 1))
-  printf '  %s\n' "$1"
-  printf '      %s\n' "$2"
-  printf '      enable: %s\n' "$3"
+# ── Opt-in capabilities this repository has never been offered ───────
+# A capability nobody hears about is a capability nobody uses; a capability that
+# asks again after you declined is nagware. So: ask once, and let the answer
+# live in factory.config. The key's PRESENCE is the record — "off" is a decision
+# that was made, not an absence — so a repo that has answered is never asked
+# again, either way.
+#
+# When there is no terminal (curl … | sh in CI, say) nothing is recorded: it
+# prints how to enable and leaves the question open for an interactive run,
+# rather than banking an answer the adopter never gave.
+capability_offer() {
+  _cap_key="$1" _cap_title="$2" _cap_detail="$3" _cap_enable="$4"
+  [ -f factory.config ] || return 0
+  # Answered before — in either direction. Say nothing.
+  grep -q "^${_cap_key}=" factory.config && return 0
+
+  echo ""
+  echo "New, and off: $_cap_title"
+  printf '  %s\n' "$_cap_detail"
+
+  if [ ! -r /dev/tty ] || [ ! -t 1 ]; then
+    printf '  enable with: %s   (asked again next time you upgrade interactively)\n' "$_cap_enable"
+    return 0
+  fi
+
+  printf '  Enable it now? [y/N]: '
+  # A failed read is not an answer. Pressing Enter is a decline and is recorded;
+  # an EOF or a broken terminal must leave the question open rather than bank a
+  # "no" the adopter never gave.
+  if ! read -r _cap_answer < /dev/tty; then
+    printf '\n  (no answer received — leaving the question open for next time)\n'
+    return 0
+  fi
+  case "$(printf '%s' "$_cap_answer" | tr '[:upper:]' '[:lower:]')" in
+    y|yes)
+      # The enable command records the key itself.
+      sh -c "$_cap_enable" || echo "  (enable failed — run '$_cap_enable' yourself)"
+      ;;
+    *)
+      printf '%s="off"\n' "$_cap_key" >> factory.config
+      printf '  Left off, and recorded — this will not ask again. Enable later with: %s\n' "$_cap_enable"
+      ;;
+  esac
 }
-REVIEW_LANE_NOW="off"
-# shellcheck source=/dev/null
-[ -f factory.config ] && REVIEW_LANE_NOW="$(. ./factory.config >/dev/null 2>&1; printf '%s' "${REVIEW_LANE:-off}")"
-if [ "$REVIEW_LANE_NOW" != "on" ] && [ -f packs/review-lane/review-pr.yml ]; then
-  announce "adversarial PR review" \
-    "a model reviews each PR diff and comments — advisory, never a required check. Costs tokens per PR and needs a repository secret." \
+
+if [ -f packs/review-lane/review-pr.yml ]; then
+  capability_offer REVIEW_LANE "adversarial PR review" \
+    "A model reviews each PR diff and posts an advisory comment — never a required check. Costs tokens on every PR, and needs a repository secret you add." \
     "./factory review-lane enable"
 fi
-[ "$NEW_CAPS" -gt 0 ] && echo "  (each stays off until you run the command; nothing was enabled for you)"
 
 echo ""
 echo "factory upgrade: $copied file(s) updated."

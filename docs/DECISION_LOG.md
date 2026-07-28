@@ -977,6 +977,14 @@ lifecycle and the fork boundary; `bash scripts/selftest/run.sh` reported
 "81 passed, 0 failed"; `make check-drift` exited 0; `copy-manifest-check` and
 `hook-existence-check` both passed.
 
+An opt-in capability is offered exactly once, and the answer is recorded in
+`factory.config`. The key's *presence* is the record — "off" is a decision that
+was made, not an absence — so a repository that has answered is never asked
+again in either direction, and one that has never been offered is still told.
+Where there is no terminal (an upgrade piped through `curl … | sh`), or the read
+fails, nothing is recorded: it prints how to enable and leaves the question open
+for an interactive run, rather than banking an answer the adopter never gave.
+
 Also fixed here: `run_with_timeout` in `golden-task-eval.sh` killed only the
 runner process, leaving its children orphaned and holding the inherited pipe —
 which stalled the caller for two minutes when a runner spawned a background

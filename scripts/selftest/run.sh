@@ -522,6 +522,24 @@ check "a fork PR cannot drive the privileged job" "1" \
 check "disabling removes the workflow, not just the flag" "0" \
   "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
 
+# Break/fix: an opt-in capability is offered once. The config key's PRESENCE is
+# the record — "off" is a decision that was made — so a repo that answered is
+# never asked again, and a repo that never has is still told.
+OFFROOT="$SANDBOX/capoffer"
+mkdir -p "$OFFROOT/packs/review-lane" "$OFFROOT/scripts"
+( cd "$OFFROOT" && git init -q )
+cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$OFFROOT/packs/review-lane/"
+printf 'project_name: t\n' > "$OFFROOT/factory.yaml"
+cap_offer_output() {
+  printf 'PROJECT_NAME="t"\n%s' "$1" > "$OFFROOT/factory.config"
+  ( cd "$OFFROOT" && bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
+}
+check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
+check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="off"
+')"
+check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"
+')"
+
 # The landing page ships from this repo, so an unreplaced placeholder would go
 # live as a broken analytics tag. A note would be forgotten; this is a gate.
 # (Adopter repos have no index.html — the check simply does not apply there.)

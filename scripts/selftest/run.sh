@@ -500,6 +500,14 @@ check "hookspath: hijacked when it points elsewhere" "hijacked" \
   "$(hookspath_status "$HPROOT" | cut -f1)"
 unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 
+# The landing page ships from this repo, so an unreplaced placeholder would go
+# live as a broken analytics tag. A note would be forgotten; this is a gate.
+# (Adopter repos have no index.html — the check simply does not apply there.)
+if [ -f "$TEMPLATE_ROOT/index.html" ]; then
+  check "landing page has no unreplaced placeholders" "0" \
+    "$(grep -c '__[A-Z_]\+__' "$TEMPLATE_ROOT/index.html" || true)"
+fi
+
 echo ""
 echo "selftest: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

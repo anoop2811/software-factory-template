@@ -932,3 +932,60 @@ Provenance: founder direction — remove the no-tracking claim, be honest, and a
 Google Analytics beyond what a cookieless third-party provider gives — then, on
 reviewing the EU position, to default to cookieless measurement with opt-in for
 full analytics, 2026-07-27.
+
+## Decision 37 (2026-07-28): an opt-in adversarial review lane, advisory and never a gate
+
+What: `./factory review-lane enable` installs a `pull_request_target` workflow
+that fetches a PR's diff, has a model review it, and posts one advisory comment.
+It is off unless asked for, at init and forever after. `factory-init` states both
+costs before the question — tokens on every PR at the frontier tier, and a
+repository secret only the adopter can add — and `factory upgrade` announces the
+capability to repositories that do not have it, without ever enabling it.
+`disable` deletes the workflow rather than leaving it inert. The reviewer calls
+the provider's HTTP API directly (`scripts/adversarial-review.sh`), so CI needs
+only curl and jq — no agent runtime — and the secret name follows `MODEL_PROVIDER`.
+
+Why advisory and never a required check: a model's opinion is not a computational
+control. The whole argument of this template is that gates block because they are
+deterministic; making a stochastic reviewer a merge gate would borrow the
+authority of the gates without their property. It costs a model instead of a
+human's attention on the first pass, and that is all it claims.
+
+The privilege boundary is the load-bearing part. Posting a review comment needs
+write permission, which `pull_request` does not grant on a fork, so the workflow
+runs as `pull_request_target` — a token worth containing. Three constraints do
+that: same-repo PRs only, so a fork PR never drives a privileged job; checkout of
+the base commit with `persist-credentials: false`, so a pull request cannot edit
+the thing that reviews it; and the PR head treated strictly as data — the diff is
+fetched through the API and passed to a model, never executed, sourced, or built.
+
+The prompt asks the model to refute rather than assess, requires `file:line`
+citations, forbids praise and restatement, and states that "No findings." is a
+valid answer — because a reviewer that summarises is a reviewer that approves,
+and inventing a finding to look thorough is the failure mode being designed
+against.
+
+Provenance: adapted from the originating factory's advisory review lane and its
+trusted-base boundary lessons; founder direction to finish the lane with the
+prompts, and earlier direction that it be opt-in with a stated cost, a chosen
+model, and announcement on upgrade — 2026-07-28. Verified this session:
+`factory-init` left the lane off and the workflow absent by default; `enable`
+installed the workflow with the provider's secret substituted and no placeholder
+left; `disable` removed the file; `factory upgrade` announced the capability to a
+repository without it and enabled nothing. Five break/fix cases cover the
+lifecycle and the fork boundary; `bash scripts/selftest/run.sh` reported
+"81 passed, 0 failed"; `make check-drift` exited 0; `copy-manifest-check` and
+`hook-existence-check` both passed.
+
+An opt-in capability is offered exactly once, and the answer is recorded in
+`factory.config`. The key's *presence* is the record — "off" is a decision that
+was made, not an absence — so a repository that has answered is never asked
+again in either direction, and one that has never been offered is still told.
+Where there is no terminal (an upgrade piped through `curl … | sh`), or the read
+fails, nothing is recorded: it prints how to enable and leaves the question open
+for an interactive run, rather than banking an answer the adopter never gave.
+
+Also fixed here: `run_with_timeout` in `golden-task-eval.sh` killed only the
+runner process, leaving its children orphaned and holding the inherited pipe —
+which stalled the caller for two minutes when a runner spawned a background
+child. It now runs the child in its own process group and kills the tree.

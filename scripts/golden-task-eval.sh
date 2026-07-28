@@ -80,12 +80,17 @@ fingerprint() { cat "$@" 2>/dev/null | cksum | awk '{print $1 "-" $2}'; }
 # Implemented by hand because macOS ships no timeout(1).
 run_with_timeout() {
   _rt_secs="$1"; shift
+  # Job control gives the child its own process group, so a timeout can kill the
+  # whole tree. Killing just the runner leaves its children orphaned — they keep
+  # running and hold the inherited pipe open, which stalls whatever invoked us.
+  set -m
   "$@" >/dev/null 2>&1 &
   _rt_pid=$!
+  set +m
   _rt_waited=0
   while kill -0 "$_rt_pid" 2>/dev/null; do
     if [ "$_rt_waited" -ge "$_rt_secs" ]; then
-      kill -9 "$_rt_pid" 2>/dev/null || true
+      kill -9 -"$_rt_pid" 2>/dev/null || kill -9 "$_rt_pid" 2>/dev/null || true
       wait "$_rt_pid" 2>/dev/null || true
       return 124
     fi

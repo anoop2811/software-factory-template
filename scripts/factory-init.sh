@@ -104,6 +104,18 @@ if [ -r /dev/tty ] && [ -t 1 ]; then
 fi
 ask "Provider? [inherit/openrouter/anthropic/openai/other]: " MODEL_PROVIDER
 ask "Cost profile — 'standard' or 'economy' (economy adds a cheaper tier for low-stakes roles): " COST_PROFILE
+# The review lane is opt-in and stays off unless asked for: it spends tokens on
+# every pull request and needs a repository secret only the adopter can add.
+# State both costs before the question, not after the answer.
+if [ -r /dev/tty ] && [ -t 1 ]; then
+  echo ""
+  echo "Adversarial PR review (optional) — a model reviews the diff of every pull"
+  echo "request and posts an advisory comment. Advisory only, never a required check."
+  echo "  costs:  tokens on every PR, at the frontier tier (the reviewer is never cheap)"
+  echo "  needs:  a repository secret you add in GitHub Settings"
+  echo "  later:  ./factory review-lane enable   (or disable) at any time"
+fi
+ask "Enable the adversarial review lane? [y/N]: " REVIEW_LANE_ANSWER
 # Normalize case so "Economy"/"ECONOMY" select the profile, and reject anything
 # that is neither — a silent fall-through to standard would be a surprising
 # override of what the user typed.
@@ -176,6 +188,18 @@ fi
 # of profile. The standard/economy collapse is applied at sync time by
 # resolve_tier reading COST_PROFILE — so flipping the profile in factory.config
 # and re-running `make sync-harnesses` re-routes every harness, no re-init.
+# Review lane: normalise the answer and pick a default secret name for the
+# chosen provider. REVIEW_MODEL blank means "use the frontier tier at run time".
+case "$(printf '%s' "${REVIEW_LANE_ANSWER:-n}" | tr '[:upper:]' '[:lower:]')" in
+  y|yes) REVIEW_LANE="on" ;;
+  *)     REVIEW_LANE="off" ;;
+esac
+case "$MODEL_PROVIDER" in
+  anthropic) REVIEW_API_KEY_SECRET="${REVIEW_API_KEY_SECRET:-ANTHROPIC_API_KEY}" ;;
+  openai)    REVIEW_API_KEY_SECRET="${REVIEW_API_KEY_SECRET:-OPENAI_API_KEY}" ;;
+  *)         REVIEW_API_KEY_SECRET="${REVIEW_API_KEY_SECRET:-OPENROUTER_API_KEY}" ;;
+esac
+REVIEW_MODEL="${REVIEW_MODEL:-}"
 if [ "$MODEL_PROVIDER" != "inherit" ]; then
   CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
   CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
@@ -205,6 +229,7 @@ echo "  Model provider:   $MODEL_PROVIDER$([ "$MODEL_PROVIDER" = inherit ] && ec
 COST_SUMMARY="$COST_PROFILE"
 [ "$COST_PROFILE" = economy ] && COST_SUMMARY="$COST_PROFILE (economy model: $ECONOMY_MODEL)"
 echo "  Cost profile:     $COST_SUMMARY"
+echo "  Review lane:      $REVIEW_LANE$([ "$REVIEW_LANE" = on ] && echo " (needs repo secret: $REVIEW_API_KEY_SECRET)")"
 echo "  Language pack(s): $([ -n "${PACKS// /}" ] && printf '%s' "$PACKS" | sed 's/^ *//' || echo none)"
 case " $PACKS " in *" go "*) echo "  Go version:       $GO_VERSION" ;; esac
 case " $PACKS " in *" java "*) echo "  Java version:     $JAVA_VERSION" ;; esac
@@ -326,6 +351,10 @@ cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-upgrade.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-report.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/factory-review-lane.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/adversarial-review.sh" "$TARGET_DIR/scripts/"
+mkdir -p "$TARGET_DIR/packs/review-lane"
+cp "$TEMPLATE_DIR/packs/review-lane/review-pr.yml" "$TARGET_DIR/packs/review-lane/"
 cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
@@ -433,6 +462,7 @@ chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-doctor.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-upgrade.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-report.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/factory-review-lane.sh" "$TARGET_DIR/scripts/adversarial-review.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/.githooks/pre-push" 2>/dev/null || true
 
@@ -460,6 +490,11 @@ CLAUDE_ECONOMY_MODEL="$CLAUDE_ECONOMY_MODEL"
 CODEX_FRONTIER_MODEL="$CODEX_FRONTIER_MODEL"
 CODEX_DEFAULT_MODEL="$CODEX_DEFAULT_MODEL"
 CODEX_ECONOMY_MODEL="$CODEX_ECONOMY_MODEL"
+# Advisory adversarial PR review. Opt-in; costs tokens per PR and needs the
+# repository secret named below. Toggle with: ./factory review-lane enable|disable
+REVIEW_LANE="$REVIEW_LANE"
+REVIEW_MODEL="$REVIEW_MODEL"
+REVIEW_API_KEY_SECRET="$REVIEW_API_KEY_SECRET"
 GO_VERSION="$GO_VERSION"
 JAVA_VERSION="$JAVA_VERSION"
 NODE_VERSION="$NODE_VERSION"

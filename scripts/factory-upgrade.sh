@@ -65,6 +65,8 @@ scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
 scripts/factory-report.sh
+scripts/factory-review-lane.sh
+scripts/adversarial-review.sh
 scripts/pre-push-check.sh
 scripts/prereq-check.sh
 scripts/citation-lint.sh
@@ -144,6 +146,57 @@ echo ""
 if [ -x scripts/factory-doctor.sh ]; then
   echo "Running factory doctor..."
   ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
+fi
+
+# ── Opt-in capabilities this repository has never been offered ───────
+# A capability nobody hears about is a capability nobody uses; a capability that
+# asks again after you declined is nagware. So: ask once, and let the answer
+# live in factory.config. The key's PRESENCE is the record — "off" is a decision
+# that was made, not an absence — so a repo that has answered is never asked
+# again, either way.
+#
+# When there is no terminal (curl … | sh in CI, say) nothing is recorded: it
+# prints how to enable and leaves the question open for an interactive run,
+# rather than banking an answer the adopter never gave.
+capability_offer() {
+  _cap_key="$1" _cap_title="$2" _cap_detail="$3" _cap_enable="$4"
+  [ -f factory.config ] || return 0
+  # Answered before — in either direction. Say nothing.
+  grep -q "^${_cap_key}=" factory.config && return 0
+
+  echo ""
+  echo "New, and off: $_cap_title"
+  printf '  %s\n' "$_cap_detail"
+
+  if [ ! -r /dev/tty ] || [ ! -t 1 ]; then
+    printf '  enable with: %s   (asked again next time you upgrade interactively)\n' "$_cap_enable"
+    return 0
+  fi
+
+  printf '  Enable it now? [y/N]: '
+  # A failed read is not an answer. Pressing Enter is a decline and is recorded;
+  # an EOF or a broken terminal must leave the question open rather than bank a
+  # "no" the adopter never gave.
+  if ! read -r _cap_answer < /dev/tty; then
+    printf '\n  (no answer received — leaving the question open for next time)\n'
+    return 0
+  fi
+  case "$(printf '%s' "$_cap_answer" | tr '[:upper:]' '[:lower:]')" in
+    y|yes)
+      # The enable command records the key itself.
+      sh -c "$_cap_enable" || echo "  (enable failed — run '$_cap_enable' yourself)"
+      ;;
+    *)
+      printf '%s="off"\n' "$_cap_key" >> factory.config
+      printf '  Left off, and recorded — this will not ask again. Enable later with: %s\n' "$_cap_enable"
+      ;;
+  esac
+}
+
+if [ -f packs/review-lane/review-pr.yml ]; then
+  capability_offer REVIEW_LANE "adversarial PR review" \
+    "A model reviews each PR diff and posts an advisory comment — never a required check. Costs tokens on every PR, and needs a repository secret you add." \
+    "./factory review-lane enable"
 fi
 
 echo ""

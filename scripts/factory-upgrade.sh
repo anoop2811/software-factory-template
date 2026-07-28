@@ -65,6 +65,8 @@ scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
 scripts/factory-report.sh
+scripts/factory-review-lane.sh
+scripts/adversarial-review.sh
 scripts/pre-push-check.sh
 scripts/prereq-check.sh
 scripts/citation-lint.sh
@@ -145,6 +147,29 @@ if [ -x scripts/factory-doctor.sh ]; then
   echo "Running factory doctor..."
   ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
 fi
+
+# ── Opt-in capabilities you do not have yet ──────────────────────────
+# An upgrade that silently ships a capability nobody hears about is a capability
+# nobody uses. Announce what is available and off, and say what it costs — never
+# switch anything on. Nothing here prompts: an upgrade commonly runs through a
+# pipe (curl … | sh), so this prints and moves on.
+NEW_CAPS=0
+announce() {
+  [ "$NEW_CAPS" -eq 0 ] && { echo ""; echo "Available, and off:"; }
+  NEW_CAPS=$((NEW_CAPS + 1))
+  printf '  %s\n' "$1"
+  printf '      %s\n' "$2"
+  printf '      enable: %s\n' "$3"
+}
+REVIEW_LANE_NOW="off"
+# shellcheck source=/dev/null
+[ -f factory.config ] && REVIEW_LANE_NOW="$(. ./factory.config >/dev/null 2>&1; printf '%s' "${REVIEW_LANE:-off}")"
+if [ "$REVIEW_LANE_NOW" != "on" ] && [ -f packs/review-lane/review-pr.yml ]; then
+  announce "adversarial PR review" \
+    "a model reviews each PR diff and comments — advisory, never a required check. Costs tokens per PR and needs a repository secret." \
+    "./factory review-lane enable"
+fi
+[ "$NEW_CAPS" -gt 0 ] && echo "  (each stays off until you run the command; nothing was enabled for you)"
 
 echo ""
 echo "factory upgrade: $copied file(s) updated."

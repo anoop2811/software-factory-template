@@ -20,6 +20,7 @@ Usage: factory <command> [args]
               touches your factory.yaml, content, or customized files
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
+  review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
   report      Cost report: gates enforced at 0 tokens, blocks caught, one labeled
               estimate (factory report --clear resets the block log)
   help        Show this message
@@ -38,6 +39,7 @@ case "$CMD" in
   check)    SCRIPT="$DIR/scripts/pre-push-check.sh" ;;
   selftest) SCRIPT="$DIR/scripts/selftest/run.sh" ;;
   report)   SCRIPT="$DIR/scripts/factory-report.sh" ;;
+  review-lane) SCRIPT="$DIR/scripts/factory-review-lane.sh" ;;
   help|-h|--help) usage; exit 0 ;;
   *) echo "factory: unknown command '$CMD' (try: factory help)" >&2; exit 2 ;;
 esac

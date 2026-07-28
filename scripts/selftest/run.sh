@@ -500,6 +500,28 @@ check "hookspath: hijacked when it points elsewhere" "hijacked" \
   "$(hookspath_status "$HPROOT" | cut -f1)"
 unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 
+# Break/fix: the review lane is opt-in. Enabling installs the workflow and wires
+# the provider's secret name into it; disabling REMOVES the file rather than
+# leaving a dormant pull_request_target workflow in the repository.
+RLROOT="$SANDBOX/reviewlane"
+mkdir -p "$RLROOT/scripts" "$RLROOT/packs/review-lane"
+( cd "$RLROOT" && git init -q )
+cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
+cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$RLROOT/packs/review-lane/"
+printf 'MODEL_PROVIDER="anthropic"\nREVIEW_LANE="off"\n' > "$RLROOT/factory.config"
+check "review lane is off until asked for" "0" \
+  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+( cd "$RLROOT" && ./scripts/factory-review-lane.sh enable ) >/dev/null 2>&1 || true
+check "enabling installs the workflow" "1" \
+  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+check "the provider's secret name is wired in" "0" \
+  "$(grep -c '__REVIEW_API_KEY_SECRET__' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
+check "a fork PR cannot drive the privileged job" "1" \
+  "$(grep -c 'head.repo.full_name == github.repository' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
+( cd "$RLROOT" && ./scripts/factory-review-lane.sh disable ) >/dev/null 2>&1 || true
+check "disabling removes the workflow, not just the flag" "0" \
+  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+
 # The landing page ships from this repo, so an unreplaced placeholder would go
 # live as a broken analytics tag. A note would be forgotten; this is a gate.
 # (Adopter repos have no index.html — the check simply does not apply there.)

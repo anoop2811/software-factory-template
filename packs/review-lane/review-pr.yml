@@ -1,0 +1,103 @@
+name: Adversarial review
+
+# Advisory first-pass review on pull requests. It is NEVER a required check:
+# a model's opinion is not a computational control. The gates block; this advises.
+#
+# Why pull_request_target: posting a review comment needs write permission, which
+# pull_request does not grant on a fork. That token is dangerous, so the boundary
+# below is the whole point of this file:
+#
+#   1. same-repo PRs only — a fork PR never drives a job holding this token;
+#   2. the workflow and scripts come from the BASE commit, never the PR head, so
+#      a PR cannot edit the thing that reviews it;
+#   3. the PR diff is fetched as DATA through the API and passed to a model.
+#      Nothing from the PR head is executed, sourced, or run as a build.
+#
+# Installed by factory-init only when the review lane is enabled, because a
+# disabled pull_request_target workflow sitting in a repository is an invitation
+# to switch on something nobody read.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: adversarial-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # The boundary. Fork PRs get no privileged agent.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PR: ${{ github.event.pull_request.number }}
+      REPO: ${{ github.repository }}
+      # Cap the diff: a huge PR would blow the context window and the budget, and
+      # a review of a truncated diff would be a review of something else.
+      MAX_DIFF_BYTES: 200000
+    steps:
+      - name: Check out the base commit (trusted — never the PR head)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Fetch the PR diff as data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/$REPO/pulls/$PR" \
+            -H "Accept: application/vnd.github.v3.diff" > pr.diff
+          SIZE=$(wc -c < pr.diff | tr -d ' ')
+          echo "diff bytes: $SIZE"
+          if [ "$SIZE" -gt "$MAX_DIFF_BYTES" ]; then
+            echo "too-large" > review-skip
+          fi
+
+      - name: Review
+        if: hashFiles('review-skip') == ''
+        env:
+          REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
+        run: |
+          if [ -z "${REVIEW_API_KEY:-}" ]; then
+            echo "The repository secret __REVIEW_API_KEY_SECRET__ is not set." > review.md
+            echo "" >> review.md
+            echo "Add it in Settings → Secrets and variables → Actions, or disable" >> review.md
+            echo "the lane with \`./factory review-lane disable\`." >> review.md
+            exit 0
+          fi
+          if ! ./scripts/adversarial-review.sh pr.diff > review.md 2> review.err; then
+            {
+              echo "The review could not run, so this PR has **not** been reviewed by a model."
+              echo ""
+              echo '```'
+              cat review.err
+              echo '```'
+            } > review.md
+          fi
+
+      - name: Post the review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f review-skip ]; then
+            printf '%s\n' \
+              "_Adversarial review skipped: the diff is larger than ${MAX_DIFF_BYTES} bytes._" \
+              "" \
+              "Splitting the change would let it be reviewed — and would be easier for a human too." > review.md
+          fi
+          [ -s review.md ] || echo "_No review output._" > review.md
+          {
+            echo "## Adversarial review (advisory)"
+            echo ""
+            cat review.md
+            echo ""
+            echo "<sub>Advisory only — never a required check. A model's opinion is not a computational control; the gates are. Disable with \`./factory review-lane disable\`.</sub>"
+          } > comment.md
+          gh pr comment "$PR" --repo "$REPO" --body-file comment.md

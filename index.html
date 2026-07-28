@@ -11,6 +11,46 @@
 <meta property="og:url" content="https://softwareaifactory.sh/">
 <meta name="twitter:card" content="summary">
 <link rel="canonical" href="https://softwareaifactory.sh/">
+<!-- The page loads one third-party script (Google Analytics). Constrain where it
+     may go: no other host can be contacted, framed, or posted to. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https://www.google-analytics.com https://*.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+<!-- frame-ancestors is deliberately absent: it is ignored in a <meta> CSP (it is
+     header-only), and static Pages hosting cannot set response headers. -->
+
+<!-- Analytics. Consent Mode v2, measuring from the first visit without storing
+     anything: analytics_storage is denied by default, so GA4 sends cookieless
+     pings — pages, referrers, geography, device — and sets no cookie. Nothing is
+     placed on the visitor's device, so this needs no consent gate; a visitor who
+     wants to contribute full session data can opt in from the footer, and that
+     preference lives in localStorage, never leaving the browser. Every
+     advertising signal is denied permanently: this measures pages, not people,
+     and there are no ads. The factory you install never phones home; this is
+     the website. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'denied'
+  });
+  try {
+    if (localStorage.getItem('saf-analytics-consent') === 'granted') {
+      gtag('consent', 'update', { analytics_storage: 'granted' });
+    }
+  } catch (e) { /* storage blocked — stay cookieless */ }
+</script>
+<!-- No integrity="sha384-..." here on purpose: gtag.js is served non-versioned and
+     updated continuously, and is not CORS-enabled for integrity checking, so a
+     pinned hash would break analytics rather than secure it. The compensating
+     control is the CSP above — this is the only third-party host the page may
+     load a script from or connect to. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-SWDEH8ZZQM"></script>
+<script>
+  gtag('js', new Date());
+  gtag('config', 'G-SWDEH8ZZQM');
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23101216'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234CC46E' text-anchor='middle'%3E%24_%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -372,6 +412,31 @@
   .qs .prompt { color: var(--blue); }
 
   /* ── Final CTA ──────────────────────────────────────── */
+  /* Consent bar. Hidden until JS decides it is needed, so a visitor who has
+     already chosen never sees it flash. */
+  .consent {
+    display: none;
+    position: fixed; inset: auto 0 0 0; z-index: 20;
+    background: rgba(14,17,23,.97);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--edge);
+  }
+  .consent.show { display: block; }
+  .consent .wrap {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding-top: 14px; padding-bottom: 14px;
+  }
+  .consent p { color: var(--muted); font-size: 14px; margin: 0; flex: 1 1 320px; }
+  .consent .btns { display: flex; gap: 8px; }
+  .consent button {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    padding: 8px 15px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--edge); background: var(--surface); color: var(--fg);
+  }
+  .consent button:hover { border-color: var(--faint); }
+  .consent button.allow { background: var(--green-dim); border-color: rgba(76,196,110,.4); color: var(--green); }
+  .consent button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
   .cta-final {
     margin-top: 84px; padding: 76px 0 84px;
     position: relative; overflow: hidden;
@@ -709,7 +774,53 @@ edit test files.</span>
     <span><span class="fdomain">softwareaifactory<span class="sh">.sh</span></span> · MIT · one team's pattern, offered as-is</span>
     <span><a href="https://github.com/anoop2811/software-factory-template">github.com/anoop2811/software-factory-template</a></span>
   </div>
+  <div class="wrap" style="padding-top:10px">
+    <span style="color:var(--faint);font-size:13px">This page counts visits with Google Analytics in cookieless mode &mdash; nothing is stored on your device, no ads, no ad profiling. The factory you install never phones home: no telemetry, no callbacks. <button type="button" id="consent-reopen" style="background:none;border:0;padding:0;color:var(--blue);font:inherit;cursor:pointer;text-decoration:underline"><span id="consent-link-text">Analytics settings</span></button></span>
+  </div>
 </footer>
+
+<div class="consent" id="consent" role="region" aria-label="Analytics preference">
+  <div class="wrap">
+    <p id="consent-status">Analytics are <strong>cookieless</strong>: this page counts the visit but stores nothing on your device. You can allow full analytics (sets a Google Analytics cookie, gives us session and return-visit data) &mdash; entirely your call.</p>
+    <div class="btns">
+      <button type="button" id="consent-deny">Stay cookieless</button>
+      <button type="button" class="allow" id="consent-allow">Allow full analytics</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var KEY = "saf-analytics-consent";
+  var bar = document.getElementById("consent");
+  var status = document.getElementById("consent-status");
+  var linkText = document.getElementById("consent-link-text");
+  function read() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function store(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+  // Cookieless unless this browser has explicitly opted in to full analytics.
+  function isFull() { return read() === "granted"; }
+  function paint() {
+    status.innerHTML = isFull()
+      ? "Full analytics are <strong>on</strong> for this browser &mdash; a Google Analytics cookie is set. Switch back to cookieless any time; nothing is stored on your device in that mode."
+      : "Analytics are <strong>cookieless</strong>: this page counts the visit but stores nothing on your device. You can allow full analytics (sets a Google Analytics cookie, gives us session and return-visit data) &mdash; entirely your call.";
+    linkText.textContent = "Analytics settings";
+  }
+  function set(v) {
+    store(v);
+    if (window.gtag) { gtag("consent", "update", { analytics_storage: v }); }
+    paint();
+    bar.classList.remove("show");
+  }
+  paint();
+  // The bar is a control, not a gate: it appears only when asked for.
+  document.getElementById("consent-reopen").addEventListener("click", function () {
+    paint();
+    bar.classList.add("show");
+    document.getElementById(isFull() ? "consent-deny" : "consent-allow").focus();
+  });
+  document.getElementById("consent-allow").addEventListener("click", function () { set("granted"); });
+  document.getElementById("consent-deny").addEventListener("click", function () { set("denied"); });
+})();
+</script>
 
 <script>
 (function () {

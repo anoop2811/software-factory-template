@@ -882,19 +882,17 @@ OK; with the key blank the hook was not checked at all; the template's own run
 `bash scripts/selftest/run.sh` reported "75 passed, 0 failed"; `make check-drift`
 exited 0.
 
-## Decision 36 (2026-07-27): the landing page measures cookielessly by default; the installed factory still never phones home
+## Decision 36 (2026-07-27, revised 2026-07-28): the landing page measures with analytics on by default; the installed factory still never phones home
 
 What: `index.html` loads Google Analytics 4 through Consent Mode v2 with
-`analytics_storage` **denied by default** and every advertising signal —
-`ad_storage`, `ad_user_data`, `ad_personalization` — denied permanently. In that
-state GA4 sends cookieless pings: the visit is counted from the first page view,
-with pages, referrers, geography and device, while **nothing is stored on the
-visitor's device**. Because nothing is stored, no consent gate is needed and no
-banner interrupts anyone. A visitor who wants to contribute full session data can
-opt in from a footer link; that preference lives in `localStorage`, not a cookie,
-and never leaves the browser. A `Content-Security-Policy` meta tag restricts the
-page to exactly one third-party host. Decision 4's "zero tracking" claim is
-annotated as superseded rather than edited away.
+`analytics_storage` **granted by default** and every advertising signal —
+`ad_storage`, `ad_user_data`, `ad_personalization` — denied permanently. A visitor
+turns analytics off from a footer link; the preference lives in `localStorage`,
+not a cookie, and never leaves the browser. There is no interstitial gate: the
+settings bar is a control that appears when asked for, not a wall on arrival. A
+`Content-Security-Policy` meta tag restricts the page to exactly one third-party
+host. Decision 4's "zero tracking" claim is annotated as superseded rather than
+edited away.
 
 Boundary, and it is the point: this covers the **website**. The installed factory
 sends nothing — no telemetry in `install.sh`, the hooks, or any `factory-*`
@@ -902,23 +900,35 @@ script — and `install.sh` continues to promise it never phones home. Analytics
 a marketing page and telemetry on someone's machine are different things, and the
 footer says so where a visitor can read it.
 
-Why: the honest options were to keep the page clean or to measure it and say so.
-Quietly adding a tracker while a committed decision claimed "zero tracking" was
-not an option — on a project whose whole argument is that it claims only what it
-has observed, that is the one contradiction a skeptic would rightly seize on.
+Why analytics at all, and why say so: the honest options were to keep the page
+clean or to measure it and disclose it. Quietly adding a tracker while a
+committed decision claimed "zero tracking" was not an option — on a project whose
+whole argument is that it claims only what it has observed, that is the one
+contradiction a skeptic would rightly seize on.
 
-Why cookieless rather than on-by-default with cookies: ePrivacy Article 5(3)
-requires prior consent before storing or accessing anything on a visitor's
-device, and analytics is not "strictly necessary". The narrow national analytics
-exemptions (France, Italy, Spain, and the UK statistical exception) require
-first-party, aggregate-only data with no sharing, which GA4 does not satisfy —
-data is pooled with Google and links into its advertising stack. Cookieless mode
-sidesteps the storage question entirely while still delivering measurement from
-every visit, which is what the page actually needs. Residual exposure, stated
-rather than glossed: cookieless pings still transmit IP and user-agent to Google,
-so GDPR processing questions remain even where ePrivacy storage rules are not
-triggered. (Verified 2026-07-27 against current summaries of Article 5(3), the
-national exemptions, and GA4's position under them; not legal advice.)
+Revised on evidence, which is the part worth recording. This shipped first with
+`analytics_storage` **denied** — cookieless pings, no storage, no ePrivacy
+Article 5(3) trigger. It was the better privacy default and it did not work.
+Verified on the deployed site: the tag loaded (200) and a `page_view` hit reached
+`/g/collect` (204) carrying `gcs=G100`, so collection was genuinely happening —
+yet nothing appeared in reports. GA4 only surfaces cookieless pings through
+behavioural modelling, and modelling requires roughly 1,000 denied events per day
+for seven days **and** roughly 1,000 granted daily users across seven of the
+previous 28 days. A site this size meets neither, and the second is unsatisfiable
+by construction when nobody grants — so the model can never train and the pings
+are collected and never reported. Cookieless GA4 below that scale is the worst of
+both: a third-party script that returns nothing. The choice was therefore between
+no analytics and analytics that work, and the flip to granted was taken
+deliberately.
+
+Trade-off accepted, stated rather than glossed: ePrivacy Article 5(3) expects
+prior consent before storage in the EU and UK, and on-by-default does not give
+that. The narrow national analytics exemptions (France, Italy, Spain, the UK
+statistical exception) require first-party aggregate-only data with no sharing,
+which GA4 does not satisfy. Keeping every advertising signal denied and the
+opt-out one click from every page view narrows the exposure; it does not remove
+it. Revisit if the audience or the regulatory posture changes, or if traffic ever
+reaches the modelling thresholds that would make cookieless viable.
 
 No `integrity` hash is set on the gtag.js tag: it is served non-versioned,
 updated continuously, and is not CORS-enabled for integrity checking, so a pinned
@@ -929,9 +939,10 @@ Measurement ID is not a secret — it ships in page source by design — so it i
 committed, not injected; the Stream ID is not used by the page at all.
 
 Provenance: founder direction — remove the no-tracking claim, be honest, and add
-Google Analytics beyond what a cookieless third-party provider gives — then, on
-reviewing the EU position, to default to cookieless measurement with opt-in for
-full analytics, 2026-07-27.
+Google Analytics beyond what a cookieless third-party provider gives — 2026-07-27;
+revised 2026-07-28 after the deployed cookieless configuration was observed
+collecting hits that never reached reports, and the modelling thresholds were
+verified against Google's own documentation.
 
 ## Decision 37 (2026-07-28): an opt-in adversarial review lane, advisory and never a gate
 

@@ -35,6 +35,14 @@ set_key() {
   fi
 }
 
+default_model_for_provider() {
+  case "${MODEL_PROVIDER:-openrouter}" in
+    anthropic) printf '%s' "${CLAUDE_FRONTIER_MODEL:-claude-opus-4-8}" ;;
+    openai)    printf '%s' "${CODEX_FRONTIER_MODEL:-gpt-5.6-sol}" ;;
+    *)         printf '%s' "${OPENCODE_FRONTIER_MODEL:-openrouter/z-ai/glm-5.2}" ;;
+  esac
+}
+
 default_secret_for_provider() {
   case "${MODEL_PROVIDER:-openrouter}" in
     anthropic) printf 'ANTHROPIC_API_KEY' ;;
@@ -56,13 +64,31 @@ case "$CMD" in
     ;;
 
   enable)
-    [ -f "$SOURCE_YML" ] || { echo "review-lane: $SOURCE_YML not found" >&2; exit 1; }
+    if [ ! -f "$SOURCE_YML" ]; then
+      echo "review-lane: $SOURCE_YML not found." >&2
+      echo "  This repo predates the review lane. Pull it in with:" >&2
+      echo "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade" >&2
+      exit 1
+    fi
     SECRET="${2:-${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}}"
+    # Which model reviews. Blank means "resolve the frontier tier at run time",
+    # which is the right default — but it is the adopter's money, so ask when
+    # there is someone to ask and nothing has been chosen yet.
+    if [ -z "${REVIEW_MODEL:-}" ] && [ -r /dev/tty ] && [ -t 1 ]; then
+      echo "Review model — the reviewer runs at the frontier tier by default."
+      echo "  provider: ${MODEL_PROVIDER:-openrouter}"
+      echo "  default:  $(default_model_for_provider)"
+      printf '  Model to use (Enter for the default): '
+      read -r REVIEW_MODEL_ANSWER < /dev/tty || REVIEW_MODEL_ANSWER=""
+      REVIEW_MODEL="$REVIEW_MODEL_ANSWER"
+    fi
     mkdir -p "$ROOT/.github/workflows"
     sed "s|__REVIEW_API_KEY_SECRET__|$SECRET|g" "$SOURCE_YML" > "$WORKFLOW"
     set_key REVIEW_LANE on
     set_key REVIEW_API_KEY_SECRET "$SECRET"
+    set_key REVIEW_MODEL "${REVIEW_MODEL:-}"
     echo "review lane: enabled."
+    echo "  model:  ${REVIEW_MODEL:-$(default_model_for_provider) (frontier tier)}"
     echo ""
     echo "  It runs a model over the diff of every pull request and posts an"
     echo "  advisory comment. That costs tokens on each PR — the reviewer is"

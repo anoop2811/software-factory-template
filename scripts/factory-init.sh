@@ -628,6 +628,16 @@ echo "Applying models to opencode, Claude, and Codex..."
 (cd "$TARGET_DIR" && ./scripts/sync-opencode.sh && ./scripts/sync-claude.sh && ./scripts/sync-codex.sh) \
   || echo "  warning: harness sync did not complete — run 'make sync-harnesses' (jq required)"
 
+# ── Install the review lane if it was asked for ──────────────────────
+# Route through the same enable command the upgrade offer uses, so there is one
+# install path rather than two that can drift. Recording REVIEW_LANE="on" in the
+# config without installing the workflow would be a flag that governs nothing.
+if [ "$REVIEW_LANE" = "on" ] && [ -x "$TARGET_DIR/scripts/factory-review-lane.sh" ]; then
+  echo ""
+  ( cd "$TARGET_DIR" && ./scripts/factory-review-lane.sh enable ) \
+    || echo "  warning: could not enable the review lane — run './factory review-lane enable'"
+fi
+
 # ── Post-install attestation (Verification Contract rule 3) ───────────
 # The installer does not say "done" — it proves the installed gates fire.
 echo ""

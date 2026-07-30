@@ -1000,3 +1000,53 @@ Also fixed here: `run_with_timeout` in `golden-task-eval.sh` killed only the
 runner process, leaving its children orphaned and holding the inherited pipe —
 which stalled the caller for two minutes when a runner spawned a background
 child. It now runs the child in its own process group and kills the tree.
+
+## Decision 38 (2026-07-29): the review lane reaches existing repositories, and upgrade cannot recurse into itself
+
+What: three defects that together made the review lane invisible to anyone who
+already had the factory.
+
+1. `packs/review-lane/review-pr.yml` was copied by `factory-init` but was not in
+   `factory-upgrade`'s framework list, so an upgraded repository never received
+   it. The capability offer is guarded on that file existing, so the offer
+   silently never fired — and `factory review-lane enable` would have failed too.
+   It is now shipped, and `copy_framework` creates a framework file's parent
+   directory rather than skipping the file when the directory is absent.
+2. `factory-init` recorded `REVIEW_LANE="on"` without installing the workflow — a
+   flag governing nothing. Init now routes through `factory review-lane enable`,
+   the same path the upgrade offer uses, so there is one install path instead of
+   two that drift.
+3. Nothing asked which model reviews. `enable` now prompts when there is a
+   terminal and no model is already chosen, shows the provider's frontier
+   default, and records `REVIEW_MODEL`. Both init and the upgrade offer inherit
+   it by routing through `enable`.
+
+Also fixed, and more serious than any of the above: `factory upgrade` could
+**fork-bomb**. Upgrade runs `factory doctor`, doctor proves itself with the
+self-test, and the self-test exercises upgrade — an unbounded cycle. It was
+latent until fix (1) made `copy_framework` create parent directories, which let
+the nested sandbox receive `factory-doctor.sh` and the self-test and so complete
+the loop. Observed: 53 processes and climbing from a single `factory upgrade`,
+which had to be killed. A re-entrancy guard (`FACTORY_UPGRADE_ACTIVE`) now makes
+a nested upgrade skip the doctor proof, and the same run finishes in 18 seconds
+with no processes left behind. The capability offer also moved ahead of the
+doctor proof, so an adopter is asked while the upgrade is fresh rather than after
+a full break/fix run.
+
+Why it matters beyond this feature: a guard is only as good as its delivery. Two
+of these three defects are the same shape as Decision 28 — a new file that init
+ships and upgrade does not — which is now covered by a self-test case asserting
+the framework list contains the workflow template, and another asserting the
+re-entrancy guard exists.
+
+Provenance: founder report — upgraded a repository to the latest main and was
+never prompted about the adversarial review or which model to use — 2026-07-29.
+Verified this session: a repository built from the v0.1.1 tag and upgraded to
+main received the workflow template, was offered the capability, and when
+answered interactively through a pty recorded `REVIEW_LANE="on"`,
+`REVIEW_MODEL="openrouter/anthropic/claude-opus-4.8"` and
+`REVIEW_API_KEY_SECRET="OPENROUTER_API_KEY"`, installed the workflow with the
+secret substituted and no placeholder left, and did not ask again on the next
+upgrade; the same upgrade completed in 18s leaving no stray processes. `bash
+scripts/selftest/run.sh` reported "86 passed, 0 failed"; `make check-drift` and
+`copy-manifest-check` exited 0.

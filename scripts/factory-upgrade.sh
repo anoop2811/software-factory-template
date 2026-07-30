@@ -31,6 +31,13 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+# Re-entrancy guard. Upgrade runs factory doctor, doctor proves itself with the
+# self-test, and the self-test exercises upgrade — so an unguarded run recurses
+# without bound and forks until the machine gives up. Remember whether we are
+# already inside an upgrade, then mark that we are.
+UPGRADE_NESTED="${FACTORY_UPGRADE_ACTIVE:-}"
+export FACTORY_UPGRADE_ACTIVE=1
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 
@@ -67,6 +74,7 @@ scripts/factory-upgrade.sh
 scripts/factory-report.sh
 scripts/factory-review-lane.sh
 scripts/adversarial-review.sh
+packs/review-lane/review-pr.yml
 scripts/pre-push-check.sh
 scripts/prereq-check.sh
 scripts/citation-lint.sh
@@ -88,7 +96,7 @@ copy_framework() {
   # not skipped: a repo installed before a framework file existed (e.g. a new
   # lib that shipped scripts now source) must receive it, or those scripts break.
   # Only the parent directory must already exist, which init guarantees.
-  [ -d "$(dirname "$rel")" ] || return 0
+  mkdir -p "$(dirname "$rel")" 2>/dev/null || return 0
   if [ -f "$rel" ] && cmp -s "$src" "$rel"; then
     return 0
   fi
@@ -141,13 +149,6 @@ for rel in $IDENTITY; do
 done
 echo "  (the adapters .claude/ and .codex/ regenerate from opencode.json via 'make sync-harnesses')"
 
-# ── Prove the gates still fire, then hand back for review ────────────
-echo ""
-if [ -x scripts/factory-doctor.sh ]; then
-  echo "Running factory doctor..."
-  ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
-fi
-
 # ── Opt-in capabilities this repository has never been offered ───────
 # A capability nobody hears about is a capability nobody uses; a capability that
 # asks again after you declined is nagware. So: ask once, and let the answer
@@ -197,6 +198,17 @@ if [ -f packs/review-lane/review-pr.yml ]; then
   capability_offer REVIEW_LANE "adversarial PR review" \
     "A model reviews each PR diff and posts an advisory comment — never a required check. Costs tokens on every PR, and needs a repository secret you add." \
     "./factory review-lane enable"
+fi
+
+# ── Prove the gates still fire, then hand back for review ────────────
+# After the questions, not before: an adopter answers while the upgrade is
+# fresh rather than waiting through a full break/fix proof first.
+echo ""
+if [ -n "$UPGRADE_NESTED" ]; then
+  echo "(nested upgrade — skipping the doctor proof to avoid recursion)"
+elif [ -x scripts/factory-doctor.sh ]; then
+  echo "Running factory doctor..."
+  ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
 fi
 
 echo ""

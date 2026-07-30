@@ -535,6 +535,15 @@ cap_offer_output() {
   ( cd "$OFFROOT" && bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
 }
 check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
+# The offer is guarded on the workflow template existing, so upgrade must SHIP
+# it — otherwise the capability is announced to nobody, which is how it shipped
+# broken the first time.
+check "upgrade ships the workflow template the offer depends on" "1" \
+  "$(grep -c '^packs/review-lane/review-pr.yml$' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
+# Upgrade runs doctor, doctor runs the self-test, and the self-test runs upgrade.
+# Without a re-entrancy guard that recurses until the machine gives up.
+check "upgrade guards against recursing into itself" "1" \
+  "$(grep -c 'UPGRADE_NESTED' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" >/dev/null && echo 1 || echo 0)"
 check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="off"
 ')"
 check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"

@@ -16,11 +16,24 @@ A model reviews the diff of every pull request and posts one advisory comment.
 ./factory review-lane enable        # installs the workflow, records the choice
 ```
 
-Then add the repository secret it names — GitHub → Settings → Secrets and
-variables → Actions. The name follows your provider (`OPENROUTER_API_KEY`,
-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) and is recorded as `REVIEW_API_KEY_SECRET`
-in `factory.config`. Without it the lane comments to say so rather than failing
-silently.
+### The one step that is yours
+
+**The lane cannot work until you add a repository secret.** Nothing in the
+factory can do this for you.
+
+> **GitHub → Settings → Secrets and variables → Actions → New repository secret**
+> - **Name:** whatever `REVIEW_API_KEY_SECRET` says in `factory.config` — it
+>   follows your provider (`OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`,
+>   `OPENAI_API_KEY`)
+> - **Value:** your API key for that provider
+
+Until it exists the lane comments to say the secret is missing rather than
+failing silently, and `./factory doctor` reports the lane as a warning on every
+run — so this cannot be quietly forgotten. `factory init` and `factory upgrade`
+also end with a highlighted **Action required** block naming the secret, printed
+last so it does not scroll away.
+
+Check any time with `./factory review-lane status`, or `./factory doctor`.
 
 `disable` **removes** the workflow file rather than leaving it inert: a dormant
 `pull_request_target` workflow sitting in a repository is an invitation to switch

@@ -346,6 +346,7 @@ cp "$TEMPLATE_DIR/scripts/lib/config.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/roles.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/events.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/hookspath.sh" "$TARGET_DIR/scripts/lib/"
+cp "$TEMPLATE_DIR/scripts/lib/color.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
 cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
@@ -521,6 +522,28 @@ echo "  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push
 echo "  7. Check health anytime: ./factory doctor"
 echo ""
 echo "factory.config saved — re-run setup.sh to update placeholders."
+
+# ── What still needs a human, printed last so it cannot scroll away ──
+# A reminder buried above a doctor run is a reminder nobody acts on. This is
+# recomputed from actual state every run, so it disappears once the work is done
+# rather than nagging forever.
+if [ -x "$TARGET_DIR"/scripts/factory-review-lane.sh ]; then
+  # Run it inside the target repo: review-lane resolves its root with git
+  # rev-parse from the CWD, which during init is wherever the installer was
+  # invoked — not necessarily the repo being set up.
+  PENDING_OUT="$( (cd "$TARGET_DIR" && ./scripts/factory-review-lane.sh pending) 2>/dev/null || true)"
+  if [ -n "$PENDING_OUT" ]; then
+    echo ""
+    # shellcheck source=lib/color.sh
+    [ -f "$TARGET_DIR"/scripts/lib/color.sh ] && . "$TARGET_DIR"/scripts/lib/color.sh
+    printf '%s\n' "${C_YELLOW:-}${C_BOLD:-}┌─ Action required ${C_RESET:-}"
+    printf '%s\n' "$PENDING_OUT" | while IFS= read -r _pl; do
+      printf '%s\n' "${C_YELLOW:-}│${C_RESET:-} $_pl"
+    done
+    printf '%s\n' "${C_YELLOW:-}└─${C_RESET:-}"
+  fi
+fi
+
 
 # ── Install a language pack (arms the gates for your language) ────────
 # Packs live in the template's packs/<lang>/. Selecting one merges its

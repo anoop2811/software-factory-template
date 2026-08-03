@@ -386,7 +386,10 @@ mkdir -p "$UPGROOT/scripts/lib"
 ( cd "$UPGROOT" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$UPGROOT/factory.yaml"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh absent
-( cd "$UPGROOT" && bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+# Marked as nested so the upgrade skips its doctor proof. Without this the
+# cycle is doctor -> selftest -> upgrade -> doctor, which never terminates:
+# the guard inside upgrade only helps when the OUTER process is an upgrade.
+( cd "$UPGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
 
@@ -532,7 +535,7 @@ cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$OFFROOT/packs/review-lane/
 printf 'project_name: t\n' > "$OFFROOT/factory.yaml"
 cap_offer_output() {
   printf 'PROJECT_NAME="t"\n%s' "$1" > "$OFFROOT/factory.config"
-  ( cd "$OFFROOT" && bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
+  ( cd "$OFFROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
 }
 check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
 # The offer is guarded on the workflow template existing, so upgrade must SHIP
@@ -544,6 +547,31 @@ check "upgrade ships the workflow template the offer depends on" "1" \
 # Without a re-entrancy guard that recurses until the machine gives up.
 check "upgrade guards against recursing into itself" "1" \
   "$(grep -c 'UPGRADE_NESTED' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" >/dev/null && echo 1 || echo 0)"
+
+# The cycle doctor -> selftest -> upgrade -> doctor also has to be cut, and the
+# guard inside upgrade cannot do it: it only helps when the OUTER process is an
+# upgrade. The self-test must mark the upgrades it spawns as nested.
+check "selftest marks the upgrades it spawns as nested" "1" \
+  "$(grep -c 'FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"' "$TEMPLATE_ROOT/scripts/selftest/run.sh" >/dev/null && echo 1 || echo 0)"
+# The colour helper is sourced by init and upgrade, so upgrade must ship it —
+# under set -u a missing lib aborted the run the first time this shipped.
+check "upgrade ships the colour lib it sources" "1" \
+  "$(grep -c '^scripts/lib/color.sh$' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
+# Outstanding work is reported from live state: named when the lane is on and the
+# secret is not confirmed, silent when the lane is off.
+PENDROOT="$SANDBOX/pending"
+mkdir -p "$PENDROOT/scripts/lib" "$PENDROOT/packs/review-lane"
+( cd "$PENDROOT" && git init -q )
+cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
+cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$PENDROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$PENDROOT/packs/review-lane/"
+printf 'project_name: t\n' > "$PENDROOT/factory.yaml"
+printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="on"\nREVIEW_API_KEY_SECRET="OPENROUTER_API_KEY"\n' > "$PENDROOT/factory.config"
+check "pending names the secret when the lane is on" "1" \
+  "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c 'OPENROUTER_API_KEY' || true )"
+printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="off"\n' > "$PENDROOT/factory.config"
+check "pending is silent when the lane is off" "0" \
+  "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c . || true )"
 check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="off"
 ')"
 check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"

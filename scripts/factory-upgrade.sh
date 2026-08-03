@@ -68,6 +68,7 @@ scripts/lib/config.sh
 scripts/lib/roles.sh
 scripts/lib/events.sh
 scripts/lib/hookspath.sh
+scripts/lib/color.sh
 scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
@@ -217,3 +218,22 @@ if [ -n "$CLEANUP" ]; then
   echo "  A fresh template checkout is at $TEMPLATE — diff your 'review' files against it, then: rm -rf $CLEANUP"
 fi
 echo "  Review the diff (git status), then commit. Nothing was committed for you."
+
+# ── What still needs a human, printed last so it cannot scroll away ──
+# A reminder buried above a doctor run is a reminder nobody acts on. This is
+# recomputed from actual state every run, so it disappears once the work is done
+# rather than nagging forever.
+if [ -x scripts/factory-review-lane.sh ]; then
+  PENDING_OUT="$(./scripts/factory-review-lane.sh pending 2>/dev/null || true)"
+  if [ -n "$PENDING_OUT" ]; then
+    echo ""
+    # shellcheck source=lib/color.sh
+    [ -f scripts/lib/color.sh ] && . scripts/lib/color.sh
+    printf '%s\n' "${C_YELLOW:-}${C_BOLD:-}┌─ Action required ${C_RESET:-}"
+    printf '%s\n' "$PENDING_OUT" | while IFS= read -r _pl; do
+      printf '%s\n' "${C_YELLOW:-}│${C_RESET:-} $_pl"
+    done
+    printf '%s\n' "${C_YELLOW:-}└─${C_RESET:-}"
+  fi
+fi
+

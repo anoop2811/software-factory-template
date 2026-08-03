@@ -149,10 +149,10 @@ fi
 if [ -x scripts/factory-review-lane.sh ]; then
   RL_STATE="$( . ./factory.config 2>/dev/null; printf '%s' "${REVIEW_LANE:-off}" )"
   if [ "$RL_STATE" = "on" ]; then
-    RL_SECRET="$( . ./factory.config 2>/dev/null; printf '%s' "${REVIEW_API_KEY_SECRET:-}" )"
+    RL_SECRET="$(./scripts/factory-review-lane.sh secret-name 2>/dev/null || true)"
     case "$(./scripts/factory-review-lane.sh pending 2>/dev/null | head -1)" in
       "") armed "review lane            advisory PR review, secret present" ;;
-      *)  warn "review lane is ON but its secret (${RL_SECRET:-unset}) is missing or unverified"
+      *)  warn "review lane is ON but its secret (${RL_SECRET:-see factory.config}) is missing or unverified"
           line "" "  add it: GitHub -> Settings -> Secrets and variables -> Actions" ;;
     esac
   else

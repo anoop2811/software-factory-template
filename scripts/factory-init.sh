@@ -528,7 +528,10 @@ echo "factory.config saved — re-run setup.sh to update placeholders."
 # recomputed from actual state every run, so it disappears once the work is done
 # rather than nagging forever.
 if [ -x "$TARGET_DIR"/scripts/factory-review-lane.sh ]; then
-  PENDING_OUT="$("$TARGET_DIR"/scripts/factory-review-lane.sh pending 2>/dev/null || true)"
+  # Run it inside the target repo: review-lane resolves its root with git
+  # rev-parse from the CWD, which during init is wherever the installer was
+  # invoked — not necessarily the repo being set up.
+  PENDING_OUT="$( (cd "$TARGET_DIR" && ./scripts/factory-review-lane.sh pending) 2>/dev/null || true)"
   if [ -n "$PENDING_OUT" ]; then
     echo ""
     # shellcheck source=lib/color.sh

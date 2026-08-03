@@ -45,16 +45,24 @@ set_key() {
 # one who can add it. Ask GitHub when we can; say "unknown" rather than guess.
 secret_status() {
   [ "${REVIEW_LANE:-off}" = "on" ] || { printf 'n/a'; return 0; }
-  _ss_name="${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}"
-  if command -v gh >/dev/null 2>&1 && gh secret list >/dev/null 2>&1; then
-    if gh secret list 2>/dev/null | awk '{print $1}' | grep -qx "$_ss_name"; then
-      printf 'set'
-    else
-      printf 'missing'
-    fi
-  else
-    printf 'unknown'
+  command -v gh >/dev/null 2>&1 || { printf 'unknown'; return 0; }
+  # One call, reused: listing twice doubles the API round trips and the latency
+  # for no gain, and a failure here means "cannot tell", not "missing".
+  if ! _ss_list="$(gh secret list 2>/dev/null)"; then
+    printf 'unknown'; return 0
   fi
+  if printf '%s\n' "$_ss_list" | awk '{print $1}' | grep -qx "$(effective_secret_name)"; then
+    printf 'set'
+  else
+    printf 'missing'
+  fi
+}
+
+# The name every message must agree on: explicit config, else the provider's
+# default. Reporting "unset" while the lane falls back to a real name would send
+# the adopter to add the wrong secret.
+effective_secret_name() {
+  printf '%s' "${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}"
 }
 
 default_model_for_provider() {
@@ -131,10 +139,14 @@ case "$CMD" in
     echo "review lane: disabled (workflow removed; nothing runs on your PRs)."
     ;;
 
+  secret-name)
+    effective_secret_name; echo
+    ;;
+
   pending)
     # One line per outstanding action; silence means nothing to do.
     if [ "${REVIEW_LANE:-off}" = "on" ]; then
-      SEC="${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}"
+      SEC="$(effective_secret_name)"
       case "$(secret_status)" in
         missing|unknown)
           echo "The adversarial review lane is ON but needs a repository secret:"
@@ -147,7 +159,7 @@ case "$CMD" in
     ;;
 
   *)
-    echo "usage: factory review-lane [status|enable|disable|pending]" >&2
+    echo "usage: factory review-lane [status|enable|disable|pending|secret-name]" >&2
     exit 2
     ;;
 esac

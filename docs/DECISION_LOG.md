@@ -1050,3 +1050,52 @@ secret substituted and no placeholder left, and did not ask again on the next
 upgrade; the same upgrade completed in 18s leaving no stray processes. `bash
 scripts/selftest/run.sh` reported "86 passed, 0 failed"; `make check-drift` and
 `copy-manifest-check` exited 0.
+
+## Decision 39 (2026-08-02): work the adopter must do is reported last, highlighted, and until it is done
+
+What: the review lane's required repository secret is surfaced three ways instead
+of one line in the middle of a run.
+
+1. `scripts/lib/color.sh` adds emphasis that degrades correctly — colour only
+   when stdout is a terminal and `NO_COLOR` is unset, so a piped log or CI
+   transcript gets plain text rather than escape codes.
+2. `factory init` and `factory upgrade` end with a highlighted **Action required**
+   block, printed after the doctor proof so it cannot scroll away. It is
+   recomputed from live state each run (`factory review-lane pending`), so it
+   appears only while the work is outstanding and disappears once done.
+3. `factory doctor` reports the lane as **armed** only when the secret is
+   confirmed present, as a **warning** when the lane is on but the secret is
+   missing or unverifiable, and **inert** when the lane is off. Where `gh` is
+   available and authenticated the secret is checked for real; otherwise the
+   state is reported as unverified rather than guessed.
+
+Why: a one-time message is not a control. The instruction was already printed at
+enable time, but a doctor run and an upgrade summary followed it, so the only
+thing the adopter had to act on scrolled past. An enabled lane with no secret is
+precisely the inert-gate class this project exists to surface — so it belongs in
+the same armed/inert vocabulary as every other gate, reported on every run until
+it is true.
+
+Also fixed, and it is the same lesson twice more. `color.sh` was sourced by init
+and upgrade but not added to the upgrade framework list, so under `set -u` an
+upgraded repository aborted on an unbound colour variable — the third instance of
+"a new file init ships and upgrade does not" (Decisions 28, 38). It is now
+shipped, its variables are referenced with defaults, and `action_box` has a plain
+fallback, so a missing optional lib can never be why a command fails
+(Decision 34's rule). And the recursion guard from Decision 38 proved
+insufficient: it cut `upgrade → doctor → selftest → upgrade`, but not the same
+cycle entered from `doctor`, because the guard only helps when the *outer*
+process is an upgrade. The self-test now marks the upgrades it spawns as nested,
+which cuts the cycle at its source; `factory doctor` completes in 17s leaving no
+processes behind.
+
+Provenance: founder report — after upgrading, the secret instruction was present
+but not prominent enough and arrived too early to act on — 2026-08-02. Verified
+this session: an upgrade of a v0.1.1 repository ended with the highlighted block
+as its final output with no unbound-variable error; `factory doctor` reported the
+lane as a warning naming the missing secret when on, and inert when off, and
+terminated in 17s with no stray processes; `pending` named the secret when the
+lane was on and printed nothing when off. Four break/fix cases cover the nested
+marker, the shipped colour lib, and both pending states; `bash
+scripts/selftest/run.sh` reported "90 passed, 0 failed"; `make check-drift` and
+`copy-manifest-check` exited 0.

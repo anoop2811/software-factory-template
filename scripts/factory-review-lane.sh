@@ -20,6 +20,10 @@ CONFIG="$ROOT/factory.config"
 WORKFLOW="$ROOT/.github/workflows/adversarial-review.yml"
 SOURCE_YML="$TEMPLATE_DIR/packs/review-lane/review-pr.yml"
 
+# shellcheck source=lib/color.sh
+[ -f "$SCRIPT_DIR/lib/color.sh" ] && . "$SCRIPT_DIR/lib/color.sh"
+# The lib is optional: emphasis must never be why a command fails.
+command -v action_box >/dev/null 2>&1 || action_box() { printf '%s\n' "== $1 =="; shift; for _l in "$@"; do printf '  %s\n' "$_l"; done; }
 # shellcheck source=/dev/null
 [ -f "$CONFIG" ] && . "$CONFIG"
 
@@ -32,6 +36,24 @@ set_key() {
     sed -i.bak "s|^${key}=.*|${key}=\"${val}\"|" "$CONFIG" && rm -f "$CONFIG.bak"
   else
     printf '%s="%s"\n' "$key" "$val" >> "$CONFIG"
+  fi
+}
+
+
+# secret_status -> set | missing | unknown | n/a
+# The lane cannot work without the repository secret, and the adopter is the only
+# one who can add it. Ask GitHub when we can; say "unknown" rather than guess.
+secret_status() {
+  [ "${REVIEW_LANE:-off}" = "on" ] || { printf 'n/a'; return 0; }
+  _ss_name="${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}"
+  if command -v gh >/dev/null 2>&1 && gh secret list >/dev/null 2>&1; then
+    if gh secret list 2>/dev/null | awk '{print $1}' | grep -qx "$_ss_name"; then
+      printf 'set'
+    else
+      printf 'missing'
+    fi
+  else
+    printf 'unknown'
   fi
 }
 
@@ -94,9 +116,10 @@ case "$CMD" in
     echo "  advisory comment. That costs tokens on each PR — the reviewer is"
     echo "  deliberately the frontier tier, so it is the expensive one."
     echo ""
-    echo "  One step is yours, and the lane cannot work without it:"
-    echo "    add a repository secret named $SECRET"
-    echo "    (Settings -> Secrets and variables -> Actions -> New repository secret)"
+    action_box "Action required — the lane cannot work without this" \
+      "Add a repository secret named ${C_BOLD:-}${SECRET}${C_RESET:-}" \
+      "GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret" \
+      "Value: your ${MODEL_PROVIDER:-openrouter} API key"
     echo ""
     echo "  It is advisory only and never a required check. Turn it off any time"
     echo "  with: ./factory review-lane disable"
@@ -108,8 +131,23 @@ case "$CMD" in
     echo "review lane: disabled (workflow removed; nothing runs on your PRs)."
     ;;
 
+  pending)
+    # One line per outstanding action; silence means nothing to do.
+    if [ "${REVIEW_LANE:-off}" = "on" ]; then
+      SEC="${REVIEW_API_KEY_SECRET:-$(default_secret_for_provider)}"
+      case "$(secret_status)" in
+        missing|unknown)
+          echo "The adversarial review lane is ON but needs a repository secret:"
+          echo "  add a secret named $SEC"
+          echo "  GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret"
+          echo "  Until then the lane comments to say the secret is missing."
+          ;;
+      esac
+    fi
+    ;;
+
   *)
-    echo "usage: factory review-lane [status|enable|disable]" >&2
+    echo "usage: factory review-lane [status|enable|disable|pending]" >&2
     exit 2
     ;;
 esac

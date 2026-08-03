@@ -143,6 +143,23 @@ if [ -n "$LP" ]; then
   done
 fi
 
+# The review lane is only armed if the secret it needs actually exists. An
+# enabled lane with no secret looks configured and does nothing — exactly the
+# inert-gate class this report exists to surface.
+if [ -x scripts/factory-review-lane.sh ]; then
+  RL_STATE="$( . ./factory.config 2>/dev/null; printf '%s' "${REVIEW_LANE:-off}" )"
+  if [ "$RL_STATE" = "on" ]; then
+    RL_SECRET="$( . ./factory.config 2>/dev/null; printf '%s' "${REVIEW_API_KEY_SECRET:-}" )"
+    case "$(./scripts/factory-review-lane.sh pending 2>/dev/null | head -1)" in
+      "") armed "review lane            advisory PR review, secret present" ;;
+      *)  warn "review lane is ON but its secret (${RL_SECRET:-unset}) is missing or unverified"
+          line "" "  add it: GitHub -> Settings -> Secrets and variables -> Actions" ;;
+    esac
+  else
+    inert "review lane            off (opt-in; ./factory review-lane enable)"
+  fi
+fi
+
 echo
 echo "Integrity"
 

@@ -310,6 +310,17 @@
     padding: 16px 18px; font-family: var(--mono); font-size: 13px; line-height: 1.85; overflow-x: auto; white-space: pre; box-shadow: var(--shadow-card); }
   .yaml .k { color: var(--blue); } .yaml .v { color: #C9CDD4; } .yaml .c { color: var(--faint); }
 
+  /* a cell that earns the full row */
+  /* min-width:0 because a grid item defaults to min-width:auto, which lets the
+     pre-formatted sample below push the track wider than the viewport instead
+     of scrolling inside its own box. */
+  .cell.span3 { grid-column: 1 / -1; min-width: 0; }
+  @media (max-width: 740px) { .cell.span3 { grid-column: auto; } }
+  .sample { margin-top: 16px; background: #0A0C10; border: 1px solid var(--edge); border-radius: 10px;
+    padding: 16px 18px; font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
+    color: #C9CDD4; overflow-x: auto; white-space: pre; max-width: 100%; }
+  .sample .dim { color: var(--faint); } .sample .warn { color: var(--amber); }
+
   /* callout box (prereqs / after) */
   .callout { margin-top: 22px; background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 18px 20px; box-shadow: var(--shadow-card); }
   .callout h3 { font-size: 14px; margin-bottom: 8px; color: var(--fg); }
@@ -665,6 +676,23 @@ edit test files.</span>
           <span class="mono-label">factory report</span>
           <h3>Cost, without the vanity number</h3>
           <p>What the gates caught, enforced at zero model tokens, plus one clearly-labeled estimate. It refuses to print &ldquo;tokens saved&rdquo; &mdash; that compares this run to one that never happened. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/COST_AND_TOKENS.md">Cost &amp; models &rarr;</a></p>
+        </div>
+        <div class="cell c-blue span3">
+          <span class="mono-label">factory metrics</span>
+          <h3>The numbers that don&rsquo;t flatter you</h3>
+          <p>Whether the factory is real or installed theatre &mdash; gates armed versus inert, what they blocked, how often you route around the same one, how much work got reworked or reverted, and whether your commits cite evidence for what they claim. Most of it is read from git history, so it says something the day you install rather than after months of collecting events.</p>
+          <div class="sample"><span class="dim">Enforcement  is the factory real, or installed theatre?</span>
+  gates installed                    12
+  config-armed gates                 8 armed, <span class="warn">4 inert</span>
+  blocks caught                      31 in window
+    commit-message-lint              22
+    test-edit-denial                  9
+  <span class="warn">same gate 3+ times in an hour       4 hour(s)</span> <span class="dim">&mdash; friction</span>
+
+<span class="dim">Loop health  is work converging, or circling?</span>
+  reworked                           <span class="warn">58 of 117 files</span> <span class="dim">&mdash; changed in more than one commit</span></div>
+          <p style="margin-top:14px">Every metric names the decision it informs; a number nobody acts on is noise wearing a lab coat. The uncomfortable ones are first-class &mdash; inert gates, repeat blocks, rework, stale baselines &mdash; for the same reason there is no &ldquo;tokens saved&rdquo; headline. And a gate that could block without recording it is reported too, because otherwise a silent gate reads as a quiet one.</p>
+          <p style="margin-top:10px"><strong>Local only.</strong> The numbers are computed on your machine, from your repository, for you. Nothing is transmitted &mdash; no exporters to configure, no server, no daemon, no account. <span style="font-family:var(--mono)">--json</span> exports a versioned document if you want it somewhere else; <span style="font-family:var(--mono)">--html</span> writes a self-contained page that fetches nothing when you open it. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/METRICS.md">Metrics reference &rarr;</a></p>
         </div>
       </div>
 

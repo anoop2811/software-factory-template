@@ -395,8 +395,11 @@ cp "$TEMPLATE_DIR/specs/TEMPLATE.md" "$TARGET_DIR/specs/" 2>/dev/null || true
 # ── Substitute placeholders ───────────────────────────────────────────
 echo "Substituting placeholders..."
 
-# Build the citation prefix uppercase (e.g., MYPROJECT_)
-CITATION_PREFIX_UPPER=$(echo "$PROJECT_SLUG" | tr '[:lower:]' '[:upper:]')_
+# The citation prefix is written once, to factory.yaml, from what you were asked
+# (defaulted to SPEC_). There used to be a second one here, derived from the
+# project slug and written to factory.config — the same setting, spelled twice,
+# holding two different values, and read by nothing. Decision 41 is about exactly
+# that; it is gone rather than carried across.
 
 # Files to substitute
 SUBSTITUTE_FILES=(

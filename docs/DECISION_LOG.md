@@ -1272,6 +1272,13 @@ different names — `citation_prefix` and `CITATION_PREFIX`, `protected_paths` a
 spellings of one fact is a drift bug waiting for someone to edit the one the
 hooks do not read, and then wonder why the gate did not change.
 
+That was not hypothetical, and the migration found it. `citation_prefix` in the
+YAML held the answer the adopter gave at init; `CITATION_PREFIX` in the shell
+file held a different value derived from the project slug. One setting, two
+spellings, two values — and the second was read by nothing, so the discrepancy
+had no symptom to notice. It is deleted rather than carried across; the parsed
+key is the one the citation gate has always enforced.
+
 The second cost is sharper: a sourced file is executed. `factory.config` is
 ordinary project configuration that an adopter edits, a merge can conflict in,
 and a pull request can touch — and every script that sourced it ran whatever it

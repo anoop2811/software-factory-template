@@ -449,12 +449,24 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
 # A stale copy of the gate, standing in for one installed by an older release.
 printf '#!/bin/bash\n# stale pack gate\nexit 0\n' > "$PKGROOT/scripts/hooks/vitest-only-check.sh"
 ( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
-check "factory upgrade refreshes a stale pack gate" "0" \
-  "$(grep -c 'stale pack gate' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null || true)"
+if grep -q 'stale pack gate' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null; then
+  PKG_STALE=yes
+else
+  PKG_STALE=no
+fi
+check "factory upgrade refreshes a stale pack gate" "no" "$PKG_STALE"
 # And the refreshed gate is the real one, instrumentation included — proving the
 # content arrived rather than the file merely being touched.
-check "the upgraded pack gate can report a block" "1" \
-  "$(grep -c 'factory_log_event' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null | head -1 | awk '{print ($1>0)?1:0}')"
+#
+# grep -q inside an if, not a counting pipeline: this suite runs under
+# `set -euo pipefail`, where a grep that legitimately matches nothing exits 1
+# and takes the whole run down — precisely in the case this is here to detect.
+if grep -q 'factory_log_event' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null; then
+  PKG_INSTRUMENTED=yes
+else
+  PKG_INSTRUMENTED=no
+fi
+check "the upgraded pack gate can report a block" "yes" "$PKG_INSTRUMENTED"
 
 # Break/fix: the golden-task eval scores a real run — the reference task passes
 # when solved, fails when unsolved, catches a runner that tampers the oracle, and

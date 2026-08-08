@@ -123,6 +123,15 @@
   .nav-gh:hover { border-color: var(--faint); text-decoration: none; }
   .nav-gh svg { width: 15px; height: 15px; fill: currentColor; }
   @media (max-width: 560px) { nav a:not(.nav-gh) { display: none; } }
+  /* On a narrow phone the domain and the GitHub button together want more room
+     than a 28px gutter leaves them, and flex items will not shrink below their
+     own content. Rather than truncate the product name, give the header bar a
+     tighter gutter and gap — it is the one row on the page where the content
+     genuinely cannot reflow. */
+  @media (max-width: 400px) {
+    header .wrap { padding: 0 16px; gap: 10px; }
+    .nav-gh { padding: 7px 10px; }
+  }
 
   /* ── Hero ───────────────────────────────────────────── */
   .hero { position: relative; padding: 84px 0 60px; overflow: hidden; }
@@ -311,10 +320,7 @@
   .yaml .k { color: var(--blue); } .yaml .v { color: #C9CDD4; } .yaml .c { color: var(--faint); }
 
   /* a cell that earns the full row */
-  /* min-width:0 because a grid item defaults to min-width:auto, which lets the
-     pre-formatted sample below push the track wider than the viewport instead
-     of scrolling inside its own box. */
-  .cell.span3 { grid-column: 1 / -1; min-width: 0; }
+  .cell.span3 { grid-column: 1 / -1; }
   @media (max-width: 740px) { .cell.span3 { grid-column: auto; } }
   .sample { margin-top: 16px; background: #0A0C10; border: 1px solid var(--edge); border-radius: 10px;
     padding: 16px 18px; font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
@@ -383,6 +389,32 @@
   /* ── Inside ─────────────────────────────────────────── */
   .grid3 { margin-top: 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   @media (max-width: 740px) { .grid3 { grid-template-columns: 1fr; } }
+
+  /* Every grid on this page, in one place.
+
+     `1fr` is shorthand for `minmax(auto, 1fr)`, and that `auto` floor is the
+     item's min-content width — so a track can never shrink below the widest
+     unbreakable thing inside it. One pre-formatted install snippet in a callout
+     was enough to hold a track at 597px inside a 334px column, which widened
+     the whole document on a phone (624px against a 390px viewport) rather than
+     scrolling inside the box that had asked to scroll.
+
+     A zero floor lets the track shrink and hands the overflow back to the
+     element that opted into `overflow-x: auto`. It applies at every breakpoint,
+     including the single-column ones, where the problem is identical.
+
+     .faq and .diff-list are single-column grids with no explicit template, so
+     they are easy to overlook — their implicit track has the same auto floor.
+     The FAQ hides its worst case behind a closed details element, which is
+     exactly the kind of content a quick resize test never lays out. */
+  .stats > *, .askblock > *, .two-col > *, .docs-strip > *,
+  .diff-row > *, .grid3 > *, .faq > *, .diff-list > * { min-width: 0; }
+
+  /* A zero floor lets the track shrink, but a URL still has no break point, so
+     it would simply hang out of the box instead of the page. These are commands
+     meant to be copied, not admired — wrapping one is better than a page that
+     slides sideways when someone opens an answer. */
+  .faq p, .faq .mono { overflow-wrap: break-word; }
   .cell {
     background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
     padding: 22px 20px; box-shadow: var(--shadow-card);
@@ -400,6 +432,16 @@
   .cell.c-blue .mono-label { color: var(--blue); background: var(--blue-dim); border-color: rgba(122,162,247,.3); }
   .cell.c-violet .mono-label { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,.3); }
 
+  /* Three columns of stack names cannot fit a phone, and squeezing them would
+     hyphenate "golangci-lint" into nonsense. The table keeps its real width and
+     scrolls sideways inside this box instead of dragging the page with it.
+     tabindex makes that scroll reachable from a keyboard. */
+  .table-scroll { margin-top: 34px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 12px; }
+  /* Once it scrolls, squeezing it buys nothing — at 334px the stack column wrapped
+     six lines deep and read worse than a sideways scroll. Give it a legible floor
+     and let the box scroll; on desktop width:100% wins and this never applies. */
+  .table-scroll > table { margin-top: 0; min-width: 520px; }
   table { margin-top: 34px; border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14.5px; background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-card); }
   th, td { text-align: left; padding: 13px 18px; }
   thead tr { background: rgba(0,0,0,.28); }
@@ -696,6 +738,7 @@ edit test files.</span>
         </div>
       </div>
 
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Language pack maturity, scrollable">
       <table aria-label="Language pack maturity">
         <thead><tr><th>Language pack</th><th>Blessed stack</th><th>Maturity</th></tr></thead>
         <tbody>
@@ -704,6 +747,7 @@ edit test files.</span>
           <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ + Testcontainers · Spotless · Error Prone · SpotBugs · OSV-Scanner · PIT</td><td><span class="badge exp">experimental</span></td></tr>
         </tbody>
       </table>
+      </div>
       <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>experimental</em> = no proven adopter yet. Labels change on real adoption — not before. <strong>The core — commit gates, push gates, role separation, the verification contract — is language-agnostic and works with no pack at all.</strong> A pack only arms the test-file pattern and check command for your language, so Python, Rust, or Ruby projects get everything except those two.</p>
       <p class="table-note"><strong>Frameworks ride on the language pack.</strong> React and Vue use the TypeScript pack — Biome auto-applies their rules from your <span class="mono" style="font-family:var(--mono)">package.json</span> — and Spring Boot uses the Java pack (JUnit 5 + Testcontainers). <span class="mono" style="font-family:var(--mono)">factory-init</span> detects them. Polyglot? Install several at once: <span class="mono" style="font-family:var(--mono)">--pack go,typescript</span>.</p>
       <p class="table-note"><strong>Each role runs on a cost-appropriate model.</strong> Reviewer and spec-writer get a frontier model; refactorer, wiki-maintainer, and background tasks get a cheaper one — routed per harness, so opencode, Claude, and Codex each use their own native model tiers. It's opt-in, and it relaxes no gate: the same hooks check the output whichever model wrote it, which is what lets a cheaper model run safely. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/COST_AND_TOKENS.md">Cost &amp; models →</a></p>

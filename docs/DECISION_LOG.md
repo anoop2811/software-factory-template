@@ -1249,3 +1249,52 @@ re-running both paths against a stale gate: the released script left the stale
 marker in place with zero `factory_log_event` occurrences; the fixed script
 removed the marker and delivered a gate carrying the call.
 `bash scripts/selftest/run.sh` reported "112 passed, 0 failed".
+
+## Decision 41 (2026-08-08): one configuration file, not two
+
+What: `factory.yaml` becomes the single configuration file. The keys that lived
+in `factory.config` — cost profile, model provider, the nine per-harness model
+tiers, and the three review-lane settings — move into it as ordinary flat keys.
+`scripts/lib/config.sh` gains `factory_config_export`, which reads them into the
+shell variable names the scripts already use, so consumers stop sourcing a second
+file without changing how they refer to a value.
+
+Why two files existed: `factory.yaml` is *parsed* by `factory_config_get`, and is
+read by hooks that must not execute anything they read. `factory.config` was
+*sourced*, which was convenient for scripts that wanted shell variables and
+wanted them cheaply. That convenience is what accreted: each new setting went
+wherever it was easiest to reach from, and the split stopped tracking any
+principle.
+
+The cost was not tidiness. The same fact came to live in both files under
+different names — `citation_prefix` and `CITATION_PREFIX`, `protected_paths` and
+`PROTECTED_PATH`, `docs_root` and `DOCS_ROOT` — and nothing kept them equal. Two
+spellings of one fact is a drift bug waiting for someone to edit the one the
+hooks do not read, and then wonder why the gate did not change.
+
+The second cost is sharper: a sourced file is executed. `factory.config` is
+ordinary project configuration that an adopter edits, a merge can conflict in,
+and a pull request can touch — and every script that sourced it ran whatever it
+contained. Nothing has gone wrong, and nothing needs to for this to be worth
+closing: configuration should be read, not run. After this change one file is
+parsed, never executed.
+
+Compatibility, because adopters have repositories in the field: `factory.yaml`
+wins, and `factory.config` is still read for any key the YAML does not define.
+An existing repository keeps working with no action at all. `factory upgrade`
+offers a one-time migration through the ask-once mechanism, so it is proposed
+exactly once and never nags; the migration writes the missing keys into
+`factory.yaml`, renames the old file to `factory.config.migrated`, and leaves it
+in the working tree for review rather than deleting it. `factory doctor` reports
+a repository still carrying the legacy file, since a fallback nobody notices is
+how a deprecation lives forever.
+
+Not done here: `factory.config` also recorded values used only during `init`
+(project name, GitHub owner, tool versions). Those are written once and read by
+nothing afterwards, so they move as plain keys without ceremony. Anything genuinely
+needing more structure than `key: value` belongs in a hook, which is the rule
+Decision 2 already set for this format.
+
+Provenance: founder direction, "why is there a factory.config and factory.yaml
+files? shouldnt we just have a single yaml file for configuration?" — 2026-07-26,
+deferred until after the v0.1.2 release and taken up 2026-08-08.

@@ -2,15 +2,15 @@
 set -euo pipefail
 
 # scripts/sync-opencode.sh
-# Applies the per-tier opencode models from factory.config to opencode.json and
-# the .opencode/agent/*.md role files, so reconfiguring is one factory.config
+# Applies the per-tier opencode models from factory.yaml to opencode.json and
+# the .opencode/agent/*.md role files, so reconfiguring is one factory.yaml
 # edit plus `make sync-harnesses` — the same flow as Claude and Codex.
 #
 # It writes the top-level model (default tier), small_model (economy tier), and
 # each agent's model (by role tier). The COST_PROFILE collapse is applied here,
-# at sync time, so flipping the profile in factory.config and re-syncing works.
+# at sync time, so flipping the profile in factory.yaml and re-syncing works.
 #
-# In the template repo there is no factory.config, so OPENCODE_*_MODEL are unset
+# In the template repo these keys are unset, so OPENCODE_*_MODEL stay unset
 # and this script leaves opencode.json / the role files untouched — the committed
 # placeholders stay put and the drift check stays clean.
 
@@ -27,15 +27,20 @@ if [ ! -f "$OPENCODE_JSON" ]; then
   exit 1
 fi
 
-# shellcheck source=/dev/null
-[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# Settings come from factory.yaml, parsed rather than sourced (Decision 41);
+# older repos keep theirs in factory.config and are still read.
+# shellcheck source=lib/config.sh
+. "$ROOT_DIR/scripts/lib/config.sh"
+factory_config_export
 # shellcheck source=lib/roles.sh
 . "$ROOT_DIR/scripts/lib/roles.sh"
 
-# No factory.config at all is the template repo itself: leave the committed
-# placeholders alone so the repo stays drift-clean.
-if [ ! -f "$ROOT_DIR/factory.config" ]; then
-  echo "sync-opencode: no factory.config — leaving opencode.json as-is"
+# The template repo itself has no configured harness settings: leave the
+# committed placeholders alone so the repo stays drift-clean. The signal is the
+# absence of the keys rather than the absence of a file — since Decision 41 they
+# live in factory.yaml, which every factory repo has, including this one.
+if ! factory_config_has cost_profile && [ ! -f "$ROOT_DIR/factory.config" ]; then
+  echo "sync-opencode: no harness settings configured — leaving opencode.json as-is"
   exit 0
 fi
 

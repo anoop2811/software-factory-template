@@ -38,6 +38,24 @@ Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no 
 | `local_hooks` | Space-separated paths to hooks *you* wrote. Checked for existence and the execute bit like the shipped ones, and — unlike editing a framework file — survives `factory upgrade`. | `"scripts/hooks/my-gate.sh"` |
 | `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"make check"` |
 
+The keys above arm the gates. The rest configure the harnesses — which model does
+which work, and whether the advisory review lane runs. They used to live in a
+separate `factory.config` that scripts *sourced*; they are ordinary keys here now
+(Decision 41), so one file is parsed and nothing is executed.
+
+| Key | Meaning | Example |
+|---|---|---|
+| `cost_profile` | `standard` (two tiers) or `economy` (adds a cheaper third for low-stakes roles). | `economy` |
+| `model_provider` | Which provider seeded the tiers. `inherit` writes no pins at all. | `openrouter` |
+| `<harness>_<tier>_model` | The model for that tier on that harness — `opencode`/`claude`/`codex` × `frontier`/`default`/`economy`. Blank means inherit. | `claude_economy_model: "claude-haiku-4-5"` |
+| `review_lane` | `on`/`off` for the advisory adversarial PR review. Its presence is the record of having been asked. | `off` |
+| `review_model` | Pin a reviewer model; blank resolves the frontier tier at run time. | `""` |
+| `review_api_key_secret` | Name of the repository secret CI reads the key from. | `OPENROUTER_API_KEY` |
+
+If you have a `factory.config` from an earlier release it still works — it is read
+for any key the YAML does not define. `./factory migrate-config` moves it across
+(`--dry-run` to preview), and `factory doctor` reminds you while it is still there.
+
 A complete `factory.yaml` for an HTTP API project, using the template's own real keys:
 
 ```yaml
@@ -88,7 +106,7 @@ low-stakes roles (`refactorer`, `wiki-maintainer`, the opencode `small_model`),
 while leaving the review path frontier.
 
 Each harness has its own native model namespace, so each carries its own per-tier
-models in `factory.config` — shipped as intelligent defaults, overridable there:
+models in `factory.yaml` — shipped as intelligent defaults, overridable there:
 
 ```sh
 MODEL_PROVIDER                                                              # seeds the tiers below
@@ -103,7 +121,7 @@ its own configuration. See [MODELS.md](MODELS.md).
 
 `scripts/lib/roles.sh` maps each role to its tier, and `make sync-harnesses`
 writes the right per-tier model into each harness — opencode included. To
-reconfigure later, edit `factory.config` (change a model, or flip `COST_PROFILE`
+reconfigure later, edit `factory.yaml` (change a model, or flip `cost_profile`
 between `standard` and `economy`) and run `make sync-harnesses`; the collapse is
 applied at sync time, so one edit re-routes all three harnesses. It is a routing
 change only — no gate is relaxed, so the same hooks check the output whichever

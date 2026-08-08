@@ -19,9 +19,12 @@ if [ "${1:-}" = "--clear" ]; then
   exit 0
 fi
 
-# Model routing is a fact read from factory.config (absent in the template repo).
-# shellcheck source=/dev/null
-[ -f "$DIR/factory.config" ] && . "$DIR/factory.config"
+# Model routing is a fact read from factory.yaml, parsed rather than sourced
+# (Decision 41). Absent in the template repo, and older repos keep theirs in
+# factory.config, which is still read.
+# shellcheck source=lib/config.sh
+. "$DIR/scripts/lib/config.sh"
+factory_config_export
 
 # Rough token cost of one LLM review pass, for the estimate only. Overridable —
 # but it lands in arithmetic below, so a non-integer value falls back to the

@@ -103,11 +103,16 @@ run_with_timeout() {
 # Inputs that affect every task: the runner (what drives the agent), the shared
 # instructions, and the model tiers. Change any of them and the saved scores were
 # measured against a different system.
-# Each input is optional — a missing AGENTS.md or factory.config contributes
-# nothing rather than failing the run (cat/grep exit non-zero under set -e).
+# Each input is optional — a missing AGENTS.md or config file contributes nothing
+# rather than failing the run (cat/grep exit non-zero under set -e).
+#
+# Both config files are read. Settings moved into factory.yaml in Decision 41,
+# and reading only the old one would mean a model change no longer invalidated a
+# baseline — the exact silent-staleness failure this fingerprint exists to catch.
 {
   cat "$RUNNER_ABS" 2>/dev/null || true
   cat AGENTS.md 2>/dev/null || true
+  grep -E '^(cost_profile|[a-z]+_(frontier|default|economy)_model):' factory.yaml 2>/dev/null || true
   grep -E '^(COST_PROFILE|[A-Z]+_(FRONTIER|DEFAULT|ECONOMY)_MODEL)=' factory.config 2>/dev/null || true
 } > "$TMP_INPUTS"
 INPUTS_FP="$(fingerprint "$TMP_INPUTS")"

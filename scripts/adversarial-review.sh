@@ -13,7 +13,7 @@ set -euo pipefail
 #   ./scripts/adversarial-review.sh <diff-file>          # writes markdown to stdout
 #   REVIEW_MODEL=... REVIEW_API_KEY=... ./scripts/adversarial-review.sh diff.patch
 #
-# Reads from factory.config (or the environment, which wins):
+# Reads from factory.yaml (or the environment, which wins):
 #   MODEL_PROVIDER   openrouter | anthropic | openai
 #   REVIEW_MODEL     model id; falls back to the frontier tier for the provider
 #   REVIEW_API_KEY   the key itself, supplied by CI from a repository secret
@@ -33,14 +33,19 @@ for tool in curl jq; do
   command -v "$tool" >/dev/null 2>&1 || { echo "adversarial-review: $tool is required" >&2; exit 1; }
 done
 
-# shellcheck source=/dev/null
-[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# Settings are parsed from factory.yaml, never sourced (Decision 41). That
+# matters most here: this script runs in CI against pull requests, and reading a
+# repository file must never mean executing it. Older repos keep theirs in
+# factory.config and are still read.
+# shellcheck source=lib/config.sh
+. "$ROOT_DIR/scripts/lib/config.sh"
+factory_config_export
 
 PROVIDER="${MODEL_PROVIDER:-openrouter}"
 API_KEY="${REVIEW_API_KEY:-}"
 if [ -z "$API_KEY" ]; then
   echo "adversarial-review: no REVIEW_API_KEY in the environment." >&2
-  echo "  CI supplies it from the repository secret named in factory.config." >&2
+  echo "  CI supplies it from the repository secret named in factory.yaml." >&2
   exit 1
 fi
 

@@ -1212,3 +1212,40 @@ gate, a mute pack gate, and a gate calling the logger without sourcing it are al
 rejected; an advisory `exit 0` script and a marker-exempt gate pass.
 `bash scripts/selftest/run.sh` reported "110 passed, 0 failed" (was 103);
 `make check-drift`, `copy-manifest-check` and `hook-existence-check` exited 0.
+
+### Amendment (2026-08-08): pack dialect gates were never upgradeable
+
+Found immediately after tagging v0.1.3, while verifying that an adopter on
+v0.1.2 could actually reach the new instrumentation. They could not.
+
+`copy_framework` derived its source as `$TEMPLATE/<destination path>`, which is
+correct for everything the template stores where the adopter stores it. Pack
+dialect gates are the one exception: upstream they live in
+`packs/<lang>/hooks/`, and they install into `scripts/hooks/`. So the upgrade
+asked for `$TEMPLATE/scripts/hooks/vitest-only-check.sh`, the guard
+`[ -f "$src" ] || return 0` found nothing, and the function returned success.
+No error, no skip message, nothing in the file list — an adopter kept whichever
+dialect gate they first installed with, forever, and had no way to know.
+
+This predates v0.1.3; the instrumentation work only made it visible, because
+`vitest-only-check` was the gate that most obviously failed to change. The fix
+gives `copy_framework` an optional explicit source and passes the real pack path
+for those gates. Two break/fix cases cover it: a stale gate must lose its stale
+marker after an upgrade, and the refreshed gate must contain the instrumentation
+— content arriving, not merely a file being touched.
+
+A second, milder wrinkle surfaced in the same test and is not a defect: upgrading
+across a release that adds framework files takes two runs, because the upgrade
+script executing the copy is the adopter's old one, carrying the old file list.
+It replaces itself on the first run, so the second delivers the rest. That is
+inherent to a self-upgrading shell script, and the atomic-rename comment in
+`copy_framework` already anticipates it.
+
+Provenance: observed 2026-08-08 against the published v0.1.3 tag. A repository
+seeded from the v0.1.2 tree and upgraded with `--ref v0.1.3` still carried the
+stale pack gate after two upgrade runs, while `scripts/factory-metrics.sh` and
+`templates/metrics.html` arrived on the second. Verified after the fix by
+re-running both paths against a stale gate: the released script left the stale
+marker in place with zero `factory_log_event` occurrences; the fixed script
+removed the marker and delivered a gate carrying the call.
+`bash scripts/selftest/run.sh` reported "112 passed, 0 failed".

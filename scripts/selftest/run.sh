@@ -435,6 +435,27 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh a
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
 
+# Break/fix: pack dialect gates are upgradeable. They are the one thing the
+# template stores somewhere other than where the adopter keeps it — upstream in
+# packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an
+# explicit source. It did not have one, the file check found nothing at the
+# assumed path and returned success, and pack gates were silently never
+# upgraded: an adopter kept whatever gate they installed with, forever.
+PKGROOT="$SANDBOX/packupg"
+mkdir -p "$PKGROOT/scripts/hooks" "$PKGROOT/scripts/lib"
+( cd "$PKGROOT" && git init -q )
+printf 'project_name: t\nlanguage_packs: "typescript"\n' > "$PKGROOT/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
+# A stale copy of the gate, standing in for one installed by an older release.
+printf '#!/bin/bash\n# stale pack gate\nexit 0\n' > "$PKGROOT/scripts/hooks/vitest-only-check.sh"
+( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+check "factory upgrade refreshes a stale pack gate" "0" \
+  "$(grep -c 'stale pack gate' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null || true)"
+# And the refreshed gate is the real one, instrumentation included — proving the
+# content arrived rather than the file merely being touched.
+check "the upgraded pack gate can report a block" "1" \
+  "$(grep -c 'factory_log_event' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null | head -1 | awk '{print ($1>0)?1:0}')"
+
 # Break/fix: the golden-task eval scores a real run — the reference task passes
 # when solved, fails when unsolved, catches a runner that tampers the oracle, and
 # flags a regression from a saved baseline. The mock runner keeps it credential-free.

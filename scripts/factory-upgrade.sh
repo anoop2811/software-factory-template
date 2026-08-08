@@ -90,9 +90,17 @@ scripts/sync-codex.sh
 
 copied=0
 
+# copy_framework <dest-relative-path> [source-relative-path]
+#
+# The source defaults to the same path inside the template, which holds for
+# everything the template keeps where the adopter keeps it. Pack dialect gates
+# are the exception: they live in packs/<lang>/hooks/ upstream and install into
+# scripts/hooks/, so they must pass their real source. Without that this
+# function looked for $TEMPLATE/scripts/hooks/<gate>.sh, found nothing, and
+# returned success — pack gates were silently never upgraded.
 copy_framework() {
   local rel="$1"
-  local src="$TEMPLATE/$rel"
+  local src="$TEMPLATE/${2:-$rel}"
   [ -f "$src" ] || return 0
   # Add or refresh the framework file. It carries no install-time placeholders,
   # so a copy is byte-identical by design (Decision 2). Missing files are added,
@@ -128,7 +136,7 @@ LP="$(sed -n 's/^language_packs:[[:space:]]*//p' factory.yaml | head -1 | tr -d 
 for lang in $LP; do
   for src in "$TEMPLATE"/packs/"$lang"/hooks/*.sh; do
     [ -f "$src" ] || continue
-    copy_framework "scripts/hooks/$(basename "$src")"
+    copy_framework "scripts/hooks/$(basename "$src")" "packs/$lang/hooks/$(basename "$src")"
   done
 done
 

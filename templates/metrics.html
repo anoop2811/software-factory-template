@@ -47,7 +47,13 @@
 <script>
 const DATA = /*__FACTORY_METRICS_JSON__*/null;
 
-const el = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; };
+// Everything measured from the repository — gate names, task names — is text,
+// not markup. .factory/events.log is an ordinary writable file, so a hand-edited
+// gate name must render as the odd string it is rather than run when the report
+// is opened. Numbers the script computes itself are passed through unescaped.
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 const card = (n, lbl, cls = '', note = '') =>
   `<div class="card"><div class="n ${cls}">${n}</div><div class="lbl">${lbl}</div>${
      note ? `<div class="note">${note}</div>` : ''}</div>`;
@@ -70,13 +76,14 @@ function render(d) {
       ${card(e.gates_installed, 'gates installed')}
       ${card(e.gates_armed, 'armed by config', e.gates_armed ? 'good' : 'warn')}
       ${card(e.gates_inert, 'inert', e.gates_inert ? 'warn' : '', 'a choice, not a fault')}
-      ${card(e.blocks_in_window, 'blocks caught', '', `${e.blocks_total} all time`)}
+      ${card(e.blocks_in_window, 'blocks caught', '', `${e.blocks_total} retained`)}
     </div>`);
   if (e.blocks_by_gate.length) {
     const max = Math.max(...e.blocks_by_gate.map(g => g.blocks));
     parts.push(`<table><tr><th>Gate</th><th style="text-align:right">Blocks</th></tr>` +
-      e.blocks_by_gate.map(g => `<tr><td>${g.gate}<div class="bar"><i style="width:${
-        (g.blocks / max) * 100}%"></i></div></td><td class="num">${g.blocks}</td></tr>`).join('') +
+      e.blocks_by_gate.map(g => `<tr><td>${esc(g.gate)}<div class="bar"><i style="width:${
+        (Number(g.blocks) / max) * 100}%"></i></div></td><td class="num">${
+        Number(g.blocks)}</td></tr>`).join('') +
       `</table>`);
   }
   if (e.repeat_block_hours > 0) {
@@ -111,9 +118,10 @@ function render(d) {
       a.tasks.map(t => {
         const cur = t.current === null || t.current === undefined ? '&mdash;' : t.current;
         const worse = t.current !== null && t.current !== undefined && t.current < t.baseline;
-        return `<tr><td>${t.harness}</td><td>${t.task}</td>
-          <td class="num">${t.baseline}</td>
-          <td class="num" style="${worse ? 'color:var(--red)' : ''}">${cur}</td></tr>`;
+        return `<tr><td>${esc(t.harness)}</td><td>${esc(t.task)}</td>
+          <td class="num">${esc(t.baseline)}</td>
+          <td class="num" style="${worse ? 'color:var(--red)' : ''}">${
+            cur === '&mdash;' ? cur : esc(cur)}</td></tr>`;
       }).join('') + `</table>`);
     if (a.stale) parts.push(`<p class="note" style="color:var(--amber)">${a.stale} baseline(s)
       <strong>stale</strong> &mdash; measured against inputs that have since changed, so the
@@ -122,7 +130,7 @@ function render(d) {
   parts.push(`</section>`);
 
   parts.push(`<footer><strong>Not measured here.</strong><ul style="margin:6px 0 0 18px">` +
-    d.not_measured.map(n => `<li>${n}</li>`).join('') +
+    d.not_measured.map(n => `<li>${esc(n)}</li>`).join('') +
     `</ul><p style="margin-top:10px">Local only. The factory you install never phones home &mdash;
      these numbers were computed here and stayed here. Export with
      <code>factory metrics --json</code>.</p></footer>`);

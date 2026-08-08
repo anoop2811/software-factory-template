@@ -22,9 +22,12 @@ factory_log_event() {
   # raw events are dropped, so `factory metrics` reports blocks RETAINED rather
   # than claiming an all-time total it can no longer stand behind.
   _max="${FACTORY_EVENT_MAX_LINES:-5000}"
-  case "$_max" in ''|*[!0-9]*) _max=5000 ;; esac
+  case "$_max" in ''|*[!0-9]*|0) _max=5000 ;; esac
+  # Keep at least one line. A tiny cap must mean "keep very little", never
+  # "silently empty the log the moment it fills".
+  _keep=$((_max / 2)); [ "$_keep" -lt 1 ] && _keep=1
   if [ "$(wc -l < "$_log" 2>/dev/null || echo 0)" -gt "$_max" ]; then
-    tail -n "$((_max / 2))" "$_log" > "$_log.trim" 2>/dev/null &&
+    tail -n "$_keep" "$_log" > "$_log.trim" 2>/dev/null &&
       mv -f "$_log.trim" "$_log" 2>/dev/null || true
   fi
   return 0

@@ -33,6 +33,10 @@ refuses to print a "tokens saved" headline.
 | **Verification discipline** | Are claims cited, or asserted? Commits claiming "verified"/"fixed"/"works" that carry command-and-output evidence. |
 | **Agents** | Getting better, or worse? Eval pass rate per task against baseline, and how many baselines have gone stale. |
 
+Verification is counted **per commit**, not per line. A commit whose body claims
+"fixed" on three separate bullets is one commit that made a claim; counting the
+lines would inflate both numbers against a report that says "commits".
+
 Repeat blocks deserve a note: one gate firing three or more times within an hour
 is reported as **friction**, not as a win. It means either the gate is catching a
 real habit or the gate is wrong, and you cannot tell which from the number alone

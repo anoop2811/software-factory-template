@@ -89,8 +89,28 @@ TOUCHED_FILES="$( { git log --since="$SINCE" --name-only --format='' 2>/dev/null
 
 # ── Verification discipline: are claims cited, or asserted? ──
 # The contract's whole point. Counted over real history, not self-reported.
-CLAIM_COMMITS="$( { git log --since="$SINCE" --format='%B%x00' 2>/dev/null || true; } | tr '\0' '\n' | grep -ciE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)' || true)"
-CITED_COMMITS="$( { git log --since="$SINCE" --format='%B%x00' 2>/dev/null || true; } | tr '\0' '\n' | { grep -iE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)' || true; } | grep -cE '(`[^`]+`|→|exit:|NOT verified|unverified)' || true)"
+#
+# Per commit, not per line. A commit whose body makes the claim on three bullets
+# is one commit that made a claim, and counting the lines would inflate both
+# numbers against a report that says "commits".
+VERIFICATION="$( { git log --since="$SINCE" --format='%B%x00' 2>/dev/null || true; } | python3 -c '
+import re, sys
+raw = sys.stdin.buffer.read().decode("utf-8", "replace")
+claim = re.compile(r"(?:^|[^\w])(?:verified|fixed|works)(?:[^\w]|$)", re.I)
+# Evidence: a quoted command, an arrow to output, an exit status, or an explicit
+# admission that something was NOT verified — the honest form counts as cited.
+cite = re.compile(r"`[^`]+`|→|exit:|NOT verified|unverified")
+claims = cited = 0
+for msg in raw.split("\x00"):
+    if not msg.strip() or not claim.search(msg):
+        continue
+    claims += 1
+    if cite.search(msg):
+        cited += 1
+print(claims, cited)
+' 2>/dev/null || echo "0 0")"
+CLAIM_COMMITS="${VERIFICATION%% *}"
+CITED_COMMITS="${VERIFICATION##* }"
 
 # ── Agent quality, from eval baselines ──
 EVAL_JSON="$(python3 - "$ROOT" <<'PY' 2>/dev/null || echo '{"tasks":[],"stale":0,"harnesses":0}'
@@ -188,12 +208,28 @@ case "$FORMAT" in
     mkdir -p "$ROOT/.factory"
     # The page is a normal HTML file; only the data is injected. Edit the
     # template like any web page — no server, no build step, no binary.
-    python3 - "$TPL" "$OUT" <<PY
+    #
+    # The JSON travels through a file, and the heredoc below is quoted. An
+    # unquoted heredoc would let the shell expand anything the JSON happened to
+    # contain — and the JSON carries repo-derived strings such as gate names
+    # from .factory/events.log, which is an ordinary writable file. Data must
+    # not become code on the way to the page.
+    METRICS_TMP="$(mktemp "${TMPDIR:-/tmp}/factory-metrics.XXXXXX")"
+    trap 'rm -f "$METRICS_TMP"' EXIT INT TERM
+    metrics_json > "$METRICS_TMP"
+    python3 - "$TPL" "$OUT" "$METRICS_TMP" <<'PY'
 import sys
-tpl, out = sys.argv[1], sys.argv[2]
-data = '''$(metrics_json)'''
-html = open(tpl).read().replace("/*__FACTORY_METRICS_JSON__*/null", data)
-open(out, "w").write(html)
+tpl, out, src = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(src, encoding="utf-8") as fh:
+    data = fh.read()
+# The data lands inside a <script> element, where the HTML parser ends the
+# script at the first literal "</" sequence regardless of JSON syntax. The
+# escape is valid inside a JSON string and invisible to JSON.parse.
+data = data.replace("</", "<\\/")
+with open(tpl, encoding="utf-8") as fh:
+    html = fh.read().replace("/*__FACTORY_METRICS_JSON__*/null", data)
+with open(out, "w", encoding="utf-8") as fh:
+    fh.write(html)
 PY
     echo "factory metrics: wrote $OUT"
     echo "  open it directly — it is a self-contained file, nothing is served."

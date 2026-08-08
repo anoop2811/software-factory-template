@@ -588,22 +588,80 @@ cp "$TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/templates/metrics.html" "$MROOT/templates/"
 printf 'project_name: m\n' > "$MROOT/factory.yaml"
-printf '2026-01-01T00:00:00Z\tcommit-message-lint\tviolation\n' > "$MROOT/.factory/events.log"
+MLOG="$MROOT/.factory/events.log"
+printf '2026-01-01T00:00:00Z\tcommit-message-lint\tviolation\n' > "$MLOG"
+# This suite exports FACTORY_EVENT_LOG globally, so every metrics run below must
+# point at this fixture's own log. Without it the reads and the writes address
+# different files and the checks pass by measuring nothing.
+metrics_run() { ( cd "$MROOT" && FACTORY_EVENT_LOG="$MLOG" ./scripts/factory-metrics.sh "$@" ); }
 check "metrics emit a versioned schema" "1" \
-  "$( ( cd "$MROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null || true ) | grep -c 'factory.metrics/v1' || true )"
+  "$( metrics_run --json 2>/dev/null | grep -c 'factory.metrics/v1' || true )"
 check "metrics state what they do NOT measure" "1" \
-  "$( ( cd "$MROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null || true ) | grep -c 'not_measured' || true )"
-( cd "$MROOT" && ./scripts/factory-metrics.sh --html ) >/dev/null 2>&1 || true
+  "$( metrics_run --json 2>/dev/null | grep -c 'not_measured' || true )"
+metrics_run --html >/dev/null 2>&1 || true
 check "metrics html has its data injected" "0" \
   "$(grep -c '__FACTORY_METRICS_JSON__' "$MROOT/.factory/metrics.html" 2>/dev/null || true)"
 check "metrics html is self-contained (no external requests)" "0" \
   "$(grep -cE 'src="https?://|href="https?://[^"]*\.(css|js)' "$MROOT/.factory/metrics.html" 2>/dev/null || true)"
+# The event log is an ordinary writable file, so its contents are untrusted
+# input. A gate name that looks like shell must not run while the page is being
+# built, and one that looks like markup must not close the script element.
+# Dated now, not with a fixed timestamp: gate names are reported for a rolling
+# window, so a hardcoded date ages out and the fixture would pass by measuring
+# nothing.
+MARK="$MROOT/EXECUTED"
+NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+printf '%s\t$(touch %s)`touch %s`\tviolation\n' "$NOW" "$MARK" "$MARK" >> "$MLOG"
+printf '%s\t</script><b>x</b>\tviolation\n' "$NOW" >> "$MLOG"
+printf "%s\tgate-with-'''-quotes-and-\\\\n\tviolation\n" "$NOW" >> "$MLOG"
+# Prove the hostile names actually reached the report, or the checks below would
+# be measuring an empty window.
+check "the hostile gate names are in the window" "3" \
+  "$( metrics_run --json 2>/dev/null |
+      grep -cE '"gate": "(\$\(touch|</script>|gate-with)' || true )"
+rm -f "$MROOT/.factory/metrics.html"
+HTML_RC=0
+metrics_run --html >/dev/null 2>&1 || HTML_RC=$?
+# Generation must survive the odd name, not just avoid executing it. A crash here
+# would leave a stale page behind and every check below would read the old file.
+check "an odd gate name does not break page generation" "0" "$HTML_RC"
+check "a gate name cannot execute as shell" "0" \
+  "$([ -e "$MARK" ] && echo 1 || echo 0)"
+check "a gate name cannot close the script element" "0" \
+  "$(grep -c '</script><b>' "$MROOT/.factory/metrics.html" 2>/dev/null || true)"
+# Quotes and backslashes in a gate name must survive as data. JSON escapes them;
+# a shell-interpolated template would corrupt or crash on them.
+ODD_JSON="$( metrics_run --json 2>/dev/null || true )"
+check "an odd gate name still yields parseable JSON" "1" \
+  "$(printf '%s' "$ODD_JSON" | python3 -m json.tool >/dev/null 2>&1 && echo 1 || echo 0)"
+check "an odd gate name survives as data, not code" "1" \
+  "$(printf '%s' "$ODD_JSON" | grep -c "gate-with" || true)"
+
+# Claims are counted per commit. A commit whose body says "fixed" on three
+# bullets made one claim, and counting lines would inflate the number against a
+# report that says "commits".
+( cd "$MROOT" && printf 'y\n' > g.txt && git add -A &&
+  git commit -qm "test: multi-line claim
+
+- fixed one thing per \`make a\`
+- fixed another per \`make b\`
+- works now per \`make c\`" ) >/dev/null 2>&1
+check "claims are counted per commit, not per line" "1" \
+  "$( metrics_run --json 2>/dev/null |
+      sed -n 's/.*"claim_commits": \([0-9]*\).*/\1/p' | head -1 )"
+
 # The event log stays bounded rather than growing without limit.
 : > "$MROOT/.factory/events.log"
 ( cd "$MROOT" && . scripts/lib/events.sh
   i=0; while [ $i -lt 60 ]; do FACTORY_EVENT_MAX_LINES=40 FACTORY_EVENT_LOG="$MROOT/.factory/events.log" factory_log_event g r; i=$((i+1)); done )
 check "the event log is trimmed, not unbounded" "1" \
   "$([ "$(grep -c . "$MROOT/.factory/events.log")" -le 40 ] && echo 1 || echo 0)"
+# A tiny cap must keep a little, not silently empty the log.
+: > "$MROOT/.factory/events.log"
+( cd "$MROOT" && . scripts/lib/events.sh
+  i=0; while [ $i -lt 4 ]; do FACTORY_EVENT_MAX_LINES=1 FACTORY_EVENT_LOG="$MROOT/.factory/events.log" factory_log_event g r; i=$((i+1)); done )
+check "a tiny cap keeps at least one event" "1" \
+  "$(grep -c . "$MROOT/.factory/events.log" 2>/dev/null || true)"
 
 # The landing page ships from this repo, so an unreplaced placeholder would go
 # live as a broken analytics tag. A note would be forgotten; this is a gate.

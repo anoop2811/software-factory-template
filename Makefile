@@ -14,6 +14,7 @@ check: selftest
 	./scripts/hooks/shared-script-enforcement.sh
 	./scripts/hooks/hook-existence-check.sh
 	./scripts/hooks/copy-manifest-check.sh
+	./scripts/hooks/gate-instrumentation-check.sh
 	./scripts/hooks/wiki-lint.sh
 	./scripts/hooks/workflow-lint.sh
 

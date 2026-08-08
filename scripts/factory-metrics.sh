@@ -51,6 +51,22 @@ EVENT_LOG="${FACTORY_EVENT_LOG:-$ROOT/.factory/events.log}"
 # ── Enforcement: are the gates real, and are they earning their keep? ──
 GATES_INSTALLED="$( { find scripts/hooks -maxdepth 1 -name '*.sh' 2>/dev/null || true; } | wc -l | tr -d ' ')"
 
+# How many of those gates can report a block at all. "gates installed 14" next
+# to "blocks caught 0" reads as fourteen quiet gates; if only six are wired to
+# the event log, the honest reading is unavailable and the report flatters
+# itself. gate-instrumentation-check keeps the shipped gates at parity, but an
+# adopter's own gate may be mute, so the number is measured, never assumed.
+GATES_REPORTING="$( { grep -lE 'factory_log_event' scripts/hooks/*.sh 2>/dev/null || true; } | wc -l | tr -d ' ')"
+# A gate carrying the `factory: no-block-event` marker has declared that its
+# non-zero exit stops no work, so it is not mute — it is not a block at all.
+# Same marker gate-instrumentation-check reads, so the two cannot disagree.
+GATES_MUTE="$( for _h in scripts/hooks/*.sh; do
+    [ -f "$_h" ] || continue
+    grep -q 'factory: no-block-event' "$_h" 2>/dev/null && continue
+    grep -qE '^[[:space:]]*exit[[:space:]]+[1-9]' "$_h" 2>/dev/null || continue
+    grep -q 'factory_log_event' "$_h" 2>/dev/null || basename "$_h"
+  done | wc -l | tr -d ' ')"
+
 # Armed vs inert is a property of configuration, not of the files existing.
 # Computed here directly rather than shelling to doctor, which runs the full
 # break/fix proof and would make a metrics read cost 17 seconds.
@@ -157,16 +173,19 @@ TOUCHED_FILES="$(num "${TOUCHED_FILES}")"
 CLAIM_COMMITS="$(num "${CLAIM_COMMITS}")"
 CITED_COMMITS="$(num "${CITED_COMMITS}")"
 GATES_INSTALLED="$(num "${GATES_INSTALLED}")"
+GATES_REPORTING="$(num "${GATES_REPORTING}")"
+GATES_MUTE="$(num "${GATES_MUTE}")"
 
 # ── Emit ─────────────────────────────────────────────────────────────
 metrics_json() {
   python3 - "$DAYS" "$GATES_INSTALLED" "$armed_count" "$inert_count" \
     "$BLOCKS_TOTAL" "$BLOCKS_WINDOW" "$REPEAT_BLOCKS" "$COMMITS" "$MERGES" \
     "$REVERTS" "$AUTHORS" "$CHURN_FILES" "$TOUCHED_FILES" "$CLAIM_COMMITS" \
-    "$CITED_COMMITS" "$EVAL_JSON" "$BLOCKS_BY_GATE" <<'PY'
+    "$CITED_COMMITS" "$EVAL_JSON" "$BLOCKS_BY_GATE" "$GATES_REPORTING" \
+    "$GATES_MUTE" <<'PY'
 import json, sys
 (days, gates, armed, inert, bt, bw, rb, commits, merges, reverts, authors,
- churn, touched, claims, cited, evaljson, bygate) = sys.argv[1:18]
+ churn, touched, claims, cited, evaljson, bygate, reporting, mute) = sys.argv[1:20]
 by = []
 for line in bygate.splitlines():
     if "\t" in line:
@@ -177,7 +196,11 @@ print(json.dumps({
   "window_days": int(days),
   "enforcement": {
     "gates_installed": int(gates), "gates_armed": int(armed),
-    "gates_inert": int(inert), "blocks_total": int(bt),
+    "gates_inert": int(inert),
+    # How many gates can report a block, and how many can block without
+    # reporting. A zero block count means nothing until you know these.
+    "gates_reporting": int(reporting), "gates_mute": int(mute),
+    "blocks_total": int(bt),
     "blocks_in_window": int(bw), "repeat_block_hours": int(rb),
     "blocks_by_gate": by,
   },
@@ -246,6 +269,13 @@ PY
       [ "$inert_count" -gt 0 ] && printf '  %-34s %s\n' "" "${C_DIM:-}inert is a choice — 'factory doctor' names which${C_RESET:-}"
     fi
     printf '  %-34s %s in window (%s retained)\n' "blocks caught" "$BLOCKS_WINDOW" "$BLOCKS_TOTAL"
+    # Said next to the block count, not in a footnote: a reader who sees zero
+    # blocks must find out here whether every gate could have reported one.
+    if [ "$GATES_MUTE" -gt 0 ]; then
+      printf '  %-34s %s%s of %s can block without recording it%s\n' "" \
+        "${C_YELLOW:-}" "$GATES_MUTE" "$GATES_INSTALLED" "${C_RESET:-}"
+      printf '  %-34s %s\n' "" "${C_DIM:-}so a low block count may be silence, not calm${C_RESET:-}"
+    fi
     if [ -n "$BLOCKS_BY_GATE" ]; then
       printf '%s\n' "$BLOCKS_BY_GATE" | while IFS="$(printf '\t')" read -r g n; do
         [ -n "$g" ] && printf '    %-32s %s\n' "$g" "$n"

@@ -10,6 +10,14 @@ set -euo pipefail
 # Scans the directory given as $1, or the current directory. Dependencies and
 # build output are pruned.
 
+# Resolved before the cd below, which moves us out of the script's own tree.
+# At install time this gate lives in scripts/hooks/, so ../lib/events.sh
+# resolves; in the pack directory it does not, and the no-op keeps the gate
+# working. Bookkeeping must never be why enforcement fails.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../../scripts/lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
+
 ROOT="${1:-.}"
 cd "$ROOT"
 
@@ -31,6 +39,7 @@ done < <(find . \( -path '*/node_modules/*' -o -path '*/dist/*' -o -path '*/buil
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "vitest-only-check: $ERRORS violation(s) found"
+  factory_log_event "vitest-only-check" "$ERRORS non-Vitest test import(s)"
   exit 1
 fi
 

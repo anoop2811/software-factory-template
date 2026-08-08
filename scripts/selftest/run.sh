@@ -256,6 +256,48 @@ if [ -x "$CM_HOOK" ]; then
     "$(run_status "$CM_HOOK" "$CMDIR")"
 fi
 
+# Break/fix: a gate that can block must be able to say so. Found in the field —
+# a repo reported 14 gates installed and 0 blocks while 8 of those gates had no
+# way to record one, so the report read as calm when it was merely deaf.
+GI_HOOK="$HOOKS/gate-instrumentation-check.sh"
+if [ -x "$GI_HOOK" ]; then
+  GIDIR="$SANDBOX/gi"
+  mkdir -p "$GIDIR/scripts/hooks" "$GIDIR/scripts/lib" "$GIDIR/packs/x/hooks"
+  cp "$TEMPLATE_ROOT/scripts/lib/events.sh" "$GIDIR/scripts/lib/"
+  printf '#!/bin/bash\necho blocked\nexit 1\n' > "$GIDIR/scripts/hooks/mute-gate.sh"
+  check "a blocking gate that logs nothing is caught" 1 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  # Calling the function without sourcing the lib is the subtler mute: the call
+  # is present, so a grep for it passes, but no event is ever written.
+  printf '#!/bin/bash\nfactory_log_event g r\nexit 1\n' > "$GIDIR/scripts/hooks/mute-gate.sh"
+  check "a gate calling the logger without sourcing it is caught" 1 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  printf '#!/bin/bash\n. "$(dirname "$0")/../lib/events.sh"\nfactory_log_event g r\nexit 1\n' \
+    > "$GIDIR/scripts/hooks/mute-gate.sh"
+  check "an instrumented blocking gate passes" 0 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  # Advisory scripts never block, so they have nothing to report.
+  printf '#!/bin/bash\necho advisory\nexit 0\n' > "$GIDIR/scripts/hooks/mute-gate.sh"
+  check "an advisory script is not required to log" 0 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  # A gate whose non-zero exit stops no work opts out where it lives, so the
+  # reason travels with the code rather than sitting in a list that drifts.
+  printf '#!/bin/bash\n# factory: no-block-event — nudge only\necho nudge\nexit 1\n' \
+    > "$GIDIR/scripts/hooks/mute-gate.sh"
+  check "a declared non-blocking exit is exempt" 0 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  # Pack gates install into scripts/hooks/ and block like any other.
+  printf '#!/bin/bash\necho blocked\nexit 1\n' > "$GIDIR/packs/x/hooks/pack-gate.sh"
+  check "a mute pack gate is caught too" 1 \
+    "$(run_status "$GI_HOOK" "$GIDIR")"
+  rm -f "$GIDIR/packs/x/hooks/pack-gate.sh"
+
+  # Every gate this template ships is instrumented, checked against the real
+  # tree rather than a fixture — that is the invariant adopters inherit.
+  check "every shipped blocking gate is instrumented" 0 \
+    "$(run_status "$GI_HOOK" "$TEMPLATE_ROOT")"
+fi
+
 # Break/fix: commit-message-lint matches claim words at word boundaries — the
 # word "frameworks" must not read as a "works" claim, but a bare one still must.
 CML_HOOK="$HOOKS/commit-message-lint.sh"

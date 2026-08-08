@@ -435,6 +435,39 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh a
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
 
+# Break/fix: pack dialect gates are upgradeable. They are the one thing the
+# template stores somewhere other than where the adopter keeps it — upstream in
+# packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an
+# explicit source. It did not have one, the file check found nothing at the
+# assumed path and returned success, and pack gates were silently never
+# upgraded: an adopter kept whatever gate they installed with, forever.
+PKGROOT="$SANDBOX/packupg"
+mkdir -p "$PKGROOT/scripts/hooks" "$PKGROOT/scripts/lib"
+( cd "$PKGROOT" && git init -q )
+printf 'project_name: t\nlanguage_packs: "typescript"\n' > "$PKGROOT/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
+# A stale copy of the gate, standing in for one installed by an older release.
+printf '#!/bin/bash\n# stale pack gate\nexit 0\n' > "$PKGROOT/scripts/hooks/vitest-only-check.sh"
+( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+if grep -q 'stale pack gate' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null; then
+  PKG_STALE=yes
+else
+  PKG_STALE=no
+fi
+check "factory upgrade refreshes a stale pack gate" "no" "$PKG_STALE"
+# And the refreshed gate is the real one, instrumentation included — proving the
+# content arrived rather than the file merely being touched.
+#
+# grep -q inside an if, not a counting pipeline: this suite runs under
+# `set -euo pipefail`, where a grep that legitimately matches nothing exits 1
+# and takes the whole run down — precisely in the case this is here to detect.
+if grep -q 'factory_log_event' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null; then
+  PKG_INSTRUMENTED=yes
+else
+  PKG_INSTRUMENTED=no
+fi
+check "the upgraded pack gate can report a block" "yes" "$PKG_INSTRUMENTED"
+
 # Break/fix: the golden-task eval scores a real run — the reference task passes
 # when solved, fails when unsolved, catches a runner that tampers the oracle, and
 # flags a regression from a saved baseline. The mock runner keeps it credential-free.

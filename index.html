@@ -401,9 +401,20 @@
 
      A zero floor lets the track shrink and hands the overflow back to the
      element that opted into `overflow-x: auto`. It applies at every breakpoint,
-     including the single-column ones, where the problem is identical. */
+     including the single-column ones, where the problem is identical.
+
+     .faq and .diff-list are single-column grids with no explicit template, so
+     they are easy to overlook — their implicit track has the same auto floor.
+     The FAQ hides its worst case behind a closed details element, which is
+     exactly the kind of content a quick resize test never lays out. */
   .stats > *, .askblock > *, .two-col > *, .docs-strip > *,
-  .diff-row > *, .grid3 > * { min-width: 0; }
+  .diff-row > *, .grid3 > *, .faq > *, .diff-list > * { min-width: 0; }
+
+  /* A zero floor lets the track shrink, but a URL still has no break point, so
+     it would simply hang out of the box instead of the page. These are commands
+     meant to be copied, not admired — wrapping one is better than a page that
+     slides sideways when someone opens an answer. */
+  .faq p, .faq .mono { overflow-wrap: break-word; }
   .cell {
     background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
     padding: 22px 20px; box-shadow: var(--shadow-card);

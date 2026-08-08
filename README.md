@@ -39,6 +39,7 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 2. Run `factory-init` in your repo to install the hooks and prove they fire.
 3. Run `./factory doctor` any time to see which gates are armed, inert, or stale — and watch every armed gate fire on its own break/fix proof.
    - `./factory report` shows what the gates caught, enforced at 0 model tokens, plus one clearly-labeled cost estimate — no vanity "tokens saved" number.
+   - `./factory metrics` shows what the factory is doing to your repo: gates armed vs inert, what they blocked, rework, reverts, whether claims carry evidence. Mostly from git history, so it works the day you install. `--json` to export, `--html` for a page. Local only — nothing is transmitted.
 4. Read [docs/ADAPTING.md](docs/ADAPTING.md) "Adopting incrementally" to arm gates one at a time.
 5. Open [docs/HOOKS.md](docs/HOOKS.md) when a gate blocks you and you want to know why.
 
@@ -60,6 +61,7 @@ The third idea is that this is already a graph. The vocabulary everyone's chasin
 | Language packs | `packs/` | The core never mentions a language. Packs carry the stack opinions. |
 | Agent evals | `eval/` | Score agents on real tasks — a red spec plus an oracle, pass rate over N runs. Baselines record what they were measured against, so a changed oracle reports *stale* instead of a false "no regression". |
 | Workflow recipes | `workflows/` | The graph in plain text: nodes are roles, edges are code, findings pass a verifier. `workflow-lint` enforces the shape; one recipe runs natively on all three harnesses. |
+| Metrics | `factory metrics` | What the factory is doing to your repo, computed locally and never sent anywhere. Shows the unflattering numbers — inert gates, repeat blocks, rework, stale baselines — as prominently as the wins. [docs/METRICS.md](docs/METRICS.md). |
 
 ## Pack maturity
 

@@ -352,6 +352,9 @@ cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-upgrade.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-report.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/factory-metrics.sh" "$TARGET_DIR/scripts/"
+mkdir -p "$TARGET_DIR/templates"
+cp "$TEMPLATE_DIR/templates/metrics.html" "$TARGET_DIR/templates/"
 cp "$TEMPLATE_DIR/scripts/factory-review-lane.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/adversarial-review.sh" "$TARGET_DIR/scripts/"
 mkdir -p "$TARGET_DIR/packs/review-lane"
@@ -463,6 +466,7 @@ chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-doctor.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-upgrade.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-report.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/factory-metrics.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-review-lane.sh" "$TARGET_DIR/scripts/adversarial-review.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/.githooks/pre-push" 2>/dev/null || true

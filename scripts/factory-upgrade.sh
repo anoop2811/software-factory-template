@@ -73,6 +73,8 @@ scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
 scripts/factory-report.sh
+scripts/factory-metrics.sh
+templates/metrics.html
 scripts/factory-review-lane.sh
 scripts/adversarial-review.sh
 packs/review-lane/review-pr.yml

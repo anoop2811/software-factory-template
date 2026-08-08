@@ -1099,3 +1099,66 @@ lane was on and printed nothing when off. Four break/fix cases cover the nested
 marker, the shipped colour lib, and both pending states; `bash
 scripts/selftest/run.sh` reported "90 passed, 0 failed"; `make check-drift` and
 `copy-manifest-check` exited 0.
+
+## Decision 40 (2026-08-08): local metrics, no phone-home, no exporters, no server
+
+What: `factory metrics` reports what the factory is doing to the repository —
+enforcement (gates installed, armed vs inert, blocks by gate, repeat-block
+friction), loop health from git (commits, merges, reverts, files reworked),
+verification discipline (claims carrying evidence), and agent quality (eval pass
+rate against baseline, and stale baselines). `--json` emits a versioned document
+(`factory.metrics/v1`); `--html` writes a self-contained `.factory/metrics.html`
+generated from `templates/metrics.html`. `.factory/events.log` is capped
+(`FACTORY_EVENT_MAX_LINES`, default 5000) and trimmed to its most recent half.
+
+Boundary, restated because the word invites confusion: this is **not telemetry**.
+Nothing is transmitted. The numbers are computed locally, from the adopter's own
+repository, for the adopter. `install.sh`, the hooks, and every `factory-*`
+script still send nothing, and the landing page's promise that the installed
+factory never phones home remains exactly true. A feature named "telemetry" would
+have contradicted a published claim; the feature itself does not.
+
+Two rules govern what appears. Every metric names the decision it informs — a
+number nobody acts on is noise. And the uncomfortable numbers are first-class:
+inert gates, repeat blocks, reverts and stale baselines are shown as prominently
+as the wins, for the same reason `factory report` refuses a "tokens saved"
+headline. A report that only shows wins is marketing.
+
+Most metrics derive from git history rather than collected events, so the report
+is meaningful the day the factory is installed rather than after months of
+instrumentation. Token spend is explicitly not measured — the harness owns it —
+and code quality is not claimed, because it is not honestly measurable without
+judgment.
+
+No exporters ship. Prometheus, OTel and Datadog integrations would be
+dependencies most adopters carry for nothing, so the contract is the versioned
+JSON document and the documentation shows the few lines needed to pipe it
+anywhere.
+
+No server, and no compiled binary. A Go service was considered and rejected: it
+would reverse Decision 14 (plain shell you can read, zero install dependency,
+language-agnostic core), require per-platform binaries with signing and
+checksums, put a listening process on a developer machine, and — the deciding
+argument — make upgrades harder rather than easier, since the upgrade model is
+byte-identical file copies (Decision 2) and a binary cannot be one. The
+"easier to update" goal is met instead by generating the page from an ordinary
+HTML template with the data injected at a marker: the UI is edited like any web
+page and ships as a framework file.
+
+Provenance: founder direction — build factory metrics covering the factory's
+impact, and consider a Go server with a UI — 2026-08-08. Verified this session:
+`factory metrics` reported this repository's own state (12 gates, 2 armed and 2
+inert, one commit-message-lint block, 47 commits, 58 of 117 files reworked,
+2 of 2 claims cited); `--json` emitted the versioned schema; `--html` produced a
+page whose data was injected with no placeholder left and no external requests,
+confirmed by rendering it in a browser; all three formats also succeeded in a
+bare repository with no hooks and no events. Five break/fix cases cover the
+schema, the not-measured disclosure, HTML injection, self-containment, and log
+trimming; `bash scripts/selftest/run.sh` reported "95 passed, 0 failed";
+`make check-drift` and `copy-manifest-check` exited 0.
+
+Also fixed while building: nine command substitutions in the metrics script died
+under `set -o pipefail` when a `find` or `grep -c` legitimately matched nothing —
+a bare repository could not produce a report at all. Every such pipeline is now
+guarded and every counter normalised, so an empty repository reports zeros rather
+than failing.

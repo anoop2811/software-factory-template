@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factory metrics</title>
+<!--
+  A normal web page. `factory metrics --html` replaces the null below with the
+  measured JSON and writes the result to .factory/metrics.html — nothing is
+  served, nothing is fetched, and no data leaves this machine. Edit this file
+  like any other page; there is no build step.
+-->
+<style>
+  :root{--bg:#0B0D12;--surface:#12151C;--edge:#222733;--fg:#E8EAEF;--muted:#9BA1AD;
+        --faint:#626977;--green:#4CC46E;--amber:#E5B15C;--red:#F0605A;--blue:#7AA2F7;
+        --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+        --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  @media (prefers-color-scheme: light){
+    :root{--bg:#FAFAFB;--surface:#fff;--edge:#E3E5EA;--fg:#14161C;--muted:#5B6172;--faint:#8A90A0}
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;padding:40px 20px}
+  .wrap{max-width:880px;margin:0 auto}
+  h1{font-size:24px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  section{margin-top:34px}
+  h2{font-size:15px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .q{color:var(--faint);font-size:13px;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+  .card{background:var(--surface);border:1px solid var(--edge);border-radius:10px;padding:16px}
+  .n{font-family:var(--mono);font-size:26px;font-weight:700}
+  .n.warn{color:var(--amber)} .n.good{color:var(--green)} .n.bad{color:var(--red)}
+  .lbl{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .note{color:var(--faint);font-size:12px;margin-top:6px}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--edge)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  td.num{font-family:var(--mono);text-align:right}
+  .bar{height:6px;background:var(--edge);border-radius:3px;overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;background:var(--blue)}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--edge);color:var(--faint);font-size:12.5px}
+  code{font-family:var(--mono);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const DATA = /*__FACTORY_METRICS_JSON__*/null;
+
+// Everything measured from the repository — gate names, task names — is text,
+// not markup. .factory/events.log is an ordinary writable file, so a hand-edited
+// gate name must render as the odd string it is rather than run when the report
+// is opened. Numbers the script computes itself are passed through unescaped.
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const card = (n, lbl, cls = '', note = '') =>
+  `<div class="card"><div class="n ${cls}">${n}</div><div class="lbl">${lbl}</div>${
+     note ? `<div class="note">${note}</div>` : ''}</div>`;
+
+function render(d) {
+  if (!d) { document.getElementById('app').innerHTML =
+    '<h1>No data</h1><p class="sub">Run <code>factory metrics --html</code> to generate this page.</p>'; return; }
+
+  const e = d.enforcement, l = d.loop, v = d.verification, a = d.agents;
+  const citedPct = v.claim_commits ? Math.round((v.cited_commits / v.claim_commits) * 100) : null;
+  const reworkPct = l.files_touched ? Math.round((l.files_reworked / l.files_touched) * 100) : 0;
+
+  const parts = [];
+  parts.push(`<h1>Factory metrics</h1>
+    <p class="sub">Last ${d.window_days} days &middot; computed locally &middot; nothing left this machine</p>`);
+
+  // Enforcement — inert and friction shown as first-class, not hidden.
+  parts.push(`<section><h2>Enforcement</h2><p class="q">Is the factory real, or installed theatre?</p>
+    <div class="grid">
+      ${card(e.gates_installed, 'gates installed')}
+      ${card(e.gates_armed, 'armed by config', e.gates_armed ? 'good' : 'warn')}
+      ${card(e.gates_inert, 'inert', e.gates_inert ? 'warn' : '', 'a choice, not a fault')}
+      ${card(e.blocks_in_window, 'blocks caught', '', `${e.blocks_total} retained`)}
+    </div>`);
+  if (e.blocks_by_gate.length) {
+    const max = Math.max(...e.blocks_by_gate.map(g => g.blocks));
+    parts.push(`<table><tr><th>Gate</th><th style="text-align:right">Blocks</th></tr>` +
+      e.blocks_by_gate.map(g => `<tr><td>${esc(g.gate)}<div class="bar"><i style="width:${
+        (Number(g.blocks) / max) * 100}%"></i></div></td><td class="num">${
+        Number(g.blocks)}</td></tr>`).join('') +
+      `</table>`);
+  }
+  if (e.repeat_block_hours > 0) {
+    parts.push(`<p class="note">${e.repeat_block_hours} hour(s) where one gate fired 3+ times &mdash;
+      friction. Either it is catching a real habit, or the gate is wrong. Both are worth knowing.</p>`);
+  }
+  parts.push(`</section>`);
+
+  parts.push(`<section><h2>Loop health</h2><p class="q">Is work converging, or circling?</p>
+    <div class="grid">
+      ${card(l.commits, 'commits', '', `${l.authors} author(s)`)}
+      ${card(l.merges, 'merges')}
+      ${card(l.reverts, 'reverts', l.reverts ? 'bad' : 'good', 'work undone')}
+      ${card(reworkPct + '%', 'files reworked', reworkPct > 50 ? 'warn' : '',
+             `${l.files_reworked} of ${l.files_touched}`)}
+    </div></section>`);
+
+  parts.push(`<section><h2>Verification discipline</h2>
+    <p class="q">Are claims cited, or asserted?</p>
+    <div class="grid">${card(citedPct === null ? 'n/a' : citedPct + '%',
+      'claims carrying evidence',
+      citedPct === null ? '' : (citedPct === 100 ? 'good' : 'warn'),
+      `${v.cited_commits} of ${v.claim_commits} commits`)}</div></section>`);
+
+  parts.push(`<section><h2>Agents</h2><p class="q">Getting better, or worse?</p>`);
+  if (!a.tasks.length) {
+    parts.push(`<p class="note">No eval baselines yet. Run
+      <code>./scripts/golden-task-eval.sh --save-baseline</code> to start measuring.</p>`);
+  } else {
+    parts.push(`<table><tr><th>Harness</th><th>Task</th><th style="text-align:right">Baseline</th>
+      <th style="text-align:right">Current</th></tr>` +
+      a.tasks.map(t => {
+        const cur = t.current === null || t.current === undefined ? '&mdash;' : t.current;
+        const worse = t.current !== null && t.current !== undefined && t.current < t.baseline;
+        return `<tr><td>${esc(t.harness)}</td><td>${esc(t.task)}</td>
+          <td class="num">${esc(t.baseline)}</td>
+          <td class="num" style="${worse ? 'color:var(--red)' : ''}">${
+            cur === '&mdash;' ? cur : esc(cur)}</td></tr>`;
+      }).join('') + `</table>`);
+    if (a.stale) parts.push(`<p class="note" style="color:var(--amber)">${a.stale} baseline(s)
+      <strong>stale</strong> &mdash; measured against inputs that have since changed, so the
+      comparison is not like for like.</p>`);
+  }
+  parts.push(`</section>`);
+
+  parts.push(`<footer><strong>Not measured here.</strong><ul style="margin:6px 0 0 18px">` +
+    d.not_measured.map(n => `<li>${esc(n)}</li>`).join('') +
+    `</ul><p style="margin-top:10px">Local only. The factory you install never phones home &mdash;
+     these numbers were computed here and stayed here. Export with
+     <code>factory metrics --json</code>.</p></footer>`);
+
+  document.getElementById('app').innerHTML = parts.join('');
+}
+render(DATA);
+</script>
+</body>
+</html>

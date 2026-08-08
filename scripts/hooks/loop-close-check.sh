@@ -19,6 +19,16 @@ set -euo pipefail
 # Exit codes:
 #   0 — no changes, or changes + lessons written (silent)
 #   1 — changes made but no new lesson files (reminder written)
+#
+# factory: no-block-event — this gate's non-zero exit stops no work.
+#
+# `factory metrics` counts blocks: work a gate actually stopped. This one writes
+# a reminder and the opencode dispose hook cannot block session close, so
+# logging its exit 1 would inflate the enforcement numbers with nudges — the
+# flattery Decision 40 exists to prevent. The marker above is what exempts it,
+# read by both gate-instrumentation-check and factory metrics, so the reason
+# lives with the gate instead of in a list that drifts. Delete the marker in the
+# same commit that makes this a real block.
 
 START_HEAD="${FACTORY_SESSION_START_HEAD:-}"
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}"

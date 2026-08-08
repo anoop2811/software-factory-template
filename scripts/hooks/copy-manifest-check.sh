@@ -13,6 +13,11 @@ set -uo pipefail
 # (an adopter repo doesn't ship the installer).
 # Exit 0 = every unconditional copy target is tracked (or skip), 1 = one is not.
 
+# Resolved before the cd below, which may move us out of this repo entirely.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
+
 ROOT="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$ROOT" || exit 1
 
@@ -37,6 +42,7 @@ done < <(grep -E 'cp "\$TEMPLATE_DIR/[^"]+"' "$INIT")
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "copy-manifest-check: $ERRORS untracked file(s) in the install manifest"
+  factory_log_event "copy-manifest-check" "$ERRORS untracked install-copy target(s)"
   exit 1
 fi
 

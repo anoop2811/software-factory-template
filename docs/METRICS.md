@@ -42,6 +42,38 @@ is reported as **friction**, not as a win. It means either the gate is catching 
 real habit or the gate is wrong, and you cannot tell which from the number alone
 — but you should look.
 
+### A zero block count means nothing on its own
+
+"Gates installed: 14" beside "blocks caught: 0" reads as fourteen quiet gates. It
+is only true if all fourteen can *report* a block, and a gate that exits non-zero
+without calling `factory_log_event` cannot. An adopter repo shipped exactly that
+shape: fourteen gates, eight of them structurally unable to record a block,
+including the dialect gate most likely to fire.
+
+So the report counts them. `gates_reporting` is how many gates are wired to the
+event log, and `gates_mute` is how many can block without recording it. When
+`gates_mute` is above zero the report says so next to the block count, not in a
+footnote, because that number is what tells you whether the zero is calm or
+silence.
+
+Two things keep this from rotting:
+
+- `scripts/hooks/gate-instrumentation-check.sh` fails CI when a gate with a
+  non-zero exit path does not call `factory_log_event` — or calls it without
+  sourcing `scripts/lib/events.sh`, which is the subtler mute, since the call is
+  present but no event is ever written. It covers `packs/*/hooks/` too, because
+  pack gates install into `scripts/hooks/` and block like any other.
+- A gate whose non-zero exit genuinely stops no work — a session-end nudge, say
+  — opts out by carrying `# factory: no-block-event` in a comment, next to the
+  reason. Both the check and the report read that marker, so the exemption lives
+  with the gate instead of in a central list that drifts. Counting nudges as
+  blocks would inflate the enforcement numbers, which is the flattery this report
+  exists to avoid.
+
+If you write your own gate, this applies to it: source the lib, call
+`factory_log_event <gate> <reason>` on the blocking path, and CI will tell you if
+you forget.
+
 ## What it deliberately does not measure
 
 - **Token spend per role.** Your harness owns that; the factory does not meter

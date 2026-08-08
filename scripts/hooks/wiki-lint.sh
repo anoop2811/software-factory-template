@@ -28,6 +28,8 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
+# shellcheck source=../lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 1
@@ -123,6 +125,7 @@ fi
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "wiki-lint: $ERRORS problem(s) found"
+  factory_log_event "wiki-lint" "$ERRORS uncited, orphaned, or stale wiki page(s)"
   exit 1
 fi
 

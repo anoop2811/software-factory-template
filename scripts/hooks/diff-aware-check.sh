@@ -23,6 +23,8 @@ HEAD_REF="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
+# shellcheck source=../lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}"
 
@@ -148,6 +150,7 @@ fi
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "diff-aware-check: $ERRORS check(s) failed out of $CHECKS_RAN dispatched"
+  factory_log_event "diff-aware-check" "$ERRORS of $CHECKS_RAN dispatched check(s) failed"
   exit 1
 fi
 

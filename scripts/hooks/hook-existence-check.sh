@@ -23,6 +23,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/config.sh
 . "$SCRIPT_DIR/../lib/config.sh"
+# shellcheck source=../lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 HOOK_SCRIPTS=(
   "scripts/lib/config.sh"
@@ -38,6 +40,7 @@ HOOK_SCRIPTS=(
   "scripts/hooks/wiki-lint.sh"
   "scripts/hooks/workflow-lint.sh"
   "scripts/hooks/copy-manifest-check.sh"
+  "scripts/hooks/gate-instrumentation-check.sh"
   "scripts/citation-lint.sh"
   "scripts/sync-claude.sh"
   "scripts/sync-codex.sh"
@@ -87,6 +90,7 @@ done
 if [ "$ERRORS" -gt 0 ]; then
   echo "hook-existence-check: $ERRORS script(s) missing or not executable"
   echo "The plugin fails open when a script is missing — this check catches that before merge."
+  factory_log_event "hook-existence-check" "$ERRORS hook script(s) missing or not executable"
   exit 1
 fi
 

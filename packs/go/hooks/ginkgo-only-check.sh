@@ -4,6 +4,14 @@ set -euo pipefail
 # Enforce ADR-0002's single Go testing dialect. The standard testing package
 # is allowed only for the one RunSpecs bootstrap required by go test.
 
+# Resolved before the cd below, which moves us out of the script's own tree.
+# At install time this gate lives in scripts/hooks/, so ../lib/events.sh
+# resolves; in the pack directory it does not, and the no-op keeps the gate
+# working. Bookkeeping must never be why enforcement fails.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../../scripts/lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
@@ -37,6 +45,7 @@ done < <(rg --files -g '*_test.go')
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "ginkgo-only-check: $ERRORS violation(s) found"
+  factory_log_event "ginkgo-only-check" "$ERRORS non-Ginkgo test construct(s)"
   exit 1
 fi
 

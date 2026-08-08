@@ -10,6 +10,10 @@ set -euo pipefail
 #
 # Enforcement logic lives in shared shell scripts; all harnesses are thin wrappers.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/events.sh
+if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
+
 PLUGIN_DIR=".opencode/plugin"
 
 if [ ! -d "$PLUGIN_DIR" ]; then
@@ -93,6 +97,7 @@ fi
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "shared-script-enforcement: $ERRORS violation(s) found"
+  factory_log_event "shared-script-enforcement" "$ERRORS adapter(s) reimplementing shared logic"
   exit 1
 fi
 

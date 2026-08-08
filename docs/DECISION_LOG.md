@@ -1162,3 +1162,53 @@ under `set -o pipefail` when a `find` or `grep -c` legitimately matched nothing 
 a bare repository could not produce a report at all. Every such pipeline is now
 guarded and every counter normalised, so an empty repository reports zeros rather
 than failing.
+
+### Amendment (2026-08-08): a gate that can block must be able to say so
+
+Found in the field, on the first adopter repo to run the report. It said 14 gates
+installed and 0 blocks caught. Both numbers were accurate and the pair was
+misleading: only 6 of those gates called `factory_log_event`, so 8 could stop a
+push and leave nothing behind — including `vitest-only-check`, the dialect gate
+most likely to fire in that repository. The report was not calm. It was deaf, and
+it read as calm, which is precisely the flattery this decision's second rule was
+written to prevent.
+
+Every shipped gate with a non-zero exit path is now instrumented:
+`copy-manifest-check`, `diff-aware-check`, `hook-existence-check`,
+`shared-script-enforcement`, `wiki-lint`, and the three pack dialect gates
+(`vitest-only-check`, `ginkgo-only-check`, `junit5-only-check`). The pack gates
+resolve their script directory before their `cd`, which moves them out of their
+own tree, and source the lib defensively so bookkeeping can never be the reason
+enforcement fails.
+
+`scripts/hooks/gate-instrumentation-check.sh` makes it an invariant rather than a
+one-time sweep: CI fails when a gate with a blocking exit does not call
+`factory_log_event`, or calls it without sourcing `scripts/lib/events.sh` — the
+subtler mute, where a grep for the call succeeds but no event is ever written.
+
+`loop-close-check` is deliberately not instrumented. Its non-zero exit writes a
+reminder and stops no work, and counting nudges as blocks would inflate the
+enforcement numbers in the other direction. It opts out with a
+`# factory: no-block-event` marker in the file, beside the reason. Both the check
+and the report read that marker, so the exemption travels with the gate rather
+than sitting in a central list that drifts out of date.
+
+The report now discloses the gap instead of assuming it away, since an adopter's
+own gates may be mute: `gates_reporting` and `gates_mute` are measured per run,
+and when any gate can block without recording it, the terminal, JSON and HTML
+outputs all say so beside the block count rather than in a footnote.
+
+Provenance: observed 2026-08-08 on the `tutr` adopter repository, which reported
+14 gates and 0 blocks with 8 gates unable to record one. Verified this session:
+each instrumented gate was driven into its blocking path in a sandbox with the
+pack gates installed where adopters have them (`scripts/hooks/`), and the event
+log was read back — `vitest-only-check`, `ginkgo-only-check`,
+`junit5-only-check`, `wiki-lint`, `hook-existence-check`,
+`shared-script-enforcement` and `copy-manifest-check` each blocked (rc=1) and
+each wrote one event, 7 distinct gates in the log. `diff-aware-check` is
+instrumented but was not driven, since it is a rollup that dispatches other
+checks. The new gate was proven to fail before being trusted: a mute blocking
+gate, a mute pack gate, and a gate calling the logger without sourcing it are all
+rejected; an advisory `exit 0` script and a marker-exempt gate pass.
+`bash scripts/selftest/run.sh` reported "110 passed, 0 failed" (was 103);
+`make check-drift`, `copy-manifest-check` and `hook-existence-check` exited 0.

@@ -78,6 +78,13 @@ function render(d) {
       ${card(e.gates_inert, 'inert', e.gates_inert ? 'warn' : '', 'a choice, not a fault')}
       ${card(e.blocks_in_window, 'blocks caught', '', `${e.blocks_total} retained`)}
     </div>`);
+  // Beside the block count, not in a footnote. A reader seeing zero blocks has
+  // to learn here whether every gate was even able to report one.
+  if (e.gates_mute > 0) {
+    parts.push(`<p class="note" style="color:var(--amber)">${e.gates_mute} of ${
+      e.gates_installed} gate(s) can block without recording it &mdash; a low
+      block count may be silence rather than calm.</p>`);
+  }
   if (e.blocks_by_gate.length) {
     const max = Math.max(...e.blocks_by_gate.map(g => g.blocks));
     parts.push(`<table><tr><th>Gate</th><th style="text-align:right">Blocks</th></tr>` +

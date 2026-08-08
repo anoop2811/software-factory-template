@@ -577,6 +577,34 @@ check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_
 check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"
 ')"
 
+# Break/fix: metrics are local-only and honest. The JSON must carry a schema and
+# an explicit not-measured list, the HTML must have its data injected (not left
+# as a placeholder), and nothing may claim to have been transmitted anywhere.
+MROOT="$SANDBOX/metrics"
+mkdir -p "$MROOT/scripts/lib" "$MROOT/templates" "$MROOT/.factory"
+( cd "$MROOT" && git init -q && git config user.email m@e && git config user.name m
+  printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" )
+cp "$TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/templates/metrics.html" "$MROOT/templates/"
+printf 'project_name: m\n' > "$MROOT/factory.yaml"
+printf '2026-01-01T00:00:00Z\tcommit-message-lint\tviolation\n' > "$MROOT/.factory/events.log"
+check "metrics emit a versioned schema" "1" \
+  "$( ( cd "$MROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null || true ) | grep -c 'factory.metrics/v1' || true )"
+check "metrics state what they do NOT measure" "1" \
+  "$( ( cd "$MROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null || true ) | grep -c 'not_measured' || true )"
+( cd "$MROOT" && ./scripts/factory-metrics.sh --html ) >/dev/null 2>&1 || true
+check "metrics html has its data injected" "0" \
+  "$(grep -c '__FACTORY_METRICS_JSON__' "$MROOT/.factory/metrics.html" 2>/dev/null || true)"
+check "metrics html is self-contained (no external requests)" "0" \
+  "$(grep -cE 'src="https?://|href="https?://[^"]*\.(css|js)' "$MROOT/.factory/metrics.html" 2>/dev/null || true)"
+# The event log stays bounded rather than growing without limit.
+: > "$MROOT/.factory/events.log"
+( cd "$MROOT" && . scripts/lib/events.sh
+  i=0; while [ $i -lt 60 ]; do FACTORY_EVENT_MAX_LINES=40 FACTORY_EVENT_LOG="$MROOT/.factory/events.log" factory_log_event g r; i=$((i+1)); done )
+check "the event log is trimmed, not unbounded" "1" \
+  "$([ "$(grep -c . "$MROOT/.factory/events.log")" -le 40 ] && echo 1 || echo 0)"
+
 # The landing page ships from this repo, so an unreplaced placeholder would go
 # live as a broken analytics tag. A note would be forgotten; this is a gate.
 # (Adopter repos have no index.html — the check simply does not apply there.)

@@ -92,6 +92,7 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 - [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md) — the cost profile and per-harness model tiers
 - [docs/MODELS.md](docs/MODELS.md) — choosing a model provider; blank means inherit, so no provider is assumed
 - [docs/REVIEW_LANE.md](docs/REVIEW_LANE.md) — the opt-in adversarial PR review: what it costs, and the privilege boundary
+- [docs/METRICS.md](docs/METRICS.md) — what the factory is doing to your repo; local only, no exporters, no server
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) — workflow recipes (graph engineering) and the workflow-lint gate
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like
 - [docs/PATTERNS.md](docs/PATTERNS.md) — failure patterns we hit in practice, and the fixes

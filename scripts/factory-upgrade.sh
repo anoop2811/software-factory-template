@@ -128,6 +128,11 @@ scripts/pre-push-check.sh
 scripts/prereq-check.sh
 scripts/citation-lint.sh
 scripts/golden-task-eval.sh
+eval/README.md
+eval/runners/mock.sh
+eval/runners/example-harness.sh
+eval/golden-tasks/reference-answer/task.md
+eval/golden-tasks/reference-answer/verify.sh
 scripts/harness-structural-eval.sh
 scripts/sync-opencode.sh
 scripts/sync-claude.sh
@@ -203,6 +208,10 @@ done
 
 # Restore executable bits on scripts.
 chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null || true
+# The eval scaffold too: a runner or an oracle that arrives without its execute
+# bit is a task that cannot be scored, which reads as a failing agent rather
+# than a broken install.
+chmod +x eval/runners/*.sh eval/golden-tasks/*/verify.sh 2>/dev/null || true
 # Silent when it copied nothing — the second pass of a hand-off always does,
 # and "0 file(s) copied" under an empty list is noise, not information.
 [ -n "$T_COPY" ] && [ "$copied_here" -gt 0 ] && echo "  $copied_here file(s) copied$(took "$T_COPY")"

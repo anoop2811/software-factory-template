@@ -567,6 +567,36 @@ check "a stale handshake cannot un-nest an upgrade" "1" \
 check "a stale handshake does not start the doctor" "0" \
   "$(grep -c 'Running factory doctor' "$HOSTALE_LOG" 2>/dev/null || true)"
 
+# Break/fix: the advice a report gives has to work. An adopter followed
+# "run golden-task-eval --save-baseline", got "no tasks", and the report went on
+# giving the same advice — because their repo had no eval scaffold at all, a
+# state the message did not distinguish from having no baseline yet.
+EVROOT="$SANDBOX/evaladvice"
+mkdir -p "$EVROOT/scripts/lib"
+( cd "$EVROOT" && git init -q && git config user.email e@e && git config user.name e
+  printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" ) >/dev/null 2>&1
+printf 'project_name: t\n' > "$EVROOT/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$EVROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/scripts/factory-metrics.sh" "$EVROOT/scripts/"
+ev_advice() { ( cd "$EVROOT" && ./scripts/factory-metrics.sh 2>/dev/null | sed -n '/^Agents/,/^$/p' | tail -2 ); }
+check "no scaffold points at the upgrade that installs it" "1" \
+  "$(ev_advice | grep -c 'factory upgrade' || true)"
+mkdir -p "$EVROOT/eval/golden-tasks"
+check "a scaffold with no tasks asks for a task, not a baseline" "1" \
+  "$(ev_advice | grep -c 'no eval tasks yet' || true)"
+mkdir -p "$EVROOT/eval/golden-tasks/t1"
+check "a task with no baseline asks for the baseline" "1" \
+  "$(ev_advice | grep -c 'save-baseline' || true)"
+
+# And the eval writes no results file when it scored nothing: an empty result is
+# still a result, and invites a later comparison against a baseline of nothing.
+cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$EVROOT/scripts/" 2>/dev/null || true
+rm -rf "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
+mkdir -p "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
+( cd "$EVROOT" && ./scripts/golden-task-eval.sh ) >/dev/null 2>&1 || true
+check "an eval with no tasks writes no results file" "0" \
+  "$(find "$EVROOT/eval/results" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

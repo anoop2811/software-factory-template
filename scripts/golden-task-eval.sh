@@ -53,8 +53,12 @@ echo "golden-task-eval: harness=$HARNESS runner=$RUNNER runs=$RUNS"
 # Tasks are directories under $EVAL_DIR containing task.md + verify.sh.
 TASKS=$(find "$EVAL_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)
 if [ -z "$TASKS" ]; then
-  echo "golden-task-eval: no tasks in $EVAL_DIR/ (OK — add task dirs to eval it)"
-  printf '{"harness":"%s","tasks":[]}\n' "$HARNESS" > "$CURRENT_FILE"
+  echo "golden-task-eval: no tasks in $EVAL_DIR/"
+  echo "  A task is a red spec plus an oracle — see eval/README.md."
+  echo "  If eval/golden-tasks/ is missing entirely, 'factory upgrade' installs it."
+  # No result file. An empty run measured nothing, and a results file that says
+  # so is still a results file: it invites a later comparison against a baseline
+  # of nothing, and it makes an unconfigured repo look instrumented.
   exit 0
 fi
 

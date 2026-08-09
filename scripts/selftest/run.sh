@@ -704,7 +704,11 @@ for PACK_CI in "$TEMPLATE_ROOT"/packs/*/workflows/ci.yml; do
   # is not. So wherever a real harness appears, the key guard must appear too.
   # (Grepping for "an unguarded call" cannot distinguish the guarded one two
   # lines below it — this states the requirement instead of the symptom.)
-  if grep -q 'harness[= ]opencode' "$PACK_CI"; then
+  # Scoped to the golden-task eval specifically. The same workflow also runs
+  # harness-structural-eval against opencode, which reads committed config and
+  # needs no credentials — matching that line would tie the credential-guard
+  # invariant to a check that has nothing to do with credentials.
+  if grep -q 'golden-task-eval\.sh --harness[= ]opencode' "$PACK_CI"; then
     check "pack '$PACK_NAME' CI guards its real-harness eval on the key" "1" \
       "$(grep -c 'OPENROUTER_API_KEY:-' "$PACK_CI" || true)"
     check "pack '$PACK_NAME' CI still runs the eval without a key" "1" \

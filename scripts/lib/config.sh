@@ -34,8 +34,19 @@ factory_config_get() {
     return
   fi
   value="$(sed -n "s/^${key}:[[:space:]]*//p" "$file" | head -n 1)"
-  # Strip a trailing comment, then surrounding double quotes, then whitespace.
-  value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/^"\(.*\)"$/\1/; s/[[:space:]]*$//')"
+  # Unwrap in the order the format defines: a quoted value ends at its closing
+  # quote and anything after it is a comment; an unquoted value ends at ` #`.
+  # Quotes are checked first so that a hash *inside* them stays part of the
+  # value — a model string or a prompt fragment may legitimately contain one.
+  case "$value" in
+    \"*)
+      value="${value#\"}"
+      value="${value%%\"*}"
+      ;;
+    *)
+      value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/[[:space:]]*$//')"
+      ;;
+  esac
   if [ -z "$value" ]; then
     printf '%s' "$default"
     return

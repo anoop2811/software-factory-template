@@ -65,8 +65,27 @@ while IFS= read -r line || [ -n "$line" ]; do
   case "$key" in
     ''|*[!A-Za-z0-9_]*) continue ;;
   esac
-  # Strip one layer of surrounding quotes, and a trailing comment outside them.
-  value="$(printf '%s' "$value" | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/')"
+  # Unwrap the value, in the order a shell would read it:
+  #   VALUE="x" # note   ->  x
+  #   VALUE=x # note     ->  x
+  #   VALUE="a # b"      ->  a # b   (a # inside quotes is part of the value)
+  # A trailing comment is only stripped from the unquoted remainder, so a hash
+  # that belongs to the value survives.
+  case "$value" in
+    \"*)
+      # Quoted: take up to the closing quote, discard whatever follows.
+      value="${value#\"}"
+      value="${value%%\"*}"
+      ;;
+    \'*)
+      value="${value#\'}"
+      value="${value%%\'*}"
+      ;;
+    *)
+      # Unquoted: a ' #' sequence starts a comment.
+      value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/[[:space:]]*$//')"
+      ;;
+  esac
 
   yaml_key="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')"
 

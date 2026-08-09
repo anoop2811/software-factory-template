@@ -39,7 +39,16 @@ factory_config_export
 # committed placeholders alone so the repo stays drift-clean. The signal is the
 # absence of the keys rather than the absence of a file — since Decision 41 they
 # live in factory.yaml, which every factory repo has, including this one.
-if ! factory_config_has cost_profile && [ ! -f "$ROOT_DIR/factory.config" ]; then
+#
+# Any one of the harness keys counts. Testing only cost_profile would skip the
+# sync for a repo that pinned models but never set a profile, leaving its
+# placeholders in place and its agents unrouted.
+HAS_SETTINGS=""
+for _k in cost_profile model_provider \
+          opencode_frontier_model opencode_default_model opencode_economy_model; do
+  factory_config_has "$_k" && { HAS_SETTINGS=1; break; }
+done
+if [ -z "$HAS_SETTINGS" ] && [ ! -f "$ROOT_DIR/factory.config" ]; then
   echo "sync-opencode: no harness settings configured — leaving opencode.json as-is"
   exit 0
 fi

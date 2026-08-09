@@ -14,7 +14,7 @@ downgrade) remain proposals, and say so.
   context, review passes) and the tokens the *work* costs (the actual
   implementation). The second usually dwarfs the first.
 - The largest lever already half-exists. The factory routes roles to a
-  `DEFAULT_MODEL` and a `FRONTIER_MODEL`. A cost profile extends that to a
+  default tier and a frontier tier. A cost profile extends that to a
   cheaper third tier for high-volume mechanical roles.
 - A deterministic gate costs zero model tokens. Every check that stays a shell
   hook instead of an LLM reviewer is a check that never bills.
@@ -45,14 +45,16 @@ A cost plan has to help both, and be honest that surface 2 is the larger prize.
   stable across turns, which matters for caching, but they are not free on the
   first turn or on any cache miss.
 - **Per-role model routing already exists, two tiers.** `spec-writer` and
-  `reviewer` run on `FRONTIER_MODEL`; `implementer`, `refactorer`, and
-  `wiki-maintainer` run on `DEFAULT_MODEL`. Both model strings are chosen at
-  `factory-init`, recorded in `factory.yaml`, and substituted into the harness
-  configs (`opencode.json` and the agent frontmatter) — the role→model mapping
-  lives there, not in `factory.yaml`, which holds the runtime enforcement values.
+  `reviewer` run on the frontier tier; `implementer`, `refactorer`, and
+  `wiki-maintainer` run on the default tier. Both model strings are chosen at
+  `factory-init` and recorded in `factory.yaml`, then substituted into the
+  harness configs (`opencode.json` and the agent frontmatter) by
+  `make sync-harnesses`. Since Decision 41 that is the same file the gates read:
+  routing and enforcement are different *keys*, not different files, and routing
+  still relaxes no gate.
 - **`small_model` now follows the economy tier.** The opencode lightweight-task
-  model (titles, summaries) was pointed at `DEFAULT_MODEL`; under the `economy`
-  profile it routes to the cheaper `ECONOMY_MODEL` instead. (This lever is
+  model (titles, summaries) was pointed at the default tier; under the `economy`
+  profile it routes to the cheaper economy tier instead. (This lever is
   opencode-specific — Claude and Codex have no equivalent per-project
   small-model knob, but they still get the per-role economy routing below.)
 - **Gates are shell, so they are free.** The self-test, `factory doctor`, and
@@ -140,7 +142,7 @@ defaults and overridable in `factory.yaml`:
 | default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
 | economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
 
-```sh
+```yaml
 # factory.yaml (excerpt)
 cost_profile: "economy"
 opencode_frontier_model: "openrouter/z-ai/glm-5.2"
@@ -266,7 +268,7 @@ the eval, deliberately, and not in the session loop.
 - **Phase 0 — this document.** Make the levers explicit and name "prefer a hook
   over an LLM check" and "keep the prefix cache-friendly" as design values.
 - **Phase 1 — the `economy` tier and profile. (Shipped.)** `factory-init` prompts
-  for `cost_profile` and records it with `ECONOMY_MODEL` in `factory.yaml`;
+  for `cost_profile` and records it with the economy tier in `factory.yaml`;
   the economy-eligible roles (`refactorer`, `wiki-maintainer`, opencode
   `small_model`) route to the economy tier under `economy` and collapse to the
   default under `standard`. Routing crosses to Claude and Codex via the sync
@@ -290,7 +292,7 @@ the eval, deliberately, and not in the session loop.
   the report reads it back.
 - **Phase 4 — eval-gated implementer downgrade.** Only after the eval shows a
   cheaper implementer still passes the gates, allow `economy` to route it to
-  `ECONOMY_MODEL`.
+  the economy tier.
 
 ## Risks and honesty
 

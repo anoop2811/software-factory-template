@@ -24,7 +24,7 @@ If the self-test fails, the installation is not successful, and factory-init say
 
 ## factory.yaml reference
 
-Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no nesting; lists are space-separated on one line; values may be double-quoted; a trailing `# comment` is stripped. Anything more expressive belongs in a hook, not in configuration.
+Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no nesting; lists are space-separated on one line; values may be double-quoted; a trailing `# comment` is stripped, and a `#` inside quotes is part of the value. Anything more expressive belongs in a hook, not in configuration.
 
 | Key | Meaning | Example |
 |---|---|---|
@@ -108,11 +108,11 @@ while leaving the review path frontier.
 Each harness has its own native model namespace, so each carries its own per-tier
 models in `factory.yaml` — shipped as intelligent defaults, overridable there:
 
-```sh
-MODEL_PROVIDER                                                              # seeds the tiers below
-OPENCODE_FRONTIER_MODEL / OPENCODE_DEFAULT_MODEL / OPENCODE_ECONOMY_MODEL   # any provider/model
-CLAUDE_FRONTIER_MODEL   / CLAUDE_DEFAULT_MODEL   / CLAUDE_ECONOMY_MODEL     # Anthropic ids
-CODEX_FRONTIER_MODEL    / CODEX_DEFAULT_MODEL    / CODEX_ECONOMY_MODEL      # OpenAI ids
+```yaml
+model_provider                                                              # seeds the tiers below
+opencode_frontier_model / opencode_default_model / opencode_economy_model   # any provider/model
+claude_frontier_model   / claude_default_model   / claude_economy_model     # Anthropic ids
+codex_frontier_model    / codex_default_model    / codex_economy_model      # OpenAI ids
 ```
 
 No provider is assumed. `factory-init` asks once and only *seeds* these; choose

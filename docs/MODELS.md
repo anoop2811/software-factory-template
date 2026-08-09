@@ -27,14 +27,14 @@ opencode reaches [75+ providers](https://opencode.ai/docs/providers/) with a
 Code only talks to Anthropic and Codex only to OpenAI, so their tiers always use
 those native ids — and they only apply if you actually run that harness.
 
-```sh
+```yaml
 # factory.yaml — the shape, whatever the provider
 model_provider: "openrouter"
 opencode_frontier_model: "openrouter/z-ai/glm-5.2"
 opencode_default_model: "openrouter/z-ai/glm-5.2"
 opencode_economy_model: "openrouter/qwen/qwen3-coder"
-CLAUDE_FRONTIER_MODEL="claude-opus-4-8"      # Claude Code: Anthropic ids
-CODEX_FRONTIER_MODEL="gpt-5.6-sol"           # Codex: OpenAI ids
+claude_frontier_model: "claude-opus-4-8"     # Claude Code: Anthropic ids
+codex_frontier_model: "gpt-5.6-sol"          # Codex: OpenAI ids
 ```
 
 ## Example model strings
@@ -62,5 +62,5 @@ Which model runs where is decided by *role tier*, not by the model string — se
 [COST_AND_TOKENS.md](COST_AND_TOKENS.md). `spec-writer` and `reviewer` are
 frontier, `refactorer` and `wiki-maintainer` are economy, everything else is
 default; the `economy` cost profile turns the cheap tier on. With
-`MODEL_PROVIDER="inherit"` the tiers are blank, so the cost profile routes
+`model_provider: "inherit"` the tiers are blank, so the cost profile routes
 nothing until you fill them in.

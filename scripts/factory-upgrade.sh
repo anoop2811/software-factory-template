@@ -46,9 +46,10 @@ if [ ! -f factory.yaml ]; then
   exit 1
 fi
 
-# Sourced late, from the repo's own copy, and only after factory.yaml is known to
-# exist. The copy below may replace this file mid-run; the functions are already
-# resident by then.
+# Sourced from the repo's own copy, and only after factory.yaml is known to
+# exist. It is sourced again after the framework copy below, because upgrade
+# exists partly to repair a repo whose lib is missing or stale: at this point the
+# functions may be absent or old, and by then they are present and current.
 # shellcheck source=lib/config.sh
 [ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
 
@@ -150,6 +151,13 @@ done
 # Restore executable bits on scripts.
 chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null || true
 
+# Re-source the config lib now that the copy has run. A repo whose lib was
+# missing or stale is one upgrade is meant to repair, and the questions below
+# call into it — so they must use the version that just landed, not the one that
+# may not have existed when this script started.
+# shellcheck source=lib/config.sh
+[ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
+
 # ── Record the version we upgraded to ────────────────────────────────
 UPSTREAM_COMMIT="$(git -C "$TEMPLATE" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 printf 'ref=%s\ncommit=%s\n' "$FACTORY_REF" "$UPSTREAM_COMMIT" > .factory-version
@@ -180,6 +188,10 @@ echo "  (the adapters .claude/ and .codex/ regenerate from opencode.json via 'ma
 capability_offer() {
   _cap_key="$1" _cap_title="$2" _cap_detail="$3" _cap_enable="$4"
   _cap_yaml_key="$(printf '%s' "$_cap_key" | tr '[:upper:]' '[:lower:]')"
+  # The lib is required to record an answer; without it, asking would be asking
+  # a question whose reply cannot be kept, and the adopter would be asked again
+  # every single upgrade.
+  command -v factory_config_has >/dev/null 2>&1 || return 0
   # Answered before — in either direction, and in either file. A repo that
   # answered before Decision 41 recorded it in factory.config; re-asking because
   # the storage moved would be exactly the nagging this avoids.

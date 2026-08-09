@@ -20,7 +20,7 @@ It uses its own temporary config, so it passes or fails on wiring — not on
 whatever your `factory.yaml` happens to arm. What it deliberately does not
 claim: live in-harness behavior. That's a separate, manual observation.
 
-## Golden tasks — real scoring; runners and tasks are yours
+## Golden tasks — real scoring; the tasks are yours
 
 `scripts/golden-task-eval.sh` runs each task under `eval/golden-tasks/<name>/`
 through a **runner** and **scores it for real**: the pass rate over N runs, where
@@ -30,10 +30,21 @@ did not tamper with it. Scores are diffed against a saved baseline
 a regression and exits non-zero.
 
 ```sh
-./scripts/golden-task-eval.sh                                  # mock runner, 1 run
-./scripts/golden-task-eval.sh --runner=eval/runners/opencode.sh --runs=5
-./scripts/golden-task-eval.sh --harness=claude --save-baseline
+./scripts/golden-task-eval.sh                        # mock runner, 1 run
+./scripts/golden-task-eval.sh --harness claude       # a real Claude Code run
+./scripts/golden-task-eval.sh --harness opencode --runs 5 --save-baseline
 ```
+
+Naming a harness selects its runner: `--harness claude` uses
+`eval/runners/claude.sh`. Claude Code, Codex and opencode ship working runners,
+because the factory already configures those three — it generates their agent
+files and routes their model tiers, so asking you to work out the invocation as
+well would be strange. `--runner` still overrides, for a harness the factory
+does not configure.
+
+Real runs cost tokens and need your credentials, which is why `mock` remains the
+default: it calls no model, so the scorer stays provable in CI. A mock score is
+1.00 by construction and `factory metrics` labels it as not an agent score.
 
 ### A task
 
@@ -53,9 +64,10 @@ A directory `eval/golden-tasks/<name>/` with:
 `<workdir>`. Its exit status is ignored; `verify.sh` scores the result. The
 shipped `eval/runners/mock.sh` calls **no model** — it exercises the scorer both
 ways so the harness is provable in CI without credentials (the self-test uses
-it). A **real** runner drives your harness (opencode / Claude Code / Codex) with
-your keys and budget, so it is opt-in and yours to wire — golden tasks and live
-model runs are inherently project-specific.
+it). `claude.sh`, `codex.sh` and `opencode.sh` are **real**: they drive their
+harness headlessly with your keys and budget, so they are opt-in but not yours
+to write. `example-harness.sh` is the skeleton for a harness the factory does
+not configure; read one of the real three first.
 
 **Headless permissions bite first.** A non-interactive run has nobody to approve
 anything, and `ask` permissions do not fail cleanly: the primary session

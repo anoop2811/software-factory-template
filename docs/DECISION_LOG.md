@@ -1504,3 +1504,48 @@ now reads "baseline 1.0 current 1.0 (mock — not your agents)" followed by "the
 scorer works — no agent measured yet", and the JSON reports measured_tasks 0 with
 is_mock true. A seeded non-mock harness reports measured_tasks 1 and carries no
 mock label. `bash scripts/selftest/run.sh` reported "142 passed, 0 failed".
+
+### Amendment (2026-08-08): the factory ships runners for the harnesses it configures
+
+An adopter, told to point `--runner` at a real harness, asked the obvious
+question: "we are a harness are we not? couldn't we use what the factory
+provides?" They were right. The factory treats `opencode.json` as canonical,
+generates the Claude Code and Codex agent files from it, and routes each
+harness's model tiers — and then asked the adopter to work out headless
+invocation for the same three harnesses themselves. The template shipped an
+`example-harness.sh` that exits 1.
+
+`claude.sh`, `codex.sh` and `opencode.sh` now ship, selected by name:
+`--harness claude` uses `eval/runners/claude.sh`. `--runner` still overrides, for
+a harness the factory does not configure, and `example-harness.sh` remains the
+skeleton for that case — now pointing at the three real ones first.
+
+Each runner encodes the permission decision that would otherwise be discovered
+the hard way. A headless run has nobody to approve anything, and an "ask"
+permission does not fail cleanly: the primary session auto-rejects it, so work is
+blocked and the task fails as though the model were incapable. Claude Code runs
+under `acceptEdits`, which grants file edits without granting shell; Codex under
+`workspace-write`, the narrowest sandbox in which the task is solvable. Neither
+bypasses approvals *and* the sandbox — an eval is not a reason to hand over the
+machine. opencode runs as the `implementer` role, so what is scored is the agent
+the factory actually routes work to.
+
+`mock` stays the default: it calls no model, so the scorer remains provable in CI
+without credentials, and a real run costs the adopter money they have not agreed
+to spend.
+
+The same question exposed a worse bug. The eval parsed only `--harness=name`, so
+`--harness claude` was silently dropped: the run used the mock, printed
+"harness=mock", and an adopter reading 1.00 would believe they had measured their
+agent. Both spellings are accepted now and an unrecognised argument is an error.
+A flag quietly ignored is worse than one rejected — wrong answers are
+recoverable, wrong answers that look right are not.
+
+Provenance: adopter question, 2026-08-08. Verified this session by running all
+three against the reference task on this machine, with the CLIs installed
+(claude 2.1.220, codex-cli 0.145.0, opencode 1.18.11): each scored
+"reference-answer: 1/1 passed (score 1.00)" through `golden-task-eval`, and the
+Claude run's log confirmed the permission model — Bash denied, Write allowed.
+`factory metrics` reported `measured_tasks 1` with `is_mock false` for a real
+harness baseline, against 0 and true for the mock.
+`bash scripts/selftest/run.sh` reported "149 passed, 0 failed".

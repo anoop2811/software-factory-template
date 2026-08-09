@@ -639,6 +639,37 @@ check "the embedded report program contains no double quotes" "0" \
 check "a quote in the embedded program would be caught" "1" \
   "$(printf 'x = 1  # a "quoted" comment\n' | grep -c '"' || true)"
 
+# Break/fix: an eval flag must not be silently ignored. The parser took only the
+# `--harness=name` form, so `--harness claude` was dropped without a word: the
+# run used the mock, printed "harness=mock", and an adopter reading 1.00 would
+# believe they had measured their agent. Wrong answers are recoverable; wrong
+# answers that look right are not.
+GTROOT="$SANDBOX/gteval"
+mkdir -p "$GTROOT/scripts" "$GTROOT/eval/golden-tasks/t1" "$GTROOT/eval/runners" "$GTROOT/eval/results"
+( cd "$GTROOT" && git init -q )
+cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GTROOT/scripts/"
+printf 'do the thing\n' > "$GTROOT/eval/golden-tasks/t1/task.md"
+printf '#!/bin/sh\nexit 0\n' > "$GTROOT/eval/golden-tasks/t1/verify.sh"
+# Stub runners: the parser is what is under test, not any real harness — this
+# suite runs in CI, where there are no credentials and must be none needed.
+for r in mock stubharness; do
+  printf '#!/bin/sh\nexit 0\n' > "$GTROOT/eval/runners/$r.sh"
+done
+chmod +x "$GTROOT/eval/runners/"*.sh "$GTROOT/eval/golden-tasks/t1/verify.sh"
+gt_head() { ( cd "$GTROOT" && ./scripts/golden-task-eval.sh "$@" 2>&1 | head -1 ); }
+check "the space form of --harness is honoured" "1" \
+  "$(gt_head --harness stubharness | grep -c 'harness=stubharness' || true)"
+check "the equals form still works" "1" \
+  "$(gt_head --harness=stubharness | grep -c 'harness=stubharness' || true)"
+check "a named harness selects its shipped runner" "1" \
+  "$(gt_head --harness stubharness | grep -c 'runner=eval/runners/stubharness.sh' || true)"
+check "an explicit --runner still overrides the name" "1" \
+  "$(gt_head --harness stubharness --runner eval/runners/mock.sh | grep -c 'runner=eval/runners/mock.sh' || true)"
+# A subshell rather than `env -C`, which is a GNU/BSD extension this suite
+# cannot assume on every adopter's machine.
+gt_status() { ( cd "$GTROOT" && ./scripts/golden-task-eval.sh "$@" >/dev/null 2>&1; echo $? ); }
+check "an unknown argument is rejected, not ignored" "2" "$(gt_status --nonsense)"
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

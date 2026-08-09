@@ -131,6 +131,9 @@ scripts/golden-task-eval.sh
 eval/README.md
 eval/runners/mock.sh
 eval/runners/example-harness.sh
+eval/runners/claude.sh
+eval/runners/codex.sh
+eval/runners/opencode.sh
 eval/golden-tasks/reference-answer/task.md
 eval/golden-tasks/reference-answer/verify.sh
 scripts/harness-structural-eval.sh

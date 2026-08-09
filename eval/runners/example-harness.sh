@@ -1,8 +1,14 @@
 #!/bin/sh
 # eval/runners/example-harness.sh
-# A TEMPLATE for a real runner — copy it, fill in the one line that invokes your
-# harness, and pass it with `--runner=eval/runners/your-harness.sh`. As shipped it
-# exits 1 on purpose, so you don't mistake it for a working runner.
+# A TEMPLATE for a runner the factory does not ship. As shipped it exits 1 on
+# purpose, so you cannot mistake it for a working runner.
+#
+# You probably do not need this. Claude Code, Codex and opencode already have
+# working runners beside this file, selected automatically by name:
+#     ./scripts/golden-task-eval.sh --harness claude
+# Read claude.sh, codex.sh or opencode.sh first — they are short, and one of them
+# is likely closer to your harness than this skeleton. Copy this only for a
+# harness the factory does not configure.
 #
 # Runner contract:
 #   $1 = workdir. It contains task.md (the spec). Write your implementation into

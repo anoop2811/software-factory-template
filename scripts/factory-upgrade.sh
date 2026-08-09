@@ -38,16 +38,22 @@ done
 UPGRADE_NESTED="${FACTORY_UPGRADE_ACTIVE:-}"
 export FACTORY_UPGRADE_ACTIVE=1
 
-# A second, separate guard for the hand-off below, where this script re-execs the
-# newer copy of itself. It is deliberately not the same flag: FACTORY_UPGRADE_ACTIVE
-# says "an upgrade is running", which is true of both halves, while this says
-# "the hand-off already happened", which may happen at most once per invocation.
-# When it is set we are the newer copy, and the value carried across tells us
-# whether the ORIGINAL caller was itself nested — otherwise the hand-off would
-# look like nesting to the child and silently skip the doctor proof.
-if [ -n "${FACTORY_UPGRADE_REEXEC:-}" ]; then
-  UPGRADE_NESTED="${FACTORY_UPGRADE_NESTED_ORIG:-}"
-fi
+# Whether the hand-off below already happened. It bounds the hand-off and
+# NOTHING else — in particular it does not, and must not, influence nestedness.
+#
+# It once did, and that was a fork bomb. The parent passed its own nestedness
+# across as a second variable, and environment variables are inherited by every
+# descendant: the doctor proof spawns a self-test that runs upgrade fixtures with
+# an explicit FACTORY_UPGRADE_ACTIVE=1, those fixtures read the stale handshake,
+# concluded they were top-level, ran the doctor, and recursed —
+# doctor -> self-test -> upgrade -> doctor, forking until the machine gave up.
+# It ran on an adopter's machine.
+#
+# So nestedness has exactly one source, above, and the hand-off restores the
+# environment to what the caller had before exec'ing, rather than describing it.
+# One fact, one variable, derived the same way in every invocation.
+HANDED_OFF="${FACTORY_UPGRADE_REEXEC:-}"
+unset FACTORY_UPGRADE_REEXEC
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
@@ -182,16 +188,25 @@ chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null 
 # adopters skip versions, and the second run is exactly the one nobody does.
 #
 # So: if the copy replaced this script, exec the new one and let it ask. Bounded
-# to a single hand-off by FACTORY_UPGRADE_REEXEC, which the child sees set —
-# there is no path that arms it twice. The re-run's copy pass is a no-op, since
-# every file now matches the template.
+# to a single hand-off by $HANDED_OFF — a shell variable, not an exported one,
+# so the bound is scoped to this process and cannot be inherited by anything
+# this run spawns. The re-run's copy pass is a no-op, since every file now
+# matches the template.
 SELF_AFTER=""
 [ -f scripts/factory-upgrade.sh ] && SELF_AFTER="$(cksum < scripts/factory-upgrade.sh 2>/dev/null || true)"
-if [ -z "${FACTORY_UPGRADE_REEXEC:-}" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFORE" != "$SELF_AFTER" ]; then
+if [ -z "$HANDED_OFF" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFORE" != "$SELF_AFTER" ]; then
   echo ""
   echo "factory upgrade: the upgrade script itself was updated — continuing with the new one."
   export FACTORY_UPGRADE_REEXEC=1
-  export FACTORY_UPGRADE_NESTED_ORIG="$UPGRADE_NESTED"
+  # Put FACTORY_UPGRADE_ACTIVE back the way the caller had it, so the child
+  # derives its nestedness exactly as any other invocation does — from the one
+  # variable that means it. Describing nestedness in a second variable is what
+  # made this recurse; restoring the environment cannot go stale.
+  if [ -z "$UPGRADE_NESTED" ]; then
+    unset FACTORY_UPGRADE_ACTIVE
+  else
+    export FACTORY_UPGRADE_ACTIVE=1
+  fi
   # Hand over the checkout we already have, so the second pass neither clones
   # again nor risks resolving the ref differently — and hand over the ref itself,
   # which is a label rather than a lookup once --source is set. Without it the

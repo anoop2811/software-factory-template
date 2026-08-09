@@ -1350,3 +1350,46 @@ invocation of the now-current script did not hand off again, and no upgrade
 processes were left behind. With a non-nested caller the child did not claim
 nesting and did run the doctor proof; with a nested caller it reported nested
 exactly once. `bash scripts/selftest/run.sh` reported "124 passed, 0 failed".
+
+### Amendment (2026-08-08): nestedness has one source, and the handshake carries none of it
+
+The hand-off shipped with a fork bomb, and it ran on an adopter's machine before
+the first release could carry it. Reported as an upgrade that hung; it was a
+`doctor -> self-test -> upgrade -> doctor` cycle forking without bound.
+
+The mechanism was the hand-off's own handshake. The parent passed its nestedness
+across as an exported variable so the child would not mistake the hand-off for
+nesting. Exported variables are inherited by every descendant, not just the one
+being exec'd — and the doctor proof spawns a self-test that runs upgrade fixtures
+of its own with an explicit `FACTORY_UPGRADE_ACTIVE=1`. Those fixtures read the
+stale handshake, concluded they were top-level, ran the doctor, and recursed. The
+explicit guard was overridden by an inherited description of a different process.
+
+The repair is to stop describing nestedness at all. It has exactly one source —
+`FACTORY_UPGRADE_ACTIVE` — and before exec'ing, the hand-off restores that
+variable to whatever the caller had. The child then derives its own nestedness
+the same way every other invocation does. `FACTORY_UPGRADE_REEXEC` survives only
+to bound the hand-off to one, is read into a plain shell variable, and is unset
+immediately so nothing downstream can inherit it. A fact with one representation
+cannot go stale against itself.
+
+Two lessons worth keeping, both general. A guard that can be overridden by an
+inherited environment variable is not a guard. And the second half of a fix
+belongs to the environment it leaves behind, not only to the process it starts:
+the earlier version was correct for the child and wrong for the grandchild.
+
+Also fixed, found by the same run: the pack-gate fixture assumed the upgrade
+source contains a `packs/` tree. This suite ships to adopters and runs inside
+`factory doctor`, and an adopter has the dialect gate installed in
+`scripts/hooks/` but no `packs/` directory at all — so the fixture failed in
+every adopter repository and turned a healthy doctor red for a condition that was
+never theirs. It is now skipped where there is no pack tree to upgrade from.
+
+Provenance: observed 2026-08-08 on the `tutr` adopter repository, upgrading from
+main; multiple concurrent `factory-doctor.sh` and `selftest/run.sh` processes
+were confirmed with `pgrep` before being killed. Verified after the repair: the
+fork-bomb precondition (an inherited handshake alongside an explicit nested
+marker) now reports nested and starts no doctor; a nested caller with a stale
+script hands off once and starts no doctor; a non-nested caller hands off once,
+starts the doctor exactly once, and its self-test reported "117 passed, 0 failed"
+with a healthy verdict and zero processes left behind.

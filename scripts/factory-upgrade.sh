@@ -192,11 +192,14 @@ if [ -z "${FACTORY_UPGRADE_REEXEC:-}" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFO
   echo "factory upgrade: the upgrade script itself was updated — continuing with the new one."
   export FACTORY_UPGRADE_REEXEC=1
   export FACTORY_UPGRADE_NESTED_ORIG="$UPGRADE_NESTED"
-  # Always hand over the checkout we already have rather than the ref, so the
-  # second pass neither clones again nor risks resolving the ref differently.
-  # If we fetched it, the child inherits responsibility for mentioning it.
+  # Hand over the checkout we already have, so the second pass neither clones
+  # again nor risks resolving the ref differently — and hand over the ref itself,
+  # which is a label rather than a lookup once --source is set. Without it the
+  # child falls back to the default and writes `ref=main` into .factory-version
+  # for an adopter who asked for a tag: the tree would be right and the record
+  # would be wrong, which is worse than either.
   [ -n "$CLEANUP" ] && export FACTORY_UPGRADE_CLEANUP="$CLEANUP"
-  exec bash scripts/factory-upgrade.sh --source "$TEMPLATE"
+  exec bash scripts/factory-upgrade.sh --ref "$FACTORY_REF" --source "$TEMPLATE"
 fi
 
 # Inherited from the process that handed over: the temp checkout is still ours to

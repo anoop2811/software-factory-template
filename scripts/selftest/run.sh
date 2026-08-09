@@ -511,6 +511,20 @@ check "an already-current script does not hand off" "0" \
 # that point.
 check "nestedness is carried across the hand-off" "1" \
   "$(grep -c 'nested upgrade' "$HO_LOG" 2>/dev/null || true)"
+# The requested ref must survive too. FACTORY_REF is a plain shell variable and
+# exec carries only exported ones, so a child that fell back to the default would
+# write `ref=main` into .factory-version for someone who asked for a tag — the
+# tree right and the record wrong, which is worse than either alone.
+HOREF="$SANDBOX/handoff-ref"
+mkdir -p "$HOREF/scripts/lib"
+( cd "$HOREF" && git init -q )
+printf 'project_name: t\nlanguage_packs: ""\n' > "$HOREF/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOREF/scripts/lib/"
+{ cat "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOREF/scripts/factory-upgrade.sh"
+chmod +x "$HOREF/scripts/factory-upgrade.sh"
+( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$TEMPLATE_ROOT" ) </dev/null >/dev/null 2>&1 || true
+check "the requested ref survives the hand-off" "ref=pinned-label" \
+  "$(grep '^ref=' "$HOREF/.factory-version" 2>/dev/null || true)"
 
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in

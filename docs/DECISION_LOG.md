@@ -1429,3 +1429,40 @@ run showed 29 counter updates climbing to 115 cases and reported "37 file(s)
 updated in 31s / of which the break/fix proof took 30s"; the piped run contained
 zero carriage-return characters, one heads-up line, and the same timings.
 `bash scripts/selftest/run.sh` reported "133 passed, 0 failed".
+
+### Amendment (2026-08-08): the eval scaffold reaches existing adopters, and its advice works
+
+Two problems, reported together by an adopter whose `factory metrics` kept saying
+"no eval baselines yet — run golden-task-eval --save-baseline", and whose eval
+answered "no tasks in eval/golden-tasks/" every time they did.
+
+The advice was a dead end because the repository had no eval scaffold at all —
+`eval/golden-tasks/` and `eval/runners/` did not exist. `factory init` creates
+them, but `eval/` was never in the upgrade's framework list, so a repository
+installed before the eval feature could not receive it. Exactly the class of bug
+that hid the pack dialect gates: ships at init, unreachable by upgrade. The
+scaffold is framework by every test that matters — identical for every adopter,
+carrying no per-repo values — so it is in the list now, with the execute bits
+restored alongside the hooks. A runner or an oracle that arrives without its
+execute bit is a task that cannot be scored, which reads as a failing agent
+rather than a broken install.
+
+The message was wrong independently. Three states need three different next
+steps: no scaffold, a scaffold with no tasks, and tasks with no baseline. Naming
+the last one in all three cases sent an adopter to a command that could only
+write an empty file, and then repeated itself after they ran it. The report now
+says which state the repository is in and what actually advances it.
+
+`golden-task-eval` also stopped writing a results file when it scored nothing.
+An empty result is still a result: it makes an unconfigured repository look
+instrumented, and invites a later comparison against a baseline of nothing.
+
+Provenance: adopter report, 2026-08-08 — "I keep getting ... No eval baselines
+yet ... but there is no change in the metrics report anyway". Confirmed in that
+repository: `eval/results/` present with a zero-task `mock-current.json`, and no
+`eval/golden-tasks/` or `eval/runners/` directory. Verified after the fix on a
+repository seeded to the same shape: the upgrade added five eval files with the
+oracle executable, and the three states each produced their own next step —
+"factory upgrade", "no eval tasks yet", and "1 task(s), no baseline yet" — with
+the baseline actually written once that last advice was followed.
+`bash scripts/selftest/run.sh` reported "137 passed, 0 failed".

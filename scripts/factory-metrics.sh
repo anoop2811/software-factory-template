@@ -156,7 +156,15 @@ for f in sorted(glob.glob(os.path.join(root, "eval/results/*-baseline.json"))):
             "harness": d.get("harness", "?"), "task": t["task"],
             "baseline": t.get("score"), "current": c.get("score"),
         })
-print(json.dumps({"tasks": tasks, "stale": stale, "harnesses": harnesses}))
+# Three states, three different next steps. Telling an adopter to save a
+# baseline when they have no tasks sends them to a command that can only write
+# an empty file — which is what happened: the advice was a dead end, and the
+# report kept giving it after they followed it.
+task_dirs = [d for d in glob.glob(os.path.join(root, "eval/golden-tasks/*"))
+             if os.path.isdir(d)]
+scaffold = os.path.isdir(os.path.join(root, "eval/golden-tasks"))
+print(json.dumps({"tasks": tasks, "stale": stale, "harnesses": harnesses,
+                  "task_count": len(task_dirs), "scaffold": scaffold}))
 PY
 )"
 
@@ -303,7 +311,13 @@ PY
 import json,sys
 d=json.load(sys.stdin)
 if not d['tasks']:
-    print('  no eval baselines yet — run: factory selftest, then golden-task-eval --save-baseline')
+    if not d.get('scaffold'):
+        print('  eval scaffold not installed — run: factory upgrade  (adds eval/golden-tasks and eval/runners)')
+    elif not d.get('task_count'):
+        print('  no eval tasks yet — a task is a red spec plus an oracle; see eval/README.md')
+    else:
+        print('  %d task(s), no baseline yet — run: ./scripts/golden-task-eval.sh --save-baseline'
+              % d['task_count'])
 else:
     for t in d['tasks']:
         cur = t['current'] if t['current'] is not None else '-'

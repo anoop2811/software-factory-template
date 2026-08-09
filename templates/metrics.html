@@ -117,8 +117,16 @@ function render(d) {
 
   parts.push(`<section><h2>Agents</h2><p class="q">Getting better, or worse?</p>`);
   if (!a.tasks.length) {
-    parts.push(`<p class="note">No eval baselines yet. Run
-      <code>./scripts/golden-task-eval.sh --save-baseline</code> to start measuring.</p>`);
+    // The next step depends on which of three states the repo is in. Naming the
+    // wrong one sends the reader to a command that cannot help them.
+    parts.push(!a.scaffold
+      ? `<p class="note">Eval scaffold not installed. Run <code>factory upgrade</code>
+         &mdash; it adds <code>eval/golden-tasks</code> and <code>eval/runners</code>.</p>`
+      : !a.task_count
+        ? `<p class="note">No eval tasks yet. A task is a red spec plus an oracle
+           &mdash; see <code>eval/README.md</code>.</p>`
+        : `<p class="note">${a.task_count} task(s), no baseline yet. Run
+           <code>./scripts/golden-task-eval.sh --save-baseline</code> to start measuring.</p>`);
   } else {
     parts.push(`<table><tr><th>Harness</th><th>Task</th><th style="text-align:right">Baseline</th>
       <th style="text-align:right">Current</th></tr>` +

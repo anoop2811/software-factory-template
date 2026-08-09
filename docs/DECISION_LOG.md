@@ -1576,3 +1576,39 @@ manually". Verified this session: a piped run and a `--no-open` run both write
 the page and print the open-it-yourself line, while a run under a pty reports
 "opening it" and invoked the platform opener.
 `bash scripts/selftest/run.sh` reported "157 passed, 0 failed".
+
+### Amendment (2026-08-09): no shipped CI job may require a credential nobody was asked for
+
+An adopter declined the adversarial review lane during an upgrade, and their CI
+still failed for want of `OPENROUTER_API_KEY`. Reasonable to read as a bug in the
+opt-out; it was not. The language packs' CI workflow ran
+
+    ./scripts/golden-task-eval.sh --harness=opencode
+
+unconditionally, and a real harness needs a provider key. Two features, one
+secret name, no relationship — and the shared name is precisely why declining one
+looked like it should have silenced the other.
+
+The defect is the unconditional part. `factory init` never asks for this key
+unless the review lane is enabled, so every adopter of a language pack inherited
+a CI job that could not pass on day one. A gate that fails for a reason the
+adopter was never given a chance to fix teaches people to ignore red CI, which
+costs more than the check was ever worth.
+
+The job now scores the agents when a key is configured and the scorer when one is
+not, saying which it did. Green without credentials, real with them, and never
+silent about the difference — the same shape as the eval's own default, where
+`mock` is chosen precisely because it calls no model.
+
+The self-test asserts the invariant rather than the symptom: wherever a pack's CI
+names a real harness, the key guard must appear too, and the unguarded form must
+still be present as the fallback. An earlier attempt grepped for "an unguarded
+call" and could not tell it from the guarded one two lines below — a check that
+could never pass, which is its own kind of broken.
+
+Provenance: adopter report, 2026-08-09 — "eventhough I said no to adversarial
+review when I factory upgraded, the golden eval still warns of the open router
+api key not being present". Verified by running the job's exact shell without the
+variable set: it printed "No OPENROUTER_API_KEY configured — scoring with the
+mock runner", scored the task, and exited 0.
+`bash scripts/selftest/run.sh` reported "165 passed, 0 failed".

@@ -125,7 +125,20 @@ jobs:
         with:
           go-version: '__GO_VERSION__'
 
+      # Scores the agents when a key is configured, and the scorer itself when
+      # one is not. A CI job that cannot pass without a credential nobody was
+      # asked for is a job that fails for every adopter on day one — and the
+      # factory never asks for this key unless you enable the review lane, which
+      # is a different feature that happens to use the same secret.
       - name: Golden-task evals
-        run: ./scripts/golden-task-eval.sh --harness=opencode
+        run: |
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            ./scripts/golden-task-eval.sh --harness opencode
+          else
+            echo "No OPENROUTER_API_KEY configured — scoring with the mock runner."
+            echo "It calls no model: this proves the scorer, not the agents."
+            echo "Add the secret to score real agent runs here."
+            ./scripts/golden-task-eval.sh
+          fi
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

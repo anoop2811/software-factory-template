@@ -692,6 +692,30 @@ if [ -f "$TEMPLATE_ROOT/install.sh" ]; then
           --ref v9.9.9-does-not-exist >/dev/null 2>&1; echo $? ) )"
 fi
 
+# Break/fix: no shipped CI job may require a credential the factory never asked
+# for. A pack's eval job ran `--harness=opencode` unconditionally, so every
+# adopter's CI failed on day one for want of a key — and because that key is also
+# the review lane's, declining the review lane looked like it should have helped.
+# Two features, one secret name, no relationship.
+for PACK_CI in "$TEMPLATE_ROOT"/packs/*/workflows/ci.yml; do
+  [ -f "$PACK_CI" ] || continue
+  PACK_NAME="$(basename "$(dirname "$(dirname "$PACK_CI")")")"
+  # The invariant: naming a real harness is allowed, running it unconditionally
+  # is not. So wherever a real harness appears, the key guard must appear too.
+  # (Grepping for "an unguarded call" cannot distinguish the guarded one two
+  # lines below it — this states the requirement instead of the symptom.)
+  # Scoped to the golden-task eval specifically. The same workflow also runs
+  # harness-structural-eval against opencode, which reads committed config and
+  # needs no credentials — matching that line would tie the credential-guard
+  # invariant to a check that has nothing to do with credentials.
+  if grep -q 'golden-task-eval\.sh --harness[= ]opencode' "$PACK_CI"; then
+    check "pack '$PACK_NAME' CI guards its real-harness eval on the key" "1" \
+      "$(grep -c 'OPENROUTER_API_KEY:-' "$PACK_CI" || true)"
+    check "pack '$PACK_NAME' CI still runs the eval without a key" "1" \
+      "$(grep -cE '\./scripts/golden-task-eval\.sh$' "$PACK_CI" || true)"
+  fi
+done
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

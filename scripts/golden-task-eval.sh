@@ -170,6 +170,12 @@ PY
 if [ "$SAVE_BASELINE" = true ]; then
   cp "$CURRENT_FILE" "$BASELINE_FILE"
   echo "golden-task-eval: baseline saved to $BASELINE_FILE"
+  if [ "$HARNESS" = "mock" ]; then
+    echo "  Note: this is the mock runner. It calls no model and always scores 1.00 —"
+    echo "  it proves the scorer, not your agents. To measure agents, point --runner"
+    echo "  at a real harness (see eval/runners/example-harness.sh) and --harness at"
+    echo "  its name, so the baseline records which system was scored."
+  fi
   exit 0
 fi
 

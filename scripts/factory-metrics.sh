@@ -152,9 +152,15 @@ for f in sorted(glob.glob(os.path.join(root, "eval/results/*-baseline.json"))):
             pass
     for t in d.get("tasks", []):
         c = curd.get(t["task"], {})
+        harness = d.get("harness", "?")
         tasks.append({
-            "harness": d.get("harness", "?"), "task": t["task"],
+            "harness": harness, "task": t["task"],
             "baseline": t.get("score"), "current": c.get("score"),
+            # The mock runner calls no model — it writes a fixed answer so the
+            # scorer is provable without credentials. Its score is 1.00 by
+            # construction, and presenting that as an agent result would be the
+            # vanity number this report exists to refuse.
+            "is_mock": harness == "mock",
         })
 # Three states, three different next steps. Telling an adopter to save a
 # baseline when they have no tasks sends them to a command that can only write
@@ -163,8 +169,10 @@ for f in sorted(glob.glob(os.path.join(root, "eval/results/*-baseline.json"))):
 task_dirs = [d for d in glob.glob(os.path.join(root, "eval/golden-tasks/*"))
              if os.path.isdir(d)]
 scaffold = os.path.isdir(os.path.join(root, "eval/golden-tasks"))
+real = [t for t in tasks if not t["is_mock"]]
 print(json.dumps({"tasks": tasks, "stale": stale, "harnesses": harnesses,
-                  "task_count": len(task_dirs), "scaffold": scaffold}))
+                  "task_count": len(task_dirs), "scaffold": scaffold,
+                  "measured_tasks": len(real)}))
 PY
 )"
 
@@ -321,7 +329,20 @@ if not d['tasks']:
 else:
     for t in d['tasks']:
         cur = t['current'] if t['current'] is not None else '-'
-        print('    %-30s baseline %s  current %s' % (t['task'][:30], t['baseline'], cur))
+        tag = '  (mock — not your agents)' if t['is_mock'] else ''
+        print('    %-30s baseline %s  current %s%s'
+              % (t['task'][:30], t['baseline'], cur, tag))
+    # A perfect score from a runner that cannot fail is not a measurement, and
+    # printing it under this heading without saying so is the vanity number this
+    # report exists to refuse.
+    #
+    # No double quotes anywhere in this program: it is embedded in a
+    # double-quoted shell string, so one quote here silently truncates
+    # everything after it. That is how these three lines went missing once.
+    if not d.get('measured_tasks'):
+        print('  the scorer works — no agent measured yet. The mock runner writes a')
+        print('  fixed answer and always scores 1.00; point --runner at a real harness')
+        print('  (see eval/runners/example-harness.sh) to score the agents themselves.')
     if d['stale']:
         print('  %d baseline(s) STALE — measured against different inputs' % d['stale'])
 " 2>/dev/null || echo "  (eval results unreadable)"

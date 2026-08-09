@@ -1305,3 +1305,48 @@ Decision 2 already set for this format.
 Provenance: founder direction, "why is there a factory.config and factory.yaml
 files? shouldnt we just have a single yaml file for configuration?" — 2026-07-26,
 deferred until after the v0.1.2 release and taken up 2026-08-08.
+
+### Amendment (2026-08-08): an upgrade asks the arriving version's questions
+
+Raised by the founder while reviewing the migration prompt: adopters skip
+versions, so someone may go from v0.1.4 straight to v0.1.6. That is the case
+that decides whether an opt-in feature is ever discovered, because nobody reads
+the release notes of a version they jumped over. It also decided the prompt
+itself — a documented command alone would reach only the people already looking
+for it.
+
+But it exposed a hole in the prompt. The script performing an upgrade is the one
+the repository already has, and everything after the file copy — which
+capabilities to offer, which migrations to propose — is logic that ships *with* a
+release. So an adopter was asked the questions of the version they were leaving
+and never heard about the one they were arriving at. Running the upgrade twice
+cured it, which is a fine explanation and a poor default: the second run is
+precisely the one nobody does.
+
+The upgrade now hands off. If the copy replaced `factory-upgrade.sh`, it execs
+the new one, which asks. A single hand-off is enforced by `FACTORY_UPGRADE_REEXEC`,
+deliberately a different flag from `FACTORY_UPGRADE_ACTIVE`: the latter means "an
+upgrade is running", true of both halves, while the former means "the hand-off
+already happened" and gates the only path that could recurse. This repository has
+produced a fork bomb before (doctor → self-test → upgrade → doctor), so that
+bound is load-bearing rather than defensive. Nestedness is carried across
+explicitly, because a child re-deriving it from `FACTORY_UPGRADE_ACTIVE` — which
+the parent always exports — would judge every hand-off nested and silently skip
+the proof that the gates still fire.
+
+One limit stands and is worth stating plainly: this cannot help the upgrade *into*
+the first release that contains it, since the old script is the one running. For
+that jump the discovery channel is `factory doctor`, which the upgrade runs at the
+end and which by then is the new version — it reports the legacy config file and
+names `./factory migrate-config`. Verified: after a single upgrade driven by the
+old script, doctor emits "factory.config is still present — two config files, one
+job (Decision 41)" with the command beneath it.
+
+Provenance: founder direction, "people may go directly from 0.1.4 to 0.1.6 so I
+dont think there is any extra safetly in not providing the prompt" — 2026-08-08.
+Verified this session: a repository whose upgrade script differed from the
+template handed off exactly once and the stale copy was replaced; a second
+invocation of the now-current script did not hand off again, and no upgrade
+processes were left behind. With a non-nested caller the child did not claim
+nesting and did run the doctor proof; with a nested caller it reported nested
+exactly once. `bash scripts/selftest/run.sh` reported "124 passed, 0 failed".

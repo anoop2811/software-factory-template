@@ -474,6 +474,44 @@ check "migration keeps the value you already had" "economy" \
 check "migration renames rather than deletes" "1" \
   "$([ -f "$CFGROOT/factory.config.migrated" ] && [ ! -f "$CFGROOT/factory.config" ] && echo 1 || echo 0)"
 
+# Break/fix: when the upgrade replaces the upgrade script, the NEW one asks the
+# questions. Everything after the copy — which capabilities to offer, which
+# migrations to propose — ships with a release, so without a hand-off an adopter
+# is asked the questions of the version they are leaving and never hears about
+# the one they are arriving at. Adopters skip versions; "run it twice" is a fine
+# explanation and a poor default.
+HOROOT="$SANDBOX/handoff"
+mkdir -p "$HOROOT/scripts/lib" "$HOROOT/scripts/hooks"
+( cd "$HOROOT" && git init -q )
+printf 'project_name: t\nlanguage_packs: ""\n' > "$HOROOT/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOROOT/scripts/lib/"
+# A script that differs from the template only in a trailing comment: enough for
+# the copy to replace it, which is exactly the condition that triggers the
+# hand-off, without pinning the fixture to any particular old release.
+{ cat "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOROOT/scripts/factory-upgrade.sh"
+chmod +x "$HOROOT/scripts/factory-upgrade.sh"
+HO_LOG="$SANDBOX/handoff.log"
+( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$TEMPLATE_ROOT" ) </dev/null >"$HO_LOG" 2>&1 || true
+check "a replaced upgrade script hands off to the new one" "1" \
+  "$(grep -c 'upgrade script itself was updated' "$HO_LOG" 2>/dev/null || true)"
+check "the stale script was actually replaced" "0" \
+  "$(grep -c 'stale marker' "$HOROOT/scripts/factory-upgrade.sh" 2>/dev/null || true)"
+# The bound that matters. This repo has recursed before (doctor -> selftest ->
+# upgrade -> doctor), so a hand-off that can arm itself twice is a fork bomb.
+HO_LOG2="$SANDBOX/handoff2.log"
+( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$TEMPLATE_ROOT" ) </dev/null >"$HO_LOG2" 2>&1 || true
+check "an already-current script does not hand off" "0" \
+  "$(grep -c 'upgrade script itself was updated' "$HO_LOG2" 2>/dev/null || true)"
+# Nestedness must survive the hand-off. The parent always exports
+# FACTORY_UPGRADE_ACTIVE, so a child that re-derived its own nestedness from that
+# flag would think every hand-off was nested and skip the proof that the gates
+# still fire. It is carried explicitly instead. This fixture runs nested on
+# purpose (the suite cannot afford a real doctor run), so the child must report
+# nested exactly once — from the child, since the parent exec'd before reaching
+# that point.
+check "nestedness is carried across the hand-off" "1" \
+  "$(grep -c 'nested upgrade' "$HO_LOG" 2>/dev/null || true)"
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

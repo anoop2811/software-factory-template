@@ -22,6 +22,7 @@ Usage: factory <command> [args]
   selftest    Run the break/fix self-test (watch every gate fire)
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
   metrics     What the factory is doing to this repo (--json, --html); local only
+              (--html opens the page; --no-open just writes it)
   report      Cost report: gates enforced at 0 tokens, blocks caught, one labeled
               estimate (factory report --clear resets the block log)
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)

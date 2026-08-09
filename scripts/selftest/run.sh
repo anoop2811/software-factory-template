@@ -969,6 +969,15 @@ metrics_run --html >/dev/null 2>&1 || HTML_RC=$?
 # Generation must survive the odd name, not just avoid executing it. A crash here
 # would leave a stale page behind and every check below would read the old file.
 check "an odd gate name does not break page generation" "0" "$HTML_RC"
+# --html opens the page, but only where a human is watching. These two are the
+# cases that could do harm: a browser launched from CI, or from a run whose
+# output someone is redirecting into a file.
+check "a piped --html run does not open a browser" "0" \
+  "$( metrics_run --html 2>&1 | grep -c 'opening it' || true )"
+check "--no-open does not open a browser" "0" \
+  "$( metrics_run --html --no-open 2>&1 | grep -c 'opening it' || true )"
+check "--no-open still writes the page" "1" \
+  "$([ -f "$MROOT/.factory/metrics.html" ] && echo 1 || echo 0)"
 check "a gate name cannot execute as shell" "0" \
   "$([ -e "$MARK" ] && echo 1 || echo 0)"
 check "a gate name cannot close the script element" "0" \

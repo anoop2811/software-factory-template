@@ -114,7 +114,7 @@ never file contents, diffs, or commit messages.
 
 ## The HTML page
 
-`--html` writes a self-contained `.factory/metrics.html`: no server, no daemon,
+`--html` opens the page in your browser (`--no-open` just writes it) — a self-contained `.factory/metrics.html`: no server, no daemon,
 no port, no external requests. Open the file.
 
 It is generated from `templates/metrics.html`, an ordinary web page whose data is

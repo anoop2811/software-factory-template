@@ -114,8 +114,15 @@ never file contents, diffs, or commit messages.
 
 ## The HTML page
 
-`--html` writes a self-contained `.factory/metrics.html`: no server, no daemon,
-no port, no external requests. Open the file.
+`--html` writes a self-contained `.factory/metrics.html` and opens it: no server,
+no daemon, no port, no external requests.
+
+It opens only where a human is watching — a terminal on stdout, with `CI` unset.
+From a build agent, a pipe, or a redirect it writes the file and prints the path,
+because a browser launching on a CI runner is a surprise nobody asked for.
+`--no-open` skips it for when the file, not the view, is what you wanted, and
+`$BROWSER` takes precedence over the platform opener. If no opener is found it
+says so and prints the path — the report is finished either way.
 
 It is generated from `templates/metrics.html`, an ordinary web page whose data is
 injected at a marker. Edit it like any other page — there is no build step, and

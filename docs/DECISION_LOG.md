@@ -1549,3 +1549,30 @@ Claude run's log confirmed the permission model — Bash denied, Write allowed.
 `factory metrics` reported `measured_tasks 1` with `is_mock false` for a real
 harness baseline, against 0 and true for the mock.
 `bash scripts/selftest/run.sh` reported "149 passed, 0 failed".
+
+### Amendment (2026-08-09): `--html` opens the page
+
+Asking for a page is asking to look at it. `factory metrics --html` wrote the
+file and printed its path, leaving the adopter to open it themselves — a step
+with no purpose except that nobody had removed it.
+
+It opens now, and the conditions are the interesting part. Launching a browser
+is a visible side effect, so it happens only where a human is watching: with a
+terminal on stdout, never from CI, a pipe, or a redirect. `--no-open` skips it
+for the case where the file is the deliverable. `$BROWSER` is honoured first, as
+Linux convention expects, then each platform's opener; none of it is fatal, since
+a report that cannot open a window has still produced the report, and the path is
+printed either way. The opener is backgrounded, because some hold the terminal
+for as long as the browser lives and this should not be a command you remember to
+background yourself.
+
+The self-test covers the two cases that could do harm — a browser launched from
+CI, or from a run whose output someone is redirecting into a file — rather than
+the one that cannot be exercised without a terminal.
+
+Provenance: founder direction, 2026-08-09 — "for factory metrics --html, we
+should also open the html file instead of having the user having to open it
+manually". Verified this session: a piped run and a `--no-open` run both write
+the page and print the open-it-yourself line, while a run under a pty reports
+"opening it" and invoked the platform opener.
+`bash scripts/selftest/run.sh` reported "157 passed, 0 failed".

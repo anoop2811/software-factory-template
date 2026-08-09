@@ -11,7 +11,8 @@ set -euo pipefail
 # Usage:
 #   factory metrics                 # terminal report
 #   factory metrics --json          # machine-readable, for your own collector
-#   factory metrics --html          # writes .factory/metrics.html (no server)
+#   factory metrics --html          # writes .factory/metrics.html and opens it
+#   factory metrics --html --no-open # writes it without opening a browser
 #   factory metrics --days 90       # window (default 30)
 #
 # Two rules govern what appears here:
@@ -34,16 +35,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FORMAT="text"
 DAYS=30
+NO_OPEN=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --json) FORMAT="json"; shift ;;
     --html) FORMAT="html"; shift ;;
     --days) DAYS="${2:-30}"; shift 2 ;;
     --days=*) DAYS="${1#*=}"; shift ;;
+    --no-open) NO_OPEN=1; shift ;;
     *) echo "factory metrics: unknown argument '$1'" >&2; exit 2 ;;
   esac
 done
 case "$DAYS" in ''|*[!0-9]*) DAYS=30 ;; esac
+# A flag that does nothing should say so rather than let you believe it did
+# something. --no-open only has meaning for the format that opens a window.
+if [ -n "$NO_OPEN" ] && [ "$FORMAT" != "html" ]; then
+  echo "factory metrics: --no-open applies to --html only" >&2
+  exit 2
+fi
 
 SINCE="$DAYS days ago"
 EVENT_LOG="${FACTORY_EVENT_LOG:-$ROOT/.factory/events.log}"
@@ -271,7 +280,47 @@ with open(out, "w", encoding="utf-8") as fh:
     fh.write(html)
 PY
     echo "factory metrics: wrote $OUT"
-    echo "  open it directly — it is a self-contained file, nothing is served."
+
+    # Opening it is the point of asking for a page. But opening a browser is a
+    # visible side effect, so it happens only where a human is watching: with a
+    # terminal on stdout, and never in CI, a pipe, or a redirect. --no-open
+    # skips it outright, for the case where the file is the deliverable.
+    if [ -n "$NO_OPEN" ]; then
+      echo "  open it directly — it is a self-contained file, nothing is served."
+    elif [ -n "${CI:-}" ]; then
+      # A terminal is not proof a human is watching: CI runners can allocate a
+      # pty, and a browser launched on a build agent is exactly the surprise
+      # this guard exists to prevent. The convention is near-universal.
+      echo "  open it directly — it is a self-contained file, nothing is served."
+    elif [ ! -t 1 ]; then
+      # Silent about the choice: a log that explains why a browser did not open
+      # is noise in the one place nobody wanted one.
+      echo "  open it directly — it is a self-contained file, nothing is served."
+    else
+      # $BROWSER first, the convention on Linux; then each platform's opener.
+      # Nothing here is fatal — a report that cannot open a window has still
+      # produced the report, and the path is on the line above either way.
+      OPENER=""
+      if [ -n "${BROWSER:-}" ] && command -v "${BROWSER%% *}" >/dev/null 2>&1; then
+        OPENER="$BROWSER"
+      else
+        for _o in open xdg-open wslview; do
+          command -v "$_o" >/dev/null 2>&1 && { OPENER="$_o"; break; }
+        done
+      fi
+      if [ -n "$OPENER" ]; then
+        # Backgrounded and detached: some openers hold the terminal for as long
+        # as the browser lives, and `factory metrics` should not be one of the
+        # commands you have to remember to background yourself.
+        # stdin from /dev/null as well as the output streams: an opener that
+        # reads stdin would otherwise compete with the caller's terminal.
+        $OPENER "$OUT" </dev/null >/dev/null 2>&1 &
+        echo "  opening it — pass --no-open to just write the file."
+      else
+        echo "  no opener found (tried \$BROWSER, open, xdg-open, wslview) — open it"
+        echo "  directly; it is a self-contained file, nothing is served."
+      fi
+    fi
     ;;
 
   *)

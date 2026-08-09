@@ -35,16 +35,25 @@ SAVE_BASELINE=false
 # "harness=mock", and an adopter reading a 1.00 would believe they had measured
 # their agent. A flag that is quietly dropped is worse than one that is rejected.
 RUNNER_EXPLICIT=""
+# A flag whose value is missing must say so. Under `set -u` the bare shift left
+# the script dying with no message and exit 1, which reads as a broken eval
+# rather than a typo — the same class as the silently-ignored flag this parser
+# was rewritten to fix.
+need_value() {
+  [ "$#" -ge 2 ] && [ -n "$2" ] && return 0
+  echo "golden-task-eval: $1 needs a value" >&2
+  exit 2
+}
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --harness=*)     HARNESS="${1#*=}" ;;
-    --harness)       HARNESS="${2:-}"; shift ;;
+    --harness)       need_value "$@"; HARNESS="$2"; shift ;;
     --runner=*)      RUNNER="${1#*=}"; RUNNER_EXPLICIT=1 ;;
-    --runner)        RUNNER="${2:-}"; RUNNER_EXPLICIT=1; shift ;;
+    --runner)        need_value "$@"; RUNNER="$2"; RUNNER_EXPLICIT=1; shift ;;
     --runs=*)        RUNS="${1#*=}" ;;
-    --runs)          RUNS="${2:-}"; shift ;;
+    --runs)          need_value "$@"; RUNS="$2"; shift ;;
     --timeout=*)     TIMEOUT="${1#*=}" ;;
-    --timeout)       TIMEOUT="${2:-}"; shift ;;
+    --timeout)       need_value "$@"; TIMEOUT="$2"; shift ;;
     --save-baseline) SAVE_BASELINE=true ;;
     -h|--help)
       echo "usage: golden-task-eval.sh [--harness NAME] [--runner PATH] [--runs N] [--timeout S] [--save-baseline]"

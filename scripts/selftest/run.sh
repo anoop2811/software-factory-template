@@ -669,6 +669,10 @@ check "an explicit --runner still overrides the name" "1" \
 # cannot assume on every adopter's machine.
 gt_status() { ( cd "$GTROOT" && ./scripts/golden-task-eval.sh "$@" >/dev/null 2>&1; echo $? ); }
 check "an unknown argument is rejected, not ignored" "2" "$(gt_status --nonsense)"
+# A flag with no value must say which flag, not die wordlessly under set -u.
+check "a flag missing its value exits 2" "2" "$(gt_status --harness)"
+check "a flag missing its value names the flag" "1" \
+  "$( ( cd "$GTROOT" && ./scripts/golden-task-eval.sh --runner 2>&1 ) | grep -c '\-\-runner needs a value' || true)"
 
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in

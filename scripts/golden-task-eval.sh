@@ -30,15 +30,48 @@ EVAL_DIR="eval/golden-tasks"
 RESULTS_DIR="eval/results"
 SAVE_BASELINE=false
 
-for arg in "$@"; do
-  case $arg in
-    --harness=*)     HARNESS="${arg#*=}" ;;
-    --runner=*)      RUNNER="${arg#*=}" ;;
-    --runs=*)        RUNS="${arg#*=}" ;;
-    --timeout=*)     TIMEOUT="${arg#*=}" ;;
+# Both spellings, and an error on anything unrecognised. The = form alone meant
+# `--harness claude` was silently ignored: the run used the mock, reported
+# "harness=mock", and an adopter reading a 1.00 would believe they had measured
+# their agent. A flag that is quietly dropped is worse than one that is rejected.
+RUNNER_EXPLICIT=""
+# A flag whose value is missing must say so. Under `set -u` the bare shift left
+# the script dying with no message and exit 1, which reads as a broken eval
+# rather than a typo — the same class as the silently-ignored flag this parser
+# was rewritten to fix.
+need_value() {
+  [ "$#" -ge 2 ] && [ -n "$2" ] && return 0
+  echo "golden-task-eval: $1 needs a value" >&2
+  exit 2
+}
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --harness=*)     HARNESS="${1#*=}" ;;
+    --harness)       need_value "$@"; HARNESS="$2"; shift ;;
+    --runner=*)      RUNNER="${1#*=}"; RUNNER_EXPLICIT=1 ;;
+    --runner)        need_value "$@"; RUNNER="$2"; RUNNER_EXPLICIT=1; shift ;;
+    --runs=*)        RUNS="${1#*=}" ;;
+    --runs)          need_value "$@"; RUNS="$2"; shift ;;
+    --timeout=*)     TIMEOUT="${1#*=}" ;;
+    --timeout)       need_value "$@"; TIMEOUT="$2"; shift ;;
     --save-baseline) SAVE_BASELINE=true ;;
+    -h|--help)
+      echo "usage: golden-task-eval.sh [--harness NAME] [--runner PATH] [--runs N] [--timeout S] [--save-baseline]"
+      echo "  --harness  mock (default), claude, codex, opencode, or your own name"
+      echo "             a shipped runner is selected automatically by name"
+      exit 0 ;;
+    *) echo "golden-task-eval: unknown argument '$1'" >&2; exit 2 ;;
   esac
+  shift
 done
+
+# A named harness selects its shipped runner. The factory already configures
+# these three — it generates their agent files and routes their model tiers — so
+# it should not also ask you to work out the invocation. An explicit --runner
+# still wins, for a harness the factory does not ship.
+if [ -z "$RUNNER_EXPLICIT" ] && [ -f "eval/runners/$HARNESS.sh" ]; then
+  RUNNER="eval/runners/$HARNESS.sh"
+fi
 case "$TIMEOUT" in ''|*[!0-9]*) TIMEOUT=300 ;; esac
 [ "$TIMEOUT" -ge 1 ] || TIMEOUT=300
 case "$RUNS" in ''|*[!0-9]*) RUNS=1 ;; esac

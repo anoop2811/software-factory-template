@@ -365,7 +365,9 @@ cp "$TEMPLATE_DIR/.githooks/pre-push" "$TARGET_DIR/.githooks/"
 cp "$TEMPLATE_DIR/scripts/prereq-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/golden-task-eval.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/eval/README.md" "$TARGET_DIR/eval/" 2>/dev/null || true
-cp "$TEMPLATE_DIR/eval/runners/mock.sh" "$TEMPLATE_DIR/eval/runners/example-harness.sh" "$TARGET_DIR/eval/runners/" 2>/dev/null || true
+cp "$TEMPLATE_DIR/eval/runners/mock.sh" "$TEMPLATE_DIR/eval/runners/example-harness.sh" \
+   "$TEMPLATE_DIR/eval/runners/claude.sh" "$TEMPLATE_DIR/eval/runners/codex.sh" \
+   "$TEMPLATE_DIR/eval/runners/opencode.sh" "$TARGET_DIR/eval/runners/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/task.md" "$TEMPLATE_DIR/eval/golden-tasks/reference-answer/verify.sh" "$TARGET_DIR/eval/golden-tasks/reference-answer/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/workflows/review-diamond.md" "$TEMPLATE_DIR/workflows/eval-fanout.md" "$TEMPLATE_DIR/workflows/README.md" "$TARGET_DIR/workflows/" 2>/dev/null || true
 cp "$TEMPLATE_DIR/scripts/sync-opencode.sh" "$TARGET_DIR/scripts/" 2>/dev/null || true

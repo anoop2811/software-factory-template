@@ -624,9 +624,20 @@ print(1 if a["measured_tasks"] == 1 else 0)' 2>/dev/null || echo 0)"
 # The embedded report program lives inside a double-quoted shell string, so a
 # single double quote in it — even in a comment — truncates everything after,
 # silently. Three lines of honest reporting went missing exactly that way.
+# Extracted by awk on the real delimiters — both lines are indented, so anchoring
+# the patterns at ^ captured nothing and the check passed on an empty range.
+# A guard that cannot fail is not a guard (memory/lessons/002).
+embedded_program() {
+  awk '/EVAL_JSON" \| python3 -c "/{f=1;next} f&&/^ *" 2>\/dev\/null/{f=0} f' \
+    "$TEMPLATE_ROOT/scripts/factory-metrics.sh"
+}
+check "the embedded program is actually found" "1" \
+  "$([ "$(embedded_program | wc -l | tr -d ' ')" -gt 0 ] && echo 1 || echo 0)"
 check "the embedded report program contains no double quotes" "0" \
-  "$(sed -n "/^printf '%s' \"\$EVAL_JSON\"/,/^\" 2>/p" "$TEMPLATE_ROOT/scripts/factory-metrics.sh" |
-     sed '1d;$d' | grep -c '"' || true)"
+  "$(embedded_program | grep -c '"' || true)"
+# And the check must fail when a quote IS present, or it proves nothing.
+check "a quote in the embedded program would be caught" "1" \
+  "$(printf 'x = 1  # a "quoted" comment\n' | grep -c '"' || true)"
 
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in

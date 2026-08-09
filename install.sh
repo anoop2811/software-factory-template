@@ -86,6 +86,31 @@ TARGET_DIR="$PWD"
 
 say() { printf '%s\n' "$*"; }
 
+# When this invocation began. Handed to factory-upgrade so the total it prints is
+# wall clock from the adopter's command, not from the point the upgrade takes
+# over — the fetch happens here, and a total that omitted it would be a smaller
+# number than the one the adopter actually waited through.
+INSTALL_T0="$(date +%s 2>/dev/null || printf '0')"
+# Durations come from scripts/lib/timing.sh once the template is on disk, so
+# install, upgrade and doctor phrase them identically — including the hour form
+# this fallback lacks. The fallback exists because the very first fetch happens
+# before there is any template to source from, and a missing lib must never be
+# why an install fails.
+elapsed_since() { # <start> -> "4s" | "1m 12s" | "1h 4m"
+  if [ -f "$FACTORY_HOME/scripts/lib/timing.sh" ]; then
+    # shellcheck source=scripts/lib/timing.sh
+    . "$FACTORY_HOME/scripts/lib/timing.sh"
+    factory_duration "$1"
+    return 0
+  fi
+  _es_end="$(date +%s 2>/dev/null || printf '0')"
+  case "$1$_es_end" in *[!0-9]*) printf 'unknown'; return 0 ;; esac
+  _es="$((_es_end - $1))"
+  [ "$_es" -lt 0 ] && _es=0
+  if [ "$_es" -lt 60 ]; then printf '%ss' "$_es"
+  else printf '%dm %ds' "$((_es / 60))" "$((_es % 60))"; fi
+}
+
 if ! command -v git >/dev/null 2>&1; then
   say "install: git is required and was not found." >&2
   exit 1
@@ -99,8 +124,10 @@ fi
 if [ "$DO_UPGRADE" -eq 1 ]; then
   if [ -d "$FACTORY_HOME/.git" ]; then
     say "install: refreshing the template at $FACTORY_HOME to '$FACTORY_REF'..."
+    _t_fetch="$(date +%s 2>/dev/null || printf '0')"
     git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
     git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
+    say "  refreshed in $(elapsed_since "$_t_fetch")"
   elif [ -e "$FACTORY_HOME" ]; then
     say "install: $FACTORY_HOME exists but is not a template checkout." >&2
     say "  Remove it and re-run, or set FACTORY_HOME to a different path." >&2
@@ -116,6 +143,9 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
     say "install: applying framework updates to $REPO_ROOT ..."
     say ""
     cd "$REPO_ROOT"
+    # The upgrade reports the total, so give it the real start.
+    FACTORY_UPGRADE_STARTED="$INSTALL_T0"
+    export FACTORY_UPGRADE_STARTED
     exec "$FACTORY_HOME/scripts/factory-upgrade.sh" --source "$FACTORY_HOME"
   fi
   say "install: template cache updated. This isn't a factory repo, so nothing was"

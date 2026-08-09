@@ -1393,3 +1393,39 @@ marker) now reports nested and starts no doctor; a nested caller with a stale
 script hands off once and starts no doctor; a non-nested caller hands off once,
 starts the doctor exactly once, and its self-test reported "117 passed, 0 failed"
 with a healthy verdict and zero processes left behind.
+
+### Amendment (2026-08-08): silence is not a status
+
+The doctor's break/fix proof printed nothing between "Proof (break/fix
+self-test)" and its verdict. On a repository with language packs armed that is
+minutes of nothing, and an adopter reasonably read a working upgrade as hung —
+having just been given a real reason to suspect one. The run completed; the
+output gave no way to know that while it was happening.
+
+A terminal now gets a live count of proven cases, read from the file the
+self-test is already writing, so the progress source is the artifact rather than
+a second mechanism to keep in sync. A log gets one honest line instead of a
+redrawing counter, because escape sequences in a CI transcript are noise
+pretending to be feedback — the same rule the colour lib already follows.
+
+Durations are reported for the stages that take one: the template fetch, the
+file copy, the proof, and the total. `scripts/lib/timing.sh` formats them the
+same way everywhere, in seconds resolution — these are minute-scale operations
+and a millisecond stopwatch would imply a measurement it is not. The total is
+carried across the hand-off and handed over by `install.sh`, so it is wall clock
+from the adopter's command rather than from whichever half of the run happens to
+print it.
+
+Also fixed, and visible in the reported run: the file count restarted at the
+hand-off, so the summary said "0 file(s) updated" immediately after listing two
+dozen updates. The running total now crosses the boundary while the per-stage
+line reports only what that pass did.
+
+Provenance: founder direction, "we need to show some indication when it gets to
+proof state to show that things are working... put the time taken for the install
+and upgrade scripts as well towards the end as a metric and for each stage" —
+2026-08-08. Verified this session through a pty and through a pipe: the terminal
+run showed 29 counter updates climbing to 115 cases and reported "37 file(s)
+updated in 31s / of which the break/fix proof took 30s"; the piped run contained
+zero carriage-return characters, one heads-up line, and the same timings.
+`bash scripts/selftest/run.sh` reported "133 passed, 0 failed".

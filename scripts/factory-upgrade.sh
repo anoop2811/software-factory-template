@@ -69,6 +69,23 @@ fi
 # functions may be absent or old, and by then they are present and current.
 # shellcheck source=lib/config.sh
 [ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
+# shellcheck source=lib/timing.sh
+[ -f scripts/lib/timing.sh ] && . scripts/lib/timing.sh
+
+# When this run began. Inherited across the hand-off, so the total reported at
+# the end is the wall clock from the adopter's command — not from whichever half
+# of the run happens to print it. A timer that restarts mid-run reports a number
+# nobody asked for.
+if command -v factory_now >/dev/null 2>&1; then
+  T_START="${FACTORY_UPGRADE_STARTED:-$(factory_now)}"
+  export FACTORY_UPGRADE_STARTED="$T_START"
+else
+  T_START=""
+fi
+took() { # took <stage-start> -> " in 4s", or nothing if timing is unavailable
+  [ -n "$T_START" ] && command -v factory_duration >/dev/null 2>&1 || return 0
+  printf ' in %s' "$(factory_duration "$1")"
+}
 
 # ── Get the template at the target ref ───────────────────────────────
 CLEANUP=""
@@ -80,8 +97,11 @@ else
   TMP="$(mktemp -d)"
   CLEANUP="$TMP"
   echo "factory upgrade: fetching $FACTORY_REPO at ref '$FACTORY_REF'..."
+  T_FETCH="${T_START:-}"
+  [ -n "$T_START" ] && T_FETCH="$(factory_now)"
   git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$TMP/template"
   TEMPLATE="$TMP/template"
+  [ -n "$T_START" ] && echo "  fetched$(took "$T_FETCH")"
 fi
 
 # ── Framework files: byte-identical, safe to overwrite ───────────────
@@ -93,6 +113,7 @@ scripts/lib/roles.sh
 scripts/lib/events.sh
 scripts/lib/hookspath.sh
 scripts/lib/color.sh
+scripts/lib/timing.sh
 scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
@@ -113,7 +134,15 @@ scripts/sync-claude.sh
 scripts/sync-codex.sh
 "
 
-copied=0
+# Carried across the hand-off. The first pass does the copying and the second
+# pass reports, so a counter that started at zero here would tell the adopter
+# "0 file(s) updated" immediately after listing two dozen updates.
+copied="${FACTORY_UPGRADE_COPIED:-0}"
+case "$copied" in ''|*[!0-9]*) copied=0 ;; esac
+# What THIS pass copied, as distinct from the running total. The summary wants
+# the total; the stage line wants the work just done, or it claims the second
+# pass did what the first one did.
+copied_here=0
 # Remembered before the copy, so we can tell afterwards whether this very script
 # was one of the files replaced.
 SELF_BEFORE=""
@@ -149,9 +178,12 @@ copy_framework() {
   mv -f "$rel.factory-tmp.$$" "$rel"
   echo "  $verb: $rel"
   copied=$((copied + 1))
+  copied_here=$((copied_here + 1))
 }
 
 echo "Upgrading framework files..."
+T_COPY=""
+[ -n "$T_START" ] && T_COPY="$(factory_now)"
 for f in $FRAMEWORK; do copy_framework "$f"; done
 
 # All core hooks the template ships.
@@ -171,6 +203,9 @@ done
 
 # Restore executable bits on scripts.
 chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null || true
+# Silent when it copied nothing — the second pass of a hand-off always does,
+# and "0 file(s) copied" under an empty list is noise, not information.
+[ -n "$T_COPY" ] && [ "$copied_here" -gt 0 ] && echo "  $copied_here file(s) copied$(took "$T_COPY")"
 
 # Re-source the config lib now that the copy has run. A repo whose lib was
 # missing or stale is one upgrade is meant to repair, and the questions below
@@ -218,6 +253,7 @@ if [ -z "$HANDED_OFF" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFORE" != "$SELF_AF
   # for an adopter who asked for a tag: the tree would be right and the record
   # would be wrong, which is worse than either.
   [ -n "$CLEANUP" ] && export FACTORY_UPGRADE_CLEANUP="$CLEANUP"
+  export FACTORY_UPGRADE_COPIED="$copied"
   exec bash scripts/factory-upgrade.sh --ref "$FACTORY_REF" --source "$TEMPLATE"
 fi
 
@@ -349,11 +385,18 @@ if [ -n "$UPGRADE_NESTED" ]; then
   echo "(nested upgrade — skipping the doctor proof to avoid recursion)"
 elif [ -x scripts/factory-doctor.sh ]; then
   echo "Running factory doctor..."
+  T_DOCTOR=""
+  [ -n "$T_START" ] && T_DOCTOR="$(factory_now)"
   ./scripts/factory-doctor.sh || echo "factory upgrade: doctor reported problems — review above before committing"
 fi
 
 echo ""
-echo "factory upgrade: $copied file(s) updated."
+# The total is wall clock from the adopter's command, carried across the hand-off
+# — the number they would have measured themselves, had they thought to.
+echo "factory upgrade: $copied file(s) updated$(took "${T_START:-}")."
+if [ -n "${T_DOCTOR:-}" ]; then
+  echo "  of which the break/fix proof took $(factory_duration "$T_DOCTOR")"
+fi
 if [ -n "$CLEANUP" ]; then
   echo "  A fresh template checkout is at $TEMPLATE — diff your 'review' files against it, then: rm -rf $CLEANUP"
 fi

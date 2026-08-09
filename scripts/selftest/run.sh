@@ -522,9 +522,28 @@ printf 'project_name: t\nlanguage_packs: ""\n' > "$HOREF/factory.yaml"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOREF/scripts/lib/"
 { cat "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOREF/scripts/factory-upgrade.sh"
 chmod +x "$HOREF/scripts/factory-upgrade.sh"
-( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$TEMPLATE_ROOT" ) </dev/null >/dev/null 2>&1 || true
+( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$TEMPLATE_ROOT" ) </dev/null >"$SANDBOX/handoff-ref.log" 2>&1 || true
 check "the requested ref survives the hand-off" "ref=pinned-label" \
   "$(grep '^ref=' "$HOREF/.factory-version" 2>/dev/null || true)"
+# The file count must survive too. The first pass does the copying and the second
+# reports, so a counter that restarted told an adopter "0 file(s) updated"
+# immediately after listing two dozen updates — which is what the run they
+# reported actually said.
+check "the file count survives the hand-off" "0" \
+  "$(grep -c 'upgrade: 0 file(s) updated' "$SANDBOX/handoff-ref.log" 2>/dev/null || true)"
+
+# Durations are reported, and reported the same way everywhere. The slow stage
+# used to print nothing for minutes, which made a working upgrade look hung.
+if [ -f "$TEMPLATE_ROOT/scripts/lib/timing.sh" ]; then
+  # shellcheck source=../lib/timing.sh
+  . "$TEMPLATE_ROOT/scripts/lib/timing.sh"
+  check "a duration under a minute reads in seconds" "45s" "$(factory_duration 0 45)"
+  check "a duration over a minute reads in minutes" "3m 15s" "$(factory_duration 0 195)"
+  check "a duration over an hour reads in hours" "1h 4m" "$(factory_duration 0 3847)"
+  # A clock that jumps backwards (NTP, a laptop waking) is not a negative wait.
+  check "a backwards clock is not a negative duration" "0s" "$(factory_duration 100 50)"
+  check "a nonsense timestamp does not crash the report" "unknown" "$(factory_duration abc 5)"
+fi
 
 # Break/fix: the handshake must not outlive the exec it describes. It is an
 # environment variable, so a run that handed off leaves it set for every

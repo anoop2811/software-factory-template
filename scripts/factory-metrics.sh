@@ -47,6 +47,12 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$DAYS" in ''|*[!0-9]*) DAYS=30 ;; esac
+# A flag that does nothing should say so rather than let you believe it did
+# something. --no-open only has meaning for the format that opens a window.
+if [ -n "$NO_OPEN" ] && [ "$FORMAT" != "html" ]; then
+  echo "factory metrics: --no-open applies to --html only" >&2
+  exit 2
+fi
 
 SINCE="$DAYS days ago"
 EVENT_LOG="${FACTORY_EVENT_LOG:-$ROOT/.factory/events.log}"
@@ -281,6 +287,11 @@ PY
     # skips it outright, for the case where the file is the deliverable.
     if [ -n "$NO_OPEN" ]; then
       echo "  open it directly — it is a self-contained file, nothing is served."
+    elif [ -n "${CI:-}" ]; then
+      # A terminal is not proof a human is watching: CI runners can allocate a
+      # pty, and a browser launched on a build agent is exactly the surprise
+      # this guard exists to prevent. The convention is near-universal.
+      echo "  open it directly — it is a self-contained file, nothing is served."
     elif [ ! -t 1 ]; then
       # Silent about the choice: a log that explains why a browser did not open
       # is noise in the one place nobody wanted one.
@@ -301,10 +312,13 @@ PY
         # Backgrounded and detached: some openers hold the terminal for as long
         # as the browser lives, and `factory metrics` should not be one of the
         # commands you have to remember to background yourself.
-        $OPENER "$OUT" >/dev/null 2>&1 &
+        # stdin from /dev/null as well as the output streams: an opener that
+        # reads stdin would otherwise compete with the caller's terminal.
+        $OPENER "$OUT" </dev/null >/dev/null 2>&1 &
         echo "  opening it — pass --no-open to just write the file."
       else
-        echo "  open it directly — it is a self-contained file, nothing is served."
+        echo "  no opener found (tried \$BROWSER, open, xdg-open, wslview) — open it"
+        echo "  directly; it is a self-contained file, nothing is served."
       fi
     fi
     ;;

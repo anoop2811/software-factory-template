@@ -202,10 +202,14 @@ if [ -z "$HANDED_OFF" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFORE" != "$SELF_AF
   # derives its nestedness exactly as any other invocation does — from the one
   # variable that means it. Describing nestedness in a second variable is what
   # made this recurse; restoring the environment cannot go stale.
+  # UPGRADE_NESTED holds exactly what the caller had, captured before this run
+  # set the flag — so restoring it means assigning that value back, not a
+  # stand-in for it. Only emptiness is tested today, which is precisely why a
+  # hard-coded 1 would drift from the comment without ever failing a test.
   if [ -z "$UPGRADE_NESTED" ]; then
     unset FACTORY_UPGRADE_ACTIVE
   else
-    export FACTORY_UPGRADE_ACTIVE=1
+    export FACTORY_UPGRADE_ACTIVE="$UPGRADE_NESTED"
   fi
   # Hand over the checkout we already have, so the second pass neither clones
   # again nor risks resolving the ref differently — and hand over the ref itself,

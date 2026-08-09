@@ -38,6 +38,17 @@ done
 UPGRADE_NESTED="${FACTORY_UPGRADE_ACTIVE:-}"
 export FACTORY_UPGRADE_ACTIVE=1
 
+# A second, separate guard for the hand-off below, where this script re-execs the
+# newer copy of itself. It is deliberately not the same flag: FACTORY_UPGRADE_ACTIVE
+# says "an upgrade is running", which is true of both halves, while this says
+# "the hand-off already happened", which may happen at most once per invocation.
+# When it is set we are the newer copy, and the value carried across tells us
+# whether the ORIGINAL caller was itself nested — otherwise the hand-off would
+# look like nesting to the child and silently skip the doctor proof.
+if [ -n "${FACTORY_UPGRADE_REEXEC:-}" ]; then
+  UPGRADE_NESTED="${FACTORY_UPGRADE_NESTED_ORIG:-}"
+fi
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT"
 
@@ -97,6 +108,10 @@ scripts/sync-codex.sh
 "
 
 copied=0
+# Remembered before the copy, so we can tell afterwards whether this very script
+# was one of the files replaced.
+SELF_BEFORE=""
+[ -f scripts/factory-upgrade.sh ] && SELF_BEFORE="$(cksum < scripts/factory-upgrade.sh 2>/dev/null || true)"
 
 # copy_framework <dest-relative-path> [source-relative-path]
 #
@@ -157,6 +172,39 @@ chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null 
 # may not have existed when this script started.
 # shellcheck source=lib/config.sh
 [ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
+
+# ── Hand off to the newer copy of this script, once ──────────────────
+# The script running the copy is the one the repo already had. Everything below
+# this point — which capabilities to offer, which migrations to propose — is
+# logic that ships WITH a release, so an adopter upgrading across versions would
+# be asked the old release's questions and never hear about the new ones. Two
+# consecutive upgrades cured it, which is a fine explanation and a poor default:
+# adopters skip versions, and the second run is exactly the one nobody does.
+#
+# So: if the copy replaced this script, exec the new one and let it ask. Bounded
+# to a single hand-off by FACTORY_UPGRADE_REEXEC, which the child sees set —
+# there is no path that arms it twice. The re-run's copy pass is a no-op, since
+# every file now matches the template.
+SELF_AFTER=""
+[ -f scripts/factory-upgrade.sh ] && SELF_AFTER="$(cksum < scripts/factory-upgrade.sh 2>/dev/null || true)"
+if [ -z "${FACTORY_UPGRADE_REEXEC:-}" ] && [ -n "$SELF_AFTER" ] && [ "$SELF_BEFORE" != "$SELF_AFTER" ]; then
+  echo ""
+  echo "factory upgrade: the upgrade script itself was updated — continuing with the new one."
+  export FACTORY_UPGRADE_REEXEC=1
+  export FACTORY_UPGRADE_NESTED_ORIG="$UPGRADE_NESTED"
+  # Hand over the checkout we already have, so the second pass neither clones
+  # again nor risks resolving the ref differently — and hand over the ref itself,
+  # which is a label rather than a lookup once --source is set. Without it the
+  # child falls back to the default and writes `ref=main` into .factory-version
+  # for an adopter who asked for a tag: the tree would be right and the record
+  # would be wrong, which is worse than either.
+  [ -n "$CLEANUP" ] && export FACTORY_UPGRADE_CLEANUP="$CLEANUP"
+  exec bash scripts/factory-upgrade.sh --ref "$FACTORY_REF" --source "$TEMPLATE"
+fi
+
+# Inherited from the process that handed over: the temp checkout is still ours to
+# report, even though we did not fetch it.
+[ -n "${FACTORY_UPGRADE_CLEANUP:-}" ] && CLEANUP="$FACTORY_UPGRADE_CLEANUP"
 
 # ── Record the version we upgraded to ────────────────────────────────
 UPSTREAM_COMMIT="$(git -C "$TEMPLATE" rev-parse --short HEAD 2>/dev/null || echo unknown)"

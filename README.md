@@ -77,7 +77,7 @@ Frameworks ride on the language pack, not their own: React and Vue use the TypeS
 
 ## Cost & models
 
-Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.config`):
+Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.yaml`):
 
 | Tier | opencode (OpenRouter) | Codex | Claude |
 |---|---|---|---|
@@ -85,7 +85,7 @@ Each role runs on a cost-appropriate model. The reviewer and spec-writer get a f
 | default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
 | economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
 
-It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. To reconfigure later, edit `factory.config` (change a model, or flip `COST_PROFILE`) and run `make sync-harnesses` — one edit re-routes all three harnesses. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
+It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. To reconfigure later, edit `factory.yaml` (change a model, or flip `cost_profile`) and run `make sync-harnesses` — one edit re-routes all three harnesses. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
 
 ## Documentation
 

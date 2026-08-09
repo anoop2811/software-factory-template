@@ -26,12 +26,14 @@ if [ ! -f "$OPENCODE_JSON" ]; then
   exit 1
 fi
 
-# Per-harness, per-tier models live in factory.config (written by factory-init).
-# In the template repo there is no factory.config, so the CLAUDE_*_MODEL values
-# stay unset and every agent falls back to "inherit" — keeping the committed
-# adapters clean. role_tier() maps each role to its tier.
-# shellcheck source=/dev/null
-[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# Per-harness, per-tier models live in factory.yaml (Decision 41; older repos
+# keep theirs in factory.config and are still read). In the template repo neither
+# defines them, so the CLAUDE_*_MODEL values stay unset and every agent falls
+# back to "inherit" — keeping the committed adapters clean. role_tier() maps each
+# role to its tier.
+# shellcheck source=lib/config.sh
+. "$ROOT_DIR/scripts/lib/config.sh"
+factory_config_export
 # shellcheck source=lib/roles.sh
 . "$ROOT_DIR/scripts/lib/roles.sh"
 

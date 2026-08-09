@@ -147,17 +147,29 @@ fi
 # enabled lane with no secret looks configured and does nothing — exactly the
 # inert-gate class this report exists to surface.
 if [ -x scripts/factory-review-lane.sh ]; then
-  RL_STATE="$( . ./factory.config 2>/dev/null; printf '%s' "${REVIEW_LANE:-off}" )"
+  # Parsed, not sourced (Decision 41). factory_config_export falls back to a
+  # legacy factory.config, so this reads the same value either way.
+  RL_STATE="$( factory_config_export 2>/dev/null; printf '%s' "${REVIEW_LANE:-off}" )"
   if [ "$RL_STATE" = "on" ]; then
     RL_SECRET="$(./scripts/factory-review-lane.sh secret-name 2>/dev/null || true)"
     case "$(./scripts/factory-review-lane.sh pending 2>/dev/null | head -1)" in
       "") armed "review lane            advisory PR review, secret present" ;;
-      *)  warn "review lane is ON but its secret (${RL_SECRET:-see factory.config}) is missing or unverified"
+      *)  warn "review lane is ON but its secret (${RL_SECRET:-see factory.yaml}) is missing or unverified"
           line "" "  add it: GitHub -> Settings -> Secrets and variables -> Actions" ;;
     esac
   else
     inert "review lane            off (opt-in; ./factory review-lane enable)"
   fi
+fi
+
+# A legacy factory.config still works — it is read as a fallback for any key the
+# YAML does not define — so this is a note, not a failure. It is reported at all
+# because a fallback nobody notices is how a deprecation lives forever, and
+# because two files holding the same setting is how they drift apart.
+if [ -f "$ROOT/factory.config" ]; then
+  warn "factory.config is still present — two config files, one job (Decision 41)"
+  line "" "  it still works; settings there are read when factory.yaml omits them"
+  line "" "  move it: ./factory migrate-config   (--dry-run to preview)"
 fi
 
 echo

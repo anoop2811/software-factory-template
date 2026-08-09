@@ -1,7 +1,7 @@
 # Models and providers
 
 The factory does not assume you use any particular model provider, or that you
-have keys for one. Model values are plain strings in `factory.config`, and blank
+have keys for one. Model values are plain strings in `factory.yaml`, and blank
 means **inherit** — the factory writes no model pins at all and each harness keeps
 whatever it is already configured with.
 
@@ -17,7 +17,7 @@ whatever it is already configured with.
 | `openai` | opencode tiers as `openai/…`, plus native Claude/Codex tiers |
 | anything else | opencode tiers blank (set them yourself), plus native Claude/Codex tiers |
 
-Nothing here is locked in — edit `factory.config` and run `make sync-harnesses`
+Nothing here is locked in — edit `factory.yaml` and run `make sync-harnesses`
 (Decision 25) and every harness re-routes.
 
 ## Why the three harnesses differ
@@ -27,14 +27,14 @@ opencode reaches [75+ providers](https://opencode.ai/docs/providers/) with a
 Code only talks to Anthropic and Codex only to OpenAI, so their tiers always use
 those native ids — and they only apply if you actually run that harness.
 
-```sh
-# factory.config — the shape, whatever the provider
-MODEL_PROVIDER="openrouter"
-OPENCODE_FRONTIER_MODEL="openrouter/z-ai/glm-5.2"
-OPENCODE_DEFAULT_MODEL="openrouter/z-ai/glm-5.2"
-OPENCODE_ECONOMY_MODEL="openrouter/qwen/qwen3-coder"
-CLAUDE_FRONTIER_MODEL="claude-opus-4-8"      # Claude Code: Anthropic ids
-CODEX_FRONTIER_MODEL="gpt-5.6-sol"           # Codex: OpenAI ids
+```yaml
+# factory.yaml — the shape, whatever the provider
+model_provider: "openrouter"
+opencode_frontier_model: "openrouter/z-ai/glm-5.2"
+opencode_default_model: "openrouter/z-ai/glm-5.2"
+opencode_economy_model: "openrouter/qwen/qwen3-coder"
+claude_frontier_model: "claude-opus-4-8"     # Claude Code: Anthropic ids
+codex_frontier_model: "gpt-5.6-sol"          # Codex: OpenAI ids
 ```
 
 ## Example model strings
@@ -62,5 +62,5 @@ Which model runs where is decided by *role tier*, not by the model string — se
 [COST_AND_TOKENS.md](COST_AND_TOKENS.md). `spec-writer` and `reviewer` are
 frontier, `refactorer` and `wiki-maintainer` are economy, everything else is
 default; the `economy` cost profile turns the cheap tier on. With
-`MODEL_PROVIDER="inherit"` the tiers are blank, so the cost profile routes
+`model_provider: "inherit"` the tiers are blank, so the cost profile routes
 nothing until you fill them in.

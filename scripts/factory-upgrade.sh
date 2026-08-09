@@ -46,6 +46,13 @@ if [ ! -f factory.yaml ]; then
   exit 1
 fi
 
+# Sourced from the repo's own copy, and only after factory.yaml is known to
+# exist. It is sourced again after the framework copy below, because upgrade
+# exists partly to repair a repo whose lib is missing or stale: at this point the
+# functions may be absent or old, and by then they are present and current.
+# shellcheck source=lib/config.sh
+[ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
+
 # ── Get the template at the target ref ───────────────────────────────
 CLEANUP=""
 if [ -n "$SOURCE" ]; then
@@ -76,6 +83,7 @@ scripts/factory-report.sh
 scripts/factory-metrics.sh
 templates/metrics.html
 scripts/factory-review-lane.sh
+scripts/factory-migrate-config.sh
 scripts/adversarial-review.sh
 packs/review-lane/review-pr.yml
 scripts/pre-push-check.sh
@@ -143,6 +151,13 @@ done
 # Restore executable bits on scripts.
 chmod +x factory scripts/*.sh scripts/hooks/*.sh .githooks/pre-push 2>/dev/null || true
 
+# Re-source the config lib now that the copy has run. A repo whose lib was
+# missing or stale is one upgrade is meant to repair, and the questions below
+# call into it — so they must use the version that just landed, not the one that
+# may not have existed when this script started.
+# shellcheck source=lib/config.sh
+[ -f scripts/lib/config.sh ] && . scripts/lib/config.sh
+
 # ── Record the version we upgraded to ────────────────────────────────
 UPSTREAM_COMMIT="$(git -C "$TEMPLATE" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 printf 'ref=%s\ncommit=%s\n' "$FACTORY_REF" "$UPSTREAM_COMMIT" > .factory-version
@@ -163,7 +178,7 @@ echo "  (the adapters .claude/ and .codex/ regenerate from opencode.json via 'ma
 # ── Opt-in capabilities this repository has never been offered ───────
 # A capability nobody hears about is a capability nobody uses; a capability that
 # asks again after you declined is nagware. So: ask once, and let the answer
-# live in factory.config. The key's PRESENCE is the record — "off" is a decision
+# live in factory.yaml. The key's PRESENCE is the record — "off" is a decision
 # that was made, not an absence — so a repo that has answered is never asked
 # again, either way.
 #
@@ -172,9 +187,16 @@ echo "  (the adapters .claude/ and .codex/ regenerate from opencode.json via 'ma
 # rather than banking an answer the adopter never gave.
 capability_offer() {
   _cap_key="$1" _cap_title="$2" _cap_detail="$3" _cap_enable="$4"
-  [ -f factory.config ] || return 0
-  # Answered before — in either direction. Say nothing.
-  grep -q "^${_cap_key}=" factory.config && return 0
+  _cap_yaml_key="$(printf '%s' "$_cap_key" | tr '[:upper:]' '[:lower:]')"
+  # The lib is required to record an answer; without it, asking would be asking
+  # a question whose reply cannot be kept, and the adopter would be asked again
+  # every single upgrade.
+  command -v factory_config_has >/dev/null 2>&1 || return 0
+  # Answered before — in either direction, and in either file. A repo that
+  # answered before Decision 41 recorded it in factory.config; re-asking because
+  # the storage moved would be exactly the nagging this avoids.
+  factory_config_has "$_cap_yaml_key" && return 0
+  [ -f factory.config ] && grep -q "^${_cap_key}=" factory.config && return 0
 
   echo ""
   echo "New, and off: $_cap_title"
@@ -199,11 +221,52 @@ capability_offer() {
       sh -c "$_cap_enable" || echo "  (enable failed — run '$_cap_enable' yourself)"
       ;;
     *)
-      printf '%s="off"\n' "$_cap_key" >> factory.config
+      factory_config_set "$_cap_yaml_key" "off"
       printf '  Left off, and recorded — this will not ask again. Enable later with: %s\n' "$_cap_enable"
       ;;
   esac
 }
+
+# ── One-time migration: two config files become one (Decision 41) ────
+# Offered, never forced. The old file keeps working either way — it is read as a
+# fallback for any key the YAML does not define — so declining costs nothing and
+# the question is asked once.
+migrate_config_offer() {
+  [ -f factory.config ] || return 0
+  command -v factory_config_set >/dev/null 2>&1 || return 0
+  # Already answered, in either direction.
+  factory_config_has config_migrated && return 0
+
+  echo ""
+  echo "Two config files, one job: factory.config can move into factory.yaml."
+  echo "  Configuration is parsed rather than executed, and one fact stops having"
+  echo "  two spellings. Your factory.config keeps working if you decline."
+
+  if [ ! -r /dev/tty ] || [ ! -t 1 ]; then
+    printf '  migrate later with: ./factory migrate-config   (asked again next interactive upgrade)\n'
+    return 0
+  fi
+
+  printf '  Migrate now? [y/N]: '
+  if ! read -r _mig_answer < /dev/tty; then
+    printf '\n  (no answer received — leaving the question open for next time)\n'
+    return 0
+  fi
+  case "$(printf '%s' "$_mig_answer" | tr '[:upper:]' '[:lower:]')" in
+    y|yes)
+      if [ -x scripts/factory-migrate-config.sh ]; then
+        ./scripts/factory-migrate-config.sh || echo "  (migration failed — factory.config is untouched and still read)"
+      else
+        echo "  (scripts/factory-migrate-config.sh not found — skipping)"
+      fi
+      ;;
+    *)
+      factory_config_set config_migrated "declined"
+      printf '  Left as is, and recorded — this will not ask again.\n'
+      ;;
+  esac
+}
+migrate_config_offer
 
 if [ -f packs/review-lane/review-pr.yml ]; then
   capability_offer REVIEW_LANE "adversarial PR review" \

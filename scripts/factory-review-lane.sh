@@ -16,7 +16,6 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG="$ROOT/factory.config"
 WORKFLOW="$ROOT/.github/workflows/adversarial-review.yml"
 SOURCE_YML="$TEMPLATE_DIR/packs/review-lane/review-pr.yml"
 
@@ -24,19 +23,17 @@ SOURCE_YML="$TEMPLATE_DIR/packs/review-lane/review-pr.yml"
 [ -f "$SCRIPT_DIR/lib/color.sh" ] && . "$SCRIPT_DIR/lib/color.sh"
 # The lib is optional: emphasis must never be why a command fails.
 command -v action_box >/dev/null 2>&1 || action_box() { printf '%s\n' "== $1 =="; shift; for _l in "$@"; do printf '  %s\n' "$_l"; done; }
-# shellcheck source=/dev/null
-[ -f "$CONFIG" ] && . "$CONFIG"
+# Settings live in factory.yaml and are parsed, not sourced (Decision 41).
+# shellcheck source=lib/config.sh
+. "$SCRIPT_DIR/lib/config.sh"
+factory_config_export
 
 CMD="${1:-status}"
 
+# The lane's settings are lowercase factory.yaml keys; the shell variables the
+# rest of this script reads are their exported upper-case forms.
 set_key() {
-  local key="$1" val="$2"
-  [ -f "$CONFIG" ] || { echo "review-lane: no factory.config here — run factory init first." >&2; exit 1; }
-  if grep -q "^${key}=" "$CONFIG"; then
-    sed -i.bak "s|^${key}=.*|${key}=\"${val}\"|" "$CONFIG" && rm -f "$CONFIG.bak"
-  else
-    printf '%s="%s"\n' "$key" "$val" >> "$CONFIG"
-  fi
+  factory_config_set "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" "$2" || exit 1
 }
 
 

@@ -22,7 +22,7 @@ A model reviews the diff of every pull request and posts one advisory comment.
 factory can do this for you.
 
 > **GitHub → Settings → Secrets and variables → Actions → New repository secret**
-> - **Name:** whatever `REVIEW_API_KEY_SECRET` says in `factory.config` — it
+> - **Name:** whatever `review_api_key_secret` says in `factory.yaml` — it
 >   follows your provider (`OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`,
 >   `OPENAI_API_KEY`)
 > - **Value:** your API key for that provider
@@ -42,7 +42,7 @@ on something nobody read.
 ## If you already have the factory installed
 
 `factory upgrade` offers the lane once. Answer, and the choice is recorded in
-`factory.config` — a repository that declined is never asked again, and neither
+`factory.yaml` — a repository that declined is never asked again, and neither
 is one that enabled it. If the upgrade runs without a terminal (through a pipe),
 it prints how to enable and leaves the question open rather than recording an
 answer you did not give.
@@ -52,7 +52,7 @@ answer you did not give.
 Tokens on every pull request, at the **frontier tier** — the reviewer is the one
 role the cost profile never routes to a cheap model
 ([COST_AND_TOKENS.md](COST_AND_TOKENS.md)), because a cheap skeptic is not a
-skeptic. Set `REVIEW_MODEL` in `factory.config` to pin a specific model; leave it
+skeptic. Set `review_model` in `factory.yaml` to pin a specific model; leave it
 blank to use your provider's frontier tier. Diffs over 200 KB are skipped with a
 comment saying so, rather than reviewed in truncated form.
 

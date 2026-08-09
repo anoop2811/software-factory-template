@@ -17,11 +17,13 @@ for tool in jq awk grep; do
   fi
 done
 
-# Per-harness models come from factory.config (written by factory-init); it is
-# absent in the template repo, so CODEX_*_MODEL stay unset and agents inherit
-# the session model, keeping committed adapters clean. role_tier() maps role→tier.
-# shellcheck source=/dev/null
-[ -f "$ROOT_DIR/factory.config" ] && . "$ROOT_DIR/factory.config"
+# Per-harness models come from factory.yaml (Decision 41; older repos keep theirs
+# in factory.config and are still read). Neither defines them in the template
+# repo, so CODEX_*_MODEL stay unset and agents inherit the session model, keeping
+# committed adapters clean. role_tier() maps role→tier.
+# shellcheck source=lib/config.sh
+. "$ROOT_DIR/scripts/lib/config.sh"
+factory_config_export
 # shellcheck source=lib/roles.sh
 . "$ROOT_DIR/scripts/lib/roles.sh"
 

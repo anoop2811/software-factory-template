@@ -317,7 +317,7 @@ SYNCROOT="$SANDBOX/syncroot"
 mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
 cp "$TEMPLATE_ROOT/scripts/sync-opencode.sh" "$TEMPLATE_ROOT/scripts/sync-codex.sh" \
    "$TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$SYNCROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$SYNCROOT/scripts/lib/"
 cat > "$SYNCROOT/opencode.json" <<'JSON'
 { "model": "__DEFAULT_MODEL__", "small_model": "__ECONOMY_MODEL__", "agent": {
   "reviewer": { "description": "r", "model": "__FRONTIER_MODEL__", "permission": { "edit": "deny" } },
@@ -434,6 +434,45 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh a
 ( cd "$UPGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
+
+# Break/fix: one config file (Decision 41). Settings are parsed, never sourced;
+# a legacy factory.config still supplies anything the YAML omits; and the
+# migration moves keys across without clobbering values already set.
+CFGROOT="$SANDBOX/cfgmig"
+mkdir -p "$CFGROOT/scripts/lib"
+( cd "$CFGROOT" && git init -q )
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$CFGROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/scripts/factory-migrate-config.sh" "$CFGROOT/scripts/"
+
+# Configuration is data. A value that looks like a command must arrive as text.
+printf 'project_name: t\ncost_profile: "$(touch %s/CONFIG_EXECUTED)"\n' "$CFGROOT" > "$CFGROOT/factory.yaml"
+( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export ) >/dev/null 2>&1 || true
+check "a config value is never executed" "0" \
+  "$([ -e "$CFGROOT/CONFIG_EXECUTED" ] && echo 1 || echo 0)"
+
+# The YAML wins over a legacy file; the legacy file fills what the YAML omits.
+printf 'project_name: t\ncost_profile: "economy"\n' > "$CFGROOT/factory.yaml"
+printf 'COST_PROFILE="standard"\nCLAUDE_FRONTIER_MODEL="claude-opus-4-8"\n' > "$CFGROOT/factory.config"
+check "factory.yaml wins over a legacy factory.config" "economy" \
+  "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${COST_PROFILE:-}" )"
+check "a legacy factory.config still fills the gaps" "claude-opus-4-8" \
+  "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${CLAUDE_FRONTIER_MODEL:-}" )"
+
+# --dry-run must change nothing at all.
+( cd "$CFGROOT" && ./scripts/factory-migrate-config.sh --dry-run ) >/dev/null 2>&1 || true
+check "migrate --dry-run leaves the legacy file alone" "1" \
+  "$([ -f "$CFGROOT/factory.config" ] && echo 1 || echo 0)"
+check "migrate --dry-run writes nothing" "0" \
+  "$(grep -c 'claude_frontier_model' "$CFGROOT/factory.yaml" 2>/dev/null || true)"
+
+# The real migration: move what is missing, keep what is already set, rename.
+( cd "$CFGROOT" && ./scripts/factory-migrate-config.sh ) >/dev/null 2>&1 || true
+check "migration moves a key the yaml lacked" "claude-opus-4-8" \
+  "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_get claude_frontier_model )"
+check "migration keeps the value you already had" "economy" \
+  "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_get cost_profile )"
+check "migration renames rather than deletes" "1" \
+  "$([ -f "$CFGROOT/factory.config.migrated" ] && [ ! -f "$CFGROOT/factory.config" ] && echo 1 || echo 0)"
 
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
@@ -582,11 +621,12 @@ unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 # the provider's secret name into it; disabling REMOVES the file rather than
 # leaving a dormant pull_request_target workflow in the repository.
 RLROOT="$SANDBOX/reviewlane"
-mkdir -p "$RLROOT/scripts" "$RLROOT/packs/review-lane"
+mkdir -p "$RLROOT/scripts/lib" "$RLROOT/packs/review-lane"
 ( cd "$RLROOT" && git init -q )
 cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$RLROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$RLROOT/packs/review-lane/"
-printf 'MODEL_PROVIDER="anthropic"\nREVIEW_LANE="off"\n' > "$RLROOT/factory.config"
+printf 'project_name: t\nmodel_provider: "anthropic"\nreview_lane: "off"\n' > "$RLROOT/factory.yaml"
 check "review lane is off until asked for" "0" \
   "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
 ( cd "$RLROOT" && ./scripts/factory-review-lane.sh enable ) >/dev/null 2>&1 || true
@@ -638,8 +678,11 @@ PENDROOT="$SANDBOX/pending"
 mkdir -p "$PENDROOT/scripts/lib" "$PENDROOT/packs/review-lane"
 ( cd "$PENDROOT" && git init -q )
 cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$PENDROOT/scripts/lib/"
+cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PENDROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$PENDROOT/packs/review-lane/"
+# Settings left in a legacy factory.config, deliberately: this doubles as the
+# proof that a repo which has not migrated still has its settings honoured
+# (Decision 41). factory.yaml defines none of these keys.
 printf 'project_name: t\n' > "$PENDROOT/factory.yaml"
 printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="on"\nREVIEW_API_KEY_SECRET="OPENROUTER_API_KEY"\n' > "$PENDROOT/factory.config"
 check "pending names the secret when the lane is on" "1" \

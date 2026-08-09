@@ -674,6 +674,24 @@ check "a flag missing its value exits 2" "2" "$(gt_status --harness)"
 check "a flag missing its value names the flag" "1" \
   "$( ( cd "$GTROOT" && ./scripts/golden-task-eval.sh --runner 2>&1 ) | grep -c '\-\-runner needs a value' || true)"
 
+# Break/fix: a pinned ref that does not exist yet gets an actionable message.
+# Publishing is two steps — the pin lands on the default branch, the tag is
+# pushed — and between them install.sh names a tag no clone can find. git's own
+# error does not say that, and does not say what to do about it.
+# (Offline-safe: without a network, ls-remote fails and the message is still the
+# right one, so the check holds either way.)
+if [ -f "$TEMPLATE_ROOT/install.sh" ]; then
+  INST_OUT="$( FACTORY_HOME="$SANDBOX/nope" sh "$TEMPLATE_ROOT/install.sh" \
+      --ref v9.9.9-does-not-exist 2>&1 || true )"
+  check "a missing ref is named, not left to git" "1" \
+    "$(printf '%s\n' "$INST_OUT" | grep -c "was not found" || true)"
+  check "a missing ref suggests a ref that exists" "1" \
+    "$(printf '%s\n' "$INST_OUT" | grep -c -- '--ref main' || true)"
+  check "a missing ref exits non-zero" "1" \
+    "$( ( FACTORY_HOME="$SANDBOX/nope2" sh "$TEMPLATE_ROOT/install.sh" \
+          --ref v9.9.9-does-not-exist >/dev/null 2>&1; echo $? ) )"
+fi
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

@@ -43,7 +43,7 @@ set -eu
 # moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
-FACTORY_REF="${FACTORY_REF:-v0.1.4}"
+FACTORY_REF="${FACTORY_REF:-v0.1.5}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 # --ref <ref> (or --ref=<ref>): install from the given branch or tag instead of
@@ -85,6 +85,26 @@ esac
 TARGET_DIR="$PWD"
 
 say() { printf '%s\n' "$*"; }
+
+# A pinned ref that does not exist yet is the one failure this installer can
+# predict. Publishing a release is two steps — the pin lands on the default
+# branch, the tag is pushed — and between them install.sh names a tag no clone
+# can find. git's own message ("Remote branch not found in upstream origin") does
+# not say that, and does not say what to do about it.
+#
+# Deliberately NOT a silent fallback to main: an adopter who asked for a pinned
+# install and quietly received an unpinned one has lost the property they came
+# for. Say what happened, and let them choose.
+require_ref() {
+  if git ls-remote --exit-code --heads --tags "$FACTORY_REPO" "$FACTORY_REF" >/dev/null 2>&1; then
+    return 0
+  fi
+  say "install: ref '$FACTORY_REF' was not found in $FACTORY_REPO." >&2
+  say "  If a release was just published, its tag may be moments behind — retry shortly." >&2
+  say "  Otherwise pick a ref that exists:" >&2
+  say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- --ref main" >&2
+  exit 1
+}
 
 # When this invocation began. Handed to factory-upgrade so the total it prints is
 # wall clock from the adopter's command, not from the point the upgrade takes
@@ -134,6 +154,7 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
     exit 1
   else
     say "install: cloning the template into $FACTORY_HOME..."
+    require_ref
     git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"
   fi
   # Apply to the current repo. Resolve its root via git so running from a
@@ -159,6 +180,7 @@ if [ -e "$FACTORY_HOME" ]; then
   say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade"
 else
   say "install: cloning $FACTORY_REPO at ref '$FACTORY_REF' into $FACTORY_HOME"
+  require_ref
   git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"
   say "install: done. Nothing outside $FACTORY_HOME was touched."
 fi

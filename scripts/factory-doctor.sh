@@ -21,6 +21,9 @@ cd "$ROOT" || exit 1
 
 # shellcheck source=lib/config.sh
 . "$SCRIPT_DIR/lib/config.sh"
+# Optional: a report that cannot say how long it took is still a report.
+# shellcheck source=lib/timing.sh
+[ -f "$SCRIPT_DIR/lib/timing.sh" ] && . "$SCRIPT_DIR/lib/timing.sh"
 # Optional: an older repo whose scripts were refreshed before this lib shipped
 # should still get a working doctor, minus the one check it powers.
 # shellcheck source=lib/hookspath.sh
@@ -241,11 +244,40 @@ fi
 echo
 echo "Proof (break/fix self-test)"
 if [ -x scripts/selftest/run.sh ]; then
-  ST_OUT="$(scripts/selftest/run.sh 2>&1)"
-  ST_STATUS=$?
+  # This is the slow part — every gate is broken on purpose and then fixed, and
+  # on a repo with language packs armed it runs for minutes. It used to print
+  # nothing at all until it finished, which made a working upgrade look hung;
+  # an adopter reported exactly that. Silence is not a status.
+  ST_FILE="$(mktemp "${TMPDIR:-/tmp}/factory-selftest.XXXXXX")"
+  ST_T0="$(date +%s)"
+  if [ -t 1 ]; then
+    # A terminal gets a live count. The self-test writes one "ok:" line per case,
+    # so the file it is already producing doubles as the progress source — no
+    # instrumentation on the other side, nothing to keep in sync.
+    scripts/selftest/run.sh >"$ST_FILE" 2>&1 &
+    ST_PID=$!
+    while kill -0 "$ST_PID" 2>/dev/null; do
+      ST_N="$(grep -c '^  ok:' "$ST_FILE" 2>/dev/null || true)"
+      printf '\r  %s cases proven, still going...   ' "${ST_N:-0}"
+      sleep 1
+    done
+    wait "$ST_PID" && ST_STATUS=0 || ST_STATUS=$?
+    printf '\r%*s\r' 44 ''
+  else
+    # A log (CI, a pipe) gets one honest line instead of a redrawing counter.
+    echo "  breaking each gate on purpose, then fixing it — this takes a few minutes"
+    scripts/selftest/run.sh >"$ST_FILE" 2>&1
+    ST_STATUS=$?
+  fi
+  ST_OUT="$(cat "$ST_FILE" 2>/dev/null || true)"
+  ST_ELAPSED="$(( $(date +%s) - ST_T0 ))"
+  rm -f "$ST_FILE"
   ST_TALLY="$(printf '%s\n' "$ST_OUT" | grep -E '^selftest:' || true)"
+  ST_TOOK=""
+  command -v factory_duration >/dev/null 2>&1 &&
+    ST_TOOK=" in $(factory_duration 0 "${ST_ELAPSED:-0}")"
   if [ "$ST_STATUS" -eq 0 ]; then
-    ok "${ST_TALLY:-every gate fired on its violation and passed clean}"
+    ok "${ST_TALLY:-every gate fired on its violation and passed clean}${ST_TOOK}"
   else
     fail "${ST_TALLY:-break/fix self-test failed}"
     printf '%s\n' "$ST_OUT" | sed 's/^/    /'

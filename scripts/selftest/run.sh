@@ -597,6 +597,37 @@ mkdir -p "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
 check "an eval with no tasks writes no results file" "0" \
   "$(find "$EVROOT/eval/results" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
 
+# Break/fix: a mock score is not an agent score. The mock runner writes a fixed
+# answer and cannot fail, so a 1.00 from it under "getting better, or worse?"
+# is the vanity number this report refuses everywhere else — and it shipped.
+mkdir -p "$EVROOT/eval/results"
+printf '{"harness":"mock","tasks":[{"task":"reference-answer","score":1.0}]}\n' \
+  > "$EVROOT/eval/results/mock-baseline.json"
+check "a mock result is labelled as not an agent score" "1" \
+  "$( ( cd "$EVROOT" && ./scripts/factory-metrics.sh 2>/dev/null ) | grep -c 'not your agents' || true)"
+check "a mock-only repo is told no agent has been measured" "1" \
+  "$( ( cd "$EVROOT" && ./scripts/factory-metrics.sh 2>/dev/null ) | grep -c 'no agent measured yet' || true)"
+check "the json marks the mock and counts zero measured" "1" \
+  "$( ( cd "$EVROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null ) |
+      python3 -c 'import json,sys
+a = json.load(sys.stdin)["agents"]
+print(1 if a["measured_tasks"] == 0 and a["tasks"][0]["is_mock"] else 0)' 2>/dev/null || echo 0)"
+# A real harness must NOT be tarred with the same brush.
+printf '{"harness":"opencode","tasks":[{"task":"reference-answer","score":0.8}]}\n' \
+  > "$EVROOT/eval/results/opencode-baseline.json"
+check "a real harness result is not labelled mock" "1" \
+  "$( ( cd "$EVROOT" && ./scripts/factory-metrics.sh --json 2>/dev/null ) |
+      python3 -c 'import json,sys
+a = json.load(sys.stdin)["agents"]
+print(1 if a["measured_tasks"] == 1 else 0)' 2>/dev/null || echo 0)"
+
+# The embedded report program lives inside a double-quoted shell string, so a
+# single double quote in it — even in a comment — truncates everything after,
+# silently. Three lines of honest reporting went missing exactly that way.
+check "the embedded report program contains no double quotes" "0" \
+  "$(sed -n "/^printf '%s' \"\$EVAL_JSON\"/,/^\" 2>/p" "$TEMPLATE_ROOT/scripts/factory-metrics.sh" |
+     sed '1d;$d' | grep -c '"' || true)"
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an

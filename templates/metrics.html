@@ -133,11 +133,15 @@ function render(d) {
       a.tasks.map(t => {
         const cur = t.current === null || t.current === undefined ? '&mdash;' : t.current;
         const worse = t.current !== null && t.current !== undefined && t.current < t.baseline;
-        return `<tr><td>${esc(t.harness)}</td><td>${esc(t.task)}</td>
+        return `<tr><td>${esc(t.harness)}${t.is_mock ? ' <em>(mock)</em>' : ''}</td><td>${esc(t.task)}</td>
           <td class="num">${esc(t.baseline)}</td>
           <td class="num" style="${worse ? 'color:var(--red)' : ''}">${
             cur === '&mdash;' ? cur : esc(cur)}</td></tr>`;
       }).join('') + `</table>`);
+    if (!a.measured_tasks) parts.push(`<p class="note" style="color:var(--amber)">The scorer
+      works &mdash; no agent measured yet. The mock runner writes a fixed answer and always
+      scores 1.00; point <code>--runner</code> at a real harness
+      (<code>eval/runners/example-harness.sh</code>) to score the agents themselves.</p>`);
     if (a.stale) parts.push(`<p class="note" style="color:var(--amber)">${a.stale} baseline(s)
       <strong>stale</strong> &mdash; measured against inputs that have since changed, so the
       comparison is not like for like.</p>`);

@@ -1466,3 +1466,41 @@ oracle executable, and the three states each produced their own next step —
 "factory upgrade", "no eval tasks yet", and "1 task(s), no baseline yet" — with
 the baseline actually written once that last advice was followed.
 `bash scripts/selftest/run.sh` reported "137 passed, 0 failed".
+
+### Amendment (2026-08-08): a mock score is not an agent score
+
+An adopter saved their first baseline and asked why it said "mock". The right
+question. The mock runner calls no model — it writes a fixed answer so the
+scorer is provable in CI without credentials — and it scores 1.00 by
+construction. The report showed that as:
+
+    Agents  getting better, or worse?
+        reference-answer               baseline 1.0  current 1.0
+
+A perfect score, under that heading, from a runner that cannot fail, with the
+word "mock" nowhere on the line. That is precisely the vanity number Decision 40
+was written to refuse, and this report shipped it. The failure is worth naming
+plainly: the rule was applied to the metrics I was suspicious of and not to the
+one that flattered.
+
+Mock results are now labelled where they appear, and a repository whose only
+results are mock is told that the scorer works and no agent has been measured,
+with the step that would change it. `measured_tasks` counts non-mock results, so
+the JSON carries the distinction too. `golden-task-eval` says the same thing at
+the moment it saves a mock baseline, rather than leaving the reader to discover
+it from a filename.
+
+The fix also exposed why three lines of it went missing on the first attempt: the
+report program is embedded in a double-quoted shell string, and a double quote
+anywhere inside — including in a comment — closes that string and silently
+truncates everything after. A comment quoting the section heading did exactly
+that. There is now a check that the embedded program contains no double quotes,
+because the failure mode is invisible: the script runs, the exit status is zero,
+and only the missing output tells you.
+
+Provenance: adopter question, 2026-08-08 — "why is it showing mock baseline?".
+Verified this session against that repository's own results: the Agents section
+now reads "baseline 1.0 current 1.0 (mock — not your agents)" followed by "the
+scorer works — no agent measured yet", and the JSON reports measured_tasks 0 with
+is_mock true. A seeded non-mock harness reports measured_tasks 1 and carries no
+mock label. `bash scripts/selftest/run.sh` reported "142 passed, 0 failed".

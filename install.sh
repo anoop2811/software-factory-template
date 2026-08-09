@@ -91,7 +91,18 @@ say() { printf '%s\n' "$*"; }
 # over — the fetch happens here, and a total that omitted it would be a smaller
 # number than the one the adopter actually waited through.
 INSTALL_T0="$(date +%s 2>/dev/null || printf '0')"
-elapsed_since() { # <start> -> "4s" | "1m 12s"
+# Durations come from scripts/lib/timing.sh once the template is on disk, so
+# install, upgrade and doctor phrase them identically — including the hour form
+# this fallback lacks. The fallback exists because the very first fetch happens
+# before there is any template to source from, and a missing lib must never be
+# why an install fails.
+elapsed_since() { # <start> -> "4s" | "1m 12s" | "1h 4m"
+  if [ -f "$FACTORY_HOME/scripts/lib/timing.sh" ]; then
+    # shellcheck source=scripts/lib/timing.sh
+    . "$FACTORY_HOME/scripts/lib/timing.sh"
+    factory_duration "$1"
+    return 0
+  fi
   _es_end="$(date +%s 2>/dev/null || printf '0')"
   case "$1$_es_end" in *[!0-9]*) printf 'unknown'; return 0 ;; esac
   _es="$((_es_end - $1))"

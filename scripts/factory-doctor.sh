@@ -249,7 +249,10 @@ if [ -x scripts/selftest/run.sh ]; then
   # nothing at all until it finished, which made a working upgrade look hung;
   # an adopter reported exactly that. Silence is not a status.
   ST_FILE="$(mktemp "${TMPDIR:-/tmp}/factory-selftest.XXXXXX")"
-  ST_T0="$(date +%s)"
+  # Through the helper, which falls back rather than yielding an empty string
+  # that later arithmetic would turn into a nonsense duration. Timing must never
+  # be why this report looks broken.
+  ST_T0="$(command -v factory_now >/dev/null 2>&1 && factory_now || printf '0')"
   if [ -t 1 ]; then
     # A terminal gets a live count. The self-test writes one "ok:" line per case,
     # so the file it is already producing doubles as the progress source — no
@@ -270,12 +273,15 @@ if [ -x scripts/selftest/run.sh ]; then
     ST_STATUS=$?
   fi
   ST_OUT="$(cat "$ST_FILE" 2>/dev/null || true)"
-  ST_ELAPSED="$(( $(date +%s) - ST_T0 ))"
+  ST_T1="$(command -v factory_now >/dev/null 2>&1 && factory_now || printf '0')"
   rm -f "$ST_FILE"
   ST_TALLY="$(printf '%s\n' "$ST_OUT" | grep -E '^selftest:' || true)"
+  # Two timestamps into the helper, not a pre-computed difference dressed up as
+  # one: it is the helper that knows what to do with a clock that misbehaved.
   ST_TOOK=""
-  command -v factory_duration >/dev/null 2>&1 &&
-    ST_TOOK=" in $(factory_duration 0 "${ST_ELAPSED:-0}")"
+  if command -v factory_duration >/dev/null 2>&1 && [ "${ST_T0:-0}" != "0" ]; then
+    ST_TOOK=" in $(factory_duration "$ST_T0" "$ST_T1")"
+  fi
   if [ "$ST_STATUS" -eq 0 ]; then
     ok "${ST_TALLY:-every gate fired on its violation and passed clean}${ST_TOOK}"
   else

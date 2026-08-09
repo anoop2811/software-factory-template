@@ -526,12 +526,41 @@ chmod +x "$HOREF/scripts/factory-upgrade.sh"
 check "the requested ref survives the hand-off" "ref=pinned-label" \
   "$(grep '^ref=' "$HOREF/.factory-version" 2>/dev/null || true)"
 
+# Break/fix: the handshake must not outlive the exec it describes. It is an
+# environment variable, so a run that handed off leaves it set for every
+# descendant — including the doctor proof, which spawns a self-test that runs
+# upgrade fixtures with an explicit FACTORY_UPGRADE_ACTIVE=1. Reading a stale
+# handshake, those fixtures concluded they were top-level, ran the doctor, and
+# recursed: doctor -> self-test -> upgrade -> doctor, forking without bound on
+# an adopter's machine. An explicit nested marker must win over an inherited one.
+HOSTALE="$SANDBOX/handoff-stale"
+mkdir -p "$HOSTALE/scripts/lib"
+( cd "$HOSTALE" && git init -q )
+printf 'project_name: t\nlanguage_packs: ""\n' > "$HOSTALE/factory.yaml"
+cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOSTALE/scripts/lib/"
+HOSTALE_LOG="$SANDBOX/handoff-stale.log"
+( cd "$HOSTALE" \
+  && FACTORY_UPGRADE_ACTIVE=1 FACTORY_UPGRADE_REEXEC=1 \
+     bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" \
+) </dev/null >"$HOSTALE_LOG" 2>&1 || true
+check "a stale handshake cannot un-nest an upgrade" "1" \
+  "$(grep -c 'nested upgrade' "$HOSTALE_LOG" 2>/dev/null || true)"
+check "a stale handshake does not start the doctor" "0" \
+  "$(grep -c 'Running factory doctor' "$HOSTALE_LOG" 2>/dev/null || true)"
+
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
 # packs/<lang>/hooks/, installed to scripts/hooks/ — so the copy needs an
 # explicit source. It did not have one, the file check found nothing at the
 # assumed path and returned success, and pack gates were silently never
 # upgraded: an adopter kept whatever gate they installed with, forever.
+#
+# Only meaningful where a packs/ tree exists to upgrade FROM. This suite ships to
+# adopters and runs inside `factory doctor`, and an adopter repo has the dialect
+# gate installed in scripts/hooks/ but no packs/ directory at all — so without
+# this guard the fixture failed in every adopter repo and turned their doctor
+# red for a condition that was never theirs.
+if [ -d "$TEMPLATE_ROOT/packs/typescript/hooks" ]; then
 PKGROOT="$SANDBOX/packupg"
 mkdir -p "$PKGROOT/scripts/hooks" "$PKGROOT/scripts/lib"
 ( cd "$PKGROOT" && git init -q )
@@ -558,6 +587,7 @@ else
   PKG_INSTRUMENTED=no
 fi
 check "the upgraded pack gate can report a block" "yes" "$PKG_INSTRUMENTED"
+fi
 
 # Break/fix: the golden-task eval scores a real run — the reference task passes
 # when solved, fails when unsolved, catches a runner that tampers the oracle, and

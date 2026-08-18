@@ -212,23 +212,31 @@ while IFS= read -r LINE; do
     else
       EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
     fi
-    # The window without the claim line, in order: where a count has to appear to
-    # count, and after which line.
+    # The window in order, claim line included, with its position recorded. The
+    # claim line has to be in the scan: a claim that cites its command inline and
+    # puts the result on the next line is the ordinary shape, and excluding the
+    # line meant awk never saw the command and rejected valid evidence. It arms
+    # the scan but cannot supply the count itself — that is the distinction
+    # between citing a command and quoting a number.
     if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
-      EVIDENCE_AWAY="$EVIDENCE_TAIL"
+      EVIDENCE_ORDERED="$(printf '%s\n%s\n' "$LINE" "$EVIDENCE_TAIL")"
+      EVIDENCE_CLAIM_LINE=1
     else
-      EVIDENCE_AWAY="$(printf '%s\n%s\n' "$PREV_LINE" "$EVIDENCE_TAIL")"
+      EVIDENCE_ORDERED="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
+      EVIDENCE_CLAIM_LINE=2
     fi
     HAS_COMMAND=false
     HAS_OUTCOME=false
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_STRONG_RE"; then
       HAS_OUTCOME=true
-    elif printf '%s\n' "$EVIDENCE_AWAY" |
-         awk -v cmd="$EVIDENCE_CMD_RE" -v cnt="$EVIDENCE_OUTCOME_COUNT_RE" '
+    elif printf '%s\n' "$EVIDENCE_ORDERED" |
+         awk -v cmd="$EVIDENCE_CMD_RE" -v cnt="$EVIDENCE_OUTCOME_COUNT_RE" \
+             -v claim="$EVIDENCE_CLAIM_LINE" '
            # A count is output only if it comes after the command that produced
            # it. Matching anywhere in the window accepted "3 issues remained, so I
            # ran `go test`" — a number quoted before anything had been run.
+           NR == claim { if ($0 ~ cmd) seen = 1; next }
            seen && $0 ~ cnt { found = 1; exit }
            $0 ~ cmd { seen = 1 }
            END { exit(found ? 0 : 1) }'; then

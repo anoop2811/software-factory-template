@@ -400,14 +400,63 @@ cp "$TEMPLATE_DIR/.codex/config.toml" "$TARGET_DIR/.codex/"
 cp "$TEMPLATE_DIR/.codex/agents/"*.toml "$TARGET_DIR/.codex/agents/"
 cp "$TEMPLATE_DIR/opencode.json" "$TARGET_DIR/"
 cp "$TEMPLATE_DIR/AGENTS.md" "$TARGET_DIR/"
-cp "$TEMPLATE_DIR/Makefile" "$TARGET_DIR/"
+# The Makefile is the adopter's task interface (build, run, test), and replacing
+# it removed targets their README documents and a fresh clone depends on. The
+# factory's targets are appended in a marked block instead.
+if [ ! -f "$TARGET_DIR/Makefile" ]; then
+  cp "$TEMPLATE_DIR/Makefile" "$TARGET_DIR/"
+else
+  if grep -qF '# BEGIN factory targets' "$TARGET_DIR/Makefile"; then
+    awk '/^# BEGIN factory targets$/{skip=1} !skip{print} /^# END factory targets$/{skip=0}' \
+      "$TARGET_DIR/Makefile" > "$TARGET_DIR/Makefile.tmp$$" \
+      && mv -f "$TARGET_DIR/Makefile.tmp$$" "$TARGET_DIR/Makefile"
+  fi
+  {
+    printf '\n# BEGIN factory targets\n'
+    cat "$TEMPLATE_DIR/Makefile"
+    printf '# END factory targets\n'
+  } >> "$TARGET_DIR/Makefile"
+  echo "  appended: Makefile (your targets kept; factory targets in a marked block)"
+fi
 cp "$TEMPLATE_DIR/factory" "$TARGET_DIR/" && chmod +x "$TARGET_DIR/factory"
-cp "$TEMPLATE_DIR/.gitignore" "$TARGET_DIR/"
+# .gitignore is APPENDED to, never replaced. An adopter's ignore rules are the
+# only thing standing between local-only files and a commit; replacing the file
+# made everything it excluded suddenly committable, and a backup only helps
+# someone who notices. In one real adoption that briefly exposed mined data, a
+# roster, an internal deploy tree and two files holding secrets.
+#
+# The block is marked so a re-run replaces it rather than appending twice.
+if [ ! -f "$TARGET_DIR/.gitignore" ]; then
+  cp "$TEMPLATE_DIR/.gitignore" "$TARGET_DIR/"
+else
+  if grep -qF '# BEGIN factory' "$TARGET_DIR/.gitignore"; then
+    # Drop the previous block, keeping everything the adopter owns.
+    awk '/^# BEGIN factory$/{skip=1} !skip{print} /^# END factory$/{skip=0}' \
+      "$TARGET_DIR/.gitignore" > "$TARGET_DIR/.gitignore.tmp$$" \
+      && mv -f "$TARGET_DIR/.gitignore.tmp$$" "$TARGET_DIR/.gitignore"
+  fi
+  {
+    printf '\n# BEGIN factory\n'
+    printf '# Added by factory-init. Edit above or below this block, not inside it:\n'
+    printf '# a re-run replaces the block and leaves the rest of your file alone.\n'
+    cat "$TEMPLATE_DIR/.gitignore"
+    printf '# END factory\n'
+  } >> "$TARGET_DIR/.gitignore"
+  echo "  appended: .gitignore (your rules kept; factory rules in a marked block)"
+fi
 cp "$TEMPLATE_DIR/.github/CODEOWNERS" "$TARGET_DIR/.github/"
 cp "$TEMPLATE_DIR/.github/workflows/ci.yml" "$TARGET_DIR/.github/workflows/"
 cp "$TEMPLATE_DIR/docs/FACTORY_RULES.md" "$TARGET_DIR/docs/"
 cp "$TEMPLATE_DIR/memory/lessons/001-verification-contract.md" "$TARGET_DIR/memory/lessons/"
-cp "$TEMPLATE_DIR/README.md" "$TARGET_DIR/"
+# The adopter's README is left alone. The template's own README describes the
+# template — it names no adopter and links to eight docs this installer never
+# copies, so every link would be broken on arrival. Only write it when there is
+# nothing there at all.
+if [ ! -f "$TARGET_DIR/README.md" ]; then
+  cp "$TEMPLATE_DIR/README.md" "$TARGET_DIR/"
+else
+  echo "  kept: README.md (yours — see the template's for the factory's own docs)"
+fi
 
 # Copy specs template if it exists
 cp "$TEMPLATE_DIR/specs/TEMPLATE.md" "$TARGET_DIR/specs/" 2>/dev/null || true

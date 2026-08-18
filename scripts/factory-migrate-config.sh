@@ -89,8 +89,12 @@ while IFS= read -r line || [ -n "$line" ]; do
 
   yaml_key="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')"
 
-  if factory_config_has "$yaml_key"; then
-    printf '  keeping yours: %s (already in factory.yaml)\n' "$yaml_key"
+  # Present-but-blank is not "already configured". The runtime treats a blank
+  # model key as unset and falls back to the legacy file — so skipping the legacy
+  # value here, and then renaming that file, silently dropped the setting
+  # altogether. A key only counts as yours if it has a value.
+  if factory_config_has "$yaml_key" && [ -n "$(factory_config_get "$yaml_key")" ]; then
+    printf '  keeping yours: %s (already set in factory.yaml)\n' "$yaml_key"
     skipped=$((skipped + 1))
     continue
   fi

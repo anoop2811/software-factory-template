@@ -129,6 +129,19 @@ factory_config_export() {
   root="$(dirname "$file")"
   legacy="$root/factory.config"
 
+  # Precedence has three sources, and they are not interchangeable:
+  #   caller environment  >  factory.yaml  >  legacy factory.config
+  # So the caller's variables have to be identified BEFORE the legacy file is
+  # loaded — once it exports, "already set" can no longer tell a deliberate
+  # override apart from the legacy value, and treating them alike would let the
+  # legacy file beat the YAML, which is the opposite of the documented order.
+  local caller_set="" k v
+  for k in $FACTORY_CONFIG_KEYS; do
+    if [ -n "${!k+set}" ]; then
+      caller_set="$caller_set $k"
+    fi
+  done
+
   if [ -f "$legacy" ]; then
     factory_config_load_legacy "$legacy"
   fi
@@ -144,6 +157,18 @@ factory_config_export() {
     value="$(factory_config_get "$key")"
     [ -n "$value" ] || continue
     var="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
+    # A value the caller put in the environment wins, which is what the comment
+    # above this function promises — "anything already in the environment still
+    # wins ... that is what lets a caller override a model tier for one run". The
+    # assignment below used to overwrite it whenever the YAML had anything, so
+    # `MODEL_PROVIDER=anthropic ./script` silently used the file's value. Only
+    # variables recorded before the legacy load count, so the YAML still wins
+    # over factory.config.
+    case " $caller_set " in
+      *" $var "*)
+        export "${var?}"
+        continue ;;
+    esac
     # `eval "$var=\$value"` assigns indirectly. The backslash matters: it defers
     # $value to assignment time, where it is not re-parsed, so a model string
     # containing spaces or shell metacharacters lands verbatim rather than being

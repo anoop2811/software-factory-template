@@ -516,6 +516,12 @@ printf 'project_name: t\ncost_profile: "economy"\n' > "$CFGROOT/factory.yaml"
 printf 'COST_PROFILE="standard"\nCLAUDE_FRONTIER_MODEL="claude-opus-4-8"\n' > "$CFGROOT/factory.config"
 check "factory.yaml wins over a legacy factory.config" "economy" \
   "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${COST_PROFILE:-}" )"
+# The caller's environment outranks both files — that is what makes a one-off
+# override possible — but only the caller's, so the YAML still beats the legacy.
+# cost_profile is set to "economy" in the YAML above, so this genuinely tests the
+# precedence rather than a key the file happens to omit.
+check "the caller's environment beats factory.yaml" "standard" \
+  "$( cd "$CFGROOT" && COST_PROFILE=standard bash -c '. scripts/lib/config.sh; factory_config_export; printf "%s" "${COST_PROFILE:-}"' )"
 check "a legacy factory.config still fills the gaps" "claude-opus-4-8" \
   "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${CLAUDE_FRONTIER_MODEL:-}" )"
 

@@ -156,10 +156,15 @@ else
   }
 
   # One entry per line, path first, arguments after — see factory_local_hooks.
+  # read -ra splits on whitespace WITHOUT globbing, which unquoted expansion does
+  # not: an entry containing `*` would otherwise be expanded against the working
+  # directory, so the hook that ran, or the arguments it received, would not be
+  # the ones configured.
   while IFS= read -r LH_ENTRY; do
     [ -n "${LH_ENTRY// /}" ] || continue
-    # shellcheck disable=SC2086  # deliberate split of "path args" into argv
-    run_local_hook $LH_ENTRY
+    read -ra LH_ARGV <<< "$LH_ENTRY"
+    [ "${#LH_ARGV[@]}" -gt 0 ] || continue
+    run_local_hook "${LH_ARGV[@]}"
   done <<< "$LOCAL_HOOKS_LIST"
 fi
 echo ""

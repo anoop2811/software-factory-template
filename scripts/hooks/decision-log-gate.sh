@@ -101,10 +101,18 @@ else
     exit 1
   fi
 fi
-# A warning that did not stop the enumeration is still worth showing, since an
-# ambiguous ref may mean the gate checked a different range than intended.
+# A warning is not a pass. `git rev-list` prints "warning: refname 'x' is
+# ambiguous" and still exits 0, and the range it then resolved may not be the one
+# meant — possibly an empty one, which this gate would read as "no governance
+# commits to check". Anything on stderr means the enumeration cannot be vouched
+# for, so it fails here rather than reporting a clean range it is unsure of.
 if [ -n "$REV_LIST_ERR" ]; then
-  echo "decision-log-gate: git reported while listing commits: $REV_LIST_ERR" >&2
+  echo "DECISION-LOG-GATE FAIL: git could not enumerate the range unambiguously." >&2
+  echo "  $REV_LIST_ERR" >&2
+  echo "  Disambiguate the refs (refs/heads/<name>, refs/tags/<name>, or a SHA)" >&2
+  echo "  and run this again — the range this resolved to may not be yours." >&2
+  factory_log_event "decision-log-gate" "commit range could not be enumerated unambiguously"
+  exit 1
 fi
 
 ERRORS=0

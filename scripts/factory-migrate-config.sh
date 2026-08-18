@@ -48,7 +48,9 @@ fi
 # backup that promise depends on. Refusing late was almost as bad: factory.yaml
 # had already been rewritten and config_migrated recorded, so the repo was left
 # half-migrated by a command that reported failure.
-if [ -e "$LEGACY.migrated" ]; then
+# -L as well as -e: a dangling symlink fails -e, and `mv` would then replace the
+# link — destroying the pointer to a backup that may still exist elsewhere.
+if [ -e "$LEGACY.migrated" ] || [ -L "$LEGACY.migrated" ]; then
   echo "" >&2
   echo "factory migrate-config: $LEGACY.migrated already exists." >&2
   echo "  Refusing to overwrite it — it is the backup from an earlier migration," >&2

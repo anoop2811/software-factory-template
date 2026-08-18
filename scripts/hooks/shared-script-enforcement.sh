@@ -46,9 +46,20 @@ INLINE_PATTERNS="_test\.go"
 # and code. Comments become empty space; everything else is preserved verbatim.
 strip_ts_comments() {
   awk '
-  BEGIN { inblk = 0 }
+  BEGIN { inblk = 0; intmpl = 0 }
   {
     line = $0; out = ""
+    # A template literal can span records, so its state has to outlive the line.
+    # Without this, a multi-line `` `...` `` containing the text /* put the
+    # scanner into block-comment mode and it ate the rest of the file — including
+    # the real execFile call, which the gate then reported as missing.
+    if (intmpl) {
+      p = index(line, "`")
+      if (p == 0) { print line; next }
+      out = substr(line, 1, p)
+      line = substr(line, p + 1)
+      intmpl = 0
+    }
     while (length(line) > 0) {
       if (inblk) {
         p = index(line, "*/")
@@ -73,13 +84,17 @@ strip_ts_comments() {
       out = out q
       rest = substr(line, first + 1)
       i = 1
+      closed = 0
       while (i <= length(rest)) {
         c = substr(rest, i, 1)
         if (c == "\\") { out = out substr(rest, i, 2); i += 2; continue }
         out = out c
         i += 1
-        if (c == q) break
+        if (c == q) { closed = 1; break }
       }
+      # An unclosed backtick continues on the next record; an unclosed quote does
+      # not (that would be a syntax error in the source, not a multi-line string).
+      if (closed == 0 && q == "`") { intmpl = 1; print out; next }
       line = substr(rest, i)
     }
     print out

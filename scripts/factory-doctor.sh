@@ -262,14 +262,38 @@ if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then
       rm -rf "$DRIFT_SNAP"
       line "[skip]" "adapter drift (could not snapshot the adapters; nothing was changed)"
     else
+      # Backups the syncs might create while this check runs. sync-claude keeps a
+      # regular CLAUDE.md as CLAUDE.md.replaced-by-symlink (timestamped if that
+      # name is taken) — correct at install time, but litter from a check that is
+      # supposed to leave nothing behind. Record what exists now so the restore
+      # can tell an adopter's own backup from one this check caused.
+      DRIFT_BAK_BEFORE="$DRIFT_SNAP.baks"
+      find . -maxdepth 1 -name 'CLAUDE.md.replaced-by-symlink*' 2>/dev/null \
+        | sort > "$DRIFT_BAK_BEFORE" || : > "$DRIFT_BAK_BEFORE"
+
       # Restore on any exit, including an interrupt part-way through a sync. A
       # function rather than an inline trap string: the quoting of a nested loop
       # inside `trap "..."` is unreadable and easy to get wrong.
+      #
+      # Idempotent, because it runs explicitly and then again from the trap if a
+      # signal lands in between. Without the guard the second run would delete
+      # the adapter paths with the snapshot already gone — a read-only check
+      # destroying the very files it was inspecting.
+      DRIFT_RESTORED=0
       _drift_restore() {
+        [ "$DRIFT_RESTORED" -eq 1 ] && return 0
+        [ -d "$DRIFT_SNAP" ] || { DRIFT_RESTORED=1; return 0; }
+        DRIFT_RESTORED=1
         for q in $DRIFT_PATHS; do rm -rf "$q"; done
         for q in $DRIFT_PRESENT; do
           cp -a "$DRIFT_SNAP/$(basename "$q")" "$q" 2>/dev/null || true
         done
+        # Remove only the backups this check caused; leave the adopter's alone.
+        find . -maxdepth 1 -name 'CLAUDE.md.replaced-by-symlink*' 2>/dev/null |
+          while IFS= read -r bak; do
+            grep -qxF "$bak" "$DRIFT_BAK_BEFORE" 2>/dev/null || rm -f "$bak"
+          done
+        rm -f "$DRIFT_BAK_BEFORE"
         rm -rf "$DRIFT_SNAP"
       }
       trap _drift_restore EXIT INT TERM

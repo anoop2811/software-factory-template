@@ -156,15 +156,23 @@ case "$CMD" in
       echo "review lane: cannot stage the workflow in $ROOT/.github/workflows." >&2
       exit 1
     }
-    # shellcheck disable=SC2064  # expand STAGED now: that is the path to clean up
-    trap "rm -f '$STAGED'" EXIT INT TERM
+    # A literal trap calling a function: `trap "rm -f '$STAGED'"` interpolated the
+    # path into a string the shell re-parses when the trap fires, so a repository
+    # path containing an apostrophe broke the cleanup — and a crafted one could
+    # have run commands.
+    _rl_cleanup() { [ -n "${STAGED:-}" ] && rm -f "$STAGED"; }
+    trap _rl_cleanup EXIT INT TERM
     {
       printf '%s\n' "$MANAGED_HEADER"
       sed "s|__REVIEW_API_KEY_SECRET__|$SECRET|g" "$SOURCE_YML"
     } > "$STAGED"
-    set_key REVIEW_LANE on
+    # REVIEW_LANE last. The other two keys are inert on their own — a recorded
+    # secret name with the lane off does nothing — while `REVIEW_LANE on` is what
+    # doctor and `pending` read as "this lane is live". Writing it first meant a
+    # later failure left the lane advertised as armed with no workflow installed.
     set_key REVIEW_API_KEY_SECRET "$SECRET"
     set_key REVIEW_MODEL "${REVIEW_MODEL:-}"
+    set_key REVIEW_LANE on
     # mv, not cp: the workflow appears complete or not at all, and a rename
     # replaces the name rather than following anything sitting at it.
     if ! mv -f "$STAGED" "$WORKFLOW"; then
@@ -174,6 +182,7 @@ case "$CMD" in
       exit 1
     fi
     chmod 644 "$WORKFLOW" 2>/dev/null || true
+    STAGED=""
     trap - EXIT INT TERM
     echo "review lane: enabled."
     echo "  model:  ${REVIEW_MODEL:-$(default_model_for_provider) (frontier tier)}"

@@ -48,7 +48,11 @@ CC_RE='^(feat|fix|chore|docs|refactor|test|ci|build|perf)([(][^)]+[)])?: .+'
 # A command citation, and separately the observation it produced. Both are needed:
 # see the evidence window below.
 EVIDENCE_CMD_RE='(`[^`]+`|go test|go vet|golangci-lint|gosec |grep |rg |find |ls |git |cat |sed |make |curl |xh )'
-EVIDENCE_OUTCOME_RE='(exit:|→|[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|test|tests|file|files|byte|bytes|line|lines)|no (diff|change|output|findings)|clean|OK\b|ok:|output:|FAIL|PASS)'
+# What the command produced. Deliberately broad, because the point is to force a
+# statement of the result, not to dictate its wording — and a grammar that
+# rejected Go's own `ok  pkg  0.003s`, or "3 issues", was rejecting real output.
+# `ok` is matched with explicit non-word neighbours: BSD grep has no \b.
+EVIDENCE_OUTCOME_RE='(exit:|exit status|→|[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|issue|issues|problem|problems|finding|findings|assertion|assertions|spec|specs|example|examples|subtest|subtests|check|checks|test|tests|file|files|byte|bytes|line|lines|commit|commits)|no (diff|diffs|change|changes|output|findings|issues|problems|violations|test files)|(^|[^[:alnum:]_])(ok|OK|PASS|FAIL|passed|failed|clean|unchanged)([^[:alnum:]_]|$)|output:|--- (PASS|FAIL))'
 PERIOD_RE='[.]$'
 BULLET_RE='^[[:space:]]*[-*][[:space:]]+(.+)'
 BLANK_RE='^[[:space:]]*$'
@@ -189,8 +193,17 @@ while IFS= read -r LINE; do
     # The window is the claim's line, the line above it (a header), and the
     # contiguous block beneath it, since a command and its output are usually on
     # adjacent lines.
-    EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" \
-      "$(printf '%s\n' "$REST_LINES" | sed -n '/^[[:space:]]*$/q;p')")"
+    # The window stops at the next bullet as well as at the next blank line, and a
+    # bullet does not reach back to the bullet above it. Otherwise one verified
+    # item lent its command and outcome to every unverified item under it — a list
+    # where the first entry was checked read as a list where all of them were.
+    EVIDENCE_TAIL="$(printf '%s\n' "$REST_LINES" |
+      awk '/^[[:space:]]*$/ { exit } /^[[:space:]]*[-*][[:space:]]+/ { exit } { print }')"
+    if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
+      EVIDENCE_WINDOW="$(printf '%s\n%s\n' "$LINE" "$EVIDENCE_TAIL")"
+    else
+      EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
+    fi
     HAS_COMMAND=false
     HAS_OUTCOME=false
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi

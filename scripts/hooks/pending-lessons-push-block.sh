@@ -56,7 +56,20 @@ PARITY_ADDRESSED=0
 if [ -f "$PARITY_FLAG" ]; then
   PARITY_BLOB="$(sed -n 's/^blob //p' "$PARITY_FLAG" | head -n 1)"
   WIKI_ROOT="$REPO_ROOT/$(factory_config_get wiki_root wiki)"
-  if [ -n "$PARITY_BLOB" ] && [ -d "$WIKI_ROOT" ] &&
+  # It has to be an object id. diff-aware-check writes `blob unknown` when it
+  # cannot hash the file — a deleted factory-hooks.ts, say — and searching the
+  # wiki for the word "unknown" matches ordinary prose, so a failure to hash
+  # would have cleared the flag it was supposed to raise.
+  PARITY_BLOB_VALID=0
+  case "$PARITY_BLOB" in
+    *[!0-9a-f]*) : ;;
+    ????????????????????????????????????????) PARITY_BLOB_VALID=1 ;;                 # sha1
+    ????????????????????????????????????????????????????????????????) PARITY_BLOB_VALID=1 ;;  # sha256
+  esac
+  if [ "$PARITY_BLOB_VALID" -eq 0 ] && [ -n "$PARITY_BLOB" ]; then
+    echo "parity: the flag records '$PARITY_BLOB', which is not a git object id — treating the claim as unaddressed" >&2
+  fi
+  if [ "$PARITY_BLOB_VALID" -eq 1 ] && [ -d "$WIKI_ROOT" ] &&
      grep -rqF "$PARITY_BLOB" "$WIKI_ROOT" 2>/dev/null; then
     PARITY_ADDRESSED=1
     echo "parity: the claim for this version of factory-hooks.ts is recorded in $(basename "$WIKI_ROOT")/ — cleared"

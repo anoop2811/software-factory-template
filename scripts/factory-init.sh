@@ -46,6 +46,18 @@ TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 # so prompts work even when this script is reached through a pipe
 # (curl ... | sh -s -- init), where stdin carries the installer, not the user.
 # Falls back to stdin when there is no tty (CI, tests).
+# mutation_target picks what `gremlins unleash` should scope to. With a protected
+# path it is that package tree; without one the old substitution produced
+# "./././..." from ./__PROTECTED_PATH__/..., which is not a valid target — so the
+# step either errored or silently measured nothing. "./..." is the honest default.
+mutation_target() {
+  if [ -n "${PROTECTED_PATH:-}" ]; then
+    printf './%s/...' "$PROTECTED_PATH"
+  else
+    printf './...'
+  fi
+}
+
 ask() {
   local __prompt="$1" __var="$2" __reply=""
   if [ -r /dev/tty ] && [ -t 1 ]; then
@@ -213,7 +225,12 @@ fi
 GO_VERSION="${GO_VERSION:-1.26}"
 JAVA_VERSION="${JAVA_VERSION:-25}"
 NODE_VERSION="${NODE_VERSION:-24}"
-CITATION_PREFIX="${CITATION_PREFIX:-SPEC_}"
+# `${VAR-default}`, not `${VAR:-default}`: the prompt offers "or leave empty", and
+# an empty prefix is a documented choice that disables citation linting. The colon
+# form treated a deliberate blank as "unanswered" and armed the gate with SPEC_,
+# so a repo whose specs are named otherwise got a check nothing could satisfy.
+# The default still applies when the variable was never set at all.
+CITATION_PREFIX="${CITATION_PREFIX-SPEC_}"
 
 echo ""
 echo "=== Summary ==="
@@ -452,6 +469,7 @@ for FILE in "${SUBSTITUTE_FILES[@]}"; do
       -e "s|__PROJECT_SLUG__|$PROJECT_SLUG|g" \
       -e "s|__GITHUB_OWNER__|$GITHUB_OWNER|g" \
       -e "s|__OPENCODE_USERNAME__|$OPENCODE_USERNAME|g" \
+      -e "s|__MUTATION_TARGET__|$(mutation_target)|g" \
       -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
       "$FILE"
     rm -f "$FILE.bak"
@@ -582,6 +600,7 @@ set_factory_key() {
   printf '%s' "$out" > "$file"
 }
 
+
 pack_config() {  # read one key from a pack.yaml
   FACTORY_CONFIG="$1/pack.yaml" bash -c '. "'"$SCRIPT_DIR"'/lib/config.sh"; factory_config_get "'"$2"'"'
 }
@@ -619,6 +638,13 @@ if [ -n "${PACKS// /}" ]; then
         [ -f "$pf" ] || continue
         case "$(basename "$pf")" in
           pack.yaml|.DS_Store) continue ;;
+          # Every pack ships a Makefile.pack, so copying them all to the same
+          # name meant a polyglot install silently kept only the last pack's
+          # targets. Per-pack names, and the Makefile includes each one.
+          Makefile.pack)
+            cp "$pf" "$TARGET_DIR/Makefile.$PACK.pack"
+            echo "  copied: Makefile.$PACK.pack"
+            continue ;;
         esac
         cp "$pf" "$TARGET_DIR/"
         echo "  copied: $(basename "$pf")"
@@ -632,7 +658,8 @@ if [ -n "${PACKS// /}" ]; then
       sed -e "s|__GO_VERSION__|$GO_VERSION|g" \
           -e "s|__JAVA_VERSION__|$JAVA_VERSION|g" \
           -e "s|__NODE_VERSION__|$NODE_VERSION|g" \
-          -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
+          -e "s|__MUTATION_TARGET__|$(mutation_target)|g" \
+      -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
         "$PACK_DIR/workflows/ci.yml" \
         > "$TARGET_DIR/.github/workflows/${PACK}-pack.yml"
       echo "  installed: .github/workflows/${PACK}-pack.yml"
@@ -647,6 +674,16 @@ if [ -n "${PACKS// /}" ]; then
 
     if [ "$P_MATURITY" != "battle-tested" ]; then
       echo "  NOTE: '$PACK' is $P_MATURITY — the full stack ships, but no real repository has adopted it yet."
+    fi
+  done
+
+  # Wire the pack makefiles in. Copying them was previously the whole story, so
+  # nothing ever included them and `make test` / `make lint` did not exist.
+  for PACK in $INSTALLED; do
+    [ -f "$TARGET_DIR/Makefile.$PACK.pack" ] || continue
+    if ! grep -q "^include Makefile.$PACK.pack$" "$TARGET_DIR/Makefile" 2>/dev/null; then
+      printf '\n# %s pack targets (test, lint, sec, mutate)\ninclude Makefile.%s.pack\n' "$PACK" "$PACK" >> "$TARGET_DIR/Makefile"
+      echo "  included: Makefile.$PACK.pack in Makefile"
     fi
   done
 

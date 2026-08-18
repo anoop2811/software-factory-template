@@ -117,6 +117,18 @@ factory_config_set config_migrated "yes"
 # Renamed, not deleted. The rename is what stops the fallback from reading it,
 # and keeping the file means a migration that got something wrong is one `git mv`
 # from being undone.
+# Refuse rather than overwrite. The point of the rename is that a migration which
+# got something wrong is one `git mv` from being undone — and an unconditional mv
+# destroyed exactly the backup that promise depends on, if a previous migration
+# had already made one.
+if [ -e "$LEGACY.migrated" ]; then
+  echo "" >&2
+  echo "factory migrate-config: $LEGACY.migrated already exists." >&2
+  echo "  Refusing to overwrite it — it is the backup from an earlier migration," >&2
+  echo "  and the recovery path documented below depends on it surviving." >&2
+  echo "  Move or remove that file, then run this again." >&2
+  exit 1
+fi
 mv "$LEGACY" "$LEGACY.migrated"
 
 echo ""

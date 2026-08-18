@@ -217,14 +217,41 @@ fi
 
 # Adapter drift: the generated .claude/.codex must match the opencode canon.
 if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then
-  BEFORE="$(git status --porcelain .claude .codex .mcp.json 2>/dev/null)"
-  ./scripts/sync-claude.sh >/dev/null 2>&1
-  [ -x scripts/sync-codex.sh ] && ./scripts/sync-codex.sh >/dev/null 2>&1
-  AFTER="$(git status --porcelain .claude .codex .mcp.json 2>/dev/null)"
-  if [ "$BEFORE" = "$AFTER" ]; then
-    ok "harness adapters match the opencode canon (no drift)"
+  # doctor is a read-only report, but the sync scripts write to the working tree —
+  # so this check used to overwrite an adopter's uncommitted edits to the generated
+  # adapters just by being run. Snapshot first, compare, then put the snapshot
+  # back, so the tree is exactly as it was found either way.
+  #
+  # Comparing the generated output against the snapshot also detects drift in a
+  # tree that was already dirty, which the previous `git status` before/after
+  # comparison could not.
+  DRIFT_SNAP="$(mktemp -d 2>/dev/null || true)"
+  if [ -z "$DRIFT_SNAP" ]; then
+    line "[skip]" "adapter drift (could not create a scratch directory)"
   else
-    warn "harness adapters drifted — run 'make sync-harnesses' and commit"
+    DRIFT_PATHS=""
+    for p in .claude .codex .mcp.json; do
+      [ -e "$p" ] && DRIFT_PATHS="$DRIFT_PATHS $p"
+    done
+    # shellcheck disable=SC2086  # deliberate word splitting of the path list
+    cp -a $DRIFT_PATHS "$DRIFT_SNAP/" 2>/dev/null || true
+    ./scripts/sync-claude.sh >/dev/null 2>&1
+    [ -x scripts/sync-codex.sh ] && ./scripts/sync-codex.sh >/dev/null 2>&1
+    DRIFTED=0
+    for p in $DRIFT_PATHS; do
+      diff -r "$DRIFT_SNAP/$(basename "$p")" "$p" >/dev/null 2>&1 || DRIFTED=1
+    done
+    # Restore before reporting, so an interrupted read never leaves the tree edited.
+    for p in $DRIFT_PATHS; do
+      rm -rf "$p"
+      cp -a "$DRIFT_SNAP/$(basename "$p")" "$p" 2>/dev/null || true
+    done
+    rm -rf "$DRIFT_SNAP"
+    if [ "$DRIFTED" -eq 0 ]; then
+      ok "harness adapters match the opencode canon (no drift)"
+    else
+      warn "harness adapters drifted — run 'make sync-harnesses' and commit"
+    fi
   fi
 else
   line "[skip]" "adapter drift (sync scripts or .claude not present)"

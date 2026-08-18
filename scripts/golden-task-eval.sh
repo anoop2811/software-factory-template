@@ -71,6 +71,16 @@ done
 # still wins, for a harness the factory does not ship.
 if [ -z "$RUNNER_EXPLICIT" ] && [ -f "eval/runners/$HARNESS.sh" ]; then
   RUNNER="eval/runners/$HARNESS.sh"
+elif [ -z "$RUNNER_EXPLICIT" ] && [ "$HARNESS" != "mock" ]; then
+  # Naming a harness the factory does not ship, with no --runner, used to fall
+  # back to the mock runner. The mock solves every task, so the run reported a
+  # perfect score for a harness that was never invoked — a measurement that looks
+  # like evidence and is not. Refuse instead: the caller has to say what to run.
+  echo "golden-task-eval: no shipped runner for harness '$HARNESS'." >&2
+  echo "  Shipped: $(ls eval/runners/*.sh 2>/dev/null | sed 's|eval/runners/||; s|\.sh$||' | tr '\n' ' ')" >&2
+  echo "  Pass --runner <script> for your own harness, or --harness mock to use the mock deliberately." >&2
+  echo "  Not falling back to the mock: it solves every task, so the score would be meaningless." >&2
+  exit 2
 fi
 case "$TIMEOUT" in ''|*[!0-9]*) TIMEOUT=300 ;; esac
 [ "$TIMEOUT" -ge 1 ] || TIMEOUT=300

@@ -58,12 +58,27 @@ for PROTECTED in $(factory_config_get protected_paths); do
 done
 
 # Get the list of commits to check
+# `|| true` here used to swallow an unresolvable ref, leaving COMMITS empty and
+# passing the gate — so a typo'd base, a shallow clone without the base commit, or
+# a fetch that had not happened yet all read as "no governance commits to check".
+# A range this gate cannot enumerate is a range it cannot vouch for.
 if [ -n "$HEAD_REF" ]; then
-  COMMITS=$(git rev-list "$BASE..$HEAD_REF" 2>/dev/null || true)
+  if ! COMMITS=$(git rev-list "$BASE..$HEAD_REF" 2>&1); then
+    echo "DECISION-LOG-GATE FAIL: cannot list commits in $BASE..$HEAD_REF" >&2
+    echo "  $COMMITS" >&2
+    echo "  Fetch the base ref (a shallow clone may not have it) and retry." >&2
+    factory_log_event "decision-log-gate" "commit range could not be enumerated"
+    exit 1
+  fi
 elif [ "$BASE" = "HEAD" ]; then
   COMMITS=""
 else
-  COMMITS=$(git rev-list "$BASE" 2>/dev/null || true)
+  if ! COMMITS=$(git rev-list "$BASE" 2>&1); then
+    echo "DECISION-LOG-GATE FAIL: cannot list commits from $BASE" >&2
+    echo "  $COMMITS" >&2
+    factory_log_event "decision-log-gate" "commit range could not be enumerated"
+    exit 1
+  fi
 fi
 
 ERRORS=0
@@ -117,9 +132,21 @@ for sha in $COMMITS; do
 
   # Check if the commit message references a Decision number
   MESSAGE=$(git log --format='%B' -1 "$sha")
-  if echo "$MESSAGE" | grep -qiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+|ADR-[0-9]+|decision.log'; then
+  # `decision.log` was accepted as a reference on its own, so "see the decision
+  # log" satisfied the gate while identifying nothing. A reference has to name
+  # which decision: a number, or an ADR id.
+  if echo "$MESSAGE" | grep -qiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+|ADR-[0-9]+'; then
     # A reference is not enough: numbered Decisions must exist in the log.
     MISSING=0
+    # Without the log there is nothing to verify against, so a numbered reference
+    # cannot be accepted: the check would be vacuous, which is how a governance
+    # gate ends up approving a Decision that was never written down.
+    if [ ! -f "$DECISION_LOG" ] && echo "$MESSAGE" | grep -qiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+'; then
+      echo "DECISION-LOG-GATE FAIL: commit $short references a Decision,"
+      echo "  but the configured log $DECISION_LOG does not exist, so the"
+      echo "  reference cannot be verified. Create it, or fix decision_log."
+      MISSING=1
+    fi
     if [ -f "$DECISION_LOG" ]; then
       for NUM in $(echo "$MESSAGE" | grep -oiE 'Decision([[:space:]]+|:[[:space:]]*)[0-9]+' | grep -oE '[0-9]+' | sort -u); do
         if ! grep -qE "^## Decision $NUM\b" "$DECISION_LOG"; then

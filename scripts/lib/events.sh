@@ -27,8 +27,15 @@ factory_log_event() {
   # "silently empty the log the moment it fills".
   _keep=$((_max / 2)); [ "$_keep" -lt 1 ] && _keep=1
   if [ "$(wc -l < "$_log" 2>/dev/null || echo 0)" -gt "$_max" ]; then
-    tail -n "$_keep" "$_log" > "$_log.trim" 2>/dev/null &&
-      mv -f "$_log.trim" "$_log" 2>/dev/null || true
+    # mktemp, not "$_log.trim": that name is predictable and lives in a directory
+    # other processes can write, so a symlink planted there would be followed and
+    # its target truncated with event data. mktemp fails rather than following.
+    _tmp="$(mktemp "$(dirname "$_log")/.events.XXXXXX" 2>/dev/null)" || return 0
+    if tail -n "$_keep" "$_log" > "$_tmp" 2>/dev/null; then
+      mv -f "$_tmp" "$_log" 2>/dev/null || rm -f "$_tmp" 2>/dev/null || true
+    else
+      rm -f "$_tmp" 2>/dev/null || true
+    fi
   fi
   return 0
 }

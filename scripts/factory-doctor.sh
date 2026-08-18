@@ -199,6 +199,13 @@ if [ -f .githooks/pre-push ] && command -v hookspath_status >/dev/null 2>&1; the
   case "$HP_STATE" in
     armed)
       ok "git resolves the pre-push hook to this repo's .githooks" ;;
+    inert)
+      # Configured but not executable. Git ignores such a hook without a word, so
+      # the distinction from "not installed" matters: the remedy is chmod, not
+      # core.hooksPath.
+      warn "the pre-push hook is not executable — git ignores it, so the push gate is INERT"
+      line "" "  file:  $HP_RESOLVED"
+      line "" "  fix:   chmod +x .githooks/pre-push" ;;
     hijacked)
       warn "core.hooksPath redirects git away from .githooks — the push gate is INERT"
       line "" "  git runs: $HP_RESOLVED"

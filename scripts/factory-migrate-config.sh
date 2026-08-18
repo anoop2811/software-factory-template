@@ -43,6 +43,21 @@ if [ ! -f "$LEGACY" ]; then
   exit 0
 fi
 
+# Checked BEFORE anything is written. The rename at the end is what makes a bad
+# migration one `git mv` from being undone, and an unconditional mv destroyed the
+# backup that promise depends on. Refusing late was almost as bad: factory.yaml
+# had already been rewritten and config_migrated recorded, so the repo was left
+# half-migrated by a command that reported failure.
+# -L as well as -e: a dangling symlink fails -e, and `mv` would then replace the
+# link — destroying the pointer to a backup that may still exist elsewhere.
+if [ -e "$LEGACY.migrated" ] || [ -L "$LEGACY.migrated" ]; then
+  echo "" >&2
+  echo "factory migrate-config: $LEGACY.migrated already exists." >&2
+  echo "  Refusing to overwrite it — it is the backup from an earlier migration," >&2
+  echo "  and the recovery path documented below depends on it surviving." >&2
+  echo "  Move or remove that file, then run this again." >&2
+  exit 1
+fi
 echo "Migrating factory.config into factory.yaml..."
 
 moved=0
@@ -89,8 +104,12 @@ while IFS= read -r line || [ -n "$line" ]; do
 
   yaml_key="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')"
 
-  if factory_config_has "$yaml_key"; then
-    printf '  keeping yours: %s (already in factory.yaml)\n' "$yaml_key"
+  # Present-but-blank is not "already configured". The runtime treats a blank
+  # model key as unset and falls back to the legacy file — so skipping the legacy
+  # value here, and then renaming that file, silently dropped the setting
+  # altogether. A key only counts as yours if it has a value.
+  if factory_config_has "$yaml_key" && [ -n "$(factory_config_get "$yaml_key")" ]; then
+    printf '  keeping yours: %s (already set in factory.yaml)\n' "$yaml_key"
     skipped=$((skipped + 1))
     continue
   fi

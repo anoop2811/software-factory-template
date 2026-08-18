@@ -301,11 +301,23 @@ PY
       # Nothing here is fatal — a report that cannot open a window has still
       # produced the report, and the path is on the line above either way.
       OPENER=""
-      if [ -n "${BROWSER:-}" ] && command -v "${BROWSER%% *}" >/dev/null 2>&1; then
-        OPENER="$BROWSER"
-      else
+      # $BROWSER may be a path containing spaces, or a command with arguments.
+      # `${BROWSER%% *}` assumed the latter, so "/Applications/My Browser" was
+      # truncated to "/Applications/My" — not found, and the fallback opener ran
+      # instead of the browser the user named. Try the whole value as one
+      # executable first, and only then treat a space as an argument separator.
+      if [ -n "${BROWSER:-}" ]; then
+        if command -v "$BROWSER" >/dev/null 2>&1; then
+          OPENER="$BROWSER"
+          OPENER_IS_PATH=1
+        elif command -v "${BROWSER%% *}" >/dev/null 2>&1; then
+          OPENER="$BROWSER"
+          OPENER_IS_PATH=0
+        fi
+      fi
+      if [ -z "$OPENER" ]; then
         for _o in open xdg-open wslview; do
-          command -v "$_o" >/dev/null 2>&1 && { OPENER="$_o"; break; }
+          command -v "$_o" >/dev/null 2>&1 && { OPENER="$_o"; OPENER_IS_PATH=1; break; }
         done
       fi
       if [ -n "$OPENER" ]; then
@@ -314,7 +326,14 @@ PY
         # commands you have to remember to background yourself.
         # stdin from /dev/null as well as the output streams: an opener that
         # reads stdin would otherwise compete with the caller's terminal.
-        $OPENER "$OUT" </dev/null >/dev/null 2>&1 &
+        # Quoted when the whole value is one executable, split only when it is a
+        # command line — so a browser path with a space in it is still launched.
+        if [ "${OPENER_IS_PATH:-1}" = "1" ]; then
+          "$OPENER" "$OUT" </dev/null >/dev/null 2>&1 &
+        else
+          # shellcheck disable=SC2086  # deliberate split: BROWSER carries arguments
+          $OPENER "$OUT" </dev/null >/dev/null 2>&1 &
+        fi
         echo "  opening it — pass --no-open to just write the file."
       else
         echo "  no opener found (tried \$BROWSER, open, xdg-open, wslview) — open it"

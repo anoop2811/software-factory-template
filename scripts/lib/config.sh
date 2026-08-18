@@ -117,10 +117,58 @@ factory_config_load_legacy() {
       *" $upper "*) : ;;
       *) continue ;;
     esac
-    # Assign indirectly without re-parsing the value, as the YAML path does.
-    eval "$upper=\$value"
+    # Assign indirectly with printf -v: the value reaches the variable as data
+    # and is never passed through the parser at all. `eval` could be written
+    # safely here, but only by escaping `\$value` so it expands at assignment
+    # time — correctness that depends on the reader spotting one backslash. The
+    # name is safe by construction: it comes from FACTORY_CONFIG_KEYS above.
+    printf -v "$upper" '%s' "$value"
     export "${upper?}"
   done < "$file"
+}
+
+# factory_local_hooks: prints one `local_hooks` entry per line — a hook path
+# followed by any arguments it was registered with.
+#
+# The list is whitespace-separated, as it always was, so `"a.sh b.sh"` is still
+# two hooks. A token starting with `-` belongs to the hook before it, which is
+# what lets a gate be registered in the mode it is meant to run in: pre-push
+# wants `internal-paths-ignored.sh --strict`, not the lenient default. A comma is
+# also accepted as an explicit separator, for the rare argument that is not a
+# flag. Both readers of the key go through this function, so the runner and the
+# existence check can never disagree about where one entry ends.
+factory_local_hooks() {
+  local raw tok out field
+  raw="$(factory_config_get local_hooks)"
+  case "$raw" in
+    *,*)
+      # A comma in the value makes commas the separator, and then everything
+      # between two commas is one entry — the way to register an argument that is
+      # not a flag.
+      local old_ifs="$IFS"
+      IFS=','
+      for field in $raw; do
+        IFS="$old_ifs"
+        # Collapse the surrounding whitespace an author leaves after a comma.
+        field="$(printf '%s' "$field" | tr -s '[:space:]' ' ')"
+        field="${field# }"; field="${field% }"
+        if [ -n "$field" ]; then printf '%s\n' "$field"; fi
+        IFS=','
+      done
+      IFS="$old_ifs"
+      ;;
+    *)
+      out=""
+      for tok in $raw; do
+        case "$tok" in
+          -*) if [ -n "$out" ]; then out="$out $tok"; fi ;;
+          *)  if [ -n "$out" ]; then printf '%s\n' "$out"; fi; out="$tok" ;;
+        esac
+      done
+      if [ -n "$out" ]; then printf '%s\n' "$out"; fi
+      ;;
+  esac
+  return 0
 }
 
 factory_config_export() {
@@ -128,6 +176,19 @@ factory_config_export() {
   file="$(factory_config_file)"
   root="$(dirname "$file")"
   legacy="$root/factory.config"
+
+  # Precedence has three sources, and they are not interchangeable:
+  #   caller environment  >  factory.yaml  >  legacy factory.config
+  # So the caller's variables have to be identified BEFORE the legacy file is
+  # loaded — once it exports, "already set" can no longer tell a deliberate
+  # override apart from the legacy value, and treating them alike would let the
+  # legacy file beat the YAML, which is the opposite of the documented order.
+  local caller_set="" k
+  for k in $FACTORY_CONFIG_KEYS; do
+    if [ -n "${!k+set}" ]; then
+      caller_set="$caller_set $k"
+    fi
+  done
 
   if [ -f "$legacy" ]; then
     factory_config_load_legacy "$legacy"
@@ -144,12 +205,23 @@ factory_config_export() {
     value="$(factory_config_get "$key")"
     [ -n "$value" ] || continue
     var="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-    # `eval "$var=\$value"` assigns indirectly. The backslash matters: it defers
-    # $value to assignment time, where it is not re-parsed, so a model string
-    # containing spaces or shell metacharacters lands verbatim rather than being
-    # executed. The name is safe by construction — it comes from the fixed list
-    # above, never from the file.
-    eval "$var=\$value"
+    # A value the caller put in the environment wins, which is what the comment
+    # above this function promises — "anything already in the environment still
+    # wins ... that is what lets a caller override a model tier for one run". The
+    # assignment below used to overwrite it whenever the YAML had anything, so
+    # `MODEL_PROVIDER=anthropic ./script` silently used the file's value. Only
+    # variables recorded before the legacy load count, so the YAML still wins
+    # over factory.config.
+    case " $caller_set " in
+      *" $var "*)
+        export "${var?}"
+        continue ;;
+    esac
+    # printf -v assigns indirectly without the value ever reaching the parser,
+    # so a model string containing spaces or shell metacharacters lands verbatim
+    # rather than being executed. The name is safe by construction — it comes
+    # from the fixed list above, never from the file.
+    printf -v "$var" '%s' "$value"
     # ${var?} rather than $var: exporting by computed name is intended here, and
     # the brace form is how that intent is stated (shellcheck SC2163).
     export "${var?}"
@@ -176,7 +248,14 @@ factory_config_set() {
   if grep -q "^${key}:" "$file"; then
     # A literal replacement, not a regex one: model strings contain slashes, so
     # the substitution needs a delimiter they cannot be mistaken for.
-    sed -i.factory-bak "s|^${key}:.*|${key}: \"${value}\"|" "$file" &&
+    #
+    # The replacement side still has three special characters — `&` (the whole
+    # match), `\` (an escape) and the `|` delimiter itself — so a value containing
+    # any of them corrupted the file it was meant to update. Newlines are folded
+    # for the same reason: a flat key holds one line by definition.
+    local esc
+    esc="$(printf '%s' "$value" | tr '\n' ' ' | sed -e 's/[\\&|]/\\&/g')"
+    sed -i.factory-bak "s|^${key}:.*|${key}: \"${esc}\"|" "$file" &&
       rm -f "$file.factory-bak"
   else
     printf '%s: "%s"\n' "$key" "$value" >> "$file"

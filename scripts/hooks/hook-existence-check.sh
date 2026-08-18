@@ -18,6 +18,9 @@ set -euo pipefail
 # framework file: `factory upgrade` overwrites it byte-for-byte, so anything
 # added here by hand is lost on the next upgrade. Register repo-local hooks with
 #   local_hooks: "scripts/hooks/my-gate.sh scripts/hooks/other-gate.sh"
+# An entry may also carry arguments — a token starting with `-` belongs to the
+# hook before it, and pre-push-check runs the hook with them:
+#   local_hooks: "scripts/hooks/my-gate.sh --strict scripts/hooks/other-gate.sh"
 # and they are checked exactly like the shipped ones.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,8 +56,13 @@ HOOK_SCRIPTS=(
 
 # Repo-local hooks, registered in configuration so they survive an upgrade.
 # read -ra rather than mapfile: bash 3.2 (macOS) has no mapfile.
+# Entries come from the shared parser, so "path --flag" is one entry and only its
+# path is checked for existence and the execute bit.
 LOCAL_HOOKS=()
-read -ra LOCAL_HOOKS <<< "$(factory_config_get local_hooks)"
+while IFS= read -r LH_ENTRY; do
+  read -ra LH_ARGV <<< "$LH_ENTRY"
+  if [ "${#LH_ARGV[@]}" -gt 0 ]; then LOCAL_HOOKS+=( "${LH_ARGV[0]}" ); fi
+done <<< "$(factory_local_hooks)"
 for LH in "${LOCAL_HOOKS[@]:-}"; do
   [ -n "$LH" ] && HOOK_SCRIPTS+=( "$LH" )
 done

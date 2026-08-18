@@ -67,6 +67,62 @@ factory_config_get() {
 # sourced first when it exists, and the YAML overlays whatever it defines. That
 # fallback is deliberately quiet here; `factory doctor` is where it is reported,
 # so a deprecation cannot live forever by going unnoticed.
+# factory_config_load_legacy <file>: export the settings a pre-YAML factory.config
+# defines, by PARSING it — never by sourcing it.
+#
+# Sourcing was the original implementation and it undid the property the move to
+# factory.yaml exists to provide. factory.config lives in the repository, so it
+# can arrive from a branch, a patch or a pull request; sourcing it executed
+# whatever it contained, with the privileges of whatever called this — including
+# CI. `factory migrate-config` already parsed the same file for exactly this
+# reason ("parsing it beats sourcing it"), so this only makes the library agree
+# with the tool that replaces it.
+#
+# Same grammar as that parser: KEY=value, optional single or double quotes, a
+# trailing ` #` comment on unquoted values only, and keys restricted to shell
+# identifiers. Only the fixed key list below is exported, so an unexpected name
+# in the file cannot set an arbitrary variable.
+# The settings the factory recognises. Both the YAML and the legacy reader are
+# restricted to this list, so neither file can set a variable the factory did
+# not ask for.
+FACTORY_CONFIG_KEYS="COST_PROFILE MODEL_PROVIDER \
+OPENCODE_FRONTIER_MODEL OPENCODE_DEFAULT_MODEL OPENCODE_ECONOMY_MODEL \
+CLAUDE_FRONTIER_MODEL CLAUDE_DEFAULT_MODEL CLAUDE_ECONOMY_MODEL \
+CODEX_FRONTIER_MODEL CODEX_DEFAULT_MODEL CODEX_ECONOMY_MODEL \
+REVIEW_LANE REVIEW_MODEL REVIEW_API_KEY_SECRET"
+
+factory_config_load_legacy() {
+  local file="$1" line key value upper
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+      *=*) : ;;
+      *) continue ;;
+    esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    # Strip `export ` and surrounding whitespace, so `export FOO=bar` is read too.
+    key="${key#export }"
+    key="$(printf '%s' "$key" | tr -d '[:space:]')"
+    case "$key" in
+      ''|*[!A-Za-z0-9_]*) continue ;;
+    esac
+    case "$value" in
+      \"*) value="${value#\"}"; value="${value%%\"*}" ;;
+      \'*) value="${value#\'}"; value="${value%%\'*}" ;;
+      *) value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//')" ;;
+    esac
+    upper="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
+    case " $FACTORY_CONFIG_KEYS " in
+      *" $upper "*) : ;;
+      *) continue ;;
+    esac
+    # Assign indirectly without re-parsing the value, as the YAML path does.
+    eval "$upper=\$value"
+    export "${upper?}"
+  done < "$file"
+}
+
 factory_config_export() {
   local file legacy root
   file="$(factory_config_file)"
@@ -74,8 +130,7 @@ factory_config_export() {
   legacy="$root/factory.config"
 
   if [ -f "$legacy" ]; then
-    # shellcheck source=/dev/null
-    . "$legacy"
+    factory_config_load_legacy "$legacy"
   fi
 
   local key var value

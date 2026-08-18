@@ -15,33 +15,55 @@ if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh";
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# File list comes from git, not ripgrep. The previous version used
+# `rg --files -g '*_test.go'` inside a process substitution, which fails OPEN:
+# `set -e` does not observe a failure there, so on any machine without ripgrep
+# the loop iterated zero times and the gate printed success while checking
+# nothing. git is already a hard requirement for every other gate, and
+# `git ls-files` additionally scopes the check to files actually in the repo.
+#
+# All matching below uses `grep -E` (POSIX ERE) for the same reason: no gate
+# should depend on a tool that may be absent. Word boundaries are spelled out
+# rather than using GNU's `\b`, which BSD/macOS grep does not reliably support.
+if ! FILES="$(git ls-files -- '*_test.go')"; then
+  echo "GINKGO-ONLY FAIL: cannot list test files (not a git checkout?)" >&2
+  factory_log_event "ginkgo-only-check" "could not enumerate test files"
+  exit 1
+fi
+
 ERRORS=0
 
 while IFS= read -r FILE; do
   [ -n "$FILE" ] || continue
+  [ -f "$FILE" ] || continue
 
-  if ! rg -q '"testing"' "$FILE"; then
+  if ! grep -qE '"testing"' "$FILE"; then
     continue
   fi
 
-  if ! rg -q 'RunSpecs[[:space:]]*\([[:space:]]*t[[:space:]]*,' "$FILE"; then
+  if ! grep -qE 'RunSpecs[[:space:]]*\([[:space:]]*t[[:space:]]*,' "$FILE"; then
     echo "GINKGO-ONLY FAIL: $FILE imports testing without a RunSpecs bootstrap"
     ERRORS=$((ERRORS + 1))
     continue
   fi
 
-  TEST_FUNCTIONS="$(rg -c '^[[:space:]]*func Test[^[:space:]]*[[:space:]]*\(' "$FILE" || true)"
-  TESTING_T_REFS="$(rg -o 'testing\.T' "$FILE" | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
+  # grep -c exits 1 on zero matches, so default it rather than letting set -e fire.
+  TEST_FUNCTIONS="$(grep -cE '^[[:space:]]*func Test[^[:space:]]*[[:space:]]*\(' "$FILE" || true)"
+  TEST_FUNCTIONS="${TEST_FUNCTIONS:-0}"
+  TESTING_T_REFS="$(grep -oE 'testing\.T' "$FILE" | wc -l | tr -d '[:space:]')"
+  TESTING_T_REFS="${TESTING_T_REFS:-0}"
   if [ "$TEST_FUNCTIONS" -ne 1 ] || [ "$TESTING_T_REFS" -ne 1 ]; then
     echo "GINKGO-ONLY FAIL: $FILE must contain exactly one testing.T RunSpecs bootstrap"
     ERRORS=$((ERRORS + 1))
   fi
 
-  if rg -q '\bt\.(Run|Fatal|Fatalf|Error|Errorf|Fail|FailNow|Helper|Log|Logf|Parallel|Skip|Skipf|SkipNow|TempDir|Setenv|Cleanup)\b' "$FILE"; then
+  # Leading boundary excludes '.' too, so a.t.Run does not match; the trailing
+  # '(' keeps this to actual calls.
+  if grep -qE '(^|[^[:alnum:]_.])t\.(Run|Fatal|Fatalf|Error|Errorf|Fail|FailNow|Helper|Log|Logf|Parallel|Skip|Skipf|SkipNow|TempDir|Setenv|Cleanup)[[:space:]]*\(' "$FILE"; then
     echo "GINKGO-ONLY FAIL: $FILE calls testing.T outside Ginkgo/Gomega"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(rg --files -g '*_test.go')
+done <<< "$FILES"
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "ginkgo-only-check: $ERRORS violation(s) found"

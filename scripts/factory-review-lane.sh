@@ -180,7 +180,10 @@ case "$CMD" in
       # with no workflow is a lane doctor reports as armed and that runs nothing,
       # and the command that created that state is the one that should undo it.
       echo "review lane: could not install $WORKFLOW." >&2
-      if set_key REVIEW_LANE off 2>/dev/null; then
+      # factory_config_set directly, not set_key: set_key is `... || exit 1`, so
+      # using it here would leave the script and the message below could never
+      # print. A rollback whose failure path is unreachable is not a rollback.
+      if factory_config_set review_lane off 2>/dev/null; then
         echo "  Rolled the lane back to off; nothing is installed and nothing claims to be." >&2
       else
         echo "  The lane could not be rolled back either — run 'factory review-lane disable'." >&2

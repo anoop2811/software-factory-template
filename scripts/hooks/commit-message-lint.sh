@@ -212,7 +212,8 @@ while IFS= read -r LINE; do
     else
       EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
     fi
-    # The window without the claim line: where a count has to appear to count.
+    # The window without the claim line, in order: where a count has to appear to
+    # count, and after which line.
     if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
       EVIDENCE_AWAY="$EVIDENCE_TAIL"
     else
@@ -223,7 +224,14 @@ while IFS= read -r LINE; do
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_STRONG_RE"; then
       HAS_OUTCOME=true
-    elif echo "$EVIDENCE_AWAY" | grep -qE "$EVIDENCE_OUTCOME_COUNT_RE"; then
+    elif printf '%s\n' "$EVIDENCE_AWAY" |
+         awk -v cmd="$EVIDENCE_CMD_RE" -v cnt="$EVIDENCE_OUTCOME_COUNT_RE" '
+           # A count is output only if it comes after the command that produced
+           # it. Matching anywhere in the window accepted "3 issues remained, so I
+           # ran `go test`" — a number quoted before anything had been run.
+           seen && $0 ~ cnt { found = 1; exit }
+           $0 ~ cmd { seen = 1 }
+           END { exit(found ? 0 : 1) }'; then
       HAS_OUTCOME=true
     fi
 

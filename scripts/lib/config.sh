@@ -135,7 +135,7 @@ factory_config_export() {
   # loaded — once it exports, "already set" can no longer tell a deliberate
   # override apart from the legacy value, and treating them alike would let the
   # legacy file beat the YAML, which is the opposite of the documented order.
-  local caller_set="" k v
+  local caller_set="" k
   for k in $FACTORY_CONFIG_KEYS; do
     if [ -n "${!k+set}" ]; then
       caller_set="$caller_set $k"

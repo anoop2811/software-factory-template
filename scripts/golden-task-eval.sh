@@ -91,7 +91,13 @@ mkdir -p "$RESULTS_DIR"
 BASELINE_FILE="$RESULTS_DIR/${HARNESS}-baseline.json"
 CURRENT_FILE="$RESULTS_DIR/${HARNESS}-current.json"
 
-echo "golden-task-eval: harness=$HARNESS runner=$RUNNER runs=$RUNS"
+# Frontier tier for the harness under test, straight from factory.yaml via the
+# same resolver the sync scripts use. Empty means "inherit", which is a valid
+# answer: the runner then uses the CLI's own configuration.
+EVAL_MODEL="$(FACTORY_CONFIG="${FACTORY_CONFIG:-factory.yaml}" bash -c '
+  . scripts/lib/config.sh 2>/dev/null || exit 0
+  factory_config_get "'"$HARNESS"'_frontier_model"' 2>/dev/null || true)"
+echo "golden-task-eval: harness=$HARNESS runner=$RUNNER runs=$RUNS model=${EVAL_MODEL:-inherit}"
 
 # Tasks are directories under $EVAL_DIR containing task.md + verify.sh.
 TASKS=$(find "$EVAL_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort || true)
@@ -177,7 +183,13 @@ for TASKDIR in $TASKS; do
     cp -R "$TASKDIR"/. "$work"/
     before="$(cksum "$work/verify.sh" | awk '{print $1, $2}')"
     rt=0
-    run_with_timeout "$TIMEOUT" "$RUNNER_ABS" "$work" || rt=$?
+    # The configured tier is passed through, so a run measures the model the
+    # factory routes for this harness rather than whatever the CLI defaults to.
+    # Without it a score says nothing about the configuration it was meant to
+    # evaluate. Runners that ignore the variable are unaffected.
+    rt=0
+    FACTORY_EVAL_MODEL="$EVAL_MODEL" \
+      run_with_timeout "$TIMEOUT" "$RUNNER_ABS" "$work" || rt=$?
     if [ "$rt" -eq 124 ]; then timeouts=$((timeouts + 1)); fi
     after="$(cksum "$work/verify.sh" 2>/dev/null | awk '{print $1, $2}')"
     # A run passes only if the oracle is untouched (no cheating) and it exits 0.
@@ -245,6 +257,14 @@ for t in cur.get("tasks", []):
     pf, cf = prev.get("fingerprint"), t.get("fingerprint")
     if pf is not None and cf is not None and pf != cf:
         stale.append((t["task"], "its task.md or verify.sh oracle changed"))
+
+# A task in the baseline with no current result is never compared, so deleting a
+# failing task used to slip past the gate — the easiest possible way to make a
+# regression disappear. Treat it as stale: the run is no longer like-for-like.
+current_names = {t["task"] for t in cur.get("tasks", [])}
+for name in b:
+    if name not in current_names:
+        stale.append((name, "in the baseline but absent from this run (task removed?)"))
 
 if stale:
     print("golden-task-eval: BASELINE STALE — cannot claim 'no regression'")

@@ -138,10 +138,25 @@ if [ -n "$LP" ]; then
       *)          PH=""; DESC="" ;;
     esac
     [ -z "$PH" ] && continue
-    if [ -x "$PH" ]; then
+    # A dialect gate is only armed if it actually runs. Reporting "armed" from the
+    # file's presence alone told adopters a gate was live while their check command
+    # never invoked it — and reporting `fail` when the file is absent meant a gate
+    # that does not suit the project could not be removed at all, so the only
+    # options were a permanently red doctor or a permanently red CI.
+    #
+    # Three honest states: armed (present and in the check command), inert
+    # (deliberately not wired), and fail (wired but missing, which is broken).
+    CHECK_CMD="$(factory_config_get check_command)"
+    PH_WIRED=0
+    case "$CHECK_CMD" in *"$(basename "$PH")"*) PH_WIRED=1 ;; esac
+    if [ -x "$PH" ] && [ "$PH_WIRED" -eq 1 ]; then
       armed "pack:$lang dialect gate  $DESC"
+    elif [ -x "$PH" ]; then
+      inert "pack:$lang dialect gate  present but not in check_command (not enforced)"
+    elif [ "$PH_WIRED" -eq 1 ]; then
+      fail "pack:$lang dialect gate  $PH is in check_command but missing"
     else
-      fail "pack:$lang dialect gate  $PH missing (pack '$lang' selected but hook absent)"
+      inert "pack:$lang dialect gate  not installed for pack '$lang' (a choice)"
     fi
   done
 fi

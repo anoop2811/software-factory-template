@@ -50,8 +50,12 @@ while IFS= read -r FILE; do
   # grep -c exits 1 on zero matches, so default it rather than letting set -e fire.
   TEST_FUNCTIONS="$(grep -cE '^[[:space:]]*func Test[^[:space:]]*[[:space:]]*\(' "$FILE" || true)"
   TEST_FUNCTIONS="${TEST_FUNCTIONS:-0}"
-  TESTING_T_REFS="$(grep -oE 'testing\.T' "$FILE" | wc -l | tr -d '[:space:]')"
-  TESTING_T_REFS="${TESTING_T_REFS:-0}"
+  # awk's gsub, not `grep -o`: -o is a GNU extension, absent from POSIX grep and
+  # from the busybox grep on minimal CI images — where this counted nothing and the
+  # gate passed a file with several testing.T references. gsub returns the number
+  # of substitutions, so summing it counts every occurrence, including two on one
+  # line, which `grep -c` would have counted once.
+  TESTING_T_REFS="$(awk '{ n += gsub(/testing\.T/, "&") } END { print n + 0 }' "$FILE")"
   if [ "$TEST_FUNCTIONS" -ne 1 ] || [ "$TESTING_T_REFS" -ne 1 ]; then
     echo "GINKGO-ONLY FAIL: $FILE must contain exactly one testing.T RunSpecs bootstrap"
     ERRORS=$((ERRORS + 1))
@@ -71,8 +75,19 @@ while IFS= read -r FILE; do
   #
   # A call needs the '(' immediately after the identifier, so the bootstrap's own
   # `*testing.T` and `*testing.M` type references do not match.
-  if grep -qE '(^|[^[:alnum:]_.])testing\.[A-Za-z][A-Za-z0-9_]*[[:space:]]*\(' "$FILE"; then
-    OFFENDER="$(grep -oE '(^|[^[:alnum:]_.])testing\.[A-Za-z][A-Za-z0-9_]*[[:space:]]*\(' "$FILE" | head -n 1 | sed -E 's/^[^t]*//; s/[[:space:]]*\($//')"
+  # One awk pass finds the call and names it. The previous form scanned twice and
+  # piped `grep -o` into `head -n 1`: head exits after the first line, grep dies of
+  # SIGPIPE, and under `set -o pipefail` that non-zero status propagates — so the
+  # gate could abort at the exact moment it found a violation, before printing it.
+  OFFENDER="$(awk '
+    match($0, /(^|[^[:alnum:]_.])testing\.[A-Za-z][A-Za-z0-9_]*[[:space:]]*\(/) {
+      s = substr($0, RSTART, RLENGTH)
+      sub(/^[^t]*/, "", s)
+      sub(/[[:space:]]*\($/, "", s)
+      print s
+      exit
+    }' "$FILE")"
+  if [ -n "$OFFENDER" ]; then
     echo "GINKGO-ONLY FAIL: $FILE calls $OFFENDER — package-level testing calls belong outside the Ginkgo dialect"
     ERRORS=$((ERRORS + 1))
   fi

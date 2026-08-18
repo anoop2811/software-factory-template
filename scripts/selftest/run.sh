@@ -93,11 +93,18 @@ check "allow when no patterns configured" 0 \
 # A payload the hook cannot parse must not be treated as "no test file here".
 # It used to exit 0, so a missing jq or an unfamiliar payload shape silently
 # permitted the edit this gate exists to block.
-printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|\$)"\n' > "$CFG"
+# `$` unescaped: printf passes `\$` through verbatim, and a backslashed dollar in
+# an ERE matches a literal '$' instead of anchoring at end-of-string — so the
+# fixture's pattern differed from the one on line 76 that it is meant to mirror.
+printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|$)"\n' > "$CFG"
 check "deny implementer when the payload cannot be parsed" 2 \
   "$(printf 'not json' | FACTORY_AGENT_ROLE=implementer run_status "$HOOKS/test-edit-denial.sh")"
+# FACTORY_AGENT_ROLE= explicitly, not merely absent from this line: if the caller
+# runs the selftest with the role already exported (an agent shell does), the
+# fixture inherits it and this "unset role" case silently tests the implementer
+# path instead — and passes for the wrong reason.
 check "allow an unset role on the same unparseable payload" 0 \
-  "$(printf 'not json' | run_status "$HOOKS/test-edit-denial.sh")"
+  "$(printf 'not json' | FACTORY_AGENT_ROLE='' run_status "$HOOKS/test-edit-denial.sh")"
 unset FACTORY_CONFIG
 
 # Verification Contract: a hedge covers the statement it hedges, not every claim
@@ -1075,6 +1082,14 @@ check "a piped --html run does not open a browser" "0" \
   "$( metrics_run --html 2>&1 | grep -c 'opening it' || true )"
 check "--no-open does not open a browser" "0" \
   "$( metrics_run --html --no-open 2>&1 | grep -c 'opening it' || true )"
+# Remove the page the previous --html run wrote, then require this invocation to
+# succeed. Otherwise the assertion below passes on the *old* file: if
+# factory-metrics rejected --no-open outright, the page would still be there and
+# "--no-open still writes the page" would report success for a run that wrote
+# nothing.
+rm -f "$MROOT/.factory/metrics.html"
+check "--no-open exits cleanly" "0" \
+  "$( metrics_run --html --no-open >/dev/null 2>&1; echo $? )"
 check "--no-open still writes the page" "1" \
   "$([ -f "$MROOT/.factory/metrics.html" ] && echo 1 || echo 0)"
 # A terminal is not proof a human is watching: CI runners can allocate a pty.

@@ -34,17 +34,65 @@ ENFORCEMENT_SCRIPTS="test-edit-denial.sh"
 # Known inline patterns that indicate reimplemented enforcement logic.
 INLINE_PATTERNS="_test\.go"
 
+# strip_ts_comments <file> — the file's code with comments removed, line for line.
+#
+# Line-oriented sed cannot do this. A single expression per line either deleted
+# code that shared a line with a comment (`execFile(x) /* note` lost the call, and
+# the hook then reported the call missing), or treated a `/*` inside a `//`
+# comment as opening a block and swallowed the real code that followed. A string
+# containing `//` — any URL — was truncated the same way.
+#
+# So track the three states that matter: inside a block comment, inside a string,
+# and code. Comments become empty space; everything else is preserved verbatim.
+strip_ts_comments() {
+  awk '
+  BEGIN { inblk = 0 }
+  {
+    line = $0; out = ""
+    while (length(line) > 0) {
+      if (inblk) {
+        p = index(line, "*/")
+        if (p == 0) { line = ""; break }
+        line = substr(line, p + 2); inblk = 0; continue
+      }
+      # Earliest of: string opener, block open, line comment.
+      lo = index(line, "//"); bo = index(line, "/*")
+      qd = index(line, "\""); qs = index(line, "\047"); qb = index(line, "`")
+      first = 0; kind = ""
+      if (lo > 0)                     { first = lo; kind = "line" }
+      if (bo > 0 && (first == 0 || bo < first)) { first = bo; kind = "block" }
+      if (qd > 0 && (first == 0 || qd < first)) { first = qd; kind = "str"; q = "\"" }
+      if (qs > 0 && (first == 0 || qs < first)) { first = qs; kind = "str"; q = "\047" }
+      if (qb > 0 && (first == 0 || qb < first)) { first = qb; kind = "str"; q = "`" }
+      if (first == 0) { out = out line; line = ""; break }
+      out = out substr(line, 1, first - 1)
+      if (kind == "line") { line = ""; break }
+      if (kind == "block") { line = substr(line, first + 2); inblk = 1; continue }
+      # A string: copy it through, honouring backslash escapes, so neither `//`
+      # nor `/*` inside it is mistaken for a comment.
+      out = out q
+      rest = substr(line, first + 1)
+      i = 1
+      while (i <= length(rest)) {
+        c = substr(rest, i, 1)
+        if (c == "\\") { out = out substr(rest, i, 2); i += 2; continue }
+        out = out c
+        i += 1
+        if (c == q) break
+      }
+      line = substr(rest, i)
+    }
+    print out
+  }' "$1"
+}
+
 for PLUGIN_FILE in "$PLUGIN_DIR"/*.ts; do
   [ "$CHECK_PLUGIN" = "1" ] || break
   [ -f "$PLUGIN_FILE" ] || continue
 
   echo "shared-script-enforcement: checking $PLUGIN_FILE"
 
-  # Strip comments before matching. The previous expression only removed a block
-  # comment that opened and closed on one line, so a multi-line /* ... */ stayed
-  # in CODE_ONLY and could satisfy the required-call check with dead text while
-  # the actual call was missing. Ranges handle the multi-line form.
-  CODE_ONLY=$(sed -e '\|/\*|,\|\*/|{ \|/\*|{ s|/\*.*||; }; \|\*/|!{ \|/\*|!d; }; s|.*\*/||; }' -e 's|//.*||g' "$PLUGIN_FILE")
+  CODE_ONLY="$(strip_ts_comments "$PLUGIN_FILE")"
 
   for SCRIPT in $ENFORCEMENT_SCRIPTS; do
     if ! echo "$CODE_ONLY" | grep -qE "(execFile|spawn).*${SCRIPT}|${SCRIPT}.*execFile|${SCRIPT}.*spawn" 2>/dev/null; then

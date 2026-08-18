@@ -25,6 +25,8 @@ if [ -f "$_EVDIR/../lib/events.sh" ]; then . "$_EVDIR/../lib/events.sh"; else fa
 # Exit 1 = pending reminder(s) exist — push blocked
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}"
+# shellcheck source=../lib/config.sh
+if [ -f "$(dirname "$0")/../lib/config.sh" ]; then . "$(dirname "$0")/../lib/config.sh"; else factory_config_get() { printf '%s' "${2:-}"; }; fi
 
 ERRORS=0
 
@@ -43,15 +45,32 @@ if [ -f "$PENDING_FILE" ]; then
 fi
 
 # ── Check 2: .parity-stale flag ──────────────────────────────────────
+# The flag names the blob of factory-hooks.ts it refers to. Option 2 below —
+# recording the claim in the wiki — is only actionable if the gate can see that it
+# happened, so a wiki page citing the same blob clears it. Without that, the flag
+# was write-only: diff-aware-check recreated it on every run over a range
+# containing that file, and the only way past was to delete it and hope nobody
+# noticed, which is not a decision the gate can audit.
 PARITY_FLAG="$REPO_ROOT/memory/.parity-stale"
+PARITY_ADDRESSED=0
 if [ -f "$PARITY_FLAG" ]; then
+  PARITY_BLOB="$(sed -n 's/^blob //p' "$PARITY_FLAG" | head -n 1)"
+  WIKI_ROOT="$REPO_ROOT/$(factory_config_get wiki_root wiki)"
+  if [ -n "$PARITY_BLOB" ] && [ -d "$WIKI_ROOT" ] &&
+     grep -rqF "$PARITY_BLOB" "$WIKI_ROOT" 2>/dev/null; then
+    PARITY_ADDRESSED=1
+    echo "parity: the claim for this version of factory-hooks.ts is recorded in $(basename "$WIKI_ROOT")/ — cleared"
+    rm -f "$PARITY_FLAG"
+  fi
+fi
+if [ -f "$PARITY_FLAG" ] && [ "$PARITY_ADDRESSED" -eq 0 ]; then
   echo "PARITY-STALE BLOCK: $PARITY_FLAG exists"
   echo "  factory-hooks.ts was modified since the last OBSERVED parity pass."
   echo "  The previous OBSERVED verification is now stale."
   echo "  Either:"
   echo "    1. Re-run the live parity eval (opencode as implementer, attempt *_test.go edit)"
-  echo "    2. Or mark the parity claim as OPEN in wiki/opencode-harness.md"
-  echo "  Then delete the flag file."
+  echo "    2. Or record the claim in your wiki, citing the blob printed below —"
+  echo "       this gate clears itself once a wiki page names that blob."
   echo ""
   cat "$PARITY_FLAG"
   echo ""

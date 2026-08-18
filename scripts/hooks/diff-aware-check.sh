@@ -75,8 +75,17 @@ if echo "$CHANGED_FILES" | grep -q '^\.opencode/plugin/factory-hooks\.ts$'; then
   #
   # An existing flag for the same blob is left alone, so an adopter who has
   # already recorded a decision about this version is not asked again.
-  PARITY_REF="${HEAD_REF:-HEAD}"
-  PARITY_BLOB="$(cd "$REPO_ROOT" && git rev-parse "$PARITY_REF:.opencode/plugin/factory-hooks.ts" 2>/dev/null || echo unknown)"
+  # Which version of the file the flag is about. With an explicit diff head, that
+  # is the committed blob at that ref. With no arguments — the working-tree mode
+  # this hook documents — the change being flagged is the *uncommitted* edit, so
+  # hashing HEAD would record the version before the edit and the flag would
+  # claim to cover a file nobody changed.
+  PARITY_TARGET=".opencode/plugin/factory-hooks.ts"
+  if [ -n "${HEAD_REF:-}" ]; then
+    PARITY_BLOB="$(cd "$REPO_ROOT" && git rev-parse "$HEAD_REF:$PARITY_TARGET" 2>/dev/null || echo unknown)"
+  else
+    PARITY_BLOB="$(cd "$REPO_ROOT" && git hash-object "$PARITY_TARGET" 2>/dev/null || echo unknown)"
+  fi
   PARITY_FLAG="$REPO_ROOT/memory/.parity-stale"
   if [ -f "$PARITY_FLAG" ] && grep -qF "$PARITY_BLOB" "$PARITY_FLAG" 2>/dev/null; then
     echo "  (parity flag already records this version of factory-hooks.ts)"

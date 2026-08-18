@@ -244,28 +244,64 @@ if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then
   if [ -z "$DRIFT_SNAP" ]; then
     line "[skip]" "adapter drift (could not create a scratch directory)"
   else
-    DRIFT_PATHS=""
-    for p in .claude .codex .mcp.json; do
-      [ -e "$p" ] && DRIFT_PATHS="$DRIFT_PATHS $p"
-    done
-    # shellcheck disable=SC2086  # deliberate word splitting of the path list
-    cp -a $DRIFT_PATHS "$DRIFT_SNAP/" 2>/dev/null || true
-    ./scripts/sync-claude.sh >/dev/null 2>&1
-    [ -x scripts/sync-codex.sh ] && ./scripts/sync-codex.sh >/dev/null 2>&1
-    DRIFTED=0
+    # Every candidate path is recorded, present or not: a path the sync CREATES
+    # must be removed again on restore, or a read-only check leaves new untracked
+    # files behind. CLAUDE.md is included because sync-claude replaces it too.
+    DRIFT_PATHS=".claude .codex .mcp.json CLAUDE.md"
+    DRIFT_PRESENT=""
     for p in $DRIFT_PATHS; do
-      diff -r "$DRIFT_SNAP/$(basename "$p")" "$p" >/dev/null 2>&1 || DRIFTED=1
+      [ -e "$p" ] || [ -L "$p" ] && DRIFT_PRESENT="$DRIFT_PRESENT $p"
     done
-    # Restore before reporting, so an interrupted read never leaves the tree edited.
-    for p in $DRIFT_PATHS; do
-      rm -rf "$p"
-      cp -a "$DRIFT_SNAP/$(basename "$p")" "$p" 2>/dev/null || true
+    # All-or-nothing: a partial snapshot must never be followed by deleting the
+    # live paths, which would restore an incomplete copy over real work.
+    SNAP_OK=1
+    for p in $DRIFT_PRESENT; do
+      cp -a "$p" "$DRIFT_SNAP/" 2>/dev/null || SNAP_OK=0
     done
-    rm -rf "$DRIFT_SNAP"
-    if [ "$DRIFTED" -eq 0 ]; then
-      ok "harness adapters match the opencode canon (no drift)"
+    if [ "$SNAP_OK" -eq 0 ]; then
+      rm -rf "$DRIFT_SNAP"
+      line "[skip]" "adapter drift (could not snapshot the adapters; nothing was changed)"
     else
-      warn "harness adapters drifted — run 'make sync-harnesses' and commit"
+      # Restore on any exit, including an interrupt part-way through a sync. A
+      # function rather than an inline trap string: the quoting of a nested loop
+      # inside `trap "..."` is unreadable and easy to get wrong.
+      _drift_restore() {
+        for q in $DRIFT_PATHS; do rm -rf "$q"; done
+        for q in $DRIFT_PRESENT; do
+          cp -a "$DRIFT_SNAP/$(basename "$q")" "$q" 2>/dev/null || true
+        done
+        rm -rf "$DRIFT_SNAP"
+      }
+      trap _drift_restore EXIT INT TERM
+      ./scripts/sync-claude.sh >/dev/null 2>&1
+      [ -x scripts/sync-codex.sh ] && ./scripts/sync-codex.sh >/dev/null 2>&1
+      DRIFTED=0
+      for p in $DRIFT_PRESENT; do
+        if [ -L "$p" ]; then
+          # A symlink is compared by its target, not by following it: a relative
+          # target does not resolve inside the snapshot directory, so `diff -r`
+          # reported every symlink as changed. CLAUDE.md is one, so the check
+          # warned about drift on a clean tree.
+          [ "$(readlink "$p")" = "$(readlink "$DRIFT_SNAP/$(basename "$p")")" ] || DRIFTED=1
+        else
+          diff -r "$DRIFT_SNAP/$(basename "$p")" "$p" >/dev/null 2>&1 || DRIFTED=1
+        fi
+      done
+      # A path that did not exist before but does now is drift too.
+      for p in $DRIFT_PATHS; do
+        case " $DRIFT_PRESENT " in *" $p "*) continue ;; esac
+        { [ -e "$p" ] || [ -L "$p" ]; } && DRIFTED=1
+      done
+      # Restore explicitly, then stand the trap down.
+      _drift_restore
+      trap - EXIT INT TERM
+    fi
+    if [ "${SNAP_OK:-0}" -eq 1 ]; then
+      if [ "${DRIFTED:-0}" -eq 0 ]; then
+        ok "harness adapters match the opencode canon (no drift)"
+      else
+        warn "harness adapters drifted — run 'make sync-harnesses' and commit"
+      fi
     fi
   fi
 else

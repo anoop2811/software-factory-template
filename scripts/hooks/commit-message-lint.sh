@@ -142,8 +142,14 @@ while IFS= read -r LINE; do
     # happens to share the line. Previously one hedge anywhere suppressed the whole
     # line, so "fixed the parser; the rest is NOT verified" passed the `fixed`
     # claim unchecked. Strip the hedged phrases, then see whether a claim remains.
-    RESIDUAL="$(printf '%s' "$LINE" | sed -E 's/(NOT|not|Not)[[:space:]]+verified//g; s/[Uu]nverified//g; s/NOT_VERIFIED//g')"
-    if ! echo "$RESIDUAL" | grep -qiE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
+    # Lowercase first, then strip. Enumerating capitalisations in the sed script
+    # missed the ones people actually type — `NOT VERIFIED` kept the word
+    # `VERIFIED` in the residual, so the hook rejected a correctly hedged
+    # message. GNU sed's /I flag is not available on BSD sed, so fold the case
+    # instead of relying on it.
+    RESIDUAL="$(printf '%s' "$LINE" | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/not[[:space:]]+verified//g; s/unverified//g; s/not_verified//g')"
+    if ! echo "$RESIDUAL" | grep -qE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
       PREV_LINE="$LINE"
       continue
     fi
@@ -151,7 +157,12 @@ while IFS= read -r LINE; do
     # actually carry the evidence. It used to be skipped unconditionally, so a
     # header with nothing under it satisfied the contract.
     if echo "$LINE" | grep -qE '^[[:space:]]*(Verified|Fixed|Works):[[:space:]]*$'; then
-      if printf '%s\n' "$REST_LINES" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
+      # Only the contiguous block under the header counts as its evidence. Scanning
+      # everything after the header let an unrelated later paragraph — a footer
+      # citing `make check`, say — stand in as evidence for a header that had a
+      # blank line and nothing else beneath it.
+      EVIDENCE_BLOCK="$(printf '%s\n' "$REST_LINES" | sed -n '/^[[:space:]]*$/q;p')"
+      if printf '%s\n' "$EVIDENCE_BLOCK" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
         PREV_LINE="$LINE"
         continue
       fi

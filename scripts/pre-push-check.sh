@@ -125,30 +125,42 @@ echo ""
 echo "[8/8] local hooks (repo-local gates registered in factory.yaml)"
 LOCAL_HOOKS_LIST="$(FACTORY_CONFIG="${FACTORY_CONFIG:-factory.yaml}" bash -c '
   . scripts/lib/config.sh 2>/dev/null || exit 0
-  factory_config_get local_hooks' 2>/dev/null || true)"
+  factory_local_hooks' 2>/dev/null || true)"
 if [ -z "${LOCAL_HOOKS_LIST// /}" ]; then
   echo "  SKIP (none registered)"
 else
-  for LH in $LOCAL_HOOKS_LIST; do
+  # Positional parameters carry the arguments, so a hook that takes a flag runs
+  # with it. Without this, every registered hook ran bare — and a gate with a
+  # strict mode ran in its lenient mode at exactly the moment (push) where the
+  # strict one is the point.
+  run_local_hook() { # <path> [args...]
+    LH="$1"; shift
     if [ ! -x "$LH" ]; then
       echo "  FAIL $LH is registered but not executable"
       ERRORS=$((ERRORS + 1))
-      continue
+      return
     fi
     # Output is captured, not piped: `cmd | sed` reports sed's status, so piping
     # for indentation would have swallowed the hook's own exit code and called
     # every failure a pass.
     LH_OUT="$(mktemp)"
-    if "./$LH" >"$LH_OUT" 2>&1; then
+    if "./$LH" "$@" >"$LH_OUT" 2>&1; then
       sed 's/^/    /' "$LH_OUT"
-      echo "  PASS $LH"
+      echo "  PASS $LH${*:+ $*}"
     else
       sed 's/^/    /' "$LH_OUT"
-      echo "  FAIL $LH"
+      echo "  FAIL $LH${*:+ $*}"
       ERRORS=$((ERRORS + 1))
     fi
     rm -f "$LH_OUT"
-  done
+  }
+
+  # One entry per line, path first, arguments after — see factory_local_hooks.
+  while IFS= read -r LH_ENTRY; do
+    [ -n "${LH_ENTRY// /}" ] || continue
+    # shellcheck disable=SC2086  # deliberate split of "path args" into argv
+    run_local_hook $LH_ENTRY
+  done <<< "$LOCAL_HOOKS_LIST"
 fi
 echo ""
 

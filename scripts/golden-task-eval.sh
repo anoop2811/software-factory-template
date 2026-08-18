@@ -77,7 +77,19 @@ elif [ -z "$RUNNER_EXPLICIT" ] && [ "$HARNESS" != "mock" ]; then
   # perfect score for a harness that was never invoked — a measurement that looks
   # like evidence and is not. Refuse instead: the caller has to say what to run.
   echo "golden-task-eval: no shipped runner for harness '$HARNESS'." >&2
-  echo "  Shipped: $(ls eval/runners/*.sh 2>/dev/null | sed 's|eval/runners/||; s|\.sh$||' | tr '\n' ' ')" >&2
+  # find, not `ls` on a glob: with eval/runners absent the glob goes unmatched and
+  # `ls` fails, which under `set -o pipefail` makes this substitution non-zero and
+  # leaves the reader an empty list where the reason was "the directory is gone".
+  # Say which of the two it is.
+  SHIPPED="$(find eval/runners -maxdepth 1 -type f -name '*.sh' 2>/dev/null |
+    sed 's|.*/||; s|\.sh$||' | sort | tr '\n' ' ' || true)"
+  if [ -n "${SHIPPED// /}" ]; then
+    echo "  Shipped: $SHIPPED" >&2
+  elif [ -d eval/runners ]; then
+    echo "  Shipped: none — eval/runners is empty." >&2
+  else
+    echo "  Shipped: none — there is no eval/runners directory in this repo." >&2
+  fi
   echo "  Pass --runner <script> for your own harness, or --harness mock to use the mock deliberately." >&2
   echo "  Not falling back to the mock: it solves every task, so the score would be meaningless." >&2
   exit 2
@@ -94,9 +106,16 @@ CURRENT_FILE="$RESULTS_DIR/${HARNESS}-current.json"
 # Frontier tier for the harness under test, straight from factory.yaml via the
 # same resolver the sync scripts use. Empty means "inherit", which is a valid
 # answer: the runner then uses the CLI's own configuration.
-EVAL_MODEL="$(FACTORY_CONFIG="${FACTORY_CONFIG:-factory.yaml}" bash -c '
-  . scripts/lib/config.sh 2>/dev/null || exit 0
-  factory_config_get "'"$HARNESS"'_frontier_model"' 2>/dev/null || true)"
+# Resolved in this shell, so $HARNESS is only ever DATA. Interpolating it into a
+# `bash -c` script made the value executable: `--harness 'x$(touch FILE)x'` ran
+# the command, which a review caught and a fixture confirmed. A config lookup
+# must never be able to run what it is looking up.
+EVAL_MODEL=""
+if [ -f scripts/lib/config.sh ]; then
+  # shellcheck source=lib/config.sh
+  . scripts/lib/config.sh
+  EVAL_MODEL="$(factory_config_get "${HARNESS}_frontier_model" 2>/dev/null || true)"
+fi
 echo "golden-task-eval: harness=$HARNESS runner=$RUNNER runs=$RUNS model=${EVAL_MODEL:-inherit}"
 
 # Tasks are directories under $EVAL_DIR containing task.md + verify.sh.

@@ -62,10 +62,31 @@ done
 # passing the gate — so a typo'd base, a shallow clone without the base commit, or
 # a fetch that had not happened yet all read as "no governance commits to check".
 # A range this gate cannot enumerate is a range it cannot vouch for.
+# Sets COMMITS to the enumerated revisions, REV_LIST_ERR to whatever git wrote on
+# stderr, and returns git's exit status. stderr is captured to a file rather than
+# folded in with `2>&1`: git prints "warning: refname 'x' is ambiguous" and still
+# exits 0, and a warning line merged into the list becomes a bogus SHA that makes
+# the checking loop die with "invalid object name 'warning'" — the gate then
+# aborts without ever examining the commits it exists to examine.
+rev_list_into_commits() {
+  local err_file rc
+  err_file="$(mktemp 2>/dev/null)" || err_file=""
+  if [ -z "$err_file" ]; then
+    REV_LIST_ERR="(git stderr unavailable: mktemp failed)"
+    COMMITS="$(git rev-list "$@" 2>/dev/null)" && rc=0 || rc=$?
+    return "$rc"
+  fi
+  COMMITS="$(git rev-list "$@" 2>"$err_file")" && rc=0 || rc=$?
+  REV_LIST_ERR="$(cat "$err_file" 2>/dev/null || true)"
+  rm -f "$err_file"
+  return "$rc"
+}
+
+REV_LIST_ERR=""
 if [ -n "$HEAD_REF" ]; then
-  if ! COMMITS=$(git rev-list "$BASE..$HEAD_REF" 2>&1); then
+  if ! rev_list_into_commits "$BASE..$HEAD_REF"; then
     echo "DECISION-LOG-GATE FAIL: cannot list commits in $BASE..$HEAD_REF" >&2
-    echo "  $COMMITS" >&2
+    echo "  $REV_LIST_ERR" >&2
     echo "  Fetch the base ref (a shallow clone may not have it) and retry." >&2
     factory_log_event "decision-log-gate" "commit range could not be enumerated"
     exit 1
@@ -73,12 +94,17 @@ if [ -n "$HEAD_REF" ]; then
 elif [ "$BASE" = "HEAD" ]; then
   COMMITS=""
 else
-  if ! COMMITS=$(git rev-list "$BASE" 2>&1); then
+  if ! rev_list_into_commits "$BASE"; then
     echo "DECISION-LOG-GATE FAIL: cannot list commits from $BASE" >&2
-    echo "  $COMMITS" >&2
+    echo "  $REV_LIST_ERR" >&2
     factory_log_event "decision-log-gate" "commit range could not be enumerated"
     exit 1
   fi
+fi
+# A warning that did not stop the enumeration is still worth showing, since an
+# ambiguous ref may mean the gate checked a different range than intended.
+if [ -n "$REV_LIST_ERR" ]; then
+  echo "decision-log-gate: git reported while listing commits: $REV_LIST_ERR" >&2
 fi
 
 ERRORS=0

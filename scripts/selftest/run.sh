@@ -56,6 +56,21 @@ check "space-separated list" "a b c" "$(factory_config_get list)"
 check "missing key default" "fallback" "$(factory_config_get absent fallback)"
 unset FACTORY_CONFIG
 
+# A legacy factory.config must be READ, never RUN. It lives in the repository, so
+# it can arrive from a branch or a pull request; sourcing it executed whatever it
+# contained with the privileges of the caller, CI included. The break/fix proof is
+# a command planted in the file: it must not run, and the real settings must still
+# load around it.
+LEGDIR="$SANDBOX/legacy"
+mkdir -p "$LEGDIR"
+printf 'project_name: t\n' > "$LEGDIR/factory.yaml"
+printf 'COST_PROFILE=economy\ntouch %s/EXECUTED\nMODEL_PROVIDER="anthropic"\n' "$LEGDIR" > "$LEGDIR/factory.config"
+LEGOUT="$(FACTORY_CONFIG="$LEGDIR/factory.yaml" bash -c '. "'"$TEMPLATE_ROOT"'/scripts/lib/config.sh"; factory_config_export; printf "%s|%s" "$COST_PROFILE" "$MODEL_PROVIDER"')"
+check "a legacy factory.config is parsed, not executed" "absent" \
+  "$([ -e "$LEGDIR/EXECUTED" ] && echo present || echo absent)"
+check "legacy settings still load around the planted command" "economy|anthropic" "$LEGOUT"
+rm -rf "$LEGDIR"
+
 echo "[2/5] test-edit-denial"
 CFG="$SANDBOX/denial.yaml"
 printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|$) \\.spec\\.ts$"\n' > "$CFG"

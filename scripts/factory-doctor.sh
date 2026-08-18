@@ -268,9 +268,18 @@ if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then
       # supposed to leave nothing behind. Record what exists now so the restore
       # can tell an adopter's own backup from one this check caused.
       DRIFT_BAK_BEFORE="$DRIFT_SNAP.baks"
-      find . -maxdepth 1 -name 'CLAUDE.md.replaced-by-symlink*' 2>/dev/null \
-        | sort > "$DRIFT_BAK_BEFORE" || : > "$DRIFT_BAK_BEFORE"
+      # An empty baseline must mean "there were none", never "the enumeration
+      # failed". Falling back to an empty file would make the restore treat every
+      # matching backup as one this check created — and delete an adopter's.
+      if ! find . -maxdepth 1 -name 'CLAUDE.md.replaced-by-symlink*' 2>/dev/null |
+           sort > "$DRIFT_BAK_BEFORE"; then
+        rm -f "$DRIFT_BAK_BEFORE"
+        rm -rf "$DRIFT_SNAP"
+        line "[skip]" "adapter drift (could not list existing backups; nothing was changed)"
+        SNAP_OK=0
+      fi
 
+      if [ "$SNAP_OK" -eq 1 ]; then
       # Restore on any exit, including an interrupt part-way through a sync. A
       # function rather than an inline trap string: the quoting of a nested loop
       # inside `trap "..."` is unreadable and easy to get wrong.
@@ -319,6 +328,7 @@ if [ -x scripts/sync-claude.sh ] && [ -d .claude ]; then
       # Restore explicitly, then stand the trap down.
       _drift_restore
       trap - EXIT INT TERM
+      fi
     fi
     if [ "${SNAP_OK:-0}" -eq 1 ]; then
       if [ "${DRIFTED:-0}" -eq 0 ]; then

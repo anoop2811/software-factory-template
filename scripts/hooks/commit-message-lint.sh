@@ -48,11 +48,19 @@ CC_RE='^(feat|fix|chore|docs|refactor|test|ci|build|perf)([(][^)]+[)])?: .+'
 # A command citation, and separately the observation it produced. Both are needed:
 # see the evidence window below.
 EVIDENCE_CMD_RE='(`[^`]+`|go test|go vet|golangci-lint|gosec |grep |rg |find |ls |git |cat |sed |make |curl |xh )'
-# What the command produced. Deliberately broad, because the point is to force a
-# statement of the result, not to dictate its wording — and a grammar that
-# rejected Go's own `ok  pkg  0.003s`, or "3 issues", was rejecting real output.
-# `ok` is matched with explicit non-word neighbours: BSD grep has no \b.
-EVIDENCE_OUTCOME_RE='(exit:|exit status|→|[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|issue|issues|problem|problems|finding|findings|assertion|assertions|spec|specs|example|examples|subtest|subtests|check|checks|test|tests|file|files|byte|bytes|line|lines|commit|commits)|no (diff|diffs|change|changes|output|findings|issues|problems|violations|test files)|(^|[^[:alnum:]_])(ok|OK|PASS|FAIL|passed|failed|clean|unchanged)([^[:alnum:]_]|$)|output:|--- (PASS|FAIL))'
+# What the command produced, in two grades.
+#
+# A strong marker states a result outright — `exit: 0`, `ok`, `--- PASS`, an
+# arrow, `output:` — and counts wherever it appears.
+#
+# A bare number is weaker. "3 issues" inside the sentence making the claim is
+# prose about a number, not output someone read back; the same count on a line
+# beneath the command is. So a numeric count only counts away from the claim line
+# — the difference between "works for 3 issues after running `go test`" and a
+# cited command with its result underneath. Result words (`ok`, `clean`, `PASS`,
+# `no findings`) are statements of what happened and count anywhere.
+EVIDENCE_OUTCOME_STRONG_RE='(exit:|exit status|→|output:|--- (PASS|FAIL)|no (diff|diffs|change|changes|output|findings|issues|problems|violations|test files)|(^|[^[:alnum:]_])(ok|OK|PASS|FAIL|passed|failed|clean|green|unchanged)([^[:alnum:]_]|$))'
+EVIDENCE_OUTCOME_COUNT_RE='[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|issue|issues|problem|problems|finding|findings|assertion|assertions|spec|specs|example|examples|subtest|subtests|check|checks|test|tests|file|files|byte|bytes|line|lines|commit|commits)'
 PERIOD_RE='[.]$'
 BULLET_RE='^[[:space:]]*[-*][[:space:]]+(.+)'
 BLANK_RE='^[[:space:]]*$'
@@ -204,10 +212,20 @@ while IFS= read -r LINE; do
     else
       EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
     fi
+    # The window without the claim line: where a count has to appear to count.
+    if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
+      EVIDENCE_AWAY="$EVIDENCE_TAIL"
+    else
+      EVIDENCE_AWAY="$(printf '%s\n%s\n' "$PREV_LINE" "$EVIDENCE_TAIL")"
+    fi
     HAS_COMMAND=false
     HAS_OUTCOME=false
     if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi
-    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_RE"; then HAS_OUTCOME=true; fi
+    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_STRONG_RE"; then
+      HAS_OUTCOME=true
+    elif echo "$EVIDENCE_AWAY" | grep -qE "$EVIDENCE_OUTCOME_COUNT_RE"; then
+      HAS_OUTCOME=true
+    fi
 
     if [ "$HAS_COMMAND" = false ] || [ "$HAS_OUTCOME" = false ]; then
       echo "COMMIT-LINT FAIL: line claims verification but lacks command + output citation:"

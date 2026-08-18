@@ -50,15 +50,28 @@ strip_ts_comments() {
   {
     line = $0; out = ""
     # A template literal can span records, so its state has to outlive the line.
+    # A nested literal inside `${ ... }` is not modelled: that needs a stack, and
+    # the END rule below turns any mis-parse into a reported failure rather than a
+    # quiet pass, which is the direction that matters for a gate.
     # Without this, a multi-line `` `...` `` containing the text /* put the
     # scanner into block-comment mode and it ate the rest of the file — including
     # the real execFile call, which the gate then reported as missing.
     if (intmpl) {
-      p = index(line, "`")
-      if (p == 0) { print line; next }
-      out = substr(line, 1, p)
-      line = substr(line, p + 1)
+      # Escape-aware: `\`` inside a template literal does not close it, and a
+      # plain index() search treated it as the delimiter — after which the rest of
+      # the literal was read as code, so a `/*` in the prose could put the scanner
+      # into block-comment mode and eat the real execFile call.
+      i = 1; out = ""; closed = 0
+      while (i <= length(line)) {
+        c = substr(line, i, 1)
+        if (c == "\\") { out = out substr(line, i, 2); i += 2; continue }
+        out = out c
+        i += 1
+        if (c == "`") { closed = 1; break }
+      }
+      if (closed == 0) { print out; next }
       intmpl = 0
+      line = substr(line, i)
     }
     while (length(line) > 0) {
       if (inblk) {
@@ -98,6 +111,11 @@ strip_ts_comments() {
       line = substr(rest, i)
     }
     print out
+  }
+  END {
+    # A file that ends inside a comment or a template literal was not parsed the
+    # way the compiler would parse it, so nothing downstream should be trusted.
+    if (inblk || intmpl) exit 3
   }' "$1"
 }
 
@@ -107,7 +125,14 @@ for PLUGIN_FILE in "$PLUGIN_DIR"/*.ts; do
 
   echo "shared-script-enforcement: checking $PLUGIN_FILE"
 
-  CODE_ONLY="$(strip_ts_comments "$PLUGIN_FILE")"
+  if ! CODE_ONLY="$(strip_ts_comments "$PLUGIN_FILE")"; then
+    echo "SHARED-SCRIPT FAIL: $PLUGIN_FILE ends inside a comment or template literal"
+    echo "  The comment stripper could not parse it, so the checks below would be"
+    echo "  reading mangled text. Fix the unterminated construct, or report the file"
+    echo "  if it is valid TypeScript — a nested \${\`...\`} template is the known gap."
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
 
   for SCRIPT in $ENFORCEMENT_SCRIPTS; do
     if ! echo "$CODE_ONLY" | grep -qE "(execFile|spawn).*${SCRIPT}|${SCRIPT}.*execFile|${SCRIPT}.*spawn" 2>/dev/null; then

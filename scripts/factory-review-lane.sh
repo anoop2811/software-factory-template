@@ -176,9 +176,15 @@ case "$CMD" in
     # mv, not cp: the workflow appears complete or not at all, and a rename
     # replaces the name rather than following anything sitting at it.
     if ! mv -f "$STAGED" "$WORKFLOW"; then
+      # Turn the lane back off rather than telling the adopter to. `REVIEW_LANE on`
+      # with no workflow is a lane doctor reports as armed and that runs nothing,
+      # and the command that created that state is the one that should undo it.
       echo "review lane: could not install $WORKFLOW." >&2
-      echo "  The settings are recorded but the workflow is not installed;" >&2
-      echo "  run 'factory review-lane disable' to turn the lane back off." >&2
+      if set_key REVIEW_LANE off 2>/dev/null; then
+        echo "  Rolled the lane back to off; nothing is installed and nothing claims to be." >&2
+      else
+        echo "  The lane could not be rolled back either — run 'factory review-lane disable'." >&2
+      fi
       exit 1
     fi
     chmod 644 "$WORKFLOW" 2>/dev/null || true

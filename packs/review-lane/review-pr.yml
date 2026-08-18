@@ -42,8 +42,14 @@ jobs:
       # a review of a truncated diff would be a review of something else.
       MAX_DIFF_BYTES: 200000
     steps:
+      # Pinned to an immutable commit, not the v5 tag. This job runs as
+      # pull_request_target with a write-capable token, so a mutable ref is a
+      # retag away from executing someone else's code inside the trusted
+      # boundary this file exists to draw. Resolved on 2026-08-18 from the
+      # actions/checkout v5 major tag, which pointed at release v5.1.0. Bump it
+      # deliberately, keeping the release in the trailing comment.
       - name: Check out the base commit (trusted — never the PR head)
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false

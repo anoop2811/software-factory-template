@@ -45,6 +45,10 @@ ERRORS=0
 
 # Portable regex patterns (ERE via bash [[ =~ ]]).
 CC_RE='^(feat|fix|chore|docs|refactor|test|ci|build|perf)([(][^)]+[)])?: .+'
+# A command citation, and separately the observation it produced. Both are needed:
+# see the evidence window below.
+EVIDENCE_CMD_RE='(`[^`]+`|go test|go vet|golangci-lint|gosec |grep |rg |find |ls |git |cat |sed |make |curl |xh )'
+EVIDENCE_OUTCOME_RE='(exit:|→|[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|test|tests|file|files|byte|bytes|line|lines)|no (diff|change|output|findings)|clean|OK\b|ok:|output:|FAIL|PASS)'
 PERIOD_RE='[.]$'
 BULLET_RE='^[[:space:]]*[-*][[:space:]]+(.+)'
 BLANK_RE='^[[:space:]]*$'
@@ -177,27 +181,30 @@ while IFS= read -r LINE; do
   fi
 
   if [ "$CLAIMS_VERIFICATION" = true ]; then
-    # Check if this line or the next few lines contain evidence:
-    # - A command in backticks: `command`
-    # - A command with output marker
-    # - An "exit:" marker
-    # - An explicit command citation (e.g., "go test -race" followed by output)
-    HAS_EVIDENCE=false
+    # Evidence is a command AND what it produced. A cited command on its own used
+    # to satisfy this check, so "fixed by running `go mod vendor`" passed as a
+    # verified claim while stating no observation at all — the RAN half of the
+    # Verification Contract standing in for the OBSERVED half.
+    #
+    # The window is the claim's line, the line above it (a header), and the
+    # contiguous block beneath it, since a command and its output are usually on
+    # adjacent lines.
+    EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" \
+      "$(printf '%s\n' "$REST_LINES" | sed -n '/^[[:space:]]*$/q;p')")"
+    HAS_COMMAND=false
+    HAS_OUTCOME=false
+    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi
+    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_RE"; then HAS_OUTCOME=true; fi
 
-    # Check current line for inline evidence
-    if echo "$LINE" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
-      HAS_EVIDENCE=true
-    fi
-
-    # Check previous line (might be a header followed by evidence)
-    if [ "$HAS_EVIDENCE" = false ] && echo "$PREV_LINE" | grep -qE '(`[^`]+`|→|exit:|go test|go vet)'; then
-      HAS_EVIDENCE=true
-    fi
-
-    if [ "$HAS_EVIDENCE" = false ]; then
+    if [ "$HAS_COMMAND" = false ] || [ "$HAS_OUTCOME" = false ]; then
       echo "COMMIT-LINT FAIL: line claims verification but lacks command + output citation:"
       echo "  $LINE"
-      echo "  Every 'verified'/'fixed'/'works' claim must cite the exact command and paste its output."
+      if [ "$HAS_COMMAND" = true ] && [ "$HAS_OUTCOME" = false ]; then
+        echo "  The command is cited but not what it produced. Add the outcome —"
+        echo "  'exit: 0', a count, or the line the command printed."
+      else
+        echo "  Every 'verified'/'fixed'/'works' claim must cite the exact command and paste its output."
+      fi
       echo "  Or write 'written but NOT verified' if you did not execute the check."
       ERRORS=$((ERRORS + 1))
     fi

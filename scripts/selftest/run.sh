@@ -872,8 +872,20 @@ check "eval does not claim no-regression when stale" "0" \
 # permission nothing services). The eval must cap the run, not wedge on it.
 printf '#!/bin/sh\nsleep 30\n' > "$GEROOT/eval/runners/hang.sh"
 chmod +x "$GEROOT/eval/runners/hang.sh"
+# The proof is bounded by an outer timeout as well. If the eval's own cap ever
+# regresses, this check must FAIL rather than hang the selftest — and with it
+# doctor and CI — until something outside kills the process. `timeout` is not
+# POSIX, so where it is missing the check runs unbounded and says so.
+if command -v timeout >/dev/null 2>&1; then
+  SELFTEST_BOUND="timeout 30"
+elif command -v gtimeout >/dev/null 2>&1; then
+  SELFTEST_BOUND="gtimeout 30"
+else
+  SELFTEST_BOUND=""
+  echo "  note: no timeout(1) on this host — the hung-runner proof runs unbounded"
+fi
 check "eval caps a hung runner instead of wedging" "1" \
-  "$( ( cd "$GEROOT" && ./scripts/golden-task-eval.sh --runner=eval/runners/hang.sh --timeout=2 2>&1 || true ) | grep -c 'hit the 2s cap' || true )"
+  "$( ( cd "$GEROOT" && $SELFTEST_BOUND ./scripts/golden-task-eval.sh --runner=eval/runners/hang.sh --timeout=2 2>&1 || true ) | grep -c 'hit the 2s cap' || true )"
 
 # Break/fix: workflow-lint enforces graph hygiene on recipes — a clean recipe
 # passes; a plumbing node (merge) run as an agent fails (coordination is code).

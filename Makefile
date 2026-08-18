@@ -62,10 +62,15 @@ decision-log:
 pending-lessons:
 	./scripts/hooks/pending-lessons-push-block.sh
 
+# No `|| true` on the gates below. With it, a failing commit-message, diff-aware
+# or decision-log check was swallowed and the target still printed "all checks
+# passed" — a pre-push target that could not block a bad push, which is the one
+# thing it exists to do. If a gate cannot run here (no origin/main in a fresh
+# clone, say), fetch it rather than ignoring the result.
 pre-push: check check-drift
-	./scripts/hooks/commit-message-lint.sh HEAD || true
-	./scripts/hooks/diff-aware-check.sh origin/main HEAD || true
-	./scripts/hooks/decision-log-gate.sh origin/main HEAD || true
+	./scripts/hooks/commit-message-lint.sh HEAD
+	./scripts/hooks/diff-aware-check.sh origin/main HEAD
+	./scripts/hooks/decision-log-gate.sh origin/main HEAD
 	./scripts/hooks/pending-lessons-push-block.sh
 	@echo ""
 	@echo "pre-push: all checks passed — run ./scripts/pre-push-check.sh for the full gate"

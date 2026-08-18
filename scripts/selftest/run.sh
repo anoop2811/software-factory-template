@@ -90,6 +90,14 @@ check "allow unset role on test file" 0 \
 printf 'test_file_patterns: ""\n' > "$CFG"
 check "allow when no patterns configured" 0 \
   "$(FACTORY_AGENT_ROLE=implementer run_status "$HOOKS/test-edit-denial.sh" "pkg/parser_test.go")"
+# A payload the hook cannot parse must not be treated as "no test file here".
+# It used to exit 0, so a missing jq or an unfamiliar payload shape silently
+# permitted the edit this gate exists to block.
+printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|\$)"\n' > "$CFG"
+check "deny implementer when the payload cannot be parsed" 2 \
+  "$(printf 'not json' | FACTORY_AGENT_ROLE=implementer run_status "$HOOKS/test-edit-denial.sh")"
+check "allow an unset role on the same unparseable payload" 0 \
+  "$(printf 'not json' | run_status "$HOOKS/test-edit-denial.sh")"
 unset FACTORY_CONFIG
 
 echo "[3/5] citation-lint"
@@ -128,6 +136,11 @@ mkdir -p "$GATE_DIR"
 )
 BASE_SHA="$(git -C "$GATE_DIR" rev-parse HEAD~1)"
 export FACTORY_CONFIG="$GATE_DIR/factory.yaml"
+# A range the gate cannot enumerate is a range it cannot vouch for. This used to
+# swallow the error and pass, so a typo'd base or a shallow clone read as "no
+# governance commits".
+check "unresolvable commit range fails instead of passing" 1 \
+  "$(cd "$GATE_DIR" && run_status "$TEMPLATE_ROOT/scripts/hooks/decision-log-gate.sh" nosuchref HEAD)"
 # BREAK: protected-path commit without a Decision reference must fail.
 check "protected path without Decision ref fails" 1 \
   "$(cd "$GATE_DIR" && run_status "$TEMPLATE_ROOT/scripts/hooks/decision-log-gate.sh" "$BASE_SHA" HEAD)"
@@ -876,6 +889,14 @@ check "hook allows with events.sh missing" 0 \
   "$(printf 'refs/heads/feat a refs/heads/feat b\n' | run_status "$NOEV/hooks/direct-main-push-block.sh")"
 ( cd "$HPROOT" && git config core.hooksPath .githooks )
 check "hookspath: armed when it points at .githooks" "armed" \
+  "$(hookspath_status "$HPROOT" | cut -f1)"
+# Git ignores a hook without the execute bit, so a path match alone is not a live
+# gate: doctor would report an armed push gate that never fires.
+chmod -x "$HPROOT/.githooks/pre-push"
+check "hookspath: inert when the hook is not executable" "inert" \
+  "$(hookspath_status "$HPROOT" | cut -f1)"
+chmod +x "$HPROOT/.githooks/pre-push"
+check "hookspath: armed again once it is executable" "armed" \
   "$(hookspath_status "$HPROOT" | cut -f1)"
 ( cd "$HPROOT" && git config core.hooksPath "$SANDBOX/elsewhere-hooks" )
 check "hookspath: hijacked when it points elsewhere" "hijacked" \

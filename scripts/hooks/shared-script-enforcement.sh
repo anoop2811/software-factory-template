@@ -16,12 +16,17 @@ if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh";
 
 PLUGIN_DIR=".opencode/plugin"
 
-if [ ! -d "$PLUGIN_DIR" ]; then
-  echo "shared-script-enforcement: no $PLUGIN_DIR — skipping"
-  exit 0
-fi
-
 ERRORS=0
+
+# A missing plugin directory means there is no opencode plugin to check — it does
+# not mean there is nothing to check. This used to `exit 0` here, skipping the
+# Claude and Codex adapter checks further down, so a repo without .opencode/
+# passed with malformed adapters. Only the plugin loop is skipped now.
+CHECK_PLUGIN=1
+if [ ! -d "$PLUGIN_DIR" ]; then
+  echo "shared-script-enforcement: no $PLUGIN_DIR — skipping the plugin checks"
+  CHECK_PLUGIN=0
+fi
 
 # Known enforcement scripts that must be called from the plugin, not reimplemented.
 ENFORCEMENT_SCRIPTS="test-edit-denial.sh"
@@ -30,11 +35,16 @@ ENFORCEMENT_SCRIPTS="test-edit-denial.sh"
 INLINE_PATTERNS="_test\.go"
 
 for PLUGIN_FILE in "$PLUGIN_DIR"/*.ts; do
+  [ "$CHECK_PLUGIN" = "1" ] || break
   [ -f "$PLUGIN_FILE" ] || continue
 
   echo "shared-script-enforcement: checking $PLUGIN_FILE"
 
-  CODE_ONLY=$(sed 's|//.*||g; s|/\*.*\*/||g' "$PLUGIN_FILE")
+  # Strip comments before matching. The previous expression only removed a block
+  # comment that opened and closed on one line, so a multi-line /* ... */ stayed
+  # in CODE_ONLY and could satisfy the required-call check with dead text while
+  # the actual call was missing. Ranges handle the multi-line form.
+  CODE_ONLY=$(sed -e '\|/\*|,\|\*/|{ \|/\*|{ s|/\*.*||; }; \|\*/|!{ \|/\*|!d; }; s|.*\*/||; }' -e 's|//.*||g' "$PLUGIN_FILE")
 
   for SCRIPT in $ENFORCEMENT_SCRIPTS; do
     if ! echo "$CODE_ONLY" | grep -qE "(execFile|spawn).*${SCRIPT}|${SCRIPT}.*execFile|${SCRIPT}.*spawn" 2>/dev/null; then

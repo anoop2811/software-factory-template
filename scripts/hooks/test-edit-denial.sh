@@ -29,6 +29,7 @@ if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh";
 #      interactive terminal can invoke this directly without hanging on cat.
 #   2. JSON on stdin (Claude/Codex PreToolUse pipe) — read only when stdin is
 #      a pipe, never when it is a TTY.
+INPUT=""
 if [ -n "${1:-}" ]; then
   FILE_PATH="$1"
 elif [ ! -t 0 ]; then
@@ -38,11 +39,35 @@ else
   FILE_PATH=""
 fi
 
+AGENT_ROLE="${FACTORY_AGENT_ROLE:-}"
+
+# A target we could not identify is not the same as no target. When the role is
+# explicitly `implementer` and a payload arrived that produced no path, this gate
+# cannot tell whether the edit was allowed — so it denies rather than allowing.
+#
+# It used to `exit 0` here, which meant a missing `jq`, or any payload shape the
+# filter did not match, silently permitted the very edit this gate exists to
+# block. The whole point of a computational control is that it does not depend on
+# an optional tool being present.
+#
+# Absent input is still allowed: a TTY invocation or an event carrying no file at
+# all has nothing to deny, and failing those would break unrelated tool calls.
 if [ -z "$FILE_PATH" ]; then
+  if [ "$AGENT_ROLE" = "implementer" ] && [ -n "$INPUT" ]; then
+    if ! command -v jq >/dev/null 2>&1; then
+      echo "DENIED: implementer role, and jq is not installed, so the edit target cannot be read." >&2
+      echo "  Install jq — this gate must not pass work it was unable to check." >&2
+      factory_log_event "test-edit-denial" "denied: jq missing, target unreadable"
+    else
+      echo "DENIED: implementer role, and no edit target could be read from the hook payload." >&2
+      echo "  Failing closed: the gate cannot confirm this is not a test file." >&2
+      factory_log_event "test-edit-denial" "denied: unparseable payload"
+    fi
+    exit 2
+  fi
   exit 0
 fi
 
-AGENT_ROLE="${FACTORY_AGENT_ROLE:-}"
 if [ "$AGENT_ROLE" != "implementer" ]; then
   exit 0
 fi

@@ -63,6 +63,19 @@ while IFS= read -r FILE; do
     echo "GINKGO-ONLY FAIL: $FILE calls testing.T outside Ginkgo/Gomega"
     ERRORS=$((ERRORS + 1))
   fi
+
+  # Package-level testing calls slipped through, because the check above only
+  # looks at methods on `t`. After a valid RunSpecs bootstrap a file could still
+  # branch on testing.Short(), which is stdlib test control living outside the
+  # Ginkgo dialect this gate exists to keep singular.
+  #
+  # A call needs the '(' immediately after the identifier, so the bootstrap's own
+  # `*testing.T` and `*testing.M` type references do not match.
+  if grep -qE '(^|[^[:alnum:]_.])testing\.[A-Za-z][A-Za-z0-9_]*[[:space:]]*\(' "$FILE"; then
+    OFFENDER="$(grep -oE '(^|[^[:alnum:]_.])testing\.[A-Za-z][A-Za-z0-9_]*[[:space:]]*\(' "$FILE" | head -n 1 | sed -E 's/^[^t]*//; s/[[:space:]]*\($//')"
+    echo "GINKGO-ONLY FAIL: $FILE calls $OFFENDER — package-level testing calls belong outside the Ginkgo dialect"
+    ERRORS=$((ERRORS + 1))
+  fi
 done <<< "$FILES"
 
 if [ "$ERRORS" -gt 0 ]; then

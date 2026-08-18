@@ -100,6 +100,39 @@ check "allow an unset role on the same unparseable payload" 0 \
   "$(printf 'not json' | run_status "$HOOKS/test-edit-denial.sh")"
 unset FACTORY_CONFIG
 
+# Verification Contract: a hedge covers the statement it hedges, not every claim
+# sharing the line, and a bare header is not evidence.
+CMLR="$SANDBOX/cml"
+mkdir -p "$CMLR"
+(
+  cd "$CMLR"
+  git init -q -b main
+  git config user.email selftest@example.invalid
+  git config user.name selftest
+  printf 'x\n' > f.txt
+  git add -A && git commit -qm "chore: base"
+)
+cml_case() { # <message> -> status
+  ( cd "$CMLR" && git commit -q --allow-empty -m "$1" && run_status "$TEMPLATE_ROOT/scripts/hooks/commit-message-lint.sh" HEAD )
+}
+check "a bare 'Verified:' header with nothing beneath it fails" 1 \
+  "$(cml_case 'fix: thing
+
+Verified:')"
+check "a 'Verified:' header with evidence beneath it passes" 0 \
+  "$(cml_case 'fix: thing
+
+Verified:
+- `make test` passes')"
+check "a hedge does not excuse another claim on the same line" 1 \
+  "$(cml_case 'fix: thing
+
+- fixed the parser; the database part is NOT verified')"
+check "a fully hedged line still passes" 0 \
+  "$(cml_case 'fix: thing
+
+- written but NOT verified: no daemon available here')"
+
 echo "[3/5] citation-lint"
 CITE_DIR="$SANDBOX/cite"
 mkdir -p "$CITE_DIR/docs"

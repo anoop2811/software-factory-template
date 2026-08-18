@@ -127,18 +127,38 @@ fi
 
 # ── 3. Verification Contract: no bare "verified"/"fixed"/"works" ───────
 PREV_LINE=""
+LINE_NO=0
+TOTAL_LINES="$(printf '%s\n' "$MESSAGE" | wc -l | tr -d '[:space:]')"
 while IFS= read -r LINE; do
+  LINE_NO=$((LINE_NO + 1))
+  # Everything after the current line, so a header can be judged by what follows
+  # it rather than assumed innocent.
+  REST_LINES="$(printf '%s\n' "$MESSAGE" | sed -n "$((LINE_NO + 1)),${TOTAL_LINES}p")"
   CLAIMS_VERIFICATION=false
   # Word-bounded so "frameworks" isn't read as a "works" claim, "prefixed" as
   # "fixed", etc. BSD grep lacks \b, so match on non-word neighbours / bounds.
   if echo "$LINE" | grep -qiE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
-    # Allow "NOT verified" and "unverified" and "not verified"
-    if echo "$LINE" | grep -qiE '(NOT verified|unverified|not verified|NOT_VERIFIED)'; then
+    # "NOT verified" exempts the unverified statement — not every other claim that
+    # happens to share the line. Previously one hedge anywhere suppressed the whole
+    # line, so "fixed the parser; the rest is NOT verified" passed the `fixed`
+    # claim unchecked. Strip the hedged phrases, then see whether a claim remains.
+    RESIDUAL="$(printf '%s' "$LINE" | sed -E 's/(NOT|not|Not)[[:space:]]+verified//g; s/[Uu]nverified//g; s/NOT_VERIFIED//g')"
+    if ! echo "$RESIDUAL" | grep -qiE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
       PREV_LINE="$LINE"
       continue
     fi
-    # Skip header-only lines like "Verified:" — the evidence is on the lines below
-    if echo "$LINE" | grep -qE '^(Verified|Fixed|Works):\s*$'; then
+    # A bare "Verified:" header is only acceptable when the lines beneath it
+    # actually carry the evidence. It used to be skipped unconditionally, so a
+    # header with nothing under it satisfied the contract.
+    if echo "$LINE" | grep -qE '^[[:space:]]*(Verified|Fixed|Works):[[:space:]]*$'; then
+      if printf '%s\n' "$REST_LINES" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
+        PREV_LINE="$LINE"
+        continue
+      fi
+      echo "COMMIT-LINT FAIL: a bare '$LINE' header with no evidence beneath it:"
+      echo "  Put the command and its output on the following lines, or write"
+      echo "  'written but NOT verified'."
+      ERRORS=$((ERRORS + 1))
       PREV_LINE="$LINE"
       continue
     fi

@@ -76,6 +76,11 @@ you forget.
 
 ## What it deliberately does not measure
 
+Opt-in `factory budget report` separately reports metadata for invocations the
+factory launched, including usage supplied by a supported CLI. This does not
+extend these metrics to unrelated sessions or turn a client estimate into a
+bill. See [BUDGETS.md](BUDGETS.md).
+
 - **Token spend per role.** Your harness owns that; the factory does not meter
   tokens and will not scrape a number it cannot stand behind.
 - **Code quality.** Not honestly measurable without judgment, so it is not

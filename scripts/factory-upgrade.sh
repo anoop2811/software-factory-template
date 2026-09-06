@@ -114,10 +114,14 @@ scripts/lib/events.sh
 scripts/lib/hookspath.sh
 scripts/lib/color.sh
 scripts/lib/timing.sh
+scripts/lib/budget.py
+scripts/lib/budget_adapters.py
+docs/BUDGETS.md
 scripts/selftest/run.sh
 scripts/factory-doctor.sh
 scripts/factory-upgrade.sh
 scripts/factory-report.sh
+scripts/factory-budget.sh
 scripts/factory-metrics.sh
 templates/metrics.html
 scripts/factory-review-lane.sh
@@ -431,4 +435,3 @@ if [ -x scripts/factory-review-lane.sh ]; then
     printf '%s\n' "${C_YELLOW:-}└─${C_RESET:-}"
   fi
 fi
-

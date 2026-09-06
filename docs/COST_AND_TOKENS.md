@@ -201,6 +201,14 @@ are earned by watching something succeed, not asserted.
 
 ## Measurement
 
+Decision 46 adds an opt-in exception to the reporting boundary below:
+`factory budget` supervises invocations it launches and reads their documented
+structured usage events. It does not scrape unrelated sessions or add metering
+to interactive runs. Reported tokens, client-side USD estimates, unknown usage,
+and observed wall time stay distinct. See [BUDGETS.md](BUDGETS.md) for limits and
+cross-harness evidence. The existing `factory report` remains a gate report;
+`factory budget report --json` exports the separate local invocation ledger.
+
 You cannot reduce what you cannot see. The shell factory does not meter tokens —
 the harness does — but the factory can make that metering actionable: running
 each role as its own session gives per-role cost visibility, so an adopter can

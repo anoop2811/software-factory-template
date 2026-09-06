@@ -1676,3 +1676,34 @@ asset overlay, POM preservation, quality-plugin integration, source versions,
 and acceptance requirements. The Java pack is beta following Duke42's reported
 real adoption with local Maven adaptations in issue #66; native Maven
 generation is validated separately from that adopter report.
+
+
+## Decision 46 (2026-09-06): opt-in budgets and truthful run metadata
+
+What: Add factory budget plan/run/report, with one shared admission controller
+for Codex, Claude Code and OpenCode. The acceptance contract is docs/BUDGETS.md.
+The controller bounds factory CLI invocations, records local metadata, and labels
+client cost estimates separately from authoritative billing. Strict USD ceilings
+are refused when they cannot be guaranteed. No background model calls or retries.
+
+Why: the highest-priority roadmap item is developer-controlled cost and visibility.
+A limit written in a prompt is not an enforced budget; unknown usage is not zero.
+Use existing flat configuration, role routing and generated adapters, plus
+standard-library process supervision, instead of a hosted metering dependency.
+
+Provenance: user requested the P0 budgeting/observability item, all three harnesses,
+and the unchanged roadmap table with completion percentages, 2026-09-06. Native
+CLI and usage sources are recorded in docs/BUDGETS.md. Claude cost reporting is
+a client estimate per its official cost-tracking documentation fetched today.
+
+Review follow-up (2026-09-06, PR #71): all post-signal process waits must be
+bounded and TimeoutExpired must not skip pipe closure or signal restoration.
+If a launched harness cannot be reaped, return timeout with unknown exit/cost
+and retain its active reservation until documented recovery confirms exit.
+A Codex probe whose cleanup cannot confirm exit must refuse launch. Match the
+existing primary CI checkout major tag (v7) in budget acceptance. Python wait
+semantics: https://docs.python.org/3/library/subprocess.html#subprocess.Popen.wait
+(fetched 2026-09-06); review provenance:
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278692
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278713
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278732

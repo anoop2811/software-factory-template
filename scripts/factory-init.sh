@@ -311,6 +311,15 @@ check_command: ""
 local_hooks: ""
 wiki_root: wiki
 wiki_staleness: false
+# Decision 46: explicitly enable before factory budget run may invoke an agent.
+budget_enabled: false
+budget_max_attempts: 1
+budget_max_session_runs: 5
+budget_timeout_seconds: 300
+budget_session_seconds: 900
+budget_max_concurrent: 1
+budget_estimated_usd: ""
+budget_action: stop
 FACTORYEOF
 echo "  wrote: factory.yaml (arm test_file_patterns/check_command via a language pack)"
 
@@ -339,6 +348,7 @@ BACKUP_FILES=(
   "$TARGET_DIR/.github/CODEOWNERS"
   "$TARGET_DIR/.github/workflows/ci.yml"
   "$TARGET_DIR/docs/FACTORY_RULES.md"
+  "$TARGET_DIR/docs/BUDGETS.md"
   "$TARGET_DIR/README.md"
   "$TARGET_DIR/.opencode/plugin/factory-hooks.ts"
   "$TARGET_DIR/.opencode/package.json"
@@ -398,11 +408,14 @@ cp "$TEMPLATE_DIR/scripts/lib/events.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/hookspath.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/color.sh" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/lib/timing.sh" "$TARGET_DIR/scripts/lib/"
+cp "$TEMPLATE_DIR/scripts/lib/budget.py" "$TARGET_DIR/scripts/lib/"
+cp "$TEMPLATE_DIR/scripts/lib/budget_adapters.py" "$TARGET_DIR/scripts/lib/"
 cp "$TEMPLATE_DIR/scripts/selftest/run.sh" "$TARGET_DIR/scripts/selftest/"
 cp "$TEMPLATE_DIR/scripts/pre-push-check.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-doctor.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-upgrade.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-report.sh" "$TARGET_DIR/scripts/"
+cp "$TEMPLATE_DIR/scripts/factory-budget.sh" "$TARGET_DIR/scripts/"
 cp "$TEMPLATE_DIR/scripts/factory-metrics.sh" "$TARGET_DIR/scripts/"
 mkdir -p "$TARGET_DIR/templates"
 cp "$TEMPLATE_DIR/templates/metrics.html" "$TARGET_DIR/templates/"
@@ -480,6 +493,7 @@ fi
 cp "$TEMPLATE_DIR/.github/CODEOWNERS" "$TARGET_DIR/.github/"
 cp "$TEMPLATE_DIR/.github/workflows/ci.yml" "$TARGET_DIR/.github/workflows/"
 cp "$TEMPLATE_DIR/docs/FACTORY_RULES.md" "$TARGET_DIR/docs/"
+cp "$TEMPLATE_DIR/docs/BUDGETS.md" "$TARGET_DIR/docs/"
 cp "$TEMPLATE_DIR/memory/lessons/001-verification-contract.md" "$TARGET_DIR/memory/lessons/"
 # The adopter's README is left alone. The template's own README describes the
 # template — it names no adopter and links to eight docs this installer never
@@ -573,6 +587,7 @@ chmod +x "$TARGET_DIR/scripts/pre-push-check.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-doctor.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-upgrade.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-report.sh" 2>/dev/null || true
+chmod +x "$TARGET_DIR/scripts/factory-budget.sh"
 chmod +x "$TARGET_DIR/scripts/factory-metrics.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/factory-review-lane.sh" "$TARGET_DIR/scripts/adversarial-review.sh" "$TARGET_DIR/scripts/factory-migrate-config.sh" 2>/dev/null || true
 chmod +x "$TARGET_DIR/scripts/selftest/run.sh" 2>/dev/null || true

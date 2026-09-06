@@ -1,0 +1,24 @@
+name: Budget acceptance
+
+# Template-only fixtures; factory-init copies ci.yml, not this workflow.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  budget:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Budget admission and harness fixtures (no paid calls)
+        run: ./scripts/selftest/budget.sh

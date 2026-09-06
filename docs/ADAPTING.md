@@ -99,6 +99,13 @@ A label changes only on evidence: a pack moves up when a real project adopts it,
 
 ## Cost profile (opt-in)
 
+Factory-managed invocation budgets are a separate opt-in from model tiering.
+Start with `./factory budget plan --harness codex --session work --task issue-1`.
+It calls no model and reports the default limits, including that execution is
+disabled. Set `budget_enabled: true` in `factory.yaml` only when you want to use
+`factory budget run`. See [BUDGETS.md](BUDGETS.md) for all keys and the distinction
+between enforced invocation limits and client-reported cost estimates.
+
 `factory-init` asks for a cost profile alongside the model choices. `standard`
 (the default) keeps two tiers — a default model for most roles, a frontier model
 for `spec-writer` and `reviewer`. `economy` adds a third, cheaper tier for the

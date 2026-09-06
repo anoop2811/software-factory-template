@@ -15,3 +15,13 @@ check_command: "./scripts/selftest/run.sh"
 local_hooks: ""
 wiki_root: wiki
 wiki_staleness: false
+
+# Opt-in factory-managed runs; plan/report never call a model (Decision 46).
+budget_enabled: false
+budget_max_attempts: 1
+budget_max_session_runs: 5
+budget_timeout_seconds: 300
+budget_session_seconds: 900
+budget_max_concurrent: 1
+budget_estimated_usd: ""
+budget_action: stop

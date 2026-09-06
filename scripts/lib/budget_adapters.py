@@ -23,6 +23,14 @@ CODEX_MATCHER = "^(apply_patch|Edit|Write)$"
 CODEX_COMMAND = 'FACTORY_AGENT_ROLE=implementer "$(git rev-parse --show-toplevel)/scripts/hooks/test-edit-denial.sh"'
 
 
+class UnconfirmedProcessError(ValueError):
+    """A native preflight process still owns an unconfirmed process group."""
+
+    def __init__(self, process_pid, message):
+        super().__init__(message)
+        self.process_pid = process_pid
+
+
 def _role_edit_permission(root, role):
     try:
         config = json.loads((pathlib.Path(root) / "opencode.json").read_text(encoding="utf-8"))
@@ -52,7 +60,7 @@ def _codex_hook_preflight(binary, root, flags):
     process = None
     poller = selectors.DefaultSelector()
     responses = {}
-    cleanup_timed_out = False
+    probe_error = None
     try:
         process = subprocess.Popen([binary, "app-server"] + flags, cwd=root,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
@@ -88,36 +96,58 @@ def _codex_hook_preflight(binary, root, flags):
                 if isinstance(row, dict) and row.get("id") in (2, 3, 4):
                     responses[row["id"]] = row
     except (OSError, ValueError):
-        raise ValueError("Codex hook capability probe failed; repair or update the CLI") from None
+        probe_error = ValueError("Codex hook capability probe failed; repair or update the CLI")
+        raise probe_error from None
     finally:
-        poller.close()
-        if process is not None:
+        cleanup_failed = False
+        try:
             try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                pass
-            # Terminate descendants even when the server has already exited.
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                cleanup_timed_out = True
-            finally:
-                for stream in (process.stdin, process.stdout):
-                    try:
-                        stream.close()
-                    except OSError:
-                        pass
-    if cleanup_timed_out:
-        raise ValueError("Codex hook capability probe exit is unconfirmed; "
-                         "confirm process group {} has stopped before retrying".format(process.pid))
+                poller.close()
+            except OSError:
+                cleanup_failed = True
+        finally:
+            if process is not None:
+                kill_confirmed = exit_confirmed = False
+                try:
+                    for signum in (signal.SIGTERM, signal.SIGKILL):
+                        # Still attempt the final kill/reap after an earlier OS
+                        # error, and terminate descendants after server exit.
+                        kill_confirmed = True
+                        try:
+                            os.killpg(process.pid, signum)
+                        except ProcessLookupError:
+                            pass
+                        except OSError:
+                            kill_confirmed = False
+                            cleanup_failed = True
+                        exit_confirmed = False
+                        try:
+                            process.wait(timeout=1)
+                            exit_confirmed = True
+                        except subprocess.TimeoutExpired:
+                            pass
+                        except OSError:
+                            cleanup_failed = True
+                finally:
+                    for stream in (process.stdin, process.stdout):
+                        try:
+                            stream.close()
+                        except OSError:
+                            cleanup_failed = True
+                if not kill_confirmed or not exit_confirmed:
+                    # docs/DECISION_LOG.md:1746 — neither a parsing failure nor
+                    # cleanup OS errors may hide unconfirmed process ownership.
+                    message = ("Codex hook capability probe exit is unconfirmed; "
+                               "confirm process group {} has stopped before retrying".format(process.pid))
+                    if probe_error is not None:
+                        message += "; " + str(probe_error)
+                    raise UnconfirmedProcessError(process.pid, message) from probe_error
+        if cleanup_failed:
+            # Keep OS details out of the persisted loop stop reason.
+            message = "Codex hook capability probe cleanup failed; repair the local installation"
+            if probe_error is not None:
+                message += "; " + str(probe_error)
+            raise ValueError(message) from probe_error
     try:
         effective = responses[2]["result"]["config"]
         features = effective.get("features", {}) or {}

@@ -83,6 +83,9 @@ invocations and records metadata for Codex, Claude Code, and OpenCode. Reports
 distinguish reported tokens, client cost estimates, and unknown usage; they do
 not claim a strict dollar cap. See [budget controls](docs/BUDGETS.md).
 
+For manual checks or explicitly bounded implement/check/review/repair, see
+[Loop engineering](docs/LOOPS.md). `factory loop plan` makes no model calls.
+
 Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.yaml`):
 
 | Tier | opencode (OpenRouter) | Codex | Claude |
@@ -101,6 +104,7 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 - [docs/MODELS.md](docs/MODELS.md) — choosing a model provider; blank means inherit, so no provider is assumed
 - [docs/REVIEW_LANE.md](docs/REVIEW_LANE.md) — the opt-in adversarial PR review: what it costs, and the privilege boundary
 - [docs/METRICS.md](docs/METRICS.md) — what the factory is doing to your repo; local only, no exporters, no server
+- [docs/LOOPS.md](docs/LOOPS.md) — manual checks, bounded repair and checkpoint handoffs
 - [docs/FEATURE_ROADMAP.md](docs/FEATURE_ROADMAP.md) — stable feature priorities and completion tracking
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) — workflow recipes (graph engineering) and the workflow-lint gate
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like

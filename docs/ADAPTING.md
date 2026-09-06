@@ -222,3 +222,10 @@ and the Surefire `-Dtest` include-replacement trap.
 The Java pack is beta based on Duke42's reported Maven adoption with local
 adaptations ([issue #66](https://github.com/anoop2811/software-factory-template/issues/66)).
 That evidence does not imply every Maven setup is supported.
+
+## Optional repair loops
+
+`factory loop` defaults to manual deterministic checks. Explicit bounded mode
+requires both loop and budget opt-in, retains canonical roles, and stops for
+human handoff on uncertain exit or test/governance changes. Configure a meaningful
+check command and finite limits using [Loop engineering](LOOPS.md).

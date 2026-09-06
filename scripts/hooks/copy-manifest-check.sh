@@ -28,7 +28,21 @@ if [ ! -f "$INIT" ]; then
 fi
 
 ERRORS=0
+# Read from a here-string, not `done < <(...)`. Process substitution needs
+# /dev/fd; where it is unavailable bash cannot open it, the loop body never runs,
+# and this hook reports success having inspected nothing. grep exits 1 when it
+# matches nothing, which is a real answer here (an installer that copies nothing),
+# so only a genuine error — exit above 1 — is fatal.
+COPIES="$(grep -E 'cp "\$TEMPLATE_DIR/[^"]+"' "$INIT")" || {
+  status=$?
+  if [ "$status" -gt 1 ]; then
+    echo "COPY-MANIFEST FAIL: cannot read $INIT to enumerate copies" >&2
+    factory_log_event "copy-manifest-check" "install manifest unreadable"
+    exit 1
+  fi
+}
 while IFS= read -r line; do
+  [ -n "$line" ] || continue
   # Guarded copies (|| true) tolerate a missing source; only unconditional
   # copies abort the installer, so only those must be tracked.
   case "$line" in *"|| true"*) continue ;; esac
@@ -38,7 +52,7 @@ while IFS= read -r line; do
     echo "COPY-MANIFEST FAIL: factory-init copies '$path' but it is not tracked by git (absent in a clean clone)"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(grep -E 'cp "\$TEMPLATE_DIR/[^"]+"' "$INIT")
+done <<< "$COPIES"
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "copy-manifest-check: $ERRORS untracked file(s) in the install manifest"

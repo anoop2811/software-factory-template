@@ -93,12 +93,52 @@ check "allow when no patterns configured" 0 \
 # A payload the hook cannot parse must not be treated as "no test file here".
 # It used to exit 0, so a missing jq or an unfamiliar payload shape silently
 # permitted the edit this gate exists to block.
-printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|\$)"\n' > "$CFG"
+# `$` unescaped: printf passes `\$` through verbatim, and a backslashed dollar in
+# an ERE matches a literal '$' instead of anchoring at end-of-string — so the
+# fixture's pattern differed from the one on line 76 that it is meant to mirror.
+printf 'test_file_patterns: "_test\\.go([^[:alnum:]_]|$)"\n' > "$CFG"
 check "deny implementer when the payload cannot be parsed" 2 \
   "$(printf 'not json' | FACTORY_AGENT_ROLE=implementer run_status "$HOOKS/test-edit-denial.sh")"
+# FACTORY_AGENT_ROLE= explicitly, not merely absent from this line: if the caller
+# runs the selftest with the role already exported (an agent shell does), the
+# fixture inherits it and this "unset role" case silently tests the implementer
+# path instead — and passes for the wrong reason.
 check "allow an unset role on the same unparseable payload" 0 \
-  "$(printf 'not json' | run_status "$HOOKS/test-edit-denial.sh")"
+  "$(printf 'not json' | FACTORY_AGENT_ROLE='' run_status "$HOOKS/test-edit-denial.sh")"
 unset FACTORY_CONFIG
+
+# Verification Contract: a hedge covers the statement it hedges, not every claim
+# sharing the line, and a bare header is not evidence.
+CMLR="$SANDBOX/cml"
+mkdir -p "$CMLR"
+(
+  cd "$CMLR"
+  git init -q -b main
+  git config user.email selftest@example.invalid
+  git config user.name selftest
+  printf 'x\n' > f.txt
+  git add -A && git commit -qm "chore: base"
+)
+cml_case() { # <message> -> status
+  ( cd "$CMLR" && git commit -q --allow-empty -m "$1" && run_status "$TEMPLATE_ROOT/scripts/hooks/commit-message-lint.sh" HEAD )
+}
+check "a bare 'Verified:' header with nothing beneath it fails" 1 \
+  "$(cml_case 'fix: thing
+
+Verified:')"
+check "a 'Verified:' header with evidence beneath it passes" 0 \
+  "$(cml_case 'fix: thing
+
+Verified:
+- `make test` passes')"
+check "a hedge does not excuse another claim on the same line" 1 \
+  "$(cml_case 'fix: thing
+
+- fixed the parser; the database part is NOT verified')"
+check "a fully hedged line still passes" 0 \
+  "$(cml_case 'fix: thing
+
+- written but NOT verified: no daemon available here')"
 
 echo "[3/5] citation-lint"
 CITE_DIR="$SANDBOX/cite"
@@ -483,6 +523,12 @@ printf 'project_name: t\ncost_profile: "economy"\n' > "$CFGROOT/factory.yaml"
 printf 'COST_PROFILE="standard"\nCLAUDE_FRONTIER_MODEL="claude-opus-4-8"\n' > "$CFGROOT/factory.config"
 check "factory.yaml wins over a legacy factory.config" "economy" \
   "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${COST_PROFILE:-}" )"
+# The caller's environment outranks both files — that is what makes a one-off
+# override possible — but only the caller's, so the YAML still beats the legacy.
+# cost_profile is set to "economy" in the YAML above, so this genuinely tests the
+# precedence rather than a key the file happens to omit.
+check "the caller's environment beats factory.yaml" "standard" \
+  "$( cd "$CFGROOT" && COST_PROFILE=standard bash -c '. scripts/lib/config.sh; factory_config_export; printf "%s" "${COST_PROFILE:-}"' )"
 check "a legacy factory.config still fills the gaps" "claude-opus-4-8" \
   "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${CLAUDE_FRONTIER_MODEL:-}" )"
 
@@ -826,8 +872,20 @@ check "eval does not claim no-regression when stale" "0" \
 # permission nothing services). The eval must cap the run, not wedge on it.
 printf '#!/bin/sh\nsleep 30\n' > "$GEROOT/eval/runners/hang.sh"
 chmod +x "$GEROOT/eval/runners/hang.sh"
+# The proof is bounded by an outer timeout as well. If the eval's own cap ever
+# regresses, this check must FAIL rather than hang the selftest — and with it
+# doctor and CI — until something outside kills the process. `timeout` is not
+# POSIX, so where it is missing the check runs unbounded and says so.
+if command -v timeout >/dev/null 2>&1; then
+  SELFTEST_BOUND="timeout 30"
+elif command -v gtimeout >/dev/null 2>&1; then
+  SELFTEST_BOUND="gtimeout 30"
+else
+  SELFTEST_BOUND=""
+  echo "  note: no timeout(1) on this host — the hung-runner proof runs unbounded"
+fi
 check "eval caps a hung runner instead of wedging" "1" \
-  "$( ( cd "$GEROOT" && ./scripts/golden-task-eval.sh --runner=eval/runners/hang.sh --timeout=2 2>&1 || true ) | grep -c 'hit the 2s cap' || true )"
+  "$( ( cd "$GEROOT" && $SELFTEST_BOUND ./scripts/golden-task-eval.sh --runner=eval/runners/hang.sh --timeout=2 2>&1 || true ) | grep -c 'hit the 2s cap' || true )"
 
 # Break/fix: workflow-lint enforces graph hygiene on recipes — a clean recipe
 # passes; a plumbing node (merge) run as an agent fails (coordination is code).
@@ -1036,6 +1094,14 @@ check "a piped --html run does not open a browser" "0" \
   "$( metrics_run --html 2>&1 | grep -c 'opening it' || true )"
 check "--no-open does not open a browser" "0" \
   "$( metrics_run --html --no-open 2>&1 | grep -c 'opening it' || true )"
+# Remove the page the previous --html run wrote, then require this invocation to
+# succeed. Otherwise the assertion below passes on the *old* file: if
+# factory-metrics rejected --no-open outright, the page would still be there and
+# "--no-open still writes the page" would report success for a run that wrote
+# nothing.
+rm -f "$MROOT/.factory/metrics.html"
+check "--no-open exits cleanly" "0" \
+  "$( metrics_run --html --no-open >/dev/null 2>&1; echo $? )"
 check "--no-open still writes the page" "1" \
   "$([ -f "$MROOT/.factory/metrics.html" ] && echo 1 || echo 0)"
 # A terminal is not proof a human is watching: CI runners can allocate a pty.

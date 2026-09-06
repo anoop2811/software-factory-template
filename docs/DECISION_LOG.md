@@ -1612,3 +1612,24 @@ api key not being present". Verified by running the job's exact shell without th
 variable set: it printed "No OPENROUTER_API_KEY configured — scoring with the
 mock runner", scored the task, and exited 0.
 `bash scripts/selftest/run.sh` reported "165 passed, 0 failed".
+
+## Decision 42 (2026-09-06): preserve the final stacked PR when reconciling squash-merged ancestors
+
+What: merge main into PR #65 without rewriting the PR commits. Retain the
+final PR implementation in all eight conflicting files. This changes ancestry,
+not the enforcement behavior approved by the preceding decisions.
+
+Why: main at 3beb558 and the PR ancestor 427676a have the identical Git tree
+`d4bd793b64549ae4cdbc7b6a3405686974319e9f`. PRs #63 and #64 were squash-merged,
+so their commit identities differ even though their combined contents match.
+The conflicts pit those earlier implementations against the later corrections
+on PR #65; taking main would discard those corrections. Preserve the caller
+configuration precedence, literal legacy values, diagnostic-aware commit
+enumeration, comment parsing, configured test-edit boundary, private event
+trimming, runner diagnostics, and corrected fixtures already present on the PR.
+
+Provenance: observed 2026-09-06 via `git rev-parse 427676a^{tree}
+origin/main^{tree}` (both returned the tree above), and
+`git diff 427676a origin/main` (empty output), after fetching main.
+PR requirements and review responses: https://github.com/anoop2811/software-factory-template/pull/65
+(read 2026-09-06).

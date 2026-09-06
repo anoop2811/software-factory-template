@@ -1,10 +1,38 @@
+# golangci-lint v2 schema. The pack pins v2.12.2, and v2 refuses a config with no
+# top-level `version:` — so the v1-shaped file this replaces made the lint step
+# fail with `can't load config: unsupported version of the configuration: ""` as
+# soon as the action was able to run at all.
+#
+# Produced by `golangci-lint migrate`, not by hand. It drops `govet` and
+# `staticcheck` from the enable list because v2 enables both by default; nothing
+# is lost. `golangci-lint linters` under this config reports enabled:
+#   bodyclose errcheck errorlint gocritic gosec govet ineffassign nilerr revive
+#   staticcheck unused
+# — three more than the v1 file asked for.
+version: "2"
 linters:
   enable:
-    - gosec
-    - govet
-    - staticcheck
-    - revive
-    - gocritic
     - bodyclose
     - errorlint
+    - gocritic
+    - gosec
     - nilerr
+    - revive
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

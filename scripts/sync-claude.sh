@@ -164,7 +164,22 @@ done
 
 # --- Symlink shared format directories ---
 if [ ! -L "$ROOT_DIR/CLAUDE.md" ]; then
-  rm -f "$ROOT_DIR/CLAUDE.md"
+  # A regular CLAUDE.md holds the adopter's instructions, and this ran on every
+  # `make sync-harnesses`, not only at install — so an unconditional rm deleted
+  # them repeatedly, and CLAUDE.md is not in factory-init's backup list either.
+  # Keep a copy beside it, and say where it went.
+  if [ -e "$ROOT_DIR/CLAUDE.md" ]; then
+    if [ -s "$ROOT_DIR/CLAUDE.md" ]; then
+      CLAUDE_BAK="$ROOT_DIR/CLAUDE.md.replaced-by-symlink"
+      if [ -e "$CLAUDE_BAK" ]; then
+        CLAUDE_BAK="$CLAUDE_BAK.$(date +%Y%m%d%H%M%S 2>/dev/null || echo prev)"
+      fi
+      cp "$ROOT_DIR/CLAUDE.md" "$CLAUDE_BAK"
+      echo "sync-claude: kept your CLAUDE.md as $(basename "$CLAUDE_BAK")"
+      echo "  Its content belongs in AGENTS.md, which CLAUDE.md now points at."
+    fi
+    rm -f "$ROOT_DIR/CLAUDE.md"
+  fi
   ln -s AGENTS.md "$ROOT_DIR/CLAUDE.md"
   echo "sync-claude: symlinked CLAUDE.md → AGENTS.md"
 fi

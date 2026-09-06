@@ -45,6 +45,22 @@ ERRORS=0
 
 # Portable regex patterns (ERE via bash [[ =~ ]]).
 CC_RE='^(feat|fix|chore|docs|refactor|test|ci|build|perf)([(][^)]+[)])?: .+'
+# A command citation, and separately the observation it produced. Both are needed:
+# see the evidence window below.
+EVIDENCE_CMD_RE='(`[^`]+`|go test|go vet|golangci-lint|gosec |grep |rg |find |ls |git |cat |sed |make |curl |xh )'
+# What the command produced, in two grades.
+#
+# A strong marker states a result outright — `exit: 0`, `ok`, `--- PASS`, an
+# arrow, `output:` — and counts wherever it appears.
+#
+# A bare number is weaker. "3 issues" inside the sentence making the claim is
+# prose about a number, not output someone read back; the same count on a line
+# beneath the command is. So a numeric count only counts away from the claim line
+# — the difference between "works for 3 issues after running `go test`" and a
+# cited command with its result underneath. Result words (`ok`, `clean`, `PASS`,
+# `no findings`) are statements of what happened and count anywhere.
+EVIDENCE_OUTCOME_STRONG_RE='(exit:|exit status|→|output:|--- (PASS|FAIL)|no (diff|diffs|change|changes|output|findings|issues|problems|violations|test files)|(^|[^[:alnum:]_])(ok|OK|PASS|FAIL|passed|failed|clean|green|unchanged)([^[:alnum:]_]|$))'
+EVIDENCE_OUTCOME_COUNT_RE='[0-9]+ (passed|failed|ok|error|errors|warning|warnings|violation|violations|issue|issues|problem|problems|finding|findings|assertion|assertions|spec|specs|example|examples|subtest|subtests|check|checks|test|tests|file|files|byte|bytes|line|lines|commit|commits)'
 PERIOD_RE='[.]$'
 BULLET_RE='^[[:space:]]*[-*][[:space:]]+(.+)'
 BLANK_RE='^[[:space:]]*$'
@@ -127,18 +143,49 @@ fi
 
 # ── 3. Verification Contract: no bare "verified"/"fixed"/"works" ───────
 PREV_LINE=""
+LINE_NO=0
+TOTAL_LINES="$(printf '%s\n' "$MESSAGE" | wc -l | tr -d '[:space:]')"
 while IFS= read -r LINE; do
+  LINE_NO=$((LINE_NO + 1))
+  # Everything after the current line, so a header can be judged by what follows
+  # it rather than assumed innocent.
+  REST_LINES="$(printf '%s\n' "$MESSAGE" | sed -n "$((LINE_NO + 1)),${TOTAL_LINES}p")"
   CLAIMS_VERIFICATION=false
   # Word-bounded so "frameworks" isn't read as a "works" claim, "prefixed" as
   # "fixed", etc. BSD grep lacks \b, so match on non-word neighbours / bounds.
   if echo "$LINE" | grep -qiE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
-    # Allow "NOT verified" and "unverified" and "not verified"
-    if echo "$LINE" | grep -qiE '(NOT verified|unverified|not verified|NOT_VERIFIED)'; then
+    # "NOT verified" exempts the unverified statement — not every other claim that
+    # happens to share the line. Previously one hedge anywhere suppressed the whole
+    # line, so "fixed the parser; the rest is NOT verified" passed the `fixed`
+    # claim unchecked. Strip the hedged phrases, then see whether a claim remains.
+    # Lowercase first, then strip. Enumerating capitalisations in the sed script
+    # missed the ones people actually type — `NOT VERIFIED` kept the word
+    # `VERIFIED` in the residual, so the hook rejected a correctly hedged
+    # message. GNU sed's /I flag is not available on BSD sed, so fold the case
+    # instead of relying on it.
+    RESIDUAL="$(printf '%s' "$LINE" | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/not[[:space:]]+verified//g; s/unverified//g; s/not_verified//g')"
+    if ! echo "$RESIDUAL" | grep -qE '(^|[^[:alnum:]_])(verified|fixed|works)([^[:alnum:]_]|$)'; then
       PREV_LINE="$LINE"
       continue
     fi
-    # Skip header-only lines like "Verified:" — the evidence is on the lines below
-    if echo "$LINE" | grep -qE '^(Verified|Fixed|Works):\s*$'; then
+    # A bare "Verified:" header is only acceptable when the lines beneath it
+    # actually carry the evidence. It used to be skipped unconditionally, so a
+    # header with nothing under it satisfied the contract.
+    if echo "$LINE" | grep -qE '^[[:space:]]*(Verified|Fixed|Works):[[:space:]]*$'; then
+      # Only the contiguous block under the header counts as its evidence. Scanning
+      # everything after the header let an unrelated later paragraph — a footer
+      # citing `make check`, say — stand in as evidence for a header that had a
+      # blank line and nothing else beneath it.
+      EVIDENCE_BLOCK="$(printf '%s\n' "$REST_LINES" | sed -n '/^[[:space:]]*$/q;p')"
+      if printf '%s\n' "$EVIDENCE_BLOCK" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
+        PREV_LINE="$LINE"
+        continue
+      fi
+      echo "COMMIT-LINT FAIL: a bare '$LINE' header with no evidence beneath it:"
+      echo "  Put the command and its output on the following lines, or write"
+      echo "  'written but NOT verified'."
+      ERRORS=$((ERRORS + 1))
       PREV_LINE="$LINE"
       continue
     fi
@@ -146,27 +193,65 @@ while IFS= read -r LINE; do
   fi
 
   if [ "$CLAIMS_VERIFICATION" = true ]; then
-    # Check if this line or the next few lines contain evidence:
-    # - A command in backticks: `command`
-    # - A command with output marker
-    # - An "exit:" marker
-    # - An explicit command citation (e.g., "go test -race" followed by output)
-    HAS_EVIDENCE=false
-
-    # Check current line for inline evidence
-    if echo "$LINE" | grep -qE '(`[^`]+`|→|exit:|go test|go vet|grep |rg |find |ls |git |cat |sed |make )'; then
-      HAS_EVIDENCE=true
+    # Evidence is a command AND what it produced. A cited command on its own used
+    # to satisfy this check, so "fixed by running `go mod vendor`" passed as a
+    # verified claim while stating no observation at all — the RAN half of the
+    # Verification Contract standing in for the OBSERVED half.
+    #
+    # The window is the claim's line, the line above it (a header), and the
+    # contiguous block beneath it, since a command and its output are usually on
+    # adjacent lines.
+    # The window stops at the next bullet as well as at the next blank line, and a
+    # bullet does not reach back to the bullet above it. Otherwise one verified
+    # item lent its command and outcome to every unverified item under it — a list
+    # where the first entry was checked read as a list where all of them were.
+    EVIDENCE_TAIL="$(printf '%s\n' "$REST_LINES" |
+      awk '/^[[:space:]]*$/ { exit } /^[[:space:]]*[-*][[:space:]]+/ { exit } { print }')"
+    if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
+      EVIDENCE_WINDOW="$(printf '%s\n%s\n' "$LINE" "$EVIDENCE_TAIL")"
+    else
+      EVIDENCE_WINDOW="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
+    fi
+    # The window in order, claim line included, with its position recorded. The
+    # claim line has to be in the scan: a claim that cites its command inline and
+    # puts the result on the next line is the ordinary shape, and excluding the
+    # line meant awk never saw the command and rejected valid evidence. It arms
+    # the scan but cannot supply the count itself — that is the distinction
+    # between citing a command and quoting a number.
+    if echo "$LINE" | grep -qE '^[[:space:]]*[-*][[:space:]]+'; then
+      EVIDENCE_ORDERED="$(printf '%s\n%s\n' "$LINE" "$EVIDENCE_TAIL")"
+      EVIDENCE_CLAIM_LINE=1
+    else
+      EVIDENCE_ORDERED="$(printf '%s\n%s\n%s\n' "$PREV_LINE" "$LINE" "$EVIDENCE_TAIL")"
+      EVIDENCE_CLAIM_LINE=2
+    fi
+    HAS_COMMAND=false
+    HAS_OUTCOME=false
+    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_CMD_RE"; then HAS_COMMAND=true; fi
+    if echo "$EVIDENCE_WINDOW" | grep -qE "$EVIDENCE_OUTCOME_STRONG_RE"; then
+      HAS_OUTCOME=true
+    elif printf '%s\n' "$EVIDENCE_ORDERED" |
+         awk -v cmd="$EVIDENCE_CMD_RE" -v cnt="$EVIDENCE_OUTCOME_COUNT_RE" \
+             -v claim="$EVIDENCE_CLAIM_LINE" '
+           # A count is output only if it comes after the command that produced
+           # it. Matching anywhere in the window accepted "3 issues remained, so I
+           # ran `go test`" — a number quoted before anything had been run.
+           NR == claim { if ($0 ~ cmd) seen = 1; next }
+           seen && $0 ~ cnt { found = 1; exit }
+           $0 ~ cmd { seen = 1 }
+           END { exit(found ? 0 : 1) }'; then
+      HAS_OUTCOME=true
     fi
 
-    # Check previous line (might be a header followed by evidence)
-    if [ "$HAS_EVIDENCE" = false ] && echo "$PREV_LINE" | grep -qE '(`[^`]+`|→|exit:|go test|go vet)'; then
-      HAS_EVIDENCE=true
-    fi
-
-    if [ "$HAS_EVIDENCE" = false ]; then
+    if [ "$HAS_COMMAND" = false ] || [ "$HAS_OUTCOME" = false ]; then
       echo "COMMIT-LINT FAIL: line claims verification but lacks command + output citation:"
       echo "  $LINE"
-      echo "  Every 'verified'/'fixed'/'works' claim must cite the exact command and paste its output."
+      if [ "$HAS_COMMAND" = true ] && [ "$HAS_OUTCOME" = false ]; then
+        echo "  The command is cited but not what it produced. Add the outcome —"
+        echo "  'exit: 0', a count, or the line the command printed."
+      else
+        echo "  Every 'verified'/'fixed'/'works' claim must cite the exact command and paste its output."
+      fi
       echo "  Or write 'written but NOT verified' if you did not execute the check."
       ERRORS=$((ERRORS + 1))
     fi

@@ -58,8 +58,20 @@ fi
 # unresolved __DEFAULT_MODEL__ placeholder behind would be read as a model name.
 if [ -z "${OPENCODE_DEFAULT_MODEL:-}" ]; then
   TMP="$OPENCODE_JSON.sync-tmp.$$"
-  jq 'del(.model, .small_model) | (.agent // {}) |= with_entries(.value |= del(.model))' \
-    "$OPENCODE_JSON" > "$TMP" && mv -f "$TMP" "$OPENCODE_JSON"
+  # Checked explicitly rather than with `&&`: inside a compound list, set -e does
+  # not abort on jq's failure, so a parse error used to leave a truncated temp file
+  # moved over the real config — and the script still exited 0 claiming success.
+  if ! jq 'del(.model, .small_model) | (.agent // {}) |= with_entries(.value |= del(.model))' \
+       "$OPENCODE_JSON" > "$TMP"; then
+    rm -f "$TMP"
+    echo "sync-opencode: jq could not read $OPENCODE_JSON — leaving it untouched" >&2
+    exit 1
+  fi
+  if ! mv -f "$TMP" "$OPENCODE_JSON"; then
+    rm -f "$TMP"
+    echo "sync-opencode: could not replace $OPENCODE_JSON" >&2
+    exit 1
+  fi
   for ROLE_FILE in "$ROOT_DIR/.opencode/agent/"*.md; do
     [ -f "$ROLE_FILE" ] || continue
     sed -i.bak '/^model:[[:space:]]*/d' "$ROLE_FILE"

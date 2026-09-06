@@ -9,7 +9,22 @@ selftest:
 doctor:
 	./scripts/factory-doctor.sh
 
+# `check` runs the configured product checks as well as the factory's own. It
+# used to run only selftest plus the hook scripts, so a green `make check` said
+# nothing about whether the adopter's code compiled or its tests passed — while
+# reading, to anyone using it, like the repository was checked.
+#
+# check_command comes from factory.yaml, which the language pack sets. Empty means
+# no pack is installed yet, and the factory gates alone are the honest answer.
 check: selftest
+	@CMD="$$(FACTORY_CONFIG=factory.yaml bash -c '. scripts/lib/config.sh; factory_config_get check_command')"; \
+	if [ -n "$$CMD" ]; then \
+		echo "check: running the configured product checks"; \
+		echo "  $$CMD"; \
+		sh -c "$$CMD"; \
+	else \
+		echo "check: no check_command configured (install a language pack to arm it)"; \
+	fi
 	./scripts/citation-lint.sh
 	./scripts/hooks/shared-script-enforcement.sh
 	./scripts/hooks/hook-existence-check.sh

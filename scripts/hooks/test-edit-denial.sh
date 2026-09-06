@@ -52,8 +52,14 @@ AGENT_ROLE="${FACTORY_AGENT_ROLE:-}"
 #
 # Absent input is still allowed: a TTY invocation or an event carrying no file at
 # all has nothing to deny, and failing those would break unrelated tool calls.
+# Read the pattern list before the fail-closed branch below. An adopter who has
+# configured no test_file_patterns has told this gate that no path is a test
+# file, so there is nothing it could deny — denying an unreadable payload in that
+# configuration would block edits the contract says are always allowed.
+PATTERNS="$(factory_config_get test_file_patterns)"
+
 if [ -z "$FILE_PATH" ]; then
-  if [ "$AGENT_ROLE" = "implementer" ] && [ -n "$INPUT" ]; then
+  if [ "$AGENT_ROLE" = "implementer" ] && [ -n "$INPUT" ] && [ -n "$PATTERNS" ]; then
     if ! command -v jq >/dev/null 2>&1; then
       echo "DENIED: implementer role, and jq is not installed, so the edit target cannot be read." >&2
       echo "  Install jq — this gate must not pass work it was unable to check." >&2
@@ -72,7 +78,6 @@ if [ "$AGENT_ROLE" != "implementer" ]; then
   exit 0
 fi
 
-PATTERNS="$(factory_config_get test_file_patterns)"
 if [ -z "$PATTERNS" ]; then
   exit 0
 fi

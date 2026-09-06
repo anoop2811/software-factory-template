@@ -27,15 +27,18 @@ factory_log_event() {
   # "silently empty the log the moment it fills".
   _keep=$((_max / 2)); [ "$_keep" -lt 1 ] && _keep=1
   if [ "$(wc -l < "$_log" 2>/dev/null || echo 0)" -gt "$_max" ]; then
-    # mktemp, not "$_log.trim": that name is predictable and lives in a directory
-    # other processes can write, so a symlink planted there would be followed and
-    # its target truncated with event data. mktemp fails rather than following.
-    _tmp="$(mktemp "$(dirname "$_log")/.events.XXXXXX" 2>/dev/null)" || return 0
+    # A private directory, not a bare mktemp file. `mktemp` does create the file
+    # safely, but the shell redirection that follows reopens it *by name* — and in
+    # a directory other processes can write, the name can be swapped for a symlink
+    # in between, sending the trimmed log to the symlink's target. mktemp -d makes
+    # a 0700 directory, so no other user can put anything inside it, and the name
+    # we then open cannot have been replaced.
+    _tmpd="$(mktemp -d "$(dirname "$_log")/.events.XXXXXX" 2>/dev/null)" || return 0
+    _tmp="$_tmpd/trim"
     if tail -n "$_keep" "$_log" > "$_tmp" 2>/dev/null; then
-      mv -f "$_tmp" "$_log" 2>/dev/null || rm -f "$_tmp" 2>/dev/null || true
-    else
-      rm -f "$_tmp" 2>/dev/null || true
+      mv -f "$_tmp" "$_log" 2>/dev/null || true
     fi
+    rm -rf "$_tmpd" 2>/dev/null || true
   fi
   return 0
 }

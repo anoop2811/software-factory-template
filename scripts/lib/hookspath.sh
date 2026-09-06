@@ -8,7 +8,13 @@
 # installed-looking push gate completely inert. So ask Git, don't assume.
 #
 # Echoes "<state>\t<resolved-path>", where state is one of:
-#   armed    — Git resolves pre-push to this repo's tracked .githooks
+#   armed    — Git resolves pre-push to this repo's tracked .githooks, and the
+#              hook is executable, so it will actually run
+#   inert    — Git resolves pre-push to this repo's tracked .githooks, but the
+#              file is not executable. Git skips a non-executable hook without
+#              complaint, so the gate is configured and still never fires. This
+#              is the state a `chmod +x` fixes, and it is reported separately
+#              from `armed` precisely because the two look identical on disk.
 #   hijacked — core.hooksPath points elsewhere; the repo's gate never runs
 #   absent   — no core.hooksPath; the gate is simply not installed yet
 hookspath_status() {

@@ -67,8 +67,34 @@ if echo "$CHANGED_FILES" | grep -q '^\.opencode/plugin/factory-hooks\.ts$'; then
   echo "  WARNING: live parity (OBSERVED) re-verification required — cannot run in CI"
   echo "  The previous OBSERVED pass is now stale. Re-run manual parity eval before"
   echo "  claiming OBSERVED on factory-hooks.ts behavior."
-  echo "factory-hooks.ts modified $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    > "$REPO_ROOT/memory/.parity-stale" 2>/dev/null || true
+  # Commit-aware, so the flag marks a specific version of the file rather than
+  # "this ran". Writing it unconditionally meant the install commit — which adds
+  # factory-hooks.ts, so it sits in every diff range until pushed — recreated the
+  # flag on each run, and pending-lessons-push-block then blocked forever: the
+  # push gate could not be satisfied no matter what the adopter did.
+  #
+  # An existing flag for the same blob is left alone, so an adopter who has
+  # already recorded a decision about this version is not asked again.
+  # Which version of the file the flag is about. With an explicit diff head, that
+  # is the committed blob at that ref. With no arguments — the working-tree mode
+  # this hook documents — the change being flagged is the *uncommitted* edit, so
+  # hashing HEAD would record the version before the edit and the flag would
+  # claim to cover a file nobody changed.
+  PARITY_TARGET=".opencode/plugin/factory-hooks.ts"
+  if [ -n "${HEAD_REF:-}" ]; then
+    PARITY_BLOB="$(cd "$REPO_ROOT" && git rev-parse "$HEAD_REF:$PARITY_TARGET" 2>/dev/null || echo unknown)"
+  else
+    PARITY_BLOB="$(cd "$REPO_ROOT" && git hash-object "$PARITY_TARGET" 2>/dev/null || echo unknown)"
+  fi
+  PARITY_FLAG="$REPO_ROOT/memory/.parity-stale"
+  if [ -f "$PARITY_FLAG" ] && grep -qF "$PARITY_BLOB" "$PARITY_FLAG" 2>/dev/null; then
+    echo "  (parity flag already records this version of factory-hooks.ts)"
+  else
+    {
+      echo "factory-hooks.ts modified $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      echo "blob $PARITY_BLOB"
+    } > "$PARITY_FLAG" 2>/dev/null || true
+  fi
 fi
 
 # ── Rule: adapter generator changed → run sync + drift check ─────────

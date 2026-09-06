@@ -27,7 +27,7 @@ echo "========================================"
 echo ""
 
 # ── 1. Direct-main denial ────────────────────────────────────────────
-echo "[1/7] direct-main-push-block (feature branches + PRs only)"
+echo "[1/8] direct-main-push-block (feature branches + PRs only)"
 if ./scripts/hooks/direct-main-push-block.sh; then
   echo "  PASS"
 else
@@ -37,7 +37,7 @@ fi
 echo ""
 
 # ── 2. make check (lint + test + sec + vuln + citation-lint + hooks) ──
-echo "[2/7] make check (lint, test, security, citations, hooks)"
+echo "[2/8] make check (lint, test, security, citations, hooks)"
 if make check 2>&1; then
   echo "  PASS"
 else
@@ -47,7 +47,7 @@ fi
 echo ""
 
 # ── 3. make check-drift (sync adapters + verify no drift) ────────────
-echo "[3/7] make check-drift (Claude + Codex adapter drift)"
+echo "[3/8] make check-drift (Claude + Codex adapter drift)"
 if make check-drift 2>&1; then
   echo "  PASS"
 else
@@ -57,7 +57,7 @@ fi
 echo ""
 
 # ── 4. Full-range commit-message lint (origin/main..HEAD) ────────────
-echo "[4/7] commit-message-lint (full unpushed range)"
+echo "[4/8] commit-message-lint (full unpushed range)"
 ORIGIN_HEAD=$(git rev-parse origin/main 2>/dev/null || echo "")
 if [ -n "$ORIGIN_HEAD" ]; then
   RANGE_FAIL=0
@@ -82,7 +82,7 @@ fi
 echo ""
 
 # ── 5. diff-aware-check (dispatch checks based on changed files) ──────
-echo "[5/7] diff-aware-check (dispatch checks for changed files)"
+echo "[5/8] diff-aware-check (dispatch checks for changed files)"
 ORIGIN_HEAD=$(git rev-parse origin/main 2>/dev/null || echo "HEAD")
 if ./scripts/hooks/diff-aware-check.sh "$ORIGIN_HEAD" HEAD 2>&1; then
   echo "  PASS"
@@ -93,7 +93,7 @@ fi
 echo ""
 
 # ── 6. decision-log-gate (governance commits reference a Decision) ────
-echo "[6/7] decision-log-gate (governance commits reference a Decision)"
+echo "[6/8] decision-log-gate (governance commits reference a Decision)"
 ORIGIN_HEAD=$(git rev-parse origin/main 2>/dev/null || echo "")
 if [ -n "$ORIGIN_HEAD" ]; then
   if ./scripts/hooks/decision-log-gate.sh "$ORIGIN_HEAD" HEAD 2>&1; then
@@ -108,12 +108,64 @@ fi
 echo ""
 
 # ── 7. pending-lessons-push-block ─────────────────────────────────────
-echo "[7/7] pending-lessons-push-block (no unaddressed loop-close reminders)"
+echo "[7/8] pending-lessons-push-block (no unaddressed loop-close reminders)"
 if ./scripts/hooks/pending-lessons-push-block.sh 2>&1; then
   echo "  PASS"
 else
   echo "  FAIL"
   ERRORS=$((ERRORS + 1))
+fi
+echo ""
+
+# ── 8. local hooks ────────────────────────────────────────────────────
+# Registering a hook in factory.yaml `local_hooks` made hook-existence-check
+# assert it stays present and executable — and nothing ever ran it. A repo-local
+# gate that is only checked for existence gates nothing, which defeats the point
+# of Decision 35. They run here, with the shipped gates.
+echo "[8/8] local hooks (repo-local gates registered in factory.yaml)"
+LOCAL_HOOKS_LIST="$(FACTORY_CONFIG="${FACTORY_CONFIG:-factory.yaml}" bash -c '
+  . scripts/lib/config.sh 2>/dev/null || exit 0
+  factory_local_hooks' 2>/dev/null || true)"
+if [ -z "${LOCAL_HOOKS_LIST// /}" ]; then
+  echo "  SKIP (none registered)"
+else
+  # Positional parameters carry the arguments, so a hook that takes a flag runs
+  # with it. Without this, every registered hook ran bare — and a gate with a
+  # strict mode ran in its lenient mode at exactly the moment (push) where the
+  # strict one is the point.
+  run_local_hook() { # <path> [args...]
+    LH="$1"; shift
+    if [ ! -x "$LH" ]; then
+      echo "  FAIL $LH is registered but not executable"
+      ERRORS=$((ERRORS + 1))
+      return
+    fi
+    # Output is captured, not piped: `cmd | sed` reports sed's status, so piping
+    # for indentation would have swallowed the hook's own exit code and called
+    # every failure a pass.
+    LH_OUT="$(mktemp)"
+    if "./$LH" "$@" >"$LH_OUT" 2>&1; then
+      sed 's/^/    /' "$LH_OUT"
+      echo "  PASS $LH${*:+ $*}"
+    else
+      sed 's/^/    /' "$LH_OUT"
+      echo "  FAIL $LH${*:+ $*}"
+      ERRORS=$((ERRORS + 1))
+    fi
+    rm -f "$LH_OUT"
+  }
+
+  # One entry per line, path first, arguments after — see factory_local_hooks.
+  # read -ra splits on whitespace WITHOUT globbing, which unquoted expansion does
+  # not: an entry containing `*` would otherwise be expanded against the working
+  # directory, so the hook that ran, or the arguments it received, would not be
+  # the ones configured.
+  while IFS= read -r LH_ENTRY; do
+    [ -n "${LH_ENTRY// /}" ] || continue
+    read -ra LH_ARGV <<< "$LH_ENTRY"
+    [ "${#LH_ARGV[@]}" -gt 0 ] || continue
+    run_local_hook "${LH_ARGV[@]}"
+  done <<< "$LOCAL_HOOKS_LIST"
 fi
 echo ""
 

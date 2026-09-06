@@ -9,7 +9,7 @@ decision_log: docs/DECISION_LOG.md
 docs_root: docs
 citation_prefix: ""
 protected_paths: "scripts/hooks scripts/lib .github/workflows AGENTS.md"
-test_file_patterns: ""
+test_file_patterns: "scripts/selftest/"
 language_packs: ""
 check_command: "./scripts/selftest/run.sh"
 local_hooks: ""
@@ -25,3 +25,11 @@ budget_session_seconds: 900
 budget_max_concurrent: 1
 budget_estimated_usd: ""
 budget_action: stop
+
+# Loop engineering remains manual unless bounded mode is explicitly requested.
+loop_enabled: false
+loop_max_attempts: 2
+loop_timeout_seconds: 900
+loop_check_timeout_seconds: 120
+loop_check_command: ""
+loop_no_progress_limit: 1

@@ -6,10 +6,14 @@
 selftest:
 	./scripts/selftest/run.sh
 
-.PHONY: budget-selftest
+.PHONY: budget-selftest loop-selftest
 budget-selftest:
 	@if [ -x scripts/selftest/budget.sh ]; then ./scripts/selftest/budget.sh; \
 	else echo "budget-selftest: template-only acceptance fixtures not installed"; fi
+
+loop-selftest:
+	@if [ -x scripts/selftest/loop.sh ]; then ./scripts/selftest/loop.sh; \
+	else echo "loop-selftest: template-only acceptance fixtures not installed"; fi
 
 doctor:
 	./scripts/factory-doctor.sh
@@ -21,7 +25,7 @@ doctor:
 #
 # check_command comes from factory.yaml, which the language pack sets. Empty means
 # no pack is installed yet, and the factory gates alone are the honest answer.
-check: selftest budget-selftest
+check: selftest budget-selftest loop-selftest
 	@CMD="$$(FACTORY_CONFIG=factory.yaml bash -c '. scripts/lib/config.sh; factory_config_get check_command')"; \
 	if [ -n "$$CMD" ]; then \
 		echo "check: running the configured product checks"; \

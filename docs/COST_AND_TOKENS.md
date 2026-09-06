@@ -332,3 +332,10 @@ the eval, deliberately, and not in the session loop.
   project has been burned by. The post-session report shows what the factory did
   (facts), what the work cost (measured), and one clearly-labeled estimate;
   a real savings figure comes only from a measured A/B in the eval.
+
+## Bounded repair choices
+
+[Loop engineering](LOOPS.md) defaults to manual checks without model calls.
+Explicit bounded runs share budget admission for every implementer and reviewer
+invocation. Loop progress detection prevents unchanged-source retries; selected
+limits never lower reviewer quality or grant automatic merge permission.

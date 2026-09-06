@@ -1707,3 +1707,34 @@ semantics: https://docs.python.org/3/library/subprocess.html#subprocess.Popen.wa
 https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278692
 https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278713
 https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278732
+
+
+## Decision 47 (2026-09-06): bounded repair loops with local verification evidence
+
+What: implement the existing P1 Loop engineering roadmap item through factory
+loop plan/run/status/resume. Default manual mode performs deterministic checks;
+explicit bounded mode uses the shared budget controller for implementer and
+separate reviewer invocations. All three native harness adapters remain shared.
+No background activation, automatic merge, test rewriting or policy weakening.
+
+The versioned acceptance contract is docs/LOOPS.md. Finite attempts and elapsed
+time, unchanged-source/repeated-failure detection, checkpoint freshness and
+protected/test/governance mutation handoffs prevent indefinite repair. Structured
+local evidence identifies the tested content, checks and outcomes; it is not a
+trusted attestation and does not replace independent CI or human protected-path
+review. Check output used for repair is untrusted data, bounded in size and kept
+private; evidence must not claim a pass for skipped checks or unknown exit.
+
+Why: the next user-selected roadmap item is Loop engineering. The discussion of
+https://stack72.dev/the-feedback-loop-is-moving-out-of-ci/ (fetched 2026-09-06)
+reinforces moving iteration before integration while preserving the independent
+verification boundary. Keep feature names/priorities stable and costs opt-in.
+
+Provenance: user authorized merging PR #71 and starting the next feature on
+2026-09-06. PR #71 merged as ccb1a3340be51c9c25e2e999d4ed3e74f465edaf.
+
+Decision 47 refinement before policy change: arm this template's own test boundary
+with test_file_patterns scripts/selftest/. The loop and native test-edit hook must
+use the same POSIX extended-regex semantics as language packs, and hash native
+permission/role files even when Git ignores them. Budget deadlines must be checked
+inside admission and immediately before spawn, including lock contention.

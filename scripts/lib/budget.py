@@ -363,7 +363,7 @@ def terminate_group(proc):
         pass
 
 
-def execute(argv, stdin_text, root, overrides, allowance, on_spawn):
+def execute(argv, stdin_text, root, overrides, allowance, on_spawn, deadline=None):
     start = time.monotonic()
     env = os.environ.copy()
     env.update(overrides)
@@ -380,6 +380,12 @@ def execute(argv, stdin_text, root, overrides, allowance, on_spawn):
     for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         previous[signum] = signal.signal(signum, interrupted)
     try:
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise BudgetError("loop time limit reached before process launch")
+            allowance = min(allowance, remaining)
+            start = time.monotonic()
         proc = subprocess.Popen(argv, cwd=str(root), env=env, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 start_new_session=True)
@@ -463,25 +469,36 @@ def execute(argv, stdin_text, root, overrides, allowance, on_spawn):
     return outcome, code, time.monotonic() - start, bytes(output)
 
 
-def run(args, config, ledger, root):
+def run(args, config, ledger, root, prompt_text=None, response_callback=None, quiet=False, deadline=None):
+    output = (lambda value, json_output: None) if quiet else emit
     # Read-only checks precede CLI checks and admission. Disabled commands do not
     # even invoke a harness --help or create storage.
     initial = make_plan(args, config, ledger.read())
     if initial["blockers"]:
-        emit(initial, args.json)
+        output(initial, args.json)
         return 2
     try:
-        prompt = Path(args.prompt_file).read_text(encoding="utf-8")
+        prompt = prompt_text if prompt_text is not None else Path(args.prompt_file).read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise BudgetError("cannot read --prompt-file: {}".format(exc)) from exc
     budget_adapters.preflight(args.harness, args.role, root)
     overrides = budget_adapters.environment(args.harness, args.role)
     argv, stdin_text = budget_adapters.build_command(
         args.harness, args.role, initial["model"], root, prompt)
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise BudgetError("loop time limit reached during native preflight")
+        config = dict(config, timeout_seconds=min(config["timeout_seconds"], remaining))
     with ledger.locked():
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise BudgetError("loop time limit reached while waiting for budget admission")
+            config = dict(config, timeout_seconds=min(config["timeout_seconds"], remaining))
         history = ledger.read()
         plan = make_plan(args, config, history)
-        emit(plan, args.json)
+        output(plan, args.json)
         if plan["blockers"]:
             return 2
         record = {
@@ -515,7 +532,7 @@ def run(args, config, ledger, root):
     response = ""
     try:
         outcome, code, elapsed, raw = execute(argv, stdin_text, root, overrides,
-                                              record["reserved_seconds"], on_spawn)
+                                              record["reserved_seconds"], on_spawn, deadline=deadline)
         record.update(outcome=outcome, exit_code=code, elapsed_seconds=elapsed)
         events = parse_events(raw)
         metadata = budget_adapters.normalize(args.harness, events)
@@ -533,7 +550,7 @@ def run(args, config, ledger, root):
             record["complete"] = False
         if record["estimated_usd"] is None:
             record["warnings"].append("cost is unknown; no complete session cost total can be claimed")
-        if not args.json and record["outcome"] == "completed" and record["complete"]:
+        if (response_callback is not None or not args.json) and record["outcome"] == "completed" and record["complete"]:
             response = budget_adapters.response_text(args.harness, events)
         del events
     except (BudgetError, ValueError, OSError) as exc:
@@ -565,8 +582,10 @@ def run(args, config, ledger, root):
                     if "cost" in warning or "USD" in warning:
                         record["warnings"].append(warning)
             ledger.write(history)
-    emit(record, args.json)
-    if response:
+    output(record, args.json)
+    if response_callback is not None:
+        response_callback(dict(record), response)
+    if response and not quiet:
         print(response, flush=True)
     return {"completed": 0, "timeout": 124, "interrupted": 130}.get(record["outcome"], 1)
 

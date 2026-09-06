@@ -10,7 +10,7 @@ estimates. Update only from observed acceptance results.
 | Priority | Concept | Proposed addition | User-selectable options | Cost-conscious default | Completion |
 |---|---|---|---|---|---|
 | P0 — First | Budgeting and observability | Run plan, enforced invocation limits, truthful usage metadata and reports | Task/session limits; estimate warning or stop; JSON export | No model calls for reporting; unknown usage stays unknown | 100% — implementation and deterministic acceptance; Decision 46 |
-| P1 | Loop engineering | Bounded implement/test/review/repair, progress detection and checkpoints | Manual, bounded repair, explicitly unattended | Manual first; limited opt-in attempts | 0% |
+| P1 | Loop engineering | Bounded implement/test/review/repair, progress detection and checkpoints | Manual, bounded repair, explicitly unattended | Manual first; limited opt-in attempts | 100% — implementation and deterministic acceptance; Decision 47 |
 | P1 | Context engineering and Skills | Task-specific context and on-demand procedures | Explicit files, local retrieval, optional summaries | Local selection and bounded context | 0% |
 | P1 | Memory engineering | Searchable scoped memory, provenance, freshness and handoffs | Off, session, project, explicitly shared team | Local files and lexical search | 0% |
 | P1 | Harness engineering | Capability probes, isolation and evidence tied to tested code | Existing gates, isolated execution, stricter boundaries | Shared scripts and native controls | 0% |
@@ -27,3 +27,7 @@ dropped. Feature selection is separate from the existing standard/economy model
 profiles; no quality gate is relaxed by selecting a cheaper profile.
 
 For P0, the five deliverables and acceptance boundary are in [BUDGETS.md](BUDGETS.md).
+
+For P1 Loop engineering, bounded mode is explicit unattended execution with finite
+limits; terminal runs hand off rather than automatically restart. Fresh manual
+checks may resume. See [LOOPS.md](LOOPS.md) for completion scope and evidence.

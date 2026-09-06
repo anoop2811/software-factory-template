@@ -26,14 +26,23 @@ TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # --pack typescript) — real apps are polyglot (a Go backend, a TS frontend).
 TARGET_ARG="."
 PACKS=""
+JAVA_BUILD_TOOL="auto"
 while [ $# -gt 0 ]; do
   case "$1" in
+    --java-build-tool)
+      [ $# -ge 2 ] || { echo "factory-init: --java-build-tool requires maven or gradle" >&2; exit 2; }
+      JAVA_BUILD_TOOL="$2"; shift 2 ;;
+    --java-build-tool=*) JAVA_BUILD_TOOL="${1#*=}"; shift ;;
     --pack) PACKS="$PACKS ${2:-}"; if [ $# -ge 2 ]; then shift 2; else shift; fi ;;
     --pack=*) PACKS="$PACKS ${1#*=}"; shift ;;
     *) TARGET_ARG="$1"; shift ;;
   esac
 done
 PACKS="$(printf '%s' "$PACKS" | tr ',' ' ')"
+case "$JAVA_BUILD_TOOL" in
+  auto|maven|gradle) : ;;
+  *) echo "factory-init: --java-build-tool must be maven or gradle" >&2; exit 2 ;;
+esac
 
 TARGET_DIR="$TARGET_ARG"
 # Resolve to an absolute path, creating the directory if it does not exist.
@@ -144,7 +153,7 @@ if [ -z "${PACKS// /}" ] && [ -r /dev/tty ] && [ -t 1 ]; then
   echo "Language pack(s) — arm test patterns + check command (space-separated):"
   echo "  go          battle-tested"
   echo "  typescript  experimental"
-  echo "  java        experimental"
+  echo "  java        beta (Gradle or Maven)"
   ask "Pack(s)? [go typescript java / none]: " PACKS
   PACKS="$(printf '%s' "$PACKS" | tr ',' ' ')"
 fi
@@ -152,6 +161,30 @@ fi
 case " $PACKS " in *" go "*) ask "Go version for CI (e.g., 1.26): " GO_VERSION ;; esac
 case " $PACKS " in *" java "*) ask "Java (JDK) version for CI (e.g., 25): " JAVA_VERSION ;; esac
 case " $PACKS " in *" typescript "*) ask "Node.js version for CI (e.g., 24): " NODE_VERSION ;; esac
+
+# docs/adr/0045-maven-adoption.md:8 — resolve the Java overlay before writing files.
+MAVEN_COMMAND="mvn"
+case " $PACKS " in
+  *" java "*)
+    if [ "$JAVA_BUILD_TOOL" = auto ]; then
+      if [ -f "$TARGET_DIR/gradlew" ]; then
+        JAVA_BUILD_TOOL="gradle"
+      elif [ -f "$TARGET_DIR/pom.xml" ] || [ -f "$TARGET_DIR/mvnw" ]; then
+        JAVA_BUILD_TOOL="maven"
+      else
+        JAVA_BUILD_TOOL="gradle"
+      fi
+    fi
+    if [ "$JAVA_BUILD_TOOL" = maven ] && { [ -e "$TARGET_DIR/mvnw" ] || [ -L "$TARGET_DIR/mvnw" ]; }; then
+      if [ ! -f "$TARGET_DIR/mvnw" ] || [ ! -x "$TARGET_DIR/mvnw" ]; then
+        echo "factory-init: mvnw must be an executable file; run chmod +x mvnw and retry." >&2
+        exit 2
+      fi
+      MAVEN_COMMAND="./mvnw"
+    fi
+    echo "Java build tool: $JAVA_BUILD_TOOL"
+    ;;
+esac
 
 # Defaults
 MODEL_PROVIDER="$(printf '%s' "${MODEL_PROVIDER:-inherit}" | tr '[:upper:]' '[:lower:]')"
@@ -672,6 +705,12 @@ if [ -n "${PACKS// /}" ]; then
     P_MATURITY="$(pack_config "$PACK_DIR" maturity)"
     P_PATTERNS="$(pack_config "$PACK_DIR" test_file_patterns)"
     P_CHECK="$(pack_config "$PACK_DIR" check_command)"
+    PACK_ASSETS="$PACK_DIR"
+    if [ "$PACK" = java ] && [ "$JAVA_BUILD_TOOL" = maven ]; then
+      PACK_ASSETS="$PACK_DIR/maven"
+      P_CHECK="$(pack_config "$PACK_DIR" maven_check_command)"
+      P_CHECK="${P_CHECK//__MAVEN_COMMAND__/$MAVEN_COMMAND}"
+    fi
     [ -n "$P_PATTERNS" ] && ALL_PATTERNS="$ALL_PATTERNS $P_PATTERNS"
     if [ -n "$P_CHECK" ]; then
       if [ -n "$ALL_CHECK" ]; then ALL_CHECK="$ALL_CHECK && $P_CHECK"; else ALL_CHECK="$P_CHECK"; fi
@@ -683,7 +722,7 @@ if [ -n "${PACKS// /}" ]; then
     # scopes the option so it does not leak into the rest of the installer.
     (
       shopt -s dotglob nullglob
-      for pf in "$PACK_DIR"/*; do
+      for pf in "$PACK_ASSETS"/*; do
         [ -f "$pf" ] || continue
         case "$(basename "$pf")" in
           pack.yaml|.DS_Store) continue ;;
@@ -691,7 +730,7 @@ if [ -n "${PACKS// /}" ]; then
           # name meant a polyglot install silently kept only the last pack's
           # targets. Per-pack names, and the Makefile includes each one.
           Makefile.pack)
-            cp "$pf" "$TARGET_DIR/Makefile.$PACK.pack"
+            sed "s|__MAVEN_COMMAND__|$MAVEN_COMMAND|g" "$pf" > "$TARGET_DIR/Makefile.$PACK.pack"
             echo "  copied: Makefile.$PACK.pack"
             continue ;;
         esac
@@ -703,13 +742,14 @@ if [ -n "${PACKS// /}" ]; then
       cp "$PACK_DIR/hooks/"*.sh "$TARGET_DIR/scripts/hooks/" 2>/dev/null && \
         chmod +x "$TARGET_DIR/scripts/hooks/"*.sh && echo "  copied: pack hooks"
     fi
-    if [ -f "$PACK_DIR/workflows/ci.yml" ]; then
+    if [ -f "$PACK_ASSETS/workflows/ci.yml" ]; then
       sed -e "s|__GO_VERSION__|$GO_VERSION|g" \
           -e "s|__JAVA_VERSION__|$JAVA_VERSION|g" \
           -e "s|__NODE_VERSION__|$NODE_VERSION|g" \
           -e "s|__MUTATION_TARGET__|$(mutation_target)|g" \
+          -e "s|__MAVEN_COMMAND__|$MAVEN_COMMAND|g" \
       -e "s|__PROTECTED_PATH__|${PROTECTED_PATH:-.}|g" \
-        "$PACK_DIR/workflows/ci.yml" \
+        "$PACK_ASSETS/workflows/ci.yml" \
         > "$TARGET_DIR/.github/workflows/${PACK}-pack.yml"
       echo "  installed: .github/workflows/${PACK}-pack.yml"
     fi
@@ -721,8 +761,18 @@ if [ -n "${PACKS// /}" ]; then
     [ -n "$(pack_config "$PACK_DIR" node_min_version)" ] && \
       { printf 'node_min_version: "%s"\n' "$NODE_VERSION" >> "$TARGET_DIR/factory.yaml"; echo "  set: node_min_version"; }
 
-    if [ "$P_MATURITY" != "battle-tested" ]; then
+    if [ "$PACK" = java ]; then
+      printf 'java_build_tool: "%s"\n' "$JAVA_BUILD_TOOL" >> "$TARGET_DIR/factory.yaml"
+      if [ "$JAVA_BUILD_TOOL" = maven ]; then
+        echo "  Maven check: $P_CHECK"
+        echo "  Next: merge quality-maven.xml plugins into your parent POM; see MAVEN.md."
+        echo "  Until then, verify runs your existing Maven lifecycle, without the new quality plugins."
+      fi
+    fi
+    if [ "$P_MATURITY" = "experimental" ]; then
       echo "  NOTE: '$PACK' is $P_MATURITY — the full stack ships, but no real repository has adopted it yet."
+    elif [ "$P_MATURITY" = "beta" ]; then
+      echo "  NOTE: '$PACK' is beta — real adoption reported; see the pack documentation for tested scope."
     fi
   done
 

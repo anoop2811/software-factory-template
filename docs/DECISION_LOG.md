@@ -1668,3 +1668,11 @@ and proves that a broken present gate is still rejected.
 
 Provenance: GitHub issue #68 by @vshanbha, read 2026-09-06:
 https://github.com/anoop2811/software-factory-template/issues/68
+
+## Decision 45 (2026-09-06): native Maven adoption uses the Java pack
+
+See [ADR-0045](adr/0045-maven-adoption.md) for build-tool detection, the Maven
+asset overlay, POM preservation, quality-plugin integration, source versions,
+and acceptance requirements. The Java pack is beta following Duke42's reported
+real adoption with local Maven adaptations in issue #66; native Maven
+generation is validated separately from that adopter report.

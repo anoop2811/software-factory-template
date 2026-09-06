@@ -85,7 +85,7 @@ Real apps are often polyglot, so `factory-init` takes more than one pack — `--
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins (mutation) | battle-tested |
 | TypeScript | Vitest, Biome (format + lint), tsc, Stryker (mutation), OSV-Scanner | experimental |
-| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation) | experimental |
+| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation); Gradle or Maven | beta |
 
 The labels mean:
 
@@ -195,3 +195,23 @@ of skipped groups. A skip means reduced coverage, never a proven gate. Core
 `scripts/`, shared libraries, and `templates/metrics.html` are still required.
 Template CI exercises these omissions with
 `./scripts/selftest/optional-packs.sh`; adopters run the normal selftest.
+
+## Maven projects
+
+`factory-init.sh --pack java` uses Maven when `pom.xml` or `mvnw` exists and
+there is no `gradlew`. An executable Maven wrapper takes precedence over system
+`mvn`. Use `--java-build-tool maven` or `--java-build-tool gradle` to choose
+explicitly in a mixed build. No build-tool hint retains the Gradle default.
+
+Maven installs receive native Makefile targets, a Maven CI workflow, and
+`quality-maven.xml` instead of `quality.gradle`. The initial checks run the
+existing Maven verify lifecycle and the JUnit dialect gate. Merge the quality
+snippet into the shared parent POM to activate Spotless, Error Prone, and
+SpotBugs; PIT remains an explicit mutation command. The installer preserves
+your POM. See the installed `MAVEN.md` or the template
+[packs/java/maven/MAVEN.md](../packs/java/maven/MAVEN.md) for integration steps
+and the Surefire `-Dtest` include-replacement trap.
+
+The Java pack is beta based on Duke42's reported Maven adoption with local
+adaptations ([issue #66](https://github.com/anoop2811/software-factory-template/issues/66)).
+That evidence does not imply every Maven setup is supported.

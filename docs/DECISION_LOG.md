@@ -1633,3 +1633,19 @@ origin/main^{tree}` (both returned the tree above), and
 `git diff 427676a origin/main` (empty output), after fetching main.
 PR requirements and review responses: https://github.com/anoop2811/software-factory-template/pull/65
 (read 2026-09-06).
+
+## Decision 43 (2026-09-06): pack dialect gates explain an unsupported shell before parsing Bash syntax
+
+What: the Go, Java, and TypeScript dialect gates reject a non-Bash interpreter
+or Bash in POSIX mode with exit 2 and an instruction to execute the script
+directly or with bash. The guard uses POSIX syntax and runs before shell
+options, shared libraries, or Bash-only constructs. Normal Bash invocation
+retains the existing enforcement and exit statuses.
+
+Why: invoking a Bash script through sh overrides its shebang. A BASH_VERSION
+check alone misses macOS sh, which is Bash in POSIX mode. A piped enumeration
+rewrite would also move the violation counter into a subshell and risk losing
+failed checks. Keep the supported interpreter explicit.
+
+Provenance: GitHub issue #67 by @vshanbha, read 2026-09-06:
+https://github.com/anoop2811/software-factory-template/issues/67

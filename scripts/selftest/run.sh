@@ -245,6 +245,74 @@ if [ -x "$VITEST_HOOK" ]; then
     "$(run_status "$VITEST_HOOK" "$VSAND")"
 fi
 
+# Decision 43 (docs/DECISION_LOG.md:1637): unsupported shells must stop with
+# an actionable diagnostic before interpreting Bash syntax. Exit 2 alone is not
+# enough: the original parser error also returned 2. Pack sources are optional
+# in adopter checkouts; exercise each source that is available.
+for DIALECT_PACK in go java typescript; do
+  case "$DIALECT_PACK" in
+    go) DIALECT_NAME=ginkgo-only-check.sh ;;
+    java) DIALECT_NAME=junit5-only-check.sh ;;
+    typescript) DIALECT_NAME=vitest-only-check.sh ;;
+  esac
+  DIALECT_SOURCE="$TEMPLATE_ROOT/packs/$DIALECT_PACK/hooks/$DIALECT_NAME"
+  [ -f "$DIALECT_SOURCE" ] || continue
+  DIALECT_ROOT="$SANDBOX/dialect-$DIALECT_PACK"
+  mkdir -p "$DIALECT_ROOT/scripts/hooks" "$DIALECT_ROOT/src/test"
+  DIALECT_HOOK="$DIALECT_ROOT/scripts/hooks/$DIALECT_NAME"
+  cp "$DIALECT_SOURCE" "$DIALECT_HOOK"
+  chmod +x "$DIALECT_HOOK"
+  for DIALECT_SHELL in sh bash-posix dash; do
+    case "$DIALECT_SHELL" in
+      sh) DIALECT_COMMAND=(sh) ;;
+      bash-posix) DIALECT_COMMAND=(bash --posix) ;;
+      dash)
+        command -v dash >/dev/null 2>&1 || continue
+        DIALECT_COMMAND=(dash)
+        ;;
+    esac
+    DIALECT_OUTPUT="$DIALECT_ROOT/$DIALECT_SHELL.log"
+    DIALECT_STATUS=0
+    "${DIALECT_COMMAND[@]}" "$DIALECT_HOOK" "$DIALECT_ROOT" >"$DIALECT_OUTPUT" 2>&1 || DIALECT_STATUS=$?
+    check "$DIALECT_PACK gate rejects $DIALECT_SHELL" 2 "$DIALECT_STATUS"
+    check "$DIALECT_PACK gate explains how to use bash under $DIALECT_SHELL" 0 \
+      "$(run_status grep -qi 'run with bash' "$DIALECT_OUTPUT")"
+    check "$DIALECT_PACK gate avoids a parser error under $DIALECT_SHELL" 1 \
+      "$(run_status grep -Ei 'syntax error|bad substitution|illegal option|invalid option' "$DIALECT_OUTPUT")"
+  done
+  # Use the installed directory layout so the Go gate discovers a real fixture
+  # checkout. Java and TypeScript accept that same fixture root explicitly.
+  git -C "$DIALECT_ROOT" init -q
+  case "$DIALECT_PACK" in
+    go)
+      DIALECT_FILE="$DIALECT_ROOT/sample_test.go"
+      printf 'package sample\nimport "testing"\nfunc TestBad(t *testing.T) {}\n' > "$DIALECT_FILE"
+      ;;
+    java)
+      DIALECT_FILE="$DIALECT_ROOT/src/test/FooTest.java"
+      printf 'import org.junit.Test;\npublic class FooTest {}\n' > "$DIALECT_FILE"
+      ;;
+    typescript)
+      DIALECT_FILE="$DIALECT_ROOT/src/app.test.ts"
+      printf "import { describe } from 'jest';\n" > "$DIALECT_FILE"
+      ;;
+  esac
+  git -C "$DIALECT_ROOT" add "$DIALECT_FILE"
+  check "$DIALECT_PACK gate rejects violations when run directly" 1 \
+    "$(run_status "$DIALECT_HOOK" "$DIALECT_ROOT")"
+  check "$DIALECT_PACK gate rejects violations when run with bash" 1 \
+    "$(run_status bash "$DIALECT_HOOK" "$DIALECT_ROOT")"
+  case "$DIALECT_PACK" in
+    go) printf 'package sample\nimport "testing"\nfunc TestSample(t *testing.T) { RunSpecs(t, "Sample") }\n' > "$DIALECT_FILE" ;;
+    java) printf 'import org.junit.jupiter.api.Test;\npublic class FooTest {}\n' > "$DIALECT_FILE" ;;
+    typescript) printf "import { describe } from 'vitest';\n" > "$DIALECT_FILE" ;;
+  esac
+  check "$DIALECT_PACK gate accepts its dialect when run directly" 0 \
+    "$(run_status "$DIALECT_HOOK" "$DIALECT_ROOT")"
+  check "$DIALECT_PACK gate accepts its dialect when run with bash" 0 \
+    "$(run_status bash "$DIALECT_HOOK" "$DIALECT_ROOT")"
+done
+
 # Break/fix: wiki-lint requires provenance on every content page.
 WIKI_HOOK="$HOOKS/wiki-lint.sh"
 if [ -x "$WIKI_HOOK" ]; then

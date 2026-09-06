@@ -1,4 +1,9 @@
 #!/bin/bash
+# docs/DECISION_LOG.md:1637 — reject sh before it parses Bash-only syntax.
+if [ -z "${BASH_VERSION:-}" ] || shopt -oq posix; then
+  echo "${0##*/}: must be run with bash, not sh; execute the script directly or use bash \"$0\"." >&2
+  exit 2
+fi
 set -euo pipefail
 
 # Enforce ADR-0002's single Go testing dialect. The standard testing package

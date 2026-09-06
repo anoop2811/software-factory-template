@@ -171,3 +171,10 @@ A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the w
 4. **Wire it into CI** so the gate runs on every pull request, not just locally.
 
 For a spec to write your gates against, `specs/TEMPLATE.md` is a spec template to copy. For how the template measures agent quality end to end, see [eval/README.md](../eval/README.md).
+
+## Running pack hooks
+
+Execute pack hooks directly (for example, `./scripts/hooks/junit5-only-check.sh`)
+or with `bash`. Do not prefix them with `sh`: it overrides the Bash shebang,
+including on macOS where sh is Bash in POSIX mode. Pack dialect gates report
+this invocation mistake with exit 2 before parsing their Bash-only syntax.

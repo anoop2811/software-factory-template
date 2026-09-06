@@ -23,6 +23,13 @@ export FACTORY_EVENT_LOG="$SANDBOX/events.log"
 
 PASS=0
 FAIL=0
+SKIP=0
+
+# docs/DECISION_LOG.md:1653 — absent optional sources reduce coverage, not health.
+skip() {
+  SKIP=$((SKIP + 1))
+  echo "  skip: $1 — $2 not installed"
+}
 
 check() {
   local name="$1" expected="$2" actual="$3"
@@ -201,7 +208,10 @@ unset FACTORY_CONFIG
 echo "[5/5] pack patterns arm the test-edit hook"
 # Regression guard: a pack's test_file_patterns must actually deny a matching
 # test file (they were once double-escaped, matching nothing).
+PACK_SOURCE_COUNT=0
 for PACK_YAML in "$TEMPLATE_ROOT"/packs/*/pack.yaml; do
+  [ -f "$PACK_YAML" ] || continue
+  PACK_SOURCE_COUNT=$((PACK_SOURCE_COUNT + 1))
   PACK_NAME="$(basename "$(dirname "$PACK_YAML")")"
   PPAT="$(FACTORY_CONFIG="$PACK_YAML" bash -c '. "'"$TEMPLATE_ROOT"'/scripts/lib/config.sh"; factory_config_get test_file_patterns')"
   PCFG="$SANDBOX/pack-$PACK_NAME.yaml"
@@ -216,11 +226,12 @@ for PACK_YAML in "$TEMPLATE_ROOT"/packs/*/pack.yaml; do
   check "pack '$PACK_NAME' pattern denies $PSAMPLE" 2 \
     "$(FACTORY_AGENT_ROLE=implementer FACTORY_CONFIG="$PCFG" run_status "$HOOKS/test-edit-denial.sh" "$PSAMPLE")"
 done
+[ "$PACK_SOURCE_COUNT" -gt 0 ] || skip "pack pattern fixtures" "packs/*/pack.yaml"
 
 # Break/fix: the Java pack's junit5-only-check must reject a JUnit 4 import and
 # accept a JUnit 5 (Jupiter) one.
 JUNIT_HOOK="$TEMPLATE_ROOT/packs/java/hooks/junit5-only-check.sh"
-if [ -x "$JUNIT_HOOK" ]; then
+if [ -f "$JUNIT_HOOK" ]; then
   JSAND="$SANDBOX/junit5"
   mkdir -p "$JSAND/src/test"
   printf 'import org.junit.Test;\npublic class FooTest {}\n' > "$JSAND/src/test/FooTest.java"
@@ -229,12 +240,14 @@ if [ -x "$JUNIT_HOOK" ]; then
   printf 'import org.junit.jupiter.api.Test;\npublic class FooTest {}\n' > "$JSAND/src/test/FooTest.java"
   check "junit5-only-check accepts JUnit 5 (Jupiter)" 0 \
     "$(run_status "$JUNIT_HOOK" "$JSAND")"
+else
+  skip "Java dialect fixtures" "packs/java/hooks/junit5-only-check.sh"
 fi
 
 # Break/fix: the TypeScript pack's vitest-only-check must reject a non-Vitest
 # test framework import and accept a Vitest one.
 VITEST_HOOK="$TEMPLATE_ROOT/packs/typescript/hooks/vitest-only-check.sh"
-if [ -x "$VITEST_HOOK" ]; then
+if [ -f "$VITEST_HOOK" ]; then
   VSAND="$SANDBOX/vitest"
   mkdir -p "$VSAND/src"
   printf "import { describe } from 'jest';\n" > "$VSAND/src/app.test.ts"
@@ -243,6 +256,8 @@ if [ -x "$VITEST_HOOK" ]; then
   printf "import { describe } from 'vitest';\n" > "$VSAND/src/app.test.ts"
   check "vitest-only-check accepts Vitest" 0 \
     "$(run_status "$VITEST_HOOK" "$VSAND")"
+else
+  skip "TypeScript dialect fixtures" "packs/typescript/hooks/vitest-only-check.sh"
 fi
 
 # Decision 43 (docs/DECISION_LOG.md:1637): unsupported shells must stop with
@@ -256,7 +271,10 @@ for DIALECT_PACK in go java typescript; do
     typescript) DIALECT_NAME=vitest-only-check.sh ;;
   esac
   DIALECT_SOURCE="$TEMPLATE_ROOT/packs/$DIALECT_PACK/hooks/$DIALECT_NAME"
-  [ -f "$DIALECT_SOURCE" ] || continue
+  if [ ! -f "$DIALECT_SOURCE" ]; then
+    skip "$DIALECT_PACK shell invocation fixtures" "packs/$DIALECT_PACK/hooks/$DIALECT_NAME"
+    continue
+  fi
   DIALECT_ROOT="$SANDBOX/dialect-$DIALECT_PACK"
   mkdir -p "$DIALECT_ROOT/scripts/hooks" "$DIALECT_ROOT/src/test"
   DIALECT_HOOK="$DIALECT_ROOT/scripts/hooks/$DIALECT_NAME"
@@ -839,8 +857,10 @@ fi
 # adopter's CI failed on day one for want of a key — and because that key is also
 # the review lane's, declining the review lane looked like it should have helped.
 # Two features, one secret name, no relationship.
+PACK_CI_COUNT=0
 for PACK_CI in "$TEMPLATE_ROOT"/packs/*/workflows/ci.yml; do
   [ -f "$PACK_CI" ] || continue
+  PACK_CI_COUNT=$((PACK_CI_COUNT + 1))
   PACK_NAME="$(basename "$(dirname "$(dirname "$PACK_CI")")")"
   # The invariant: naming a real harness is allowed, running it unconditionally
   # is not. So wherever a real harness appears, the key guard must appear too.
@@ -857,6 +877,7 @@ for PACK_CI in "$TEMPLATE_ROOT"/packs/*/workflows/ci.yml; do
       "$(grep -cE '\./scripts/golden-task-eval\.sh$' "$PACK_CI" || true)"
   fi
 done
+[ "$PACK_CI_COUNT" -gt 0 ] || skip "pack workflow fixtures" "packs/*/workflows/ci.yml"
 
 # Break/fix: pack dialect gates are upgradeable. They are the one thing the
 # template stores somewhere other than where the adopter keeps it — upstream in
@@ -897,6 +918,8 @@ else
   PKG_INSTRUMENTED=no
 fi
 check "the upgraded pack gate can report a block" "yes" "$PKG_INSTRUMENTED"
+else
+  skip "pack upgrade fixtures" "packs/typescript/hooks"
 fi
 
 # Break/fix: the golden-task eval scores a real run — the reference task passes
@@ -1032,39 +1055,44 @@ unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 # Break/fix: the review lane is opt-in. Enabling installs the workflow and wires
 # the provider's secret name into it; disabling REMOVES the file rather than
 # leaving a dormant pull_request_target workflow in the repository.
-RLROOT="$SANDBOX/reviewlane"
-mkdir -p "$RLROOT/scripts/lib" "$RLROOT/packs/review-lane"
-( cd "$RLROOT" && git init -q )
-cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$RLROOT/scripts/lib/"
-cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$RLROOT/packs/review-lane/"
-printf 'project_name: t\nmodel_provider: "anthropic"\nreview_lane: "off"\n' > "$RLROOT/factory.yaml"
-check "review lane is off until asked for" "0" \
-  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
-( cd "$RLROOT" && ./scripts/factory-review-lane.sh enable ) >/dev/null 2>&1 || true
-check "enabling installs the workflow" "1" \
-  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
-check "the provider's secret name is wired in" "0" \
-  "$(grep -c '__REVIEW_API_KEY_SECRET__' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
-check "a fork PR cannot drive the privileged job" "1" \
-  "$(grep -c 'head.repo.full_name == github.repository' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
-( cd "$RLROOT" && ./scripts/factory-review-lane.sh disable ) >/dev/null 2>&1 || true
-check "disabling removes the workflow, not just the flag" "0" \
-  "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+REVIEW_TEMPLATE="$TEMPLATE_ROOT/packs/review-lane/review-pr.yml"
+if [ -f "$REVIEW_TEMPLATE" ]; then
+  RLROOT="$SANDBOX/reviewlane"
+  mkdir -p "$RLROOT/scripts/lib" "$RLROOT/packs/review-lane"
+  ( cd "$RLROOT" && git init -q )
+  cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
+  cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$RLROOT/scripts/lib/"
+  cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$RLROOT/packs/review-lane/"
+  printf 'project_name: t\nmodel_provider: "anthropic"\nreview_lane: "off"\n' > "$RLROOT/factory.yaml"
+  check "review lane is off until asked for" "0" \
+    "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+  ( cd "$RLROOT" && ./scripts/factory-review-lane.sh enable ) >/dev/null 2>&1 || true
+  check "enabling installs the workflow" "1" \
+    "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
+  check "the provider's secret name is wired in" "0" \
+    "$(grep -c '__REVIEW_API_KEY_SECRET__' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
+  check "a fork PR cannot drive the privileged job" "1" \
+    "$(grep -c 'head.repo.full_name == github.repository' "$RLROOT/.github/workflows/adversarial-review.yml" || true)"
+  ( cd "$RLROOT" && ./scripts/factory-review-lane.sh disable ) >/dev/null 2>&1 || true
+  check "disabling removes the workflow, not just the flag" "0" \
+    "$([ -f "$RLROOT/.github/workflows/adversarial-review.yml" ] && echo 1 || echo 0)"
 
-# Break/fix: an opt-in capability is offered once. The config key's PRESENCE is
-# the record — "off" is a decision that was made — so a repo that answered is
-# never asked again, and a repo that never has is still told.
-OFFROOT="$SANDBOX/capoffer"
-mkdir -p "$OFFROOT/packs/review-lane" "$OFFROOT/scripts"
-( cd "$OFFROOT" && git init -q )
-cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$OFFROOT/packs/review-lane/"
-printf 'project_name: t\n' > "$OFFROOT/factory.yaml"
-cap_offer_output() {
-  printf 'PROJECT_NAME="t"\n%s' "$1" > "$OFFROOT/factory.config"
-  ( cd "$OFFROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
-}
-check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
+  # Break/fix: an opt-in capability is offered once. The config key's PRESENCE is
+  # the record — "off" is a decision that was made — so a repo that answered is
+  # never asked again, and a repo that never has is still told.
+  OFFROOT="$SANDBOX/capoffer"
+  mkdir -p "$OFFROOT/packs/review-lane" "$OFFROOT/scripts"
+  ( cd "$OFFROOT" && git init -q )
+  cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$OFFROOT/packs/review-lane/"
+  printf 'project_name: t\n' > "$OFFROOT/factory.yaml"
+  cap_offer_output() {
+    printf 'PROJECT_NAME="t"\n%s' "$1" > "$OFFROOT/factory.config"
+    ( cd "$OFFROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
+  }
+  check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
+else
+  skip "review-lane enable and offer fixtures" "packs/review-lane/review-pr.yml"
+fi
 # The offer is guarded on the workflow template existing, so upgrade must SHIP
 # it — otherwise the capability is announced to nobody, which is how it shipped
 # broken the first time.
@@ -1086,26 +1114,31 @@ check "upgrade ships the colour lib it sources" "1" \
   "$(grep -c '^scripts/lib/color.sh$' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
 # Outstanding work is reported from live state: named when the lane is on and the
 # secret is not confirmed, silent when the lane is off.
-PENDROOT="$SANDBOX/pending"
-mkdir -p "$PENDROOT/scripts/lib" "$PENDROOT/packs/review-lane"
-( cd "$PENDROOT" && git init -q )
-cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PENDROOT/scripts/lib/"
-cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$PENDROOT/packs/review-lane/"
-# Settings left in a legacy factory.config, deliberately: this doubles as the
-# proof that a repo which has not migrated still has its settings honoured
-# (Decision 41). factory.yaml defines none of these keys.
-printf 'project_name: t\n' > "$PENDROOT/factory.yaml"
-printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="on"\nREVIEW_API_KEY_SECRET="OPENROUTER_API_KEY"\n' > "$PENDROOT/factory.config"
-check "pending names the secret when the lane is on" "1" \
-  "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c 'OPENROUTER_API_KEY' || true )"
-printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="off"\n' > "$PENDROOT/factory.config"
-check "pending is silent when the lane is off" "0" \
-  "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c . || true )"
-check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="off"
-')"
-check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"
-')"
+if [ -f "$REVIEW_TEMPLATE" ]; then
+  PENDROOT="$SANDBOX/pending"
+  mkdir -p "$PENDROOT/scripts/lib" "$PENDROOT/packs/review-lane"
+  ( cd "$PENDROOT" && git init -q )
+  cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
+  cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PENDROOT/scripts/lib/"
+  cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$PENDROOT/packs/review-lane/"
+  # Settings left in a legacy factory.config, deliberately: this doubles as the
+  # proof that a repo which has not migrated still has its settings honoured
+  # (Decision 41). factory.yaml defines none of these keys.
+  printf 'project_name: t\n' > "$PENDROOT/factory.yaml"
+  printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="on"\nREVIEW_API_KEY_SECRET="OPENROUTER_API_KEY"\n' > "$PENDROOT/factory.config"
+  check "pending names the secret when the lane is on" "1" \
+    "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c 'OPENROUTER_API_KEY' || true )"
+  printf 'MODEL_PROVIDER="openrouter"\nREVIEW_LANE="off"\n' > "$PENDROOT/factory.config"
+  check "pending is silent when the lane is off" "0" \
+    "$( ( cd "$PENDROOT" && ./scripts/factory-review-lane.sh pending 2>/dev/null || true ) | grep -c . || true )"
+  check "a repo that declined is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="off"
+  ')"
+  check "a repo that enabled it is not asked again" "0" "$(cap_offer_output 'REVIEW_LANE="on"
+  ')"
+
+else
+  skip "review-lane pending fixtures" "packs/review-lane/review-pr.yml"
+fi
 
 # Break/fix: metrics are local-only and honest. The JSON must carry a schema and
 # an explicit not-measured list, the HTML must have its data injected (not left
@@ -1226,5 +1259,5 @@ if [ -f "$TEMPLATE_ROOT/index.html" ]; then
 fi
 
 echo ""
-echo "selftest: $PASS passed, $FAIL failed"
+echo "selftest: $PASS passed, $FAIL failed, $SKIP skipped"
 [ "$FAIL" -eq 0 ]

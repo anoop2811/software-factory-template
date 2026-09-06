@@ -178,3 +178,20 @@ Execute pack hooks directly (for example, `./scripts/hooks/junit5-only-check.sh`
 or with `bash`. Do not prefix them with `sh`: it overrides the Bash shebang,
 including on macOS where sh is Bash in POSIX mode. Pack dialect gates report
 this invocation mistake with exit 2 before parsing their Bash-only syntax.
+
+## Optional pack sources and selftest coverage
+
+An installed language gate lives in `scripts/hooks/`; keep it while that pack
+is configured. The upstream `packs/go/`, `packs/java/`, and `packs/typescript/`
+source directories are not required in an adopted repository.
+`packs/review-lane/review-pr.yml` is separate: keep it if you want to enable or
+reinstall the optional review lane. Removing it does not disable an already
+installed workflow; use `./factory review-lane disable` for that. An upgrade
+may restore the shipped review-lane template.
+
+Selftest prints a named skip for each fixture group whose optional source is
+missing, then continues through the remaining checks and reports the number
+of skipped groups. A skip means reduced coverage, never a proven gate. Core
+`scripts/`, shared libraries, and `templates/metrics.html` are still required.
+Template CI exercises these omissions with
+`./scripts/selftest/optional-packs.sh`; adopters run the normal selftest.

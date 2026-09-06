@@ -152,6 +152,10 @@ and resolve the stop reason before deliberately starting a new task.
 The total timeout stops further work and caps each invocation by its remaining
 allowance. Native capability probes and process cleanup have their own bounded
 grace periods; returning control can take longer than the execution allowance.
+A deterministic preflight rejection (such as a missing CLI or required flag)
+with readable accounting and no active owned process stops without uncertainty;
+a new manual task may still run. An unreadable ledger, active matching budget
+reservation, or preflight probe whose exit is unconfirmed retains uncertainty.
 An uncertain exit retains ownership and blocks subsequent controllers. Checkpoint
 records describe observed local execution; they are not a signed or independently
 trusted attestation and do not replace CI.
@@ -177,7 +181,7 @@ Do not clear uncertainty or start a new task while any owned process may remain.
 
 Observed 2026-09-06:
 
-- `bash scripts/selftest/loop.sh`: `loop: 34 passed, 0 failed` (exit 0).
+- `bash scripts/selftest/loop.sh`: `loop: 40 passed, 0 failed` (exit 0).
 - `bash scripts/selftest/budget.sh`: `budget: 32 passed, 0 failed` (exit 0).
 - `./factory loop plan --harness codex --session preview --task loop-feature --json`:
   exit 0, mode manual, enabled false, budget null, no blockers.
@@ -189,3 +193,10 @@ Observed 2026-09-06:
 Fixtures execute real local subprocess, Git, checkpoint and installer/upgrade
 paths with fake Codex/Claude/OpenCode streams. They make no paid model calls.
 These results do not establish live paid agent task quality or trusted attestation.
+
+PR #72 review follow-up acceptance, observed 2026-09-06: six additional
+scenarios cover missing executables, unsupported flags, unreadable accounting,
+unconfirmed probes, malformed probe responses, and cleanup signal/reap errors.
+The defect cases were observed failing before the correction and passing after
+it. Tests assert whether a subsequent manual controller actually runs, not only
+the checkpoint label; unconfirmed process groups retain their PID.

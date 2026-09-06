@@ -1,6 +1,6 @@
 """Contract acceptance for docs/LOOPS.md:5 through real CLI and filesystem paths."""
 import json
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import importlib.util
 import os
 from pathlib import Path
@@ -161,6 +161,79 @@ def cleanup(process, child=None):
         os.kill(child, signal.SIGKILL)
 
 
+@contextmanager
+def prepared_controller(f, harness="codex"):
+    """Seed an actual checkpoint before narrowly injecting native OS failures."""
+    (f.root / "product.txt").write_text("good\n")
+    f.run(mode="manual")
+    modules = {}
+    for name in ("budget_adapters", "budget", "loop"):
+        spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, modules):
+            spec.loader.exec_module(module)
+        modules[name] = module
+    runtime, budget_runtime = modules["loop"], modules["budget"]
+    store = runtime.Store(f.root)
+    history = store.read()
+    record = history["runs"][0]
+    config = {"enabled": True, "check_command": "python3 check.py", "test_patterns": [r"_test\.py$"],
+              "protected_paths": ["governance.txt", "scripts/lib"], "max_attempts": 3,
+              "timeout_seconds": 30, "check_timeout_seconds": 3, "no_progress_limit": 1}
+    args = SimpleNamespace(session="session", task="task", harness=harness, mode="bounded",
+                           prompt_file=str(f.prompt), json=True)
+    with mock.patch.dict(os.environ, f.environment, clear=True):
+        budget_config = budget_runtime.configuration()
+        budget_config.update(enabled=True, max_attempts=8)
+        current = runtime.stable_snapshot(f.root, config)
+        record.update(status="active", outcome="running", attempts=0, elapsed_seconds=0, mode="bounded",
+                      harness=harness, evidence=[], budget_runs=[], uncertain=False, owner_pid=os.getpid(),
+                      baseline=current, snapshot=current, policy=runtime.policy(config, budget_config),
+                      prompt=runtime.digest(f.prompt.read_text()))
+        controller = runtime.Controller(args, config, budget_config, f.root, store, history, record,
+                                        f.prompt.read_text())
+        yield controller, modules, record
+
+
+@contextmanager
+def stuck_probe(adapters, root, malformed=False, cleanup_failure=None):
+    """No real orphan: OS pipes/select/read and failed reaping are deterministic."""
+    process = SimpleNamespace(pid=424242, poll=lambda: None)
+    process.stdin, process.stdout = [tempfile.TemporaryFile() for _ in range(2)]
+    waits = []
+
+    def wait(timeout=None):
+        waits.append(timeout)
+        if cleanup_failure == "wait_oserror" and len(waits) == 2:
+            raise OSError("fixture final wait failed")
+        if cleanup_failure == "kill_permission" and len(waits) == 2:
+            return 0  # Parent exit does not prove its unsignalled group stopped.
+        raise subprocess.TimeoutExpired("fixture-owned-probe", timeout)
+
+    process.wait = wait
+    selector = mock.MagicMock()
+    selector.select.return_value = [True]
+    responses = [{"id": 2, "result": {"config": {"features": {"hooks": True}}}},
+                 {"id": 3, "result": {"data": [{"cwd": str(root), "errors": [], "hooks": [{
+                     "eventName": "preToolUse", "handlerType": "command", "command": adapters.CODEX_COMMAND,
+                     "matcher": adapters.CODEX_MATCHER, "enabled": True, "trustStatus": "trusted", "async": False}]}]}},
+                 {"id": 4, "result": {"requirements": None}}]
+    raw = b"malformed probe JSON\n" if malformed else b"".join((json.dumps(row) + "\n").encode() for row in responses)
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch.object(adapters.subprocess, "Popen", return_value=process))
+        stack.enter_context(mock.patch.object(adapters.selectors, "DefaultSelector", return_value=selector))
+        stack.enter_context(mock.patch.object(adapters.os, "read", return_value=raw))
+        stack.enter_context(mock.patch.object(adapters.os, "killpg",
+                                             side_effect=PermissionError("fixture group signal denied")
+                                             if cleanup_failure == "kill_permission" else None))
+        try:
+            yield process, waits, selector
+        finally:
+            process.closed_by_probe = process.stdin.closed and process.stdout.closed
+            for stream in (process.stdin, process.stdout):
+                stream.close()
+
+
 @test("default manual plan is local, read-only and never inherits enabled budgets")
 def manual_plan(f):
     plan = objects(f.run("plan", mode=None))[-1]
@@ -194,6 +267,98 @@ def disabled(f):
         f.config(**settings)
         f.run(expected=None)
         require(not f.invoked(), "disabled configuration performed work")
+
+
+@test("missing native CLI is a deterministic handoff and does not block a later manual controller")
+def missing_preflight(f):
+    (f.bin / "claude").unlink()
+    f.environment["PATH"] = str(f.bin) + ":/usr/bin:/bin:/usr/sbin:/sbin"
+    result = f.run(expected=None)
+    require("missing" in (result.stdout + result.stderr).lower(), "fixture did not reach missing CLI preflight")
+    require(f.checkpoint()["uncertain"] is False, "missing executable fabricated uncertain process ownership")
+    require(not (f.root / ".factory/budget.json").exists() and not f.invoked(), "missing CLI admitted a model")
+    (f.root / "product.txt").write_text("good\n")
+    f.run(mode="manual", task="manual_after_missing")
+    require(f.roles() == ["check"], "deterministic preflight prevented later manual check")
+
+
+@test("unsupported native flags stop without uncertainty and permit later manual checks")
+def unsupported_preflight(f):
+    result = f.run(fixture="unsupported", expected=None)
+    require("required flags" in (result.stdout + result.stderr).lower(), "fixture missed required flags rejection")
+    require(f.checkpoint()["uncertain"] is False, "known completed help probe fabricated uncertain process")
+    require(not (f.root / ".factory/budget.json").exists() and not f.invoked(), "unsupported CLI admitted a model")
+    (f.root / "product.txt").write_text("good\n")
+    f.run(mode="manual", task="manual_after_flags")
+    require(f.roles() == ["check"], "unsupported CLI blocked independent manual check")
+
+
+def check_probe_ownership(f, malformed, cleanup_failure=None):
+    with prepared_controller(f) as (controller, modules, record):
+        adapters = modules["budget_adapters"]
+        probes = []
+
+        def preflight(*_args):
+            with stuck_probe(adapters, f.root, malformed, cleanup_failure) as (process, waits, selector):
+                probes.append((process, waits, selector))
+                adapters._codex_hook_preflight("fixture-codex", str(f.root), [])
+
+        with mock.patch.object(adapters, "preflight", preflight):
+            require(controller.execute() != 0, "unconfirmed capability probe reported success")
+        process, waits, selector = probes[0]
+        require(record["uncertain"] and record["process_pid"] == process.pid,
+                "unconfirmed pre-admission probe lost process ownership/PID")
+        require(waits and all(isinstance(value, (int, float)) and 0 < value <= 5 for value in waits),
+                "probe cleanup performed unbounded waits")
+        require(process.closed_by_probe and selector.close.called, "probe leaked resources")
+        require("unconfirmed" in record["stop_reason"].lower(), "parse error masked unconfirmed cleanup")
+        require(not (f.root / ".factory/budget.json").exists(), "probe unexpectedly admitted a paid run")
+    count = len(f.invoked())
+    f.run(mode="manual", task="manual_after_probe", expected=None)
+    require(len(f.invoked()) == count, "manual controller overlapped unconfirmed probe")
+
+
+@test("unconfirmed Codex hook probe before admission retains PID and blocks manual overlap")
+def unconfirmed_preflight(f):
+    check_probe_ownership(f, malformed=False)
+
+
+@test("malformed Codex probe response cannot mask cleanup uncertainty or lose owned PID")
+def malformed_unconfirmed_preflight(f):
+    check_probe_ownership(f, malformed=True)
+
+
+@test("probe signal permission and final wait errors retain ownership with bounded cleanup")
+def probe_cleanup_errors(f):
+    errors = []
+    for mode in ("kill_permission", "wait_oserror"):
+        case = Fixture(f.root.parent, "cleanup_" + mode)
+        try:
+            check_probe_ownership(case, malformed=False, cleanup_failure=mode)
+        except AssertionError as error:
+            errors.append(mode + ": " + str(error))
+    require(not errors, "; ".join(errors))
+
+
+@test("unreadable accounting during a preflight exception remains uncertain and blocks manual work")
+def unreadable_preflight(f):
+    with prepared_controller(f, harness="claude") as (controller, modules, record):
+        original_read = controller.ledger.read
+        reads = []
+
+        def unreadable_after_preflight():
+            reads.append(True)
+            if len(reads) > 1:
+                raise modules["budget"].BudgetError("fixture accounting unreadable")
+            return original_read()
+
+        with mock.patch.object(controller.ledger, "read", unreadable_after_preflight), \
+                mock.patch.object(modules["budget_adapters"], "preflight", side_effect=ValueError("CLI lacks required flags")):
+            require(controller.execute() != 0, "unreadable accounting reported success")
+        require(len(reads) > 1 and record["uncertain"], "unreadable ledger was treated as proof of no owned process")
+    count = len(f.invoked())
+    f.run(mode="manual", task="manual_after_unreadable", expected=None)
+    require(len(f.invoked()) == count, "manual check bypassed uncertain accounting")
 
 
 @test("malformed modes, identities, limits and missing commands fail without side effects")

@@ -13,6 +13,9 @@ if "--version" in args:
     print(name + " fixture-1.0")
     sys.exit(0)
 if "--help" in args or "-h" in args:
+    if os.environ.get("LOOP_FIXTURE_MODE") == "unsupported":
+        print("unsupported fixture CLI")
+        sys.exit(0)
     print("exec run --json --format --output-format --agent --model -m -p --print --cd "
           "--sandbox --config -c --permission-mode --verbose --allowedTools "
           "--no-session-persistence --disable-slash-commands --ephemeral")

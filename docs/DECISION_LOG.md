@@ -1738,3 +1738,24 @@ with test_file_patterns scripts/selftest/. The loop and native test-edit hook mu
 use the same POSIX extended-regex semantics as language packs, and hash native
 permission/role files even when Git ignores them. Budget deadlines must be checked
 inside admission and immediately before spawn, including lock contention.
+
+Decision 47 review follow-up (2026-09-06, PR #72): deterministic native
+preflight rejection with readable accounting and no owned active process ends
+the loop without an uncertain checkpoint. Retain uncertainty for unreadable
+accounting, an active reservation for the current session/task, or an explicitly
+reported preflight process whose exit could not be confirmed. Propagate that
+probe ownership as a typed error carrying its PID, including when probe parsing
+fails before cleanup; an empty budget ledger alone cannot establish probe exit.
+Keep the original error visible, and correct the shared configuration citation
+to the actual reader and role-routing contract.
+
+Provenance: review comments read 2026-09-06:
+https://github.com/anoop2811/software-factory-template/pull/72#discussion_r3945498221
+https://github.com/anoop2811/software-factory-template/pull/72#discussion_r3945498232
+
+Review verification additionally reproduced signal/wait OSError during probe
+cleanup clearing ownership and admitting another manual controller. Cleanup must
+close probe resources despite those errors and retain typed PID ownership when
+termination or exit cannot be established. Provenance: observed 2026-09-06 by
+independent fault injection into the actual preflight/controller path during
+PR #72 review (LOOP-PREFLIGHT-CLEANUP-OSERROR).

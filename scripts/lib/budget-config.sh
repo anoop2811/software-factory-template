@@ -1,5 +1,6 @@
 #!/bin/bash
-# Shared parsed settings and role model resolution. docs/LOOPS.md:44.
+# Shared parsed budget settings: docs/LOOPS.md:29.
+# Shared role model resolution: docs/LOOPS.md:51.
 # Caller sources config.sh and roles.sh first.
 export FACTORY_BUDGET_ROOT
 FACTORY_BUDGET_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

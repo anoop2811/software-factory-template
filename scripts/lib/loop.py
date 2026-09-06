@@ -431,20 +431,26 @@ class Controller:
             status = budget.run(budget_args(self.args, role), self.budget_config, self.ledger, self.root,
                                 prompt_text=prompt, response_callback=lambda record, response: result.append((record, response)),
                                 quiet=True, deadline=self.deadline)
-        except BaseException:
+        except BaseException as error:
             # Publication can fail after a child was launched, before the result
-            # callback. Absence of a callback is not evidence of process exit.
-            self.record["uncertain"] = True
+            # callback. Read accounting to distinguish that ownership from a
+            # deterministic preflight rejection that never admitted a run.
+            probe_pid = (error.process_pid
+                         if isinstance(error, budget.budget_adapters.UnconfirmedProcessError) else None)
+            self.record["uncertain"] = probe_pid is not None
+            if probe_pid is not None:
+                self.record["process_pid"] = probe_pid
             try:
                 active = [entry for entry in self.ledger.read()["runs"] if entry["status"] == "active"
                           and entry["session"] == self.args.session and entry["task"] == self.args.task]
+                self.record["uncertain"] = self.record["uncertain"] or bool(active)
                 for entry in active:
                     if entry["id"] not in self.record["budget_runs"]:
                         self.record["budget_runs"].append(entry["id"])
-                    if entry["process_pid"] is not None:
+                    if probe_pid is None and entry["process_pid"] is not None:
                         self.record["process_pid"] = entry["process_pid"]
             except (budget.BudgetError, OSError, ValueError):
-                pass  # Unreadable accounting cannot establish exit either.
+                self.record["uncertain"] = True  # Unreadable accounting cannot establish exit.
             raise
         if not result:
             raise LoopError("budget admission or native readiness blocked " + role)

@@ -149,8 +149,12 @@ def validate_history(data):
             if not isinstance(run.get(key), str):
                 raise BudgetError("malformed budget history: invalid " + key)
         if run["status"] == "active":
-            if run["outcome"] != "running" or run.get("ended_at") is not None:
+            if run["outcome"] not in ("running", "timeout", "launch_error") or run.get("ended_at") is not None:
                 raise BudgetError("malformed budget history: inconsistent active run")
+            if run["outcome"] != "running" and (
+                    run.get("process_pid") is None or run.get("exit_code") is not None
+                    or run["complete"] or run["estimated_usd"] is not None or run["tokens"] is not None):
+                raise BudgetError("malformed budget history: inconsistent unconfirmed exit")
         elif not isinstance(run.get("ended_at"), str) or run["outcome"] == "running":
             raise BudgetError("malformed budget history: inconsistent completed run")
     return data
@@ -254,7 +258,9 @@ def make_plan(args, config, history):
         number(args.max_cost_usd, "--max-cost-usd")
         blockers.append("strict USD ceilings are unsupported for all harnesses; estimates are not billing limits")
     for record in active:
-        if not alive(record["owner_pid"]):
+        if record["outcome"] != "running":
+            blockers.append("unconfirmed process exit for run {}: confirm its process group is stopped, then recover its metadata using docs/BUDGETS.md".format(record["id"]))
+        elif not alive(record["owner_pid"]):
             blockers.append("stale active run {}: confirm its process group is stopped, then recover its metadata using docs/BUDGETS.md; do not delete the attempt".format(record["id"]))
     if plan["remaining_attempts"] == 0:
         blockers.append("task attempt limit reached")
@@ -366,6 +372,7 @@ def execute(argv, stdin_text, root, overrides, allowance, on_spawn):
     proc = None
     output = bytearray()
     outcome = "completed"
+    code = None
 
     def interrupted(signum, _frame):
         caught.append(signum)
@@ -428,22 +435,32 @@ def execute(argv, stdin_text, root, overrides, allowance, on_spawn):
                     outcome = "timeout"
                 else:
                     time.sleep(0.02)
-        terminate_group(proc)
-        code = proc.wait(timeout=5)
-        if code != 0 and outcome == "completed":
-            outcome = "failed"
-        return outcome, code, time.monotonic() - start, bytes(output)
     except OSError as exc:
         raise BudgetError("could not launch harness: {}".format(exc.strerror)) from exc
     finally:
-        if proc is not None:
-            terminate_group(proc)
-            proc.wait(timeout=5)
-            for stream in (proc.stdin, proc.stdout, proc.stderr):
-                if stream is not None and not stream.closed:
-                    stream.close()
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
+        try:
+            if proc is not None:
+                try:
+                    terminate_group(proc)
+                    try:
+                        code = proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        # Decision 46: docs/DECISION_LOG.md:1699. SIGKILL is a
+                        # request, not proof of exit; keep admission reserved.
+                        outcome = "timeout"
+                finally:
+                    for stream in (proc.stdin, proc.stdout, proc.stderr):
+                        if stream is not None and not stream.closed:
+                            try:
+                                stream.close()
+                            except OSError:
+                                pass
+        finally:
+            for signum, handler in previous.items():
+                signal.signal(signum, handler)
+    if code != 0 and outcome == "completed":
+        outcome = "failed"
+    return outcome, code, time.monotonic() - start, bytes(output)
 
 
 def run(args, config, ledger, root):
@@ -482,12 +499,13 @@ def run(args, config, ledger, root):
         ledger.write(history)
 
     def on_spawn(pid):
+        # Retain ownership locally even when persisting the PID fails.
+        record["process_pid"] = pid
         with ledger.locked():
             data = ledger.read()
             for current in data["runs"]:
                 if current["id"] == record["id"]:
                     current["process_pid"] = pid
-                    record["process_pid"] = pid
                     break
             else:
                 raise BudgetError("active run disappeared from ledger; stopping invocation")
@@ -498,6 +516,7 @@ def run(args, config, ledger, root):
     try:
         outcome, code, elapsed, raw = execute(argv, stdin_text, root, overrides,
                                               record["reserved_seconds"], on_spawn)
+        record.update(outcome=outcome, exit_code=code, elapsed_seconds=elapsed)
         events = parse_events(raw)
         metadata = budget_adapters.normalize(args.harness, events)
         del raw
@@ -524,7 +543,14 @@ def run(args, config, ledger, root):
         record["warnings"].append("invocation or metadata processing failed; cost is unknown")
         print("factory budget: " + str(exc), file=sys.stderr)
     finally:
-        record.update(status="completed", ended_at=now())
+        if record["process_pid"] is not None and record["exit_code"] is None:
+            # Preserve the attempt, time and concurrency reservation whenever
+            # process exit was not confirmed, including supervisor errors.
+            record["warnings"].append(
+                "process exit is unconfirmed; reservation retained; confirm the "
+                "process group has stopped before recovery in docs/BUDGETS.md")
+        else:
+            record.update(status="completed", ended_at=now())
         with ledger.locked():
             history = ledger.read()
             for index, current in enumerate(history["runs"]):

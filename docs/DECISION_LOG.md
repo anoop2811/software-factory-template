@@ -1695,3 +1695,15 @@ Provenance: user requested the P0 budgeting/observability item, all three harnes
 and the unchanged roadmap table with completion percentages, 2026-09-06. Native
 CLI and usage sources are recorded in docs/BUDGETS.md. Claude cost reporting is
 a client estimate per its official cost-tracking documentation fetched today.
+
+Review follow-up (2026-09-06, PR #71): all post-signal process waits must be
+bounded and TimeoutExpired must not skip pipe closure or signal restoration.
+If a launched harness cannot be reaped, return timeout with unknown exit/cost
+and retain its active reservation until documented recovery confirms exit.
+A Codex probe whose cleanup cannot confirm exit must refuse launch. Match the
+existing primary CI checkout major tag (v7) in budget acceptance. Python wait
+semantics: https://docs.python.org/3/library/subprocess.html#subprocess.Popen.wait
+(fetched 2026-09-06); review provenance:
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278692
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278713
+https://github.com/anoop2811/software-factory-template/pull/71#discussion_r3945278732

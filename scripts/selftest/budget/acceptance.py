@@ -1,6 +1,9 @@
 """Subprocess acceptance for docs/BUDGETS.md:121; no real CLI invocation."""
 import json
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager, ExitStack, redirect_stderr
+import importlib.util
+import io
 import os
 from pathlib import Path
 import shutil
@@ -10,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
+from unittest import mock
 
 
 SOURCE = Path(sys.argv[1]).resolve()
@@ -136,6 +141,177 @@ def cleanup(process, child=None):
         process.communicate()
     if child and not stopped(child):
         os.kill(child, signal.SIGKILL)
+
+
+@contextmanager
+def runtime_modules(f):
+    """Load the fixture's runtime for deterministic OS-failure injection."""
+    modules = []
+    for name in ("budget_adapters", "budget"):
+        spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, {"budget_adapters": modules[0]} if modules else {}):
+            spec.loader.exec_module(module)
+        modules.append(module)
+    yield modules[1], modules[0]
+
+
+@contextmanager
+def unreapable_process(module):
+    """An owned process can remain unreapable even after its group is killed."""
+    process = SimpleNamespace(pid=424242, poll=lambda: 0)
+    process.stdin, process.stdout, process.stderr = [tempfile.TemporaryFile() for _ in range(3)]
+    waits = []
+
+    def wait(timeout=None):
+        waits.append(timeout)
+        raise subprocess.TimeoutExpired("fixture-owned-process", timeout)
+
+    process.wait = wait
+    selector = mock.MagicMock()
+    selector.__enter__.return_value = selector
+    selector.get_map.return_value = {}
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch.object(module.subprocess, "Popen", return_value=process))
+        stack.enter_context(mock.patch.object(module.selectors, "DefaultSelector", return_value=selector))
+        stack.enter_context(mock.patch.object(module.os, "killpg"))
+        try:
+            yield process, waits, selector
+        finally:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                stream.close()
+
+
+def bounded_waits(waits):
+    require(waits and all(isinstance(timeout, (int, float)) and 0 < timeout <= 5 for timeout in waits),
+            "owned-process cleanup performed an unbounded wait: " + repr(waits))
+
+
+def restored_execution_state(process, handlers):
+    require(all(stream.closed for stream in (process.stdin, process.stdout, process.stderr)),
+            "reaping timeout skipped pipe closure")
+    require(all(signal.getsignal(signum) == handler for signum, handler in handlers.items()),
+            "reaping timeout left supervisor signal handlers installed")
+
+
+@test("unconfirmed harness exit remains timed out and blocks admission with its reservation")
+def unreaped_run(f):
+    with runtime_modules(f) as (budget, adapters):
+        config = dict(enabled=True, action="stop", max_attempts=8, max_session_runs=15,
+                      timeout_seconds=30, session_seconds=90, max_concurrent=3, estimated_usd=None)
+        args = SimpleNamespace(harness="claude", role="implementer", session="session", task="task",
+                               max_cost_usd=None, prompt_file=str(f.prompt), json=True)
+        handlers = {signum: signal.getsignal(signum) for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+        ledger = budget.Ledger(f.root)
+        with unreapable_process(budget) as (process, waits, _selector), \
+                mock.patch.object(adapters, "preflight"), mock.patch.object(budget, "emit"):
+            try:
+                result = budget.run(args, config, ledger, f.root)
+            finally:
+                restored_execution_state(process, handlers)
+            bounded_waits(waits)
+            require(result == 124, "unconfirmed process exit did not return timeout")
+        record = ledger.read()["runs"][-1]
+        require(record["status"] == "active" and record["outcome"] == "timeout" and
+                record["exit_code"] is None and record["ended_at"] is None,
+                "unconfirmed exit was marked completed: " + repr(record))
+        require(record["estimated_usd"] is None and record["tokens"] is None and not record["complete"],
+                "unconfirmed exit claimed complete usage")
+        require(record["reserved_seconds"] == 30 and record["process_pid"] == process.pid,
+                "unconfirmed process lost its charged reservation or recovery identity")
+        plan = budget.make_plan(args, config, ledger.read())
+        require(plan["blockers"] and plan["remaining_session_seconds"] == 60,
+                "unconfirmed process freed admission or reserved session time")
+
+
+@test("cleanup reaping timeout preserves the original error and restores execution state")
+def unreaped_error(f):
+    with runtime_modules(f) as (budget, _adapters):
+        handlers = {signum: signal.getsignal(signum) for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+        original = ValueError("fixture admission callback failed")
+
+        def fail_after_spawn(_pid):
+            raise original
+
+        with unreapable_process(budget) as (process, waits, _selector):
+            caught = None
+            try:
+                budget.execute(["fixture"], "", f.root, {}, 30, fail_after_spawn)
+            except Exception as error:
+                caught = error
+            finally:
+                restored_execution_state(process, handlers)
+            bounded_waits(waits)
+            require(caught is original, "cleanup reaping timeout replaced the original execution error: " + repr(caught))
+
+
+@test("spawn-ledger failure retains an unreaped process identity and blocks admission")
+def unreaped_spawn_ledger(f):
+    with runtime_modules(f) as (budget, adapters):
+        config = dict(enabled=True, action="stop", max_attempts=8, max_session_runs=15,
+                      timeout_seconds=30, session_seconds=90, max_concurrent=3, estimated_usd=None)
+        args = SimpleNamespace(harness="claude", role="implementer", session="session", task="task",
+                               max_cost_usd=None, prompt_file=str(f.prompt), json=True)
+        ledger = budget.Ledger(f.root)
+        locked = ledger.locked
+        calls = []
+        original_message = "fixture spawn-ledger write unavailable"
+
+        @contextmanager
+        def fail_spawn_lock():
+            calls.append(True)
+            if len(calls) == 2:
+                raise budget.BudgetError(original_message)
+            with locked():
+                yield
+
+        error_output = io.StringIO()
+        handlers = {signum: signal.getsignal(signum) for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+        with unreapable_process(budget) as (process, waits, _selector), \
+                mock.patch.object(adapters, "preflight"), mock.patch.object(budget, "emit"), \
+                mock.patch.object(ledger, "locked", side_effect=fail_spawn_lock), redirect_stderr(error_output):
+            try:
+                result = budget.run(args, config, ledger, f.root)
+            finally:
+                restored_execution_state(process, handlers)
+            bounded_waits(waits)
+        require(result != 0 and original_message in error_output.getvalue(),
+                "spawn failure was hidden or replaced by cleanup failure")
+        record = ledger.read()["runs"][-1]
+        require(record["status"] == "active" and record["process_pid"] == process.pid and
+                record["exit_code"] is None and record["ended_at"] is None,
+                "spawn-ledger failure freed the still-unconfirmed process: " + repr(record))
+        require(record["reserved_seconds"] == 30 and record["estimated_usd"] is None and
+                record["tokens"] is None and not record["complete"],
+                "spawn-ledger failure lost its reservation or claimed usage")
+        plan = budget.make_plan(args, config, ledger.read())
+        require(plan["blockers"] and plan["remaining_session_seconds"] == 60,
+                "spawn-ledger failure admitted another run or freed reserved time")
+
+
+@test("Codex hook probe cleanup is bounded and refuses launch when exit is unconfirmed")
+def unreaped_probe(f):
+    with runtime_modules(f) as (_budget, adapters):
+        responses = [
+            {"id": 2, "result": {"config": {"features": {"hooks": True}}}},
+            {"id": 3, "result": {"data": [{"cwd": str(f.root), "errors": [], "hooks": [{
+                "eventName": "preToolUse", "handlerType": "command", "command": adapters.CODEX_COMMAND,
+                "matcher": adapters.CODEX_MATCHER, "enabled": True, "trustStatus": "trusted", "async": False}]}]}},
+            {"id": 4, "result": {"requirements": None}},
+        ]
+        raw = b"".join((json.dumps(row) + "\n").encode() for row in responses)
+        with unreapable_process(adapters) as (process, waits, selector), \
+                mock.patch.object(adapters.os, "read", return_value=raw):
+            selector.select.return_value = [True]
+            caught = None
+            try:
+                adapters._codex_hook_preflight("fixture-codex", str(f.root), [])
+            except Exception as error:
+                caught = error
+            bounded_waits(waits)
+            require(process.stdin.closed and process.stdout.closed, "Codex probe timeout leaked pipes")
+            require(isinstance(caught, ValueError), "unconfirmed Codex probe exit did not refuse launch: " + repr(caught))
+            require(selector.close.called, "Codex probe timeout leaked its selector")
 
 
 @test("plan and empty report are local and read-only")

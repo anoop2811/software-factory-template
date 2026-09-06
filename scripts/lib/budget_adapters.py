@@ -52,6 +52,7 @@ def _codex_hook_preflight(binary, root, flags):
     process = None
     poller = selectors.DefaultSelector()
     responses = {}
+    cleanup_timed_out = False
     try:
         process = subprocess.Popen([binary, "app-server"] + flags, cwd=root,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
@@ -104,9 +105,19 @@ def _codex_hook_preflight(binary, root, flags):
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-            process.wait()
-            process.stdin.close()
-            process.stdout.close()
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                cleanup_timed_out = True
+            finally:
+                for stream in (process.stdin, process.stdout):
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
+    if cleanup_timed_out:
+        raise ValueError("Codex hook capability probe exit is unconfirmed; "
+                         "confirm process group {} has stopped before retrying".format(process.pid))
     try:
         effective = responses[2]["result"]["config"]
         features = effective.get("features", {}) or {}

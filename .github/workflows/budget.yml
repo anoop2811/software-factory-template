@@ -19,6 +19,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7
       - name: Budget admission and harness fixtures (no paid calls)
         run: ./scripts/selftest/budget.sh

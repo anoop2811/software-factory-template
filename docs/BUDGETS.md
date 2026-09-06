@@ -117,16 +117,21 @@ without retaining it; `--json` emits only the plan and run metadata as JSON line
 Admission and completion are atomic and safe under concurrent commands. Refuse
 symlinked storage, malformed history or unknown schema before launching; do not
 reset corrupt state. Interrupted invocations consume an attempt and keep cost
-unknown. Termination/timeouts kill the owned process group and cannot leave
-children holding the invocation open. If a run record remains active after an
+unknown. Termination/timeouts send SIGKILL to the owned process group and wait
+at most five additional seconds for the harness to exit. Cleanup closes pipes
+and restores signal handlers even if that wait expires. An unconfirmed exit
+returns a timeout with a null exit code and keeps the reservation active; it
+blocks further admission until recovery confirms that the group has stopped.
+If a run record remains active after an
 unclean supervisor death, fail closed and provide a documented recovery route;
 never silently treat it as a free attempt. Local metadata is not a security
 boundary against an agent or user with filesystem access.
 
 ### Recovering an unclean interruption
 
-Normally signal/timeout cleanup finishes the run record automatically. If the
-supervisor itself was forcibly killed, `plan` names the stale run and refuses
+Normally signal/timeout cleanup finishes the run record automatically. If exit
+could not be confirmed or the supervisor was forcibly killed, `plan` names the
+unconfirmed or stale run and refuses
 further launches. Preserve the ledger and confirm the recorded owner_pid and
 process_pid process group have stopped before recovering the record. Do not
 delete history to regain attempts.
@@ -156,6 +161,8 @@ do not sum cumulative events twice. Each adapter records its usage source.
   (or managed). An untrusted or modified hook blocks the run and prints the
   native trust/setup instruction. Never use a hook-trust bypass or erase
   existing user/project hooks. The bounded probe makes no model request.
+  Probe cleanup allows one second after SIGTERM and one second after SIGKILL;
+  if exit is still unconfirmed, preflight refuses to launch the harness.
 - Claude Code: `-p --output-format json --agent ROLE`, native permission mode
   derived from canonical edit permission (plan for edit-denied roles,
   acceptEdits otherwise);
@@ -215,12 +222,16 @@ factory never grants that trust automatically.
 
 Observed 2026-09-06:
 
-- `bash scripts/selftest/budget.sh`: `budget: 28 passed, 0 failed` (exit 0).
+- `bash scripts/selftest/budget.sh`: `budget: 32 passed, 0 failed` (exit 0).
 - `bash scripts/selftest/run.sh`: `selftest: 217 passed, 0 failed, 0 skipped` (exit 0).
 - `make eval`: `PASS harness=opencode`, `PASS harness=claude`, `PASS harness=codex`.
 - Review regressions were observed red, then green: adopted CI referred to a
   missing budget fixture; Claude reviewer selected acceptEdits instead of plan.
   Isolated removal of required native CLI flags is now rejected by acceptance.
+- PR #71 cleanup regressions were observed red, then green: unreaped harness,
+  exception-path cleanup, unreaped Codex probe, and post-spawn ledger failure.
+  Fault injection proves bounded waits, restored handlers and closed pipes,
+  retained process identity/reservation, and blocked admission after uncertain exit.
 
 The suite uses fake native executables and real controller processes, including
 timeouts, signals, parallel admission, and installer/upgrade copying. It proves

@@ -69,9 +69,9 @@ The third idea is that this is already a graph. The vocabulary everyone's chasin
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins | battle-tested |
 | TypeScript / React / Vue | Vitest, Biome (React/Vue-aware format + lint), tsc, Stryker, OSV-Scanner | experimental |
-| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless, Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT | experimental |
+| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless, Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT; Gradle or Maven | beta |
 
-Labels are evidence, not roadmap: battle-tested means a real project shipped under the pack, beta means at least one real repo adopted it, experimental means no proven adopter yet (the stack may ship complete, as Java's and TypeScript's do — the label tracks adoption, not completeness).
+Labels are evidence, not roadmap: battle-tested means a real project shipped under the pack, beta means at least one real repo adopted it, experimental means no proven adopter yet (the label tracks adoption, not completeness).
 
 Frameworks ride on the language pack, not their own: React and Vue use the TypeScript pack (Biome auto-applies its `react`/`vue` rules), Spring Boot uses the Java pack (JUnit 5 + Testcontainers). `factory-init` detects them and points you at the right pack. Install several at once for polyglot repos — `--pack go,typescript`.
 

@@ -1,0 +1,104 @@
+<!--
+  Merge these plugins into build/plugins in your shared parent pom.xml;
+  this is a snippet, not a replacement POM. Keep existing plugin settings and
+  annotation processors. Run Maven with JDK 21+ for Error Prone.
+  Version sources and integration contract: docs/adr/0045-maven-adoption.md:1.
+-->
+<build>
+  <plugins>
+    <plugin>
+      <groupId>com.diffplug.spotless</groupId>
+      <artifactId>spotless-maven-plugin</artifactId>
+      <version>3.10.2</version>
+      <configuration>
+        <java>
+          <palantirJavaFormat><version>2.97.0</version></palantirJavaFormat>
+          <removeUnusedImports/>
+          <trimTrailingWhitespace/>
+          <endWithNewline/>
+        </java>
+      </configuration>
+      <executions>
+        <execution>
+          <id>factory-format</id>
+          <phase>validate</phase>
+          <goals><goal>check</goal></goals>
+        </execution>
+      </executions>
+    </plugin>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <version>3.16.0</version>
+      <configuration>
+        <fork>true</fork>
+        <compilerArgs>
+          <arg>-XDcompilePolicy=simple</arg>
+          <arg>--should-stop=ifError=FLOW</arg>
+          <arg>-Xplugin:ErrorProne</arg>
+          <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+          <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+          <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+          <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+        </compilerArgs>
+        <annotationProcessorPaths>
+          <path>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_core</artifactId>
+            <version>2.50.0</version>
+          </path>
+          <!-- Retain Lombok, MapStruct, and other existing processors here. -->
+        </annotationProcessorPaths>
+      </configuration>
+    </plugin>
+    <plugin>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-maven-plugin</artifactId>
+      <version>4.10.4.1</version>
+      <configuration>
+        <effort>Max</effort>
+        <threshold>Low</threshold>
+        <plugins>
+          <plugin>
+            <groupId>com.h3xstream.findsecbugs</groupId>
+            <artifactId>findsecbugs-plugin</artifactId>
+            <version>1.14.0</version>
+          </plugin>
+        </plugins>
+      </configuration>
+      <executions>
+        <execution>
+          <id>factory-bugs</id>
+          <phase>verify</phase>
+          <goals><goal>check</goal></goals>
+        </execution>
+      </executions>
+    </plugin>
+    <plugin>
+      <groupId>org.pitest</groupId>
+      <artifactId>pitest-maven</artifactId>
+      <version>1.30.0</version>
+      <dependencies>
+        <dependency>
+          <groupId>org.pitest</groupId>
+          <artifactId>pitest-junit5-plugin</artifactId>
+          <version>1.2.2</version>
+        </dependency>
+      </dependencies>
+      <configuration>
+        <!-- Scope these patterns to the packages whose behavior matters most. -->
+        <targetClasses><param>com.example.*</param></targetClasses>
+        <targetTests><param>com.example.*</param></targetTests>
+        <timestampedReports>false</timestampedReports>
+        <mutationThreshold>0</mutationThreshold>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>

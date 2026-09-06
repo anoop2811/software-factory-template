@@ -85,7 +85,7 @@ Real apps are often polyglot, so `factory-init` takes more than one pack — `--
 |---|---|---|
 | Go | Ginkgo v2 + Gomega, golangci-lint, gosec, govulncheck, gremlins (mutation) | battle-tested |
 | TypeScript | Vitest, Biome (format + lint), tsc, Stryker (mutation), OSV-Scanner | experimental |
-| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation) | experimental |
+| Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation); Gradle or Maven | beta |
 
 The labels mean:
 
@@ -171,3 +171,47 @@ A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the w
 4. **Wire it into CI** so the gate runs on every pull request, not just locally.
 
 For a spec to write your gates against, `specs/TEMPLATE.md` is a spec template to copy. For how the template measures agent quality end to end, see [eval/README.md](../eval/README.md).
+
+## Running pack hooks
+
+Execute pack hooks directly (for example, `./scripts/hooks/junit5-only-check.sh`)
+or with `bash`. Do not prefix them with `sh`: it overrides the Bash shebang,
+including on macOS where sh is Bash in POSIX mode. Pack dialect gates report
+this invocation mistake with exit 2 before parsing their Bash-only syntax.
+
+## Optional pack sources and selftest coverage
+
+An installed language gate lives in `scripts/hooks/`; keep it while that pack
+is configured. The upstream `packs/go/`, `packs/java/`, and `packs/typescript/`
+source directories are not required in an adopted repository.
+`packs/review-lane/review-pr.yml` is separate: keep it if you want to enable or
+reinstall the optional review lane. Removing it does not disable an already
+installed workflow; use `./factory review-lane disable` for that. An upgrade
+may restore the shipped review-lane template.
+
+Selftest prints a named skip for each fixture group whose optional source is
+missing, then continues through the remaining checks and reports the number
+of skipped groups. A skip means reduced coverage, never a proven gate. Core
+`scripts/`, shared libraries, and `templates/metrics.html` are still required.
+Template CI exercises these omissions with
+`./scripts/selftest/optional-packs.sh`; adopters run the normal selftest.
+
+## Maven projects
+
+`factory-init.sh --pack java` uses Maven when `pom.xml` or `mvnw` exists and
+there is no `gradlew`. An executable Maven wrapper takes precedence over system
+`mvn`. Use `--java-build-tool maven` or `--java-build-tool gradle` to choose
+explicitly in a mixed build. No build-tool hint retains the Gradle default.
+
+Maven installs receive native Makefile targets, a Maven CI workflow, and
+`quality-maven.xml` instead of `quality.gradle`. The initial checks run the
+existing Maven verify lifecycle and the JUnit dialect gate. Merge the quality
+snippet into the shared parent POM to activate Spotless, Error Prone, and
+SpotBugs; PIT remains an explicit mutation command. The installer preserves
+your POM. See the installed `MAVEN.md` or the template
+[packs/java/maven/MAVEN.md](../packs/java/maven/MAVEN.md) for integration steps
+and the Surefire `-Dtest` include-replacement trap.
+
+The Java pack is beta based on Duke42's reported Maven adoption with local
+adaptations ([issue #66](https://github.com/anoop2811/software-factory-template/issues/66)).
+That evidence does not imply every Maven setup is supported.

@@ -1,7 +1,6 @@
-# Java / Spring Boot language pack — maturity: experimental
-# (the full stack and CI now ship, but no real repository has adopted this
-# pack yet; the label changes to beta on first real adoption, per Decision 3
-# and Decision 12.)
+# Java / Spring Boot language pack — maturity: beta
+# First real adoption: Duke42, with local Maven adaptations, reported in #66
+# on 2026-08-26. Native Maven generation is covered by template acceptance tests.
 #
 # Blessed stack — one per language (Decision 3), verified current 2026-07-17
 # against each tool's release page (re-check before adoption; pinned so a
@@ -17,9 +16,10 @@
 # Gradle wrapper preferred; Maven wrapper supported.
 
 pack_name: java
-maturity: experimental
+maturity: beta
 test_file_patterns: "(Test|Tests|IT|ITCase)\.java$"
 check_command: "./gradlew spotlessCheck test && ./scripts/hooks/junit5-only-check.sh"
+maven_check_command: "__MAVEN_COMMAND__ -B verify && ./scripts/hooks/junit5-only-check.sh"
 
 # Files installed by factory-init:
 #   quality.gradle             -> repository root (apply from your build.gradle)

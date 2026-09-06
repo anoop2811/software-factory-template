@@ -1,4 +1,9 @@
 #!/bin/bash
+# docs/DECISION_LOG.md:1637 — reject sh before it parses Bash-only syntax.
+if [ -z "${BASH_VERSION:-}" ] || shopt -oq posix; then
+  echo "${0##*/}: must be run with bash, not sh; execute the script directly or use bash \"$0\"." >&2
+  exit 2
+fi
 set -euo pipefail
 
 # Enforce the TypeScript pack's single test dialect: Vitest. Imports of other

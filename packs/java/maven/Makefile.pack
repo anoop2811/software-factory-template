@@ -1,0 +1,29 @@
+# Maven Java targets. Merge quality-maven.xml into the parent POM before
+# using format, sec, or mutate. The installer preserves the original POM.
+# docs/adr/0045-maven-adoption.md:1
+FACTORY_MAVEN ?= __MAVEN_COMMAND__
+
+.PHONY: format lint test sec mutate citation-hooks
+
+format:
+	$(FACTORY_MAVEN) -B spotless:apply
+
+lint:
+	$(FACTORY_MAVEN) -B verify
+	./scripts/hooks/junit5-only-check.sh
+
+test:
+	$(FACTORY_MAVEN) -B test
+
+sec:
+	$(FACTORY_MAVEN) -B compile spotbugs:check
+
+mutate:
+	$(FACTORY_MAVEN) -B test-compile org.pitest:pitest-maven:1.30.0:mutationCoverage
+
+check: lint citation-hooks
+
+citation-hooks:
+	./scripts/citation-lint.sh
+	./scripts/hooks/shared-script-enforcement.sh
+	./scripts/hooks/hook-existence-check.sh

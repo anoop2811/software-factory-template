@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '__JAVA_VERSION__'
+          cache: maven
+
+      - name: Set up Go for actionlint
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version: stable
+
+      - name: Maven lifecycle and configured quality plugins
+        run: __MAVEN_COMMAND__ -B verify
+
+      - name: OSV-Scanner (dependency CVEs)
+        uses: google/osv-scanner-action/osv-scanner-action@v2.5.1
+        with:
+          scan-args: |-
+            --recursive
+            ./
+
+      - name: actionlint
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
+
+      - name: citation-lint
+        run: ./scripts/citation-lint.sh
+
+      - name: wiki-lint
+        run: ./scripts/hooks/wiki-lint.sh
+
+      - name: junit5-only-check
+        run: ./scripts/hooks/junit5-only-check.sh
+
+      - name: shared-script-enforcement
+        run: ./scripts/hooks/shared-script-enforcement.sh
+
+      - name: hook-existence-check
+        run: ./scripts/hooks/hook-existence-check.sh
+
+      - name: diff-aware-check
+        run: ./scripts/hooks/diff-aware-check.sh origin/${{ github.base_ref || 'main' }} HEAD
+
+      - name: decision-log-gate
+        if: github.event_name == 'pull_request'
+        run: ./scripts/hooks/decision-log-gate.sh origin/${{ github.base_ref }} ${{ github.event.pull_request.head.sha }}
+
+      - name: pending-lessons-push-block
+        run: ./scripts/hooks/pending-lessons-push-block.sh
+
+      - name: commit-message-lint
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "$BASE" 2>/dev/null || true
+          for sha in $(git rev-list "$BASE..$HEAD_SHA"); do
+            echo "--- $sha ---"
+            ./scripts/hooks/commit-message-lint.sh "$sha"
+          done
+
+      - name: Claude config drift check
+        run: |
+          chmod +x scripts/sync-claude.sh
+          make sync-claude
+          if ! git diff --quiet .claude/ .mcp.json; then
+            echo "DRIFT: Claude config does not match opencode.json sync output."
+            echo "Run 'make sync-claude' locally and commit the changes."
+            git diff --stat .claude/ .mcp.json
+            exit 1
+          fi
+
+      - name: Codex config drift check
+        run: |
+          chmod +x scripts/sync-codex.sh
+          make sync-codex
+          if ! git diff --quiet .codex/; then
+            echo "DRIFT: Codex config does not match canonical opencode role sources."
+            echo "Run 'make sync-codex' locally and commit the changes."
+            git diff --stat .codex/
+            exit 1
+          fi
+
+      - name: Harness structural parity
+        run: |
+          ./scripts/harness-structural-eval.sh --harness=opencode
+          ./scripts/harness-structural-eval.sh --harness=claude
+          ./scripts/harness-structural-eval.sh --harness=codex
+
+  golden-task-eval:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '__JAVA_VERSION__'
+
+      # Scores the agents when a key is configured, and the scorer itself when
+      # one is not. A CI job that cannot pass without a credential nobody was
+      # asked for is a job that fails for every adopter on day one — and the
+      # factory never asks for this key unless you enable the review lane, which
+      # is a different feature that happens to use the same secret.
+      - name: Golden-task evals
+        run: |
+          if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+            ./scripts/golden-task-eval.sh --harness opencode
+          else
+            echo "No OPENROUTER_API_KEY configured — scoring with the mock runner."
+            echo "It calls no model: this proves the scorer, not the agents."
+            echo "Add the secret to score real agent runs here."
+            ./scripts/golden-task-eval.sh
+          fi
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

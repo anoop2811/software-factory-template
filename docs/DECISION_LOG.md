@@ -1633,3 +1633,46 @@ origin/main^{tree}` (both returned the tree above), and
 `git diff 427676a origin/main` (empty output), after fetching main.
 PR requirements and review responses: https://github.com/anoop2811/software-factory-template/pull/65
 (read 2026-09-06).
+
+## Decision 43 (2026-09-06): pack dialect gates explain an unsupported shell before parsing Bash syntax
+
+What: the Go, Java, and TypeScript dialect gates reject a non-Bash interpreter
+or Bash in POSIX mode with exit 2 and an instruction to execute the script
+directly or with bash. The guard uses POSIX syntax and runs before shell
+options, shared libraries, or Bash-only constructs. Normal Bash invocation
+retains the existing enforcement and exit statuses.
+
+Why: invoking a Bash script through sh overrides its shebang. A BASH_VERSION
+check alone misses macOS sh, which is Bash in POSIX mode. A piped enumeration
+rewrite would also move the violation counter into a subshell and risk losing
+failed checks. Keep the supported interpreter explicit.
+
+Provenance: GitHub issue #67 by @vshanbha, read 2026-09-06:
+https://github.com/anoop2811/software-factory-template/issues/67
+
+## Decision 44 (2026-09-06): selftest reports optional fixture omissions and continues
+
+What: selftest skips only fixture groups whose optional pack sources are absent,
+prints the group and missing path, and reports a skip count alongside passes
+and failures. Pack catalog, dialect, workflow, upgrade, and review-lane fixtures
+are optional in an adopted repository. Present fixtures still run and failures
+still fail the suite. Core scripts, libraries, and metrics templates remain
+required; removing them is not an optional-pack skip.
+
+Why: language pack sources are not copied into adopted repositories, while
+packs/review-lane/review-pr.yml is a separate optional capability template. An
+adopter removing packs must receive an honest coverage report and the rest of
+the selftest, not a raw cp failure that prevents later checks. Template CI also
+runs isolated copies without packs and without only the review-lane template,
+and proves that a broken present gate is still rejected.
+
+Provenance: GitHub issue #68 by @vshanbha, read 2026-09-06:
+https://github.com/anoop2811/software-factory-template/issues/68
+
+## Decision 45 (2026-09-06): native Maven adoption uses the Java pack
+
+See [ADR-0045](adr/0045-maven-adoption.md) for build-tool detection, the Maven
+asset overlay, POM preservation, quality-plugin integration, source versions,
+and acceptance requirements. The Java pack is beta following Duke42's reported
+real adoption with local Maven adaptations in issue #66; native Maven
+generation is validated separately from that adopter report.

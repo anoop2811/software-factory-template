@@ -1948,3 +1948,80 @@ stacked PR targeting the foundation branch would receive no CI. Keep the
 prerequisite separately committed and reviewed within still-open PR #74 instead,
 so its Linux/macOS checks run without weakening or expanding workflow triggers.
 The temporary worktree remains isolated from the user's existing checkout.
+
+## Decision 51 (2026-09-06): Go read-only configuration and role bridge
+
+What: after PR #74 merged at 732d2736a192085b2f9cc2f58a51fb523d1a8887,
+implement the next independently tested G1 candidate slice: configuration path
+resolution, flat-format get/has, role_tier and resolve_tier. Use one Go binary
+and Cobra routing. Keep the existing public factory commands and installed
+sourceable libraries unchanged while artifact delivery/recovery remain open.
+
+Private local-build protocol: FACTORY_BRIDGE_PROTOCOL=1 selects a separate
+Cobra command tree in the same cmd/factory binary; ordinary invocation does not
+gain public commands. Supported requests are config file, config get KEY
+[DEFAULT], config has KEY, role tier ROLE, and role resolve PROFILE TIER.
+Only flat identifier keys ([A-Za-z_][A-Za-z0-9_-]*) are accepted by this private
+protocol. Regex-like key invocations in the old sed/grep helpers remain an
+explicit characterization boundary before any public adapter replacement.
+Unknown protocol versions and malformed private requests refuse with exit 2.
+The key selector restriction is not an approved legacy behavior correction.
+
+Candidate sourceable runtime/shell/readers.sh exposes the five existing reader
+function names, forwarding only to an explicitly configured absolute local
+FACTORY_RUNTIME_BINARY. Missing/nonexecutable runtime refuses; no PATH search,
+fallback, download or compilation occurs during a call. The POSIX-compatible
+shim forwards literal argv/stdout/status without eval, assignments from Go output
+or temporary files. Sourcing it has no I/O or environment mutations.
+
+Preserve the supported baseline semantics: FACTORY_CONFIG selection, Git-root
+fallback, first matching key, quoted hashes, unquoted comments/trailing spaces,
+empty versus missing get/has behavior, missing/nonregular files, large values,
+and case-sensitive standard/economy role mapping. Compare both immutable
+baselines (with the approved EX-001 correction where relevant), independent
+expected vectors, and the compiled Go boundary before implementation.
+
+Configuration export/legacy loading, config writes, local-hook tokenization,
+installed routing, packaging and lifecycle cleanup are separate subsequent
+slices. No G0/G1 stage is complete from this read-only slice, and no active
+legacy implementation is retired before the approved recovery/activation gates.
+The new Go computation is canonical for candidate reader calls and contains no
+Bash parser or per-harness policy copies. Existing pinned tooling is unchanged.
+
+Why: user direction to proceed with the next conversion step after merging
+PR #74. This bounds the next outside-in TDD cycle while preserving the approved
+release coverage, manual pilot and cost-conscious native-call policy. Progress
+tables remain in chat; no automatic merge or release is authorized here.
+
+Decision 51 characterization refinement before parser implementation: candidate
+whitespace parsing covers C/POSIX ASCII classification. Historical sed/grep
+classification varies with locale and platform; non-C locale parity remains an
+explicit unresolved activation boundary, not an approved behavior correction.
+Do not change the parent locale. Preserve Bash command substitution's removal
+of NUL bytes in selected values, after literal key selection and leading-space
+removal; a NUL inside a key must not make a different key match. Historical
+Linux NUL-warning text and sed/grep versus Go read-error framing remain diagnostic
+characterization boundaries. Read errors retain the legacy get default/status 0
+and has status 2, with the file and reason on stderr.
+
+Decision 51 enforcement refinement: protect runtime alongside the existing Go
+and shell implementation paths. Require the candidate sourceable shim in the
+factory-only Go source gate, run POSIX syntax there on both platforms, and add
+POSIX shellcheck to the existing provisioned Template CI shellcheck step. These
+source-tree checks must not add a runtime or tool requirement to adopters.
+
+Decision 51 shell-state refinement before the corresponding implementation fix:
+pass child-only configuration/protocol values through /usr/bin/env with literal
+assignment operands, rather than shell prefix assignments that collide with
+readonly caller variables. The source candidate already targets Linux/macOS;
+/usr/bin/env is an explicit candidate prerequisite, not a PATH runtime search.
+Preserve sourceable helper missing-argument behavior under nounset by retaining
+the existing required positional expansions; optional defaults remain optional.
+Independent regression RED must precede these adapter corrections.
+
+Decision 51 test-portability refinement: characterize the existing missing-
+interpreter fixture under the caller-selected Bash as well as the system Bash.
+If the immutable baseline and candidate both return 126, admit that observed
+platform result alongside 1/127 in the baseline sanity assertion; retain exact
+candidate-to-baseline status and normalized diagnostic equality. Do not change
+production dispatch or mask a differential failure by selecting a different PATH.

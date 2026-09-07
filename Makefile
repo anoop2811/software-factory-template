@@ -29,8 +29,9 @@ go-runtime-check:
 go-runtime-source-check:
 	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
-	@test -d cmd/factory && test -d acceptance || \
-		{ echo "go-runtime-check: required candidate CLI or acceptance sources are missing" >&2; exit 1; }
+	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh || \
+		{ echo "go-runtime-check: required candidate CLI, shim or acceptance sources are missing" >&2; exit 1; }
+	sh -n runtime/shell/readers.sh
 	@git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
 		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }
 	@GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \

@@ -247,9 +247,9 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		if kind == "directory" {
 			Expect(baseline.status).To(Equal(126))
 		} else {
-			// Darwin's system Bash reports 1; newer Bash reports 127 for the
-			// same missing interpreter. Require the actual local baseline status.
-			Expect(baseline.status).To(BeElementOf(1, 127))
+			// Darwin's system Bash reports 1; other observed Bash versions report
+			// 126 or 127. Require the candidate to match the actual local baseline.
+			Expect(baseline.status).To(BeElementOf(1, 126, 127))
 		}
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			result := invoke(root, cwd, executable, "", "report")

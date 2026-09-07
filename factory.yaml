@@ -8,7 +8,7 @@ project_name: software-factory-template
 decision_log: docs/DECISION_LOG.md
 docs_root: docs
 citation_prefix: ""
-protected_paths: "scripts/hooks scripts/lib cmd internal .github/workflows AGENTS.md"
+protected_paths: "scripts/hooks scripts/lib cmd internal runtime .github/workflows AGENTS.md"
 test_file_patterns: "scripts/selftest/ _test[.]go([^[:alnum:]_]|$)"
 language_packs: ""
 check_command: "./scripts/selftest/run.sh"

@@ -1785,3 +1785,14 @@ and every conversion slice follows outside-in TDD with Ginkgo v2 and Gomega.
 The spec records external acceptance RED before implementation, focused
 collaborator RED/GREEN as needed, then refactor, preserving evaluator separation
 and the existing command/error/flag contracts. This remains a documentation task.
+
+Decision 48 retention refinement (2026-09-06): the user requested that upgrades
+retire superseded factory assets into a local gitignored recovery folder rather
+than retaining old implementations indefinitely. Specify private per-migration
+backups of replaced/removed owned assets, preserved original paths and restore
+metadata, exclusion from all active discovery, and one successful release
+transition of default retention. A later distinct release may prune unchanged
+eligible backups only after its own required deterministic checks pass, retaining
+the immediately preceding installation's recovery set. Failed upgrades, explicit
+holds, edits or uncertain ownership prevent automatic deletion and are reported.
+This updates the spec only; it moves or deletes no existing factory files.

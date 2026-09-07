@@ -69,8 +69,8 @@ responses, lower token usage and native Windows support are not implied by Go.
 ### Story 4: Remove obsolete factory code safely
 
 **As a** maintainer and adopter
-**I want** superseded implementations and references cleaned up during conversion
-**So that** maintenance becomes simpler without deleting my custom code or history.
+**I want** superseded implementations removed from active paths and kept briefly in a local gitignored recovery folder
+**So that** I can inspect or restore the old scripts without carrying obsolete implementations forever.
 
 ### Story 5: Install a predictable runtime
 
@@ -186,7 +186,9 @@ responses, lower token usage and native Windows support are not implied by Go.
 
 > Given an obsolete path proven to belong to the prior factory release and matching its recorded content, type and mode
 > When its replacement passes acceptance and migration commits successfully
-> Then the obsolete implementation is removed from the active installation and its references are updated
+> Then replaced or removed owned files are first backed up with their original paths and restore metadata under `.factory/backups/MIGRATION_ID/`, their backup is checked, and obsolete implementations leave active paths as part of the successful transaction
+> And backup creation failure prevents destructive replacement/removal; copying old files locally is not permission to overwrite customized or unknown files
+> And generated references are updated
 > And any required public compatibility path remains as a thin adapter with one implementation of the behavior.
 
 **AC 4.2: Customizations, path traversal and repeated cleanup**
@@ -202,6 +204,29 @@ responses, lower token usage and native Windows support are not implied by Go.
 > When its source and adopter installation are audited
 > Then every baseline owned asset in that stage is mapped to converted Go behavior, a justified retained adapter/declarative asset, or evidence-backed removal
 > And stale runtime dispatch, duplicate business logic, retired dependencies, generated references and CI/install copy lists are absent.
+
+**AC 4.4: Local ignored recovery, never active code**
+
+> Given an upgrade replacing or removing known factory-owned scripts and runtime assets
+> When its recovery set is created
+> Then `.factory/backups/MIGRATION_ID/` contains private inert copies preserving relative paths plus original content digests, types, modes and source/target identities for inspection and controlled restoration
+> And a preserved or narrowly added `/.factory/backups/` ignore rule is effective before any backup is written; already-tracked backup paths or unsafe directory ancestors block creation rather than rewriting the user's Git index
+> And the recovery folder is excluded from runtime dispatch, hook discovery, adapter sync, normal product-check/test discovery, source fingerprints, automatic context/retrieval and release packaging, even when a scanner normally includes ignored files.
+
+**AC 4.5: Retire backups after a successful later release**
+
+> Given a successful upgrade from release A to B with an unmodified, unheld recovery set for A
+> When a later distinct forward release C finishes its required compatibility, deterministic health and activation checks and commits its own recovery set for B
+> Then ordinary upgrade cleanup prunes the eligible A set and keeps the B set for the immediately preceding installation
+> And the preview/apply summary names retained and removed sets, file counts and bytes; retries, same-release reruns, rollbacks, local unversioned builds and failed/pending checks do not advance retention or delete the last usable recovery set.
+
+**AC 4.6: Held, edited and interrupted recovery sets**
+
+> Given a held, changed, unrecognized, unsafe or incompletely created backup, or an interrupted pruning operation
+> When retention cleanup runs
+> Then affected entries are preserved with an explicit reason and next action; pruning is limited to unchanged verified entries and is idempotent on retry
+> And no partial recovery set is advertised as restorable, no runtime history is pruned, and an operator can retain a set for reference without reactivating it
+> And stale eligible sets that cannot be removed are reported as incomplete cleanup rather than silently accumulating behind a success claim.
 
 ### Story 5: Install a predictable runtime
 
@@ -293,7 +318,7 @@ responses, lower token usage and native Windows support are not implied by Go.
 | FR-015 | Cleanup MUST use validated prior ownership and unchanged content/type/mode evidence, rechecked at mutation time. Missing evidence or conflicts MUST preserve the path. | MUST |
 | FR-016 | Extraction, staging, replacement, activation, rollback and cleanup MUST validate path/type/ownership and remain within explicitly approved installation/staging/recovery roots. They MUST NOT follow unsafe links, mutate outside referents, recursively delete unclassified directories, or infer ownership solely from a filename/extension/local untrusted manifest. | MUST |
 | FR-017 | Every stage MUST retire superseded active logic, update generated adapters/install manifests/CI/docs and remove unused runtime dependencies. Retained compatibility adapters MUST be listed with a reason and tested. | MUST |
-| FR-018 | Recovery copies MUST be private, bounded to migration-owned changes and explicitly listed. They MUST NOT become executable fallback paths or duplicate live controllers; user-requested pruning MUST preserve the supported recovery contract. | MUST |
+| FR-018 | Before destructive replacement/removal, unchanged factory-owned predecessor assets MUST be backed up and checked under `.factory/backups/MIGRATION_ID/`, with private inert copies and original path/content/type/mode/version metadata. Recovery copies MUST never be active fallback code, and no cleanup may delete the only usable recovery set. | MUST |
 | FR-019 | Official runtime assets MUST match the selected source revision and be integrity/authenticity checked before any candidate execution, including staged inspection/validation, and before activation. Explicit local-source builds MUST remain supported and labeled as local, not authenticated official releases; source and reproducible build instructions MUST be available. | MUST |
 | FR-020 | Runtime resolution MUST be deterministic and release-specific. Normal commands MUST NOT auto-update, download, compile, phone home or silently switch runtimes on error. | MUST |
 | FR-021 | Final shipped factory commands and self-checks MUST not require Go or Python at runtime. Explicit native CLIs, Git, shell entrypoints and an adopter's own check tools remain external prerequisites. | MUST |
@@ -307,10 +332,13 @@ responses, lower token usage and native Windows support are not implied by Go.
 | FR-029 | The Go CLI MUST use Cobra for command/flag routing. Cobra defaults MUST be configured to meet the existing public contract; Cobra adoption MUST NOT replace factory configuration semantics or introduce unrequested commands. | MUST |
 | FR-030 | Every migration slice MUST use outside-in TDD: a failing user-visible Ginkgo v2/Gomega acceptance scenario, focused red/green collaborator specs as needed, then refactoring with the relevant suite green. Required evidence MUST record that order and its linked AC. | MUST |
 | FR-031 | All new Go behavioral tests MUST use Ginkgo v2 and Gomega. The stdlib testing package MUST appear only in RunSpecs suite bootstraps; test/spec authors and implementation authors MUST remain separate under the factory rules. | MUST |
+| FR-032 | Backup storage MUST be locally gitignored before writing, without changing existing ignore semantics or untracking user files. All automatic active discovery, snapshot/context inputs and release packaging MUST exclude this recovery root explicitly; explicit reference inspection and controlled backup validation/rollback are permitted. | MUST |
+| FR-033 | Normal successful forward release upgrades MUST prune unchanged, unheld recovery sets older than the immediately preceding installation, only after the new recovery set and required deterministic checks succeed. Same-release runs, rollback, failed/partial upgrades and unversioned builds MUST NOT advance retention. | MUST |
+| FR-034 | Retention MUST honor explicit holds and preserve edited/unknown/unsafe recovery entries, with visible paths, counts, bytes and reasons. Explicit pruning MUST validate ownership and safety, refuse the sole usable recovery set, be recoverable/idempotent, and never touch runtime history. | MUST |
 
 Traceability: Story 1 / AC 1.x -> FR-001..006, 010..011, 024, 027;
 Story 2 / AC 2.x -> FR-007..010; Story 3 / AC 3.x -> FR-011..016, 018;
-Story 4 / AC 4.x -> FR-001, 003, 015..018, 027;
+Story 4 / AC 4.x -> FR-001, 003, 015..018, 027, 032..034;
 Story 5 / AC 5.x -> FR-019..023; Story 6 / AC 6.x -> FR-023..026, 028..031.
 
 ## 6. Non-Functional Requirements
@@ -329,6 +357,7 @@ These are proposed acceptance thresholds, not measured improvements.
 | NFR-008 | Private recovery/state | Owner-only access no broader than existing state permissions; zero persisted prompts/secrets or full native outputs added by migration | Permission/symlink tests and seeded sensitive-marker scans |
 | NFR-009 | Repeatability | Second successful apply/cleanup produces zero additional changes; repeated preview changes nothing | Same-input fixture reruns with content/type/mode comparisons |
 | NFR-010 | Outside-in delivery evidence | 100% of completed migration slices have linked acceptance RED -> collaborator RED/GREEN as needed -> acceptance GREEN -> refactor evidence | Per-slice command/output record and independent review; no after-the-fact reconstruction |
+| NFR-011 | Default recovery retention | At most one complete historical installation recovery set after a successful later forward release; every hold, conflict or incomplete cleanup is individually reported | A -> B -> C fixtures, same-release/failure/rollback controls, backup counts and byte totals |
 
 ## 7. Data Model
 
@@ -339,6 +368,7 @@ These are domain concepts, not prescribed storage schemas.
 - **Runtime release:** immutable source revision, target platform, artifact identity, verification evidence and supported state/adapter contracts.
 - **Migration plan:** source/target installation identity, explicitly approved installation/staging/recovery roots, assessed assets, proposed actions, conflicts, required prerequisites and rollback eligibility. Preview is transient and read-only.
 - **Migration record:** applied plan identity, before/after asset evidence, recovery assets, progress/failure state and explicit next action. It contains installation metadata, not copied user runtime history.
+- **Recovery set:** migration identity, predecessor/target release identity, original relative paths and content/type/mode metadata, verified saved copies, completeness, successful-release retention eligibility, hold state and pruning progress. Originals are reference data, never executable dispatch targets.
 - **Budget reservation and loop checkpoint:** existing domain records remain governed by BUDGETS/LOOPS; migration must preserve their identity, elapsed allowance, ownership and evidence validity.
 
 One migration plan contains many asset actions. A completed migration identifies
@@ -361,6 +391,8 @@ authority for compatibility. No new HTTP service, daemon or public Go SDK is req
 | Native harness invocation | Preserve literal argument boundaries, model/role mapping, permission/trust checks, stdin/stream handling and cost normalization. No new native CLI flag is assumed. |
 | `factory upgrade --dry-run --source PATH` (additive) | Local read-only preview; exit 0 when applicable without conflicts, 2 for invalid/incompatible/conflicting input, 1 for assessment I/O failure. No activation, download or cleanup. |
 | `factory upgrade --rollback MIGRATION_ID` (additive) | Explicit installation-only rollback; 0 on complete success, 2 for invalid/ineligible/conflicting recovery, 1 for execution failure requiring recovery. Cannot combine with apply/preview/ref/source selection. |
+| `factory upgrade --keep-backup MIGRATION_ID` (additive) | Hold a complete recovery set for local reference; exclude it from automatic retention pruning. No activation, source selection, model calls or runtime state changes. Exit 0 for a successful/idempotent hold, 2 for invalid/conflicting input, 1 for I/O failure. |
+| `factory upgrade --prune-backup MIGRATION_ID` (additive) | Explicitly request safe deletion of an eligible older recovery set, including a held set. Refuse the sole usable recovery set, active transactions and altered/unsafe entries. Exit 0 on completion, 2 for invalid/ineligible/conflicting input, 1 for incomplete I/O cleanup; no other mode may be combined. |
 
 The inventory must characterize the following non-obvious baseline contracts,
 with fixtures rather than assumptions:
@@ -378,6 +410,44 @@ with fixtures rather than assumptions:
 
 These source citations refer to the identified baseline; subsequent conversion
 must replace them with stable acceptance references before the files disappear.
+
+### Recovery-folder lifecycle
+
+The reserved local recovery root is `.factory/backups/`; each transaction owns
+one validated migration-ID child. Contents retain original repository-relative
+paths for reading, while restore metadata records the original executable modes.
+Stored copies themselves are inert owner-readable/writable data (files 0600,
+directories 0700). Only explicit eligible rollback restores active files and their
+recorded modes. No command automatically executes a backed-up script. Explicit user-requested
+inspection for reference and controlled validation/restore may read the folder;
+ordinary test discovery, retrieval and hook dispatch must not consume it.
+
+Before writing, preserve an already-effective ignore rule or append the narrow
+anchored `/.factory/backups/` rule without replacing existing `.gitignore` content.
+Prove representative descendant paths are ignored and none is already tracked.
+A collision, ignore override or tracked path is a reported conflict, not permission
+to silently edit unrelated ignore rules or the index. The ignore addition is a
+reviewable installation change, and rollback must keep backups ignored for as
+long as any retained recovery content remains. Preview changes no ignore files.
+
+For A -> B, back up only the validated factory assets replaced/removed by that
+transaction; validate completeness before removal. B must use the replacement
+implementation, except listed compatibility shims. An unsuccessful B preserves
+A's recovery data. On a later successful forward B -> C, retain recovery for B
+and prune eligible recovery for A only after C's mandatory deterministic checks
+and durable activation/recovery record succeed. Restoring B must not depend on a
+pruned A set: recovery may use unchanged active assets but must be independently
+complete relative to C. No checks in this lifecycle invoke a paid model.
+
+Retention advances on a distinct verified forward release transition, not wall
+clock, a newer published tag, a repeated upgrade attempt or a rollback. A skipped
+release still counts as one successful transition. Non-release/local builds do
+not automatically expire recovery; their status names that reason and offers
+explicit eligible pruning. Holds and changed/unrecognized sets are visible
+exceptions, not hidden unlimited retention. Space needed for backup/staging is
+assessed before mutation; insufficient space refuses the change without deleting
+recovery to make room. Failed pruning keeps the new healthy installation but
+reports cleanup incomplete and preserves a retryable record.
 
 Existing upgrade apply statuses remain the baseline contract. New migration
 control output must name preserved conflicts and recovery steps without exposing
@@ -408,7 +478,7 @@ named stage, not completion of this draft.
 | Q1 | [NEEDS CLARIFICATION] Which exact older releases must be included beyond v0.1.6 and the merged baseline, based on adopter evidence? | Anoop | 2026-09-13, before compatibility inventory approval | Pending; recognized older formats remain preserved, unknown installations must not be destructively upgraded. |
 | Q2 | [NEEDS CLARIFICATION] What minimum Linux distribution/libc and macOS versions can be supported on the four proposed targets, and what runners prove them? | Migration maintainer; Anoop approves | 2026-09-13, before artifact design | Pending; match existing supported adopter environments before claiming portability. |
 | Q3 | [NEEDS CLARIFICATION] Which release authenticity mechanism and trust source can run in both connected and pre-provisioned offline installation? | Release maintainer; Anoop approves | 2026-09-13, before first binary distribution | Pending; checksums alone must not be described as publisher authentication. |
-| Q4 | [NEEDS CLARIFICATION] How many previous installation versions and how much recovery storage should be retained, and what explicit pruning interface is appropriate? | Anoop | 2026-09-13, before upgrade/recovery implementation | Pending; retain at least the immediately preceding recoverable installation until explicit pruning; no silent removal. |
+| Q4 | Recovery location, retention and pruning policy | Anoop | 2026-09-06 | Resolved from user direction: local gitignored `.factory/backups/MIGRATION_ID/`; default one successful forward release transition, then prune eligible older sets after checks. Keep the preceding recovery set; explicit holds and safe older-set pruning support longer reference needs. Details: AC 4.4-4.6 and section 8. |
 | Q5 | [NEEDS CLARIFICATION] What evidence period and adopter pilot is required before making Go the default and removing active legacy implementations? | Anoop | 2026-09-13, before default cutover | Pending; all acceptance and cleanup gates are mandatory regardless of calendar duration. |
 
 **Known discrepancy EX-001 (not silently part of parity):** an independent
@@ -459,7 +529,7 @@ and cleanup evidence passes. Stage order does not mark roadmap features complete
 | G1 | Cobra CLI, runtime packaging, local configuration/role resolution, compatibility entrypoints | Packaged artifact validation, inert config parity, deterministic version selection, sourceable adapters and missing-artifact refusal | 0% |
 | G2 | Shared process supervision, budgets, native adapters and loops | Three harnesses, mixed-runtime exclusion, state/fingerprint parity, deadline/cleanup failure coverage; retire replaced Python runtime logic | 0% |
 | G3 | Factory gates, sync, doctor, check/selftest, reports/metrics and eval/review orchestration | Actual gate break/fix proofs, adapter drift, output parity, optional/paid gating; retire corresponding duplicate shell logic | 0% |
-| G4 | Init/upgrade/config migration and installation lifecycle | Legacy/current adopter fixtures, verified artifacts, preview, interrupted apply, rollback, customization-safe cleanup and explicit manifest proofs | 0% |
+| G4 | Init/upgrade/config migration and installation lifecycle | Legacy/current adopter fixtures, verified artifacts, preview, interrupted apply, rollback, ignored backup/retention lifecycle, customization-safe cleanup and explicit manifest proofs | 0% |
 | G5 | Default cutover and final dependency/reference audit | All stages pass on packaged targets; complete adopter upgrade/recovery rehearsal; zero unclassified assets or retired active implementations | 0% |
 
 Artifact delivery/recovery needed for an earlier stage must be available before
@@ -494,6 +564,15 @@ validating origins and paths would turn metadata into deletion authority.
 **Consequences:** Some customized or unknown installations require manual conflict
 resolution. Compatibility shims may remain permanently where they are public
 contracts; obsolete implementations must not remain active behind them.
+
+**User refinement (2026-09-06):** retired originals belong in a private local
+ignored recovery folder rather than remaining beside active Go replacements.
+Choose `.factory/backups/MIGRATION_ID/`, preserve a preceding installation's
+recovery set through the next successful release transition, and then prune
+eligible older sets during that upgrade. Retain deliberate holds and changed or
+unknown entries with explicit diagnostics. This replaces Q4's earlier indefinite
+until-manually-pruned proposal; it does not change the requirement to preserve
+user customizations or to keep stable public wrappers.
 
 ### Decision 4: Reuse behavior contracts, independently prove Go conformance
 
@@ -574,6 +653,7 @@ implementation pins them; this spec creates no go.mod or go.sum.
 | Runtime language prerequisites | Budget/loop use Python; shell entrypoints remain | No Go/Python needed for shipped factory behavior; retained external prerequisites explicit | Clean packaged-artifact environment tests |
 | Supported packaged targets | No Go runtime artifacts yet | 4/4 qualified targets | Per-target release acceptance |
 | Local command latency | Baseline not measured | NFR-005 threshold met | Recorded controlled benchmark comparison |
+| Obsolete recovery accumulation | No migration backup lifecycle yet | One preceding complete recovery set by default after successful forward upgrades; zero unreported exceptions | A -> B -> C upgrade/rollback/hold/prune fixtures and storage summaries |
 | Outside-in TDD adherence | No Go slices implemented | 100% of completed slices follow AC 6.4 with independent test ownership | Recorded RED/GREEN/refactor evidence linked to AC IDs |
 | Conversion-induced model usage | Not applicable yet | Zero extra calls for equivalent workloads | Fake native invocation accounting; paid evidence reported separately |
 
@@ -584,6 +664,7 @@ implementation pins them; this spec creates no go.mod or go.sum.
 - [ ] MUST requirements and measurable thresholds accepted; open questions resolved before their dependent stages.
 - [ ] Compatibility inventory covers direct scripts, sourced functions, generated hooks, JSON/state, packs and older adopters.
 - [ ] Cleanup preserves customizations, retains required compatibility paths and cannot reset runtime history.
+- [ ] Replaced/retired originals are backed up locally and gitignored; next-release pruning, holds, failure recovery and backup-discovery exclusion meet AC 4.4-4.6.
 - [ ] Artifact trust, platform qualification and interrupted-install recovery are approved before distribution.
 - [ ] Spec describes WHAT/WHY; implementation structure remains in later design records.
 - [x] Independent correctness, security and acceptance review completed; two findings closed in AC 5.2/FR-019 and AC 5.4/FR-016 (2026-09-06).

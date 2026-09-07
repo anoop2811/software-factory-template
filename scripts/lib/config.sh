@@ -88,7 +88,7 @@ FACTORY_CONFIG_KEYS="COST_PROFILE MODEL_PROVIDER \
 OPENCODE_FRONTIER_MODEL OPENCODE_DEFAULT_MODEL OPENCODE_ECONOMY_MODEL \
 CLAUDE_FRONTIER_MODEL CLAUDE_DEFAULT_MODEL CLAUDE_ECONOMY_MODEL \
 CODEX_FRONTIER_MODEL CODEX_DEFAULT_MODEL CODEX_ECONOMY_MODEL \
-REVIEW_LANE REVIEW_MODEL REVIEW_API_KEY_SECRET"
+REVIEW_LANE REVIEW_MODEL REVIEW_API_KEY_SECRET REVIEW_REASONING_EFFORT"
 
 factory_config_load_legacy() {
   local file="$1" line key value upper preserved_keys="${2:-}"
@@ -205,7 +205,7 @@ factory_config_export() {
     opencode_frontier_model opencode_default_model opencode_economy_model \
     claude_frontier_model claude_default_model claude_economy_model \
     codex_frontier_model codex_default_model codex_economy_model \
-    review_lane review_model review_api_key_secret
+    review_lane review_model review_api_key_secret review_reasoning_effort
   do
     value="$(factory_config_get "$key")"
     [ -n "$value" ] || continue

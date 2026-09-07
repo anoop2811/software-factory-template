@@ -2090,3 +2090,7 @@ validate the complete bundle identity, and publish only into a new private root.
 Independent outside-in acceptance precedes implementation. Keep delegated trust
 tests distinct from live signing evidence; activation and recovery lifecycle work
 remain separate gates. No existing installation assets are replaced in this slice.
+
+Review refinement: keep the source-bundle compiler identity in the shared artifact
+contract so packaging and staging cannot drift through separate version literals.
+The independent acceptance fixtures retain their explicit expected version.

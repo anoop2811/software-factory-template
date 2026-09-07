@@ -27,7 +27,7 @@ func validateIdentity(ctx context.Context, content *os.Root, directory string, o
 		return err
 	}
 	defer file.Close()
-	expected := map[string]string{"revision": o.Revision, "version": o.Version, "target": o.Target, "go_version": "go1.27.1", "kind": "source-build"}
+	expected := map[string]string{"revision": o.Revision, "version": o.Version, "target": o.Target, "go_version": artifact.SourceGoVersion, "kind": "source-build"}
 	decoder := json.NewDecoder(file)
 	token, err := decoder.Token()
 	if err != nil {

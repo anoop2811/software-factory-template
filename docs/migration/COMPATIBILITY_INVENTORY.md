@@ -46,7 +46,7 @@ the approved migration and recovery contracts.
 
 | Stage | Owned computation to replace | Paths and evidence retained |
 |---|---|---|
-| G1 | CLI routing and shared configuration/role computation, subject to EX-001 resolution | `factory`, `scripts/lib/config.sh`, `scripts/lib/roles.sh` remain compatible public/sourceable paths. Configuration remains inert data. |
+| G1 | CLI routing and shared configuration/role computation, after EX-001 prerequisite acceptance | `factory`, `scripts/lib/config.sh`, `scripts/lib/roles.sh` remain compatible public/sourceable paths. Configuration remains inert data. |
 | G2 | Python budget, native-invocation and loop implementations in `scripts/lib/budget.py`, `scripts/lib/budget_adapters.py`, `scripts/lib/loop.py` | Retire those three internal active files only after Go conformance and safe delivery. Keep `scripts/factory-budget.sh`, `scripts/factory-loop.sh`, `scripts/lib/budget-config.sh` as compatible adapters. Preserve native configuration formats and canonical role instructions. |
 | G3 | Gate/check/doctor/sync/report/metrics/eval orchestration, pack dialect-check computation, runtime-adjacent embedded helpers | Keep public scripts/hooks/eval paths and sourceable libraries as thin adapters. Keep host-required plugin code, policy, product-language build files, browser assets and test evidence in appropriate formats. |
 | G4 | Init, upgrade and configuration-migration computation | Keep `install.sh`, `scripts/factory-init.sh`, `scripts/factory-upgrade.sh`, `scripts/factory-migrate-config.sh` consent and invocation contracts. Release-specific artifact selection, transactional backup/recovery and predecessor-aware cleanup must exist before any earlier stage reaches adopters. |
@@ -72,7 +72,7 @@ acceptance references before cleanup.
 | Top-level CLI | No-argument/help aliases; complete command set; literal argv; unknown-command stderr and exit 2; missing/nonexecutable command refusal; `exec` status/signal behavior | `factory:40`, `factory:56`, `factory:61` |
 | Direct executable paths | Existing command, hook, eval and pack entrypoints; subdirectory invocation; environment, stdin/TTY handling, stdout/stderr and exit semantics | Every manifest entry classified as a public or language-pack adapter |
 | Sourced libraries | Supported function names, caller-shell exports/effects, failure semantics and POSIX/Bash requirements; no unsafe evaluation of Go output | `scripts/lib/config.sh:125`, `scripts/lib/config.sh:174`, `scripts/lib/budget-config.sh:19` |
-| Configuration and role routing | Flat-format parsing, first-key behavior, quotes/hashes, absent/empty/get/has distinctions, allowlisted legacy data, model tiers, explicit role injection | `scripts/lib/config.sh:27`, `scripts/lib/config.sh:94`, `scripts/lib/config.sh:181`; EX-001 remains pending |
+| Configuration and role routing | Flat-format parsing, first-key behavior, quotes/hashes, absent/empty/get/has distinctions, allowlisted legacy data, model tiers, explicit role injection | `scripts/lib/config.sh:27`, `scripts/lib/config.sh:94`, `scripts/lib/config.sh:181`; EX-001 correction approved in Decision 50; acceptance is separate |
 | Local hook registration | Whitespace/comma syntax, attached flags, literal arguments and preserved hook output/status | `scripts/lib/config.sh:130`, `scripts/pre-push-check.sh:126` |
 | Native adapters | Codex/Claude/OpenCode argv and stdin, role permissions, hook trust, typed probe ownership, stream normalization and unknown cost | `scripts/lib/budget_adapters.py:26`, `scripts/lib/budget_adapters.py:194`, `scripts/lib/budget_adapters.py:260`; `.claude/`, `.codex/`, `.opencode/`, `opencode.json`, `.mcp.json` |
 | Budget and loop state | Schema/numeric/null semantics, exact fingerprint bytes, private atomic writes, interoperable lock paths/inodes, reservations and recovery inspection before unrelated config validation | `scripts/lib/budget.py:194`, `scripts/lib/budget.py:563`, `scripts/lib/loop.py:24`, `scripts/lib/loop.py:271`, `scripts/lib/loop.py:606` |
@@ -84,12 +84,15 @@ acceptance references before cleanup.
 
 ## Gates still open
 
-- EX-001 is a recorded discrepancy between observed legacy configuration behavior
-  and documented caller precedence. The user's correction/parity choice remains
-  pending. The inventory neither resolves it nor changes configuration behavior.
-- Q1 (older release coverage), Q2 (minimum platforms), Q3 (artifact trust) and Q5
-  (rollout/pilot evidence) remain stage gates. Q4 retention follows the approved
-  local gitignored backup policy; it is not implemented by this inventory.
+- EX-001 remains a recorded discrepancy in immutable baseline bytes. Anoop
+  approved a separately tested prerequisite correction on 2026-09-06: explicit
+  caller values (including empty values) > YAML > legacy data. Historical hashes
+  remain unchanged; subsequent Go parity uses an explicitly identified correction.
+- Q1 is resolved: initial coverage is v0.1.6 and the merged Bash baseline above;
+  unsupported older/customized installations receive no destructive migration.
+  Q2 (minimum platforms), Q3 (artifact trust), and detailed Q5 pilot evidence/exit
+  criteria remain open. A manual adopter pilot before default cutover is now
+  mandatory. Q4 retention follows the approved local gitignored backup policy.
 - Native plugin behavior must be characterized as observed. For example,
   `.opencode/plugin/factory-hooks.ts:72` contains an existing fail-open error
   branch. A correction must follow FR-028's explicit review and regression path;

@@ -475,22 +475,22 @@ named stage, not completion of this draft.
 
 | # | Question | Owner | Target Date | Resolution |
 |---|---|---|---|---|
-| Q1 | [NEEDS CLARIFICATION] Which exact older releases must be included beyond v0.1.6 and the merged baseline, based on adopter evidence? | Anoop | 2026-09-13, before compatibility inventory approval | Pending; recognized older formats remain preserved, unknown installations must not be destructively upgraded. |
+| Q1 | Which releases must initial compatibility coverage include? | Anoop | Resolved 2026-09-06 | Approved: v0.1.6 and merged Bash baseline 76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Preserve unsupported older/customized installations without destructive migration. No additional release is required for the initial rollout. |
 | Q2 | [NEEDS CLARIFICATION] What minimum Linux distribution/libc and macOS versions can be supported on the four proposed targets, and what runners prove them? | Migration maintainer; Anoop approves | 2026-09-13, before artifact design | Pending; match existing supported adopter environments before claiming portability. |
 | Q3 | [NEEDS CLARIFICATION] Which release authenticity mechanism and trust source can run in both connected and pre-provisioned offline installation? | Release maintainer; Anoop approves | 2026-09-13, before first binary distribution | Pending; checksums alone must not be described as publisher authentication. |
 | Q4 | Recovery location, retention and pruning policy | Anoop | 2026-09-06 | Resolved from user direction: local gitignored `.factory/backups/MIGRATION_ID/`; default one successful forward release transition, then prune eligible older sets after checks. Keep the preceding recovery set; explicit holds and safe older-set pruning support longer reference needs. Details: AC 4.4-4.6 and section 8. |
-| Q5 | [NEEDS CLARIFICATION] What evidence period and adopter pilot is required before making Go the default and removing active legacy implementations? | Anoop | 2026-09-13, before default cutover | Pending; all acceptance and cleanup gates are mandatory regardless of calendar duration. |
+| Q5 | What evidence period and pilot exit criteria are required before making Go the default and removing active legacy implementations? | Anoop | 2026-09-13, before default cutover | Manual adopter pilot approved as mandatory on 2026-09-06. Detailed evidence period and exit criteria remain pending; all acceptance and cleanup gates are mandatory regardless of calendar duration. |
 
-**Known discrepancy EX-001 (not silently part of parity):** an independent
+**Approved prerequisite EX-001 (Decision 50, 2026-09-06):** an independent
 baseline fixture observed legacy configuration overwriting a caller value during
 `factory_config_export`, despite the documented caller > YAML > legacy rule
-(scripts/lib/config.sh:181, scripts/lib/config.sh:194,
-scripts/lib/config.sh:217). G0 must capture both the observed result and intended
-contract. Anoop must approve either a separately tested prerequisite correction
-in both baselines or a specifically documented migration correction before G1;
-until then the affected parity case is blocked. This draft changes no runtime
-behavior and does not require preserving this defect as the desired outcome.
-Owner: Anoop; target: 2026-09-13, before G1 approval.
+(at immutable `76952eaa`: scripts/lib/config.sh:181,
+scripts/lib/config.sh:194 and scripts/lib/config.sh:217). G0 must capture both the observed result and intended
+contract. Anoop approved the separately tested prerequisite correction before
+Go configuration conversion: explicit caller values, including empty values,
+win over YAML, then legacy data. Keep immutable baseline evidence and identify
+the approved correction in both later parity baselines; do not rewrite history.
+Owner: Anoop; approval resolved, implementation/acceptance tracked separately.
 
 ## 11. Decision Record
 

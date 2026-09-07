@@ -1895,3 +1895,56 @@ https://go.googlesource.com/vuln/+/refs/tags/v1.7.0 .
 2026-08-13T18:01:04Z. The earlier GitHub Releases page was stale; use this
 current authoritative module tag for the scanner and retain symbol-level
 vulnerability scanning on both platforms.
+
+## Decision 50 (2026-09-06): approve precedence correction and initial rollout coverage
+
+What: Anoop answered yes to both implementation questions. Correct EX-001 as
+a separately tested prerequisite before Go configuration conversion: explicit
+caller values take priority over factory.yaml, then legacy factory.config.
+Preserve explicitly set empty values, fixed-key parsing, literal data handling
+and unrelated configuration behavior. Observe independent external Ginkgo/
+Gomega RED before changing the shared Bash implementation; retain immutable
+historical evidence and identify the correction when constructing later Go
+parity baselines rather than rewriting historical hashes.
+
+The initial rollout covers v0.1.6 and merged Bash baseline
+76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Preserve unsupported older/customized
+installations without destructive migration. A manual adopter pilot is required
+before Go becomes default. Minimum platform/runners, artifact authenticity and
+the detailed pilot evidence/exit criteria remain to be settled at their named
+stages; this approval does not authorize default cutover or deletion.
+
+Why: user confirmation in this conversation, 2026-09-06, to both explicit
+questions on EX-001 and release coverage/manual pilot. PR #74 remains open;
+keep this prerequisite in a separate stacked PR using its existing independent
+Go acceptance tooling. Do not merge either PR automatically. The feature table
+continues to be reported only in chat after each iteration.
+
+Decision 50 compatibility refinement before implementation: retain the standalone
+one-argument legacy loader's existing behavior. During full configuration export,
+an optional caller-key snapshot may suppress only assignment to an already-set
+caller variable, including empty/readonly values. A matching legacy entry still
+exports that variable, preserving the existing sourceable export-bit effect; an
+unmatched local caller remains local. No value serialization or shell evaluation
+is introduced. Preserve duplicate-key parsing behavior outside the correction.
+
+Decision 50 baseline identity: the official v0.1.6 release API reports
+b71ecc32e07ecd87eb330ba8e497c86612f92acd, published 2026-09-06T19:10:47Z,
+matching local tag resolution. Source read 2026-09-06:
+https://github.com/anoop2811/software-factory-template/releases/tag/v0.1.6 .
+Keep this identity alongside the merged Bash baseline for fixture provenance.
+
+Decision 50 baseline correction artifact: derive an inert EX-001 patch
+deterministically from the reviewed shared-library diff, with metadata recording
+its patch SHA-256, both immutable baseline commits, original blob hash/mode and
+corrected blob hash/mode. Independent acceptance must apply it to each exact
+historical source and exercise desired precedence; mismatched bytes or corrupt
+artifacts must fail. This is compatibility-fixture evidence, not installer
+ownership/deletion authority, a runtime fallback or a rewritten historical tree.
+
+Decision 50 integration refinement: all four current CI workflows filter pull
+requests to main (for example .github/workflows/go-runtime.yml:8). A separate
+stacked PR targeting the foundation branch would receive no CI. Keep the
+prerequisite separately committed and reviewed within still-open PR #74 instead,
+so its Linux/macOS checks run without weakening or expanding workflow triggers.
+The temporary worktree remains isolated from the user's existing checkout.

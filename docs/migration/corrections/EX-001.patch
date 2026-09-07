@@ -1,0 +1,53 @@
+diff --git a/scripts/lib/config.sh b/scripts/lib/config.sh
+index 551bc8a..c13c37c 100755
+--- a/scripts/lib/config.sh
++++ b/scripts/lib/config.sh
+@@ -61,12 +61,11 @@ factory_config_get() {
+ # factory.yaml keys, parsed like everything else (Decision 41). One file, read
+ # and never run.
+ #
+-# Each variable is only set when the YAML defines it, so anything already in the
+-# environment still wins — that is what lets a caller override a model tier for
+-# one run. Repositories that predate the move keep working: factory.config is
+-# sourced first when it exists, and the YAML overlays whatever it defines. That
+-# fallback is deliberately quiet here; `factory doctor` is where it is reported,
+-# so a deprecation cannot live forever by going unnoticed.
++# Caller values, including explicit empty values, take priority over YAML and
++# legacy settings. Repositories that predate the move keep working: factory.config
++# is parsed first without overwriting caller values, then YAML overlays legacy
++# values. That fallback is deliberately quiet here; `factory doctor` is where it
++# is reported, so a deprecation cannot live forever by going unnoticed.
+ # factory_config_load_legacy <file>: export the settings a pre-YAML factory.config
+ # defines, by PARSING it — never by sourcing it.
+ #
+@@ -92,7 +91,7 @@ CODEX_FRONTIER_MODEL CODEX_DEFAULT_MODEL CODEX_ECONOMY_MODEL \
+ REVIEW_LANE REVIEW_MODEL REVIEW_API_KEY_SECRET"
+ 
+ factory_config_load_legacy() {
+-  local file="$1" line key value upper
++  local file="$1" line key value upper preserved_keys="${2:-}"
+   while IFS= read -r line || [ -n "$line" ]; do
+     case "$line" in
+       ''|'#'*) continue ;;
+@@ -117,6 +116,12 @@ factory_config_load_legacy() {
+       *" $upper "*) : ;;
+       *) continue ;;
+     esac
++    # The exporter passes its caller keys; standalone loading still replaces
++    # every parsed setting. Preserve the existing export effect for matched keys.
++    # Caller values take priority, including empty values. docs/DECISION_LOG.md:1903.
++    case " $preserved_keys " in
++      *" $upper "*) export "${upper?}"; continue ;;
++    esac
+     # Assign indirectly with printf -v: the value reaches the variable as data
+     # and is never passed through the parser at all. `eval` could be written
+     # safely here, but only by escaping `\$value` so it expands at assignment
+@@ -191,7 +196,7 @@ factory_config_export() {
+   done
+ 
+   if [ -f "$legacy" ]; then
+-    factory_config_load_legacy "$legacy"
++    factory_config_load_legacy "$legacy" "$caller_set"
+   fi
+ 
+   local key var value

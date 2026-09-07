@@ -1879,3 +1879,19 @@ status and error meaning but identify a different invocation/source-line context
 in this candidate. Record that raw-framing difference explicitly, strengthen
 independent comparison after narrow fixture-context normalization, and leave
 production acceptance open rather than silently approving a parity exception.
+
+Decision 49 CI/review follow-up: the first Linux matrix run passed acceptance,
+lint and gosec, then govulncheck v1.1.4 panicked inside its old x/tools SSA
+builder on Go 1.27.1. Repair scanner/toolchain compatibility without removing
+or weakening the vulnerability gate. Source: GitHub Actions run 34071286184,
+read 2026-09-06. Simplify the reviewed syscall.Exec boundary by removing its
+unreachable success-return branch; a successful exec never returns.
+
+Decision 49 scanner pin correction (2026-09-06): the authoritative Go module
+source has golang.org/x/vuln v1.7.0, tagged 2026-08-13 at commit
+617f44b718537dccdea1915395650e0529e3b72e:
+https://go.googlesource.com/vuln/+/refs/tags/v1.7.0 .
+`go list -m -json golang.org/x/vuln@latest` independently reports v1.7.0 and
+2026-08-13T18:01:04Z. The earlier GitHub Releases page was stale; use this
+current authoritative module tag for the scanner and retain symbol-level
+vulnerability scanning on both platforms.

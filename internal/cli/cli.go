@@ -135,10 +135,9 @@ func dispatch(ctx context.Context, command, script string, args []string) error 
 	}
 	// Replace this process, just as the existing shell exec does, preserving
 	// PID, inherited streams, working directory, environment and signal delivery.
+	// Exec returns only on failure; Bash below supplies the compatible diagnostic.
 	// #nosec G204 G702 -- A fixed command map selects the colocated trusted script; argv is passed directly without shell evaluation.
-	if err := syscall.Exec(path, append([]string{path}, args...), os.Environ()); err == nil {
-		return nil
-	}
+	_ = syscall.Exec(path, append([]string{path}, args...), os.Environ())
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -147,8 +146,6 @@ func dispatch(ctx context.Context, command, script string, args []string) error 
 	// Keep the exec program constant: the script and all arguments are positional.
 	fallback := append([]string{"env", "bash", "-c", `exec "$0" "$@"`, path}, args...)
 	// #nosec G204 G702 -- The shell program is constant; trusted script path and literal argv are separate positional parameters.
-	if err := syscall.Exec("/usr/bin/env", fallback, os.Environ()); err != nil {
-		return fmt.Errorf("factory: execute '%s': %w", command, err)
-	}
-	return nil
+	err = syscall.Exec("/usr/bin/env", fallback, os.Environ())
+	return fmt.Errorf("factory: execute '%s': %w", command, err)
 }

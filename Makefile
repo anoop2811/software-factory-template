@@ -6,7 +6,7 @@
 selftest:
 	./scripts/selftest/run.sh
 
-.PHONY: budget-selftest loop-selftest
+.PHONY: budget-selftest loop-selftest adversarial-review-selftest
 budget-selftest:
 	@if [ -x scripts/selftest/budget.sh ]; then ./scripts/selftest/budget.sh; \
 	else echo "budget-selftest: template-only acceptance fixtures not installed"; fi
@@ -14,6 +14,10 @@ budget-selftest:
 loop-selftest:
 	@if [ -x scripts/selftest/loop.sh ]; then ./scripts/selftest/loop.sh; \
 	else echo "loop-selftest: template-only acceptance fixtures not installed"; fi
+
+adversarial-review-selftest:
+	@if [ -x scripts/selftest/adversarial-review.sh ]; then ./scripts/selftest/adversarial-review.sh; \
+	else echo "adversarial-review-selftest: template-only acceptance fixtures not installed"; fi
 
 # The factory implementation has a Go module; installing this Makefile in an
 # adopter does not select a Go application pack or require Go tooling there.
@@ -59,7 +63,7 @@ doctor:
 #
 # check_command comes from factory.yaml, which the language pack sets. Empty means
 # no pack is installed yet, and the factory gates alone are the honest answer.
-check: selftest budget-selftest loop-selftest go-runtime-check
+check: selftest budget-selftest loop-selftest adversarial-review-selftest go-runtime-check
 	@CMD="$$(FACTORY_CONFIG=factory.yaml bash -c '. scripts/lib/config.sh; factory_config_get check_command')"; \
 	if [ -n "$$CMD" ]; then \
 		echo "check: running the configured product checks"; \

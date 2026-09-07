@@ -33,3 +33,9 @@ loop_timeout_seconds: 900
 loop_check_timeout_seconds: 120
 loop_check_command: ""
 loop_no_progress_limit: 1
+review_api_key_secret: "OPENROUTER_API_KEY"
+review_model: "z-ai/glm-5.3-flash"
+review_lane: "on"
+
+# Select lower GLM reasoning effort without raising the output cap (ADR-0054).
+review_reasoning_effort: "low"

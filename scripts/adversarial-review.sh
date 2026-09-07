@@ -17,6 +17,7 @@ set -euo pipefail
 #   MODEL_PROVIDER   openrouter | anthropic | openai
 #   REVIEW_MODEL     model id; falls back to the frontier tier for the provider
 #   REVIEW_API_KEY   the key itself, supplied by CI from a repository secret
+#   REVIEW_REASONING_EFFORT  optional OpenRouter effort; empty keeps provider defaults
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -130,11 +131,32 @@ case "$PROVIDER" in
     else
       ENDPOINT="https://openrouter.ai/api/v1/chat/completions"
     fi
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" \
-      '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]}')"
+    # Reasoning shares the output allowance; keep adopter defaults unless set.
+    # docs/adr/0054-explicit-review-reasoning-effort.md:17.
+    EFFORT="${REVIEW_REASONING_EFFORT:-}"
+    if [ "$PROVIDER" != "openai" ]; then
+      case "$EFFORT" in
+        ''|none|minimal|low|medium|high|xhigh|max) ;;
+        *)
+          echo "adversarial-review: invalid REVIEW_REASONING_EFFORT; use none, minimal, low, medium, high, xhigh, max, or empty." >&2
+          exit 1 ;;
+      esac
+    fi
+    # Bound OpenRouter output while preserving the OpenAI request contract.
+    # docs/adr/0052-self-hosted-adversarial-review.md:19.
+    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" \
+      '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]} +
+       (if $p == "openai" then {} else
+         {max_tokens:4096} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end)
+       end)')"
     RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
       -d "$BODY")" || RESPONSE=""
+    if [ "$PROVIDER" != "openai" ] && \
+        printf '%s' "$RESPONSE" | jq -e '.choices[0].finish_reason == "length"' >/dev/null 2>&1; then
+      echo "adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length)." >&2
+      exit 1
+    fi
     TEXT="$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)"
     ;;
 esac

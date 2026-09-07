@@ -101,6 +101,15 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return config.WritePlan(cmd.OutOrStdout(), actions)
 	}))
+	// Shell-expanded operands remain literal protocol data, including flags.
+	// docs/adr/0062-go-local-hook-normalization.md:15.
+	configCommand.AddCommand(command("hooks", cobra.MinimumNArgs(1), func(cmd *cobra.Command, args []string) error {
+		value, err := config.Hooks(cmd.Context(), args[0], args[1:])
+		if err != nil {
+			return err
+		}
+		return writeValue(cmd, value)
+	}))
 	roleCommand := command("role", cobra.NoArgs, nil)
 	roleCommand.AddCommand(command("tier", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
 		return writeValue(cmd, roles.Tier(args[0]))

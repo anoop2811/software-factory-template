@@ -73,13 +73,13 @@ repository_default_provider() {
   cp "$ROOT/factory.yaml" "$FIXTURE/factory.yaml"
   ! grep -q '^model_provider:' "$FIXTURE/factory.yaml" || return 1
   lane_settings="$(env -i PATH="$PATH" FACTORY_CONFIG="$FIXTURE/factory.yaml" \
-    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort' \
+    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort; printf "\n"; factory_config_get review_openrouter_provider' \
     config-reader "$ROOT/scripts/lib/config.sh")" || return 1
-  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nlow' ] || return 1
+  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nnone\ndeepinfra' ] || return 1
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://openrouter.ai/api/v1/chat/completions' "$FIXTURE/args" || return 1
-  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 4096 and .reasoning == {effort:"low"} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
+  jq -e '.model == "deepseek/deepseek-v4-flash-0731" and .max_tokens == 4096 and .reasoning == {effort:"none"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
 }
 
 # These source constraints do not prove GitHub runtime execution.
@@ -174,15 +174,15 @@ empty_diff() {
 
 anthropic_contract() {
   printf '%s' '{"content":[{"text":"No findings."}]}' > "$FIXTURE/response.json"
-  run_review MODEL_PROVIDER=anthropic REVIEW_MODEL=fixture-anthropic REVIEW_REASONING_EFFORT=unsupported-fixture-value
+  run_review MODEL_PROVIDER=anthropic REVIEW_MODEL=fixture-anthropic REVIEW_REASONING_EFFORT=unsupported-fixture-value REVIEW_OPENROUTER_PROVIDER=invalid,route
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://api.anthropic.com/v1/messages' "$FIXTURE/args" || return 1
-  jq -e '.model == "fixture-anthropic" and .max_tokens == 4096 and (has("reasoning") | not) and (.system | type == "string") and .messages[0].role == "user"' "$FIXTURE/body.json" >/dev/null || return 1
+  jq -e '.model == "fixture-anthropic" and .max_tokens == 4096 and (has("reasoning") | not) and (has("provider") | not) and (.system | type == "string") and .messages[0].role == "user"' "$FIXTURE/body.json" >/dev/null || return 1
   grep -qFx 'No findings.' "$FIXTURE/stdout"
 }
 
 openai_contract() {
-  run_review MODEL_PROVIDER=openai REVIEW_MODEL=fixture-openai REVIEW_REASONING_EFFORT=unsupported-fixture-value
+  run_review MODEL_PROVIDER=openai REVIEW_MODEL=fixture-openai REVIEW_REASONING_EFFORT=unsupported-fixture-value REVIEW_OPENROUTER_PROVIDER=invalid,route
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://api.openai.com/v1/chat/completions' "$FIXTURE/args" || return 1
   jq -e '.model == "fixture-openai" and (keys | sort) == ["messages","model"] and (.messages | length) == 2' "$FIXTURE/body.json" >/dev/null
@@ -290,6 +290,77 @@ literal_invalid_reasoning() {
   grep -qi 'reasoning' "$FIXTURE/stderr"
 }
 
+configured_route() {
+  printf 'review_openrouter_provider: deepinfra\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+}
+
+unconfigured_route() {
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e 'has("provider") | not' "$FIXTURE/body.json" >/dev/null
+}
+
+route_environment_override() {
+  printf 'review_openrouter_provider: deepinfra\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_OPENROUTER_PROVIDER=deepinfra/fp8
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.provider == {order:["deepinfra/fp8"],allow_fallbacks:false,require_parameters:true}' "$FIXTURE/body.json" >/dev/null
+}
+
+route_empty_override() {
+  printf 'review_openrouter_provider: deepinfra\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_OPENROUTER_PROVIDER=
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e 'has("provider") | not' "$FIXTURE/body.json" >/dev/null
+}
+
+legacy_route_precedence() {
+  printf 'REVIEW_OPENROUTER_PROVIDER=deepinfra/fp8\n' > "$FIXTURE/factory.config"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.provider == {order:["deepinfra/fp8"],allow_fallbacks:false,require_parameters:true}' "$FIXTURE/body.json" >/dev/null || return 1
+  reset_fixture
+  printf 'REVIEW_OPENROUTER_PROVIDER=deepinfra/fp8\n' > "$FIXTURE/factory.config"
+  printf 'review_openrouter_provider: deepinfra\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true}' "$FIXTURE/body.json" >/dev/null
+}
+
+# Slug grammar is a local input contract, not proof that a provider exists.
+accepted_route_slugs() {
+  local route
+  for route in deepinfra deepinfra/fp8 provider-name/endpoint-2; do
+    reset_fixture
+    run_review "REVIEW_OPENROUTER_PROVIDER=$route"
+    [ "$STATUS" -eq 0 ] && one_request || return 1
+    jq -e --arg route "$route" '.provider == {order:[$route],allow_fallbacks:false,require_parameters:true}' "$FIXTURE/body.json" >/dev/null || return 1
+  done
+}
+
+invalid_configured_routes() {
+  local route
+  for route in DeepInfra deepinfra/ deepinfra//fp8 /deepinfra deepinfra_fp8 deepinfra,other 'deepinfra other'; do
+    reset_fixture
+    printf 'review_openrouter_provider: %s\n' "$route" >> "$FIXTURE/factory.yaml"
+    run_review
+    failed_without_findings && no_requests || return 1
+    grep -qi 'provider' "$FIXTURE/stderr" || return 1
+  done
+}
+
+literal_invalid_route() {
+  local literal
+  printf -v literal '$(touch "%s")' "$FIXTURE/route-marker"
+  run_review "REVIEW_OPENROUTER_PROVIDER=$literal"
+  [ ! -e "$FIXTURE/route-marker" ] || return 1
+  failed_without_findings && no_requests || return 1
+  grep -qi 'provider' "$FIXTURE/stderr"
+}
+
 check() {
   local name="$1" scenario="$2"
   reset_fixture
@@ -328,6 +399,14 @@ check 'legacy reasoning fallback remains below YAML precedence' legacy_reasoning
 check 'documented gateway reasoning vocabulary is forwarded literally' gateway_reasoning_values
 check 'invalid configured reasoning refuses before HTTP' invalid_configured_reasoning
 check 'invalid caller reasoning is inert data and refuses before HTTP' literal_invalid_reasoning
+check 'configured OpenRouter provider excludes fallbacks and requires parameters' configured_route
+check 'unconfigured OpenRouter routing preserves provider defaults' unconfigured_route
+check 'caller OpenRouter endpoint overrides configured provider' route_environment_override
+check 'explicit empty caller route omits provider restriction' route_empty_override
+check 'legacy OpenRouter route fallback remains below YAML precedence' legacy_route_precedence
+check 'base and endpoint route slugs are forwarded literally' accepted_route_slugs
+check 'invalid configured provider slugs refuse before HTTP' invalid_configured_routes
+check 'invalid caller route is inert data and refuses before HTTP' literal_invalid_route
 
 printf 'adversarial-review: %s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]

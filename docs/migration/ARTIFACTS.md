@@ -117,3 +117,46 @@ Checksums alone establish integrity, not publisher identity. Offline roots need
 independent refresh; bundled roots are not automatically trusted. Authenticated
 installer integration, locked activation, backups, recovery and retirement remain
 future migration slices. See [ADR-0060](../adr/0060-runtime-source-bundles.md).
+
+## Stage a bundle before activation
+
+The developer-only `factory-stage` command validates an archive and places its
+three files in a new private directory. It never activates an installation or
+executes a candidate. Run the built tool directly; Go is needed only to build it.
+
+```sh
+go build -o /tmp/factory-stage ./cmd/factory-stage
+/tmp/factory-stage --archive "$archive" --version "$expected_tag" \
+  --revision "$expected_commit" --target linux/amd64 --output /tmp/new-runtime-stage \
+  --attestation runtime-attestations.jsonl --trusted-root trusted-root.jsonl
+```
+
+Release mode requires a trusted GitHub CLI and independently provisioned roots.
+The verifier receives private snapshots and checks the repository, signer
+workflow, exact commit and release ref before any archive interpretation. There
+is a 30-second verification deadline; errors stop staging without fallback.
+`--gh` can select an explicit trusted verifier executable. The stager does not
+fetch artifacts, roots or attestations.
+
+For your own source build, replace the two verification-file flags with `--local`.
+This explicitly skips authentication and reports `local-source`; a release-looking
+version label does not change that status. Never use local mode as a workaround
+for a failed release verification.
+
+The archive must contain exactly the expected binary, manifest and source JSON,
+with matching version, revision, target and digest. Paths, types, modes, metadata,
+gzip integrity and input/decompression sizes are checked. Inputs and existing
+output paths are preserved. Output directories are private (0700), with binary
+0700 and metadata 0600. An interrupted final publication may leave an incomplete
+new directory; inspect it and retry with a fresh output path.
+
+Success prints a single JSON result including the archive digest, output root and
+authentication mode. This is evidence for that operation; later activation must
+revalidate it under its own lock. Staging does not create recovery backups because
+it does not replace any installed asset. Backup/rollback/cleanup integration and
+the manual adopter pilot remain migration prerequisites.
+
+Four-target CI now exercises the executable extracted by explicit local staging.
+Tests of a fake verifier establish delegation and failure gating, not real
+signature acceptance. Live authenticated staging still requires a trusted release
+artifact. See [ADR-0061](../adr/0061-runtime-bundle-staging.md).

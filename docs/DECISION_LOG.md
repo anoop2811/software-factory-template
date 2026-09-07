@@ -2080,3 +2080,13 @@ and attest release archives in a trusted release workflow. Keep local labels
 distinct from authentication; trust roots and expected source/workflow identity
 come from outside the downloaded artifact. Preserve existing outputs and clean
 owned build staging. No adopter activation or legacy deletion occurs here.
+
+## Decision 56 (2026-09-07): authenticated bundle staging
+
+Implement ADR-0061 as the next G1/G4 distribution prerequisite after PR #83.
+Stage exact local or attested release archives through an explicit developer
+Cobra command. Authenticate private input snapshots before interpreting archives,
+validate the complete bundle identity, and publish only into a new private root.
+Independent outside-in acceptance precedes implementation. Keep delegated trust
+tests distinct from live signing evidence; activation and recovery lifecycle work
+remain separate gates. No existing installation assets are replaced in this slice.

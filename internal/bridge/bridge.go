@@ -79,13 +79,19 @@ func Run(ctx context.Context, args []string) int {
 	configCommand.AddCommand(command("export", preservedArgs(0), func(cmd *cobra.Command, args []string) error {
 		path, err := config.File(cmd.Context())
 		if err != nil {
+			status = 1
 			return err
 		}
 		actions, err := config.ExportPlan(cmd.Context(), path, args)
 		if err != nil {
+			status = 1
 			return err
 		}
-		return config.WritePlan(cmd.OutOrStdout(), actions)
+		if err := config.WritePlan(cmd.OutOrStdout(), actions); err != nil {
+			status = 1
+			return err
+		}
+		return nil
 	}))
 	configCommand.AddCommand(command("legacy", preservedArgs(1), func(cmd *cobra.Command, args []string) error {
 		actions, err := config.LegacyPlan(cmd.Context(), args[0], args[1:])
@@ -106,7 +112,9 @@ func Run(ctx context.Context, args []string) int {
 	runtimeCommand.AddCommand(command("verify", cobra.ExactArgs(3), func(cmd *cobra.Command, args []string) error {
 		metadata, err := artifact.Verify(cmd.Context(), args[0], args[1], args[2])
 		if err != nil {
-			status = 1
+			if !errors.Is(err, artifact.ErrInvalidRequest) {
+				status = 1
+			}
 			return err
 		}
 		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", metadata.Version, metadata.Target, metadata.Binary, metadata.SHA256)

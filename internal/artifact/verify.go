@@ -17,6 +17,10 @@ import (
 
 const header = "FACTORY_RUNTIME_ARTIFACT_V1"
 
+// ErrInvalidRequest marks caller-supplied artifact operands that are malformed.
+// Integrity and I/O failures remain ordinary errors and map to status 1.
+var ErrInvalidRequest = errors.New("invalid artifact request")
+
 // Metadata is the verified, deterministic identity of one runtime artifact.
 type Metadata struct {
 	Version string
@@ -33,7 +37,7 @@ func Verify(ctx context.Context, manifestPath, root, target string) (Metadata, e
 		return Metadata{}, err
 	}
 	if target == "" || !validTarget(target) {
-		return Metadata{}, fmt.Errorf("invalid artifact target %q", target)
+		return Metadata{}, fmt.Errorf("%w: invalid artifact target %q", ErrInvalidRequest, target)
 	}
 	manifest, err := regularNoSymlink(manifestPath)
 	if err != nil {
@@ -153,18 +157,18 @@ func validateRoot(root string) error {
 		return fmt.Errorf("artifact root: %w", err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		return fmt.Errorf("artifact root is not a regular directory")
+		return fmt.Errorf("%w: artifact root is not a regular directory", ErrInvalidRequest)
 	}
 	return nil
 }
 
 func safeChild(root, relative string) (string, error) {
-	if relative == "" || filepath.IsAbs(relative) {
-		return "", errors.New("binary path must be relative")
+	if relative == "" || filepath.IsAbs(relative) || filepath.VolumeName(relative) != "" {
+		return "", fmt.Errorf("%w: binary path must be relative", ErrInvalidRequest)
 	}
 	clean := filepath.Clean(relative)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return "", errors.New("binary path escapes artifact root")
+		return "", fmt.Errorf("%w: binary path escapes artifact root", ErrInvalidRequest)
 	}
 	current := root
 	for _, part := range strings.Split(clean, string(filepath.Separator)) {

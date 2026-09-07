@@ -21,6 +21,8 @@ OpenRouter response limit; Anthropic already has that limit. Leave the unrelated
 OpenAI request contract unchanged. An OpenRouter response with finish_reason length must
 report an incomplete review and fail the review runner instead of presenting a
 truncated answer as completed review evidence. No strict dollar ceiling is claimed.
+ADR-0057 later supersedes the fixed OpenRouter value with a configurable default
+of 8192; the bounded-request and truncation rules remain.
 
 Update the shared review-lane checkout pin to the verified v7.0.1 commit so that
 the generated workflow and future lane generation use the same immutable source.

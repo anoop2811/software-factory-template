@@ -73,13 +73,13 @@ repository_default_provider() {
   cp "$ROOT/factory.yaml" "$FIXTURE/factory.yaml"
   ! grep -q '^model_provider:' "$FIXTURE/factory.yaml" || return 1
   lane_settings="$(env -i PATH="$PATH" FACTORY_CONFIG="$FIXTURE/factory.yaml" \
-    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort; printf "\n"; factory_config_get review_openrouter_provider' \
+    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort; printf "\n"; factory_config_get review_openrouter_provider; printf "\n"; factory_config_get review_max_tokens' \
     config-reader "$ROOT/scripts/lib/config.sh")" || return 1
-  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nnone\ndeepinfra' ] || return 1
+  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nnone\ndeepinfra\n8192' ] || return 1
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://openrouter.ai/api/v1/chat/completions' "$FIXTURE/args" || return 1
-  jq -e '.model == "deepseek/deepseek-v4-flash-0731" and .max_tokens == 4096 and .reasoning == {effort:"none"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
+  jq -e '.model == "deepseek/deepseek-v4-flash-0731" and .max_tokens == 8192 and .reasoning == {effort:"none"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
 }
 
 # These source constraints do not prove GitHub runtime execution.
@@ -127,7 +127,38 @@ trusted_base_guard() {
 openrouter_cap() {
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
-  jq -e '.max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+  jq -e '.max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
+}
+
+configured_max_tokens() {
+  printf 'review_max_tokens: 12288\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.max_tokens == 12288' "$FIXTURE/body.json" >/dev/null
+}
+
+max_tokens_environment_override() {
+  printf 'review_max_tokens: 12288\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_MAX_TOKENS=16384
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.max_tokens == 16384' "$FIXTURE/body.json" >/dev/null
+}
+
+empty_max_tokens_uses_default() {
+  printf 'review_max_tokens: 12288\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_MAX_TOKENS=
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
+}
+
+invalid_max_tokens() {
+  local value
+  for value in 0 1023 32769 12.5 bad 999999999999999999999; do
+    reset_fixture
+    run_review "REVIEW_MAX_TOKENS=$value"
+    failed_without_findings && no_requests || return 1
+    grep -qi 'max_tokens' "$FIXTURE/stderr" || return 1
+  done
 }
 
 truncation_refusal() {
@@ -228,13 +259,13 @@ configured_reasoning() {
   printf 'review_reasoning_effort: low\n' >> "$FIXTURE/factory.yaml"
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
-  jq -e '.reasoning == {effort:"low"} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+  jq -e '.reasoning == {effort:"low"} and .max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
 }
 
 unconfigured_reasoning() {
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
-  jq -e '(has("reasoning") | not) and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+  jq -e '(has("reasoning") | not) and .max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
 }
 
 reasoning_environment_override() {
@@ -270,7 +301,7 @@ gateway_reasoning_values() {
     reset_fixture
     run_review "REVIEW_REASONING_EFFORT=$effort"
     [ "$STATUS" -eq 0 ] && one_request || return 1
-    jq -e --arg effort "$effort" '.reasoning == {effort:$effort} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null || return 1
+    jq -e --arg effort "$effort" '.reasoning == {effort:$effort} and .max_tokens == 8192' "$FIXTURE/body.json" >/dev/null || return 1
   done
 }
 
@@ -294,7 +325,7 @@ configured_route() {
   printf 'review_openrouter_provider: deepinfra\n' >> "$FIXTURE/factory.yaml"
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
-  jq -e '.provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+  jq -e '.provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
 }
 
 unconfigured_route() {
@@ -377,7 +408,11 @@ check() {
 check 'configured OpenRouter model and markdown' configured_success
 check 'repository config uses default OpenRouter without native provider selection' repository_default_provider
 check 'structural: privileged job requires same repository AND default base branch' trusted_base_guard
-check 'OpenRouter explicit 4096-token response cap' openrouter_cap
+check 'OpenRouter default 8192-token response cap' openrouter_cap
+check 'OpenRouter YAML output cap is configurable' configured_max_tokens
+check 'caller output cap overrides YAML' max_tokens_environment_override
+check 'empty caller output cap uses the safe default' empty_max_tokens_uses_default
+check 'invalid output caps refuse before HTTP' invalid_max_tokens
 check 'OpenRouter truncated output is incomplete, not review evidence' truncation_refusal
 check 'diff content reaches JSON literally without execution' literal_diff
 check 'missing API key refuses before HTTP' missing_key

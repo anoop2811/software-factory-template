@@ -9,10 +9,11 @@ cannot perform. Existing installed libraries and public routing remain unchanged
 
 The same private FACTORY_BRIDGE_PROTOCOL=1 Cobra tree gains config export
 [PRESERVED_KEY...] and config legacy FILE [PRESERVED_KEY...]. Preserved names
-must belong to the fixed 16-key allowlist; caller values never enter this
+must belong to the fixed 17-key allowlist; caller values never enter this
 protocol. Go must not infer caller presence from its own environment. Current
-keys include REVIEW_REASONING_EFFORT and REVIEW_OPENROUTER_PROVIDER in addition
-to the 14 historical settings. Unknown command operands refuse with status 2.
+keys include REVIEW_REASONING_EFFORT, REVIEW_OPENROUTER_PROVIDER and
+REVIEW_MAX_TOKENS in addition to the 14 historical settings. Unknown command
+operands refuse with status 2.
 
 Go emits a complete LF-delimited plan: FACTORY_CONFIG_PLAN_V1, zero or more
 set<TAB>KEY<TAB>VALUE or export<TAB>KEY records, and END. SET means assign the
@@ -59,8 +60,9 @@ failure, and one-line values containing leading/interior/trailing tabs. Bound
 fixture subprocesses to ten seconds and make no native model calls.
 Also compare the original 14 settings with both immutable historical baselines
 after the existing, hash-checked EX-001 correction is applied only to isolated
-fixtures. The current 16-key oracle is 2e3609bfbb22698561167747caf175e3dbdb9e74;
-historical correction artifacts and Git objects remain unchanged.
+fixtures. The 16-key oracle at 2e3609bfbb22698561167747caf175e3dbdb9e74 is
+unchanged; REVIEW_MAX_TOKENS is the subsequent candidate-only addition.
+Historical correction artifacts and Git objects remain unchanged.
 
 This remains a candidate slice, not G1 completion or an adopter activation.
 Use Bash scalar variables and the existing C/POSIX parsing scope. Arrays,

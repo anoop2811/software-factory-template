@@ -51,6 +51,7 @@ separate `factory.config` that scripts *sourced*; they are ordinary keys here no
 | `review_lane` | `on`/`off` for the advisory adversarial PR review. Its presence is the record of having been asked. | `off` |
 | `review_model` | Pin a reviewer model; blank resolves the frontier tier at run time. | `""` |
 | `review_api_key_secret` | Name of the repository secret CI reads the key from. | `OPENROUTER_API_KEY` |
+| `review_max_tokens` | Maximum OpenRouter completion tokens; decimal `1024`–`32768`, default `8192`. | `8192` |
 
 If you have a `factory.config` from an earlier release it still works — it is read
 for any key the YAML does not define. `./factory migrate-config` moves it across

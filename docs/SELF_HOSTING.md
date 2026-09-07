@@ -48,7 +48,9 @@ events targeting the default branch fetch the diff as data and post an advisory
 review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
 
 The lane permits one HTTP request per run, a 200000-byte diff, a 180-second
-request timeout and a 4096-token OpenRouter output cap. Oversized diffs are
+request timeout and an 8192-token OpenRouter output cap by default. Set
+`review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
+to a decimal value from 1024 through 32768; the caller value wins. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
 or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
@@ -59,7 +61,7 @@ No effective value means provider defaults; an explicitly empty caller value
 also overrides configured effort. The gateway values are
 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; choose only values
 supported by your model. This repository selects `none` to disable thinking and
-keep the 4096-token allowance available for the review text. Reasoning tokens,
+keep the configured token allowance available for the review text. Reasoning tokens,
 when enabled, share that allowance with the final answer. Disabling thinking
 does not guarantee a complete or accurate review.
 See docs/adr/0055-pin-deepseek-review-provider.md:5.

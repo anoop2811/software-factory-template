@@ -13,7 +13,7 @@ import (
 
 const exportBaseline = "2e3609bfbb22698561167747caf175e3dbdb9e74"
 
-var exportKeys = append(append([]string{}, configurationKeys...), "REVIEW_REASONING_EFFORT", "REVIEW_OPENROUTER_PROVIDER")
+var exportKeys = append(append([]string{}, configurationKeys...), "REVIEW_REASONING_EFFORT", "REVIEW_OPENROUTER_PROVIDER", "REVIEW_MAX_TOKENS")
 
 const exportProbe = `set -euo pipefail
 for probe_key in $8; do unset "$probe_key"; done
@@ -129,18 +129,29 @@ var _ = Describe("G1 configuration export plans", func() {
 })
 
 var _ = Describe("G1 sourceable configuration export", func() {
-	It("matches all 16 current keys against immutable Bash and independent expected state", func() {
+	It("matches all 17 current keys against immutable Bash and independent expected state", func() {
 		root, cwd := fixture()
 		baseline := historicalConfiguration(root, exportBaseline)
 		for _, key := range exportKeys {
 			writeFixture(filepath.Join(cwd, "factory.yaml"), []byte(strings.ToLower(key)+": YAML\n"), 0600)
 			writeFixture(filepath.Join(cwd, "factory.config"), []byte(key+"=legacy\n"), 0600)
-			for _, source := range []string{baseline, exportShimPath()} {
+			sources := []string{exportShimPath()}
+			// REVIEW_MAX_TOKENS was added after the immutable baseline used by
+			// this parity fixture; the candidate must carry it forward while
+			// historical keys remain byte-for-byte comparable.
+			if key != "REVIEW_MAX_TOKENS" {
+				sources = append([]string{baseline}, sources...)
+			}
+			for _, source := range sources {
 				Expect(exportSnapshot(root, cwd, source, key, "", "unset", "export", "")).To(Equal(configurationSnapshot{true, true, "YAML", "YAML"}), key)
 				Expect(exportSnapshot(root, cwd, source, key, "", "environment", "export", "")).To(Equal(configurationSnapshot{true, true, "", ""}), key)
 			}
 			Expect(os.Remove(filepath.Join(cwd, "factory.yaml"))).To(Succeed())
-			for _, source := range []string{baseline, exportShimPath()} {
+			sources = []string{exportShimPath()}
+			if key != "REVIEW_MAX_TOKENS" {
+				sources = append([]string{baseline}, sources...)
+			}
+			for _, source := range sources {
 				Expect(exportSnapshot(root, cwd, source, key, "", "unset", "export", "")).To(Equal(configurationSnapshot{true, true, "legacy", "legacy"}), key)
 			}
 		}

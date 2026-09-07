@@ -2141,3 +2141,13 @@ cleaning embedded path components or changing the independent reader protocol.
 Delivery evidence refinement: add writer cases to existing packaged conformance,
 prove an immutable pre-writer binary fails them, and exercise the staged writer
 on all four native targets with Go/Python absent from runtime PATH.
+
+
+## Decision 60 (2026-09-07): distinguish review transport deadlines from token exhaustion
+
+Implement ADR-0065 after the confirmed curl 180-second cutoff on PR #87. Give the
+single request a configurable bounded deadline through an environment/Actions
+variable, preserve cost controls and expose safe failure diagnostics. Do not
+pretend a timeout returned a model review or claim a provider-side root cause
+that the old logs cannot establish. Decision 59 belongs to the separate pending
+Go accounting PR #87; this correction is based directly on main.

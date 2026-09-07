@@ -75,9 +75,10 @@ Labels are evidence, not roadmap: battle-tested means a real project shipped und
 
 Frameworks ride on the language pack, not their own: React and Vue use the TypeScript pack (Biome auto-applies its `react`/`vue` rules), Spring Boot uses the Java pack (JUnit 5 + Testcontainers). `factory-init` detects them and points you at the right pack. Install several at once for polyglot repos — `--pack go,typescript`.
 
-The [Go runtime conversion spec](specs/001-go-runtime-conversion.md) proposes a
-staged migration with backward compatibility, recovery and safe cleanup. It is
-a draft; no Go runtime conversion has shipped.
+The [Go runtime conversion spec](specs/001-go-runtime-conversion.md) governs a
+staged migration with backward compatibility, recovery and safe cleanup. Go
+reader, configuration-export and artifact-verification candidates are available
+for development; no default runtime cutover or packaged conversion has shipped.
 
 ## Cost & models
 

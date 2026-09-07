@@ -64,6 +64,9 @@ The [read-only reader candidate](READERS.md) adds its own observed RED/GREEN
 cycle for configuration lookup and role resolution. The
 [configuration export candidate](EXPORTS.md) extends the candidate through a
 Bash adapter. Writes and complete sourced-library parity still need acceptance.
+The [artifact verification candidate](ARTIFACTS.md) adds a private manifest and
+digest boundary for future packaged runtimes without executing or installing
+an artifact.
 Artifact delivery and transactional migration/recovery must pass before
 an adopter switches runtime. Local gitignored backup retention and predecessor
 cleanup remain mandatory acceptance criteria for that delivery work.

@@ -2037,3 +2037,27 @@ through 32768 and reject invalid input before the HTTP request. Keep Anthropic's
 a spend guarantee; one request, the diff bound, timeout, provider pin and
 truncation refusal remain in force. Record the live failure and authoritative
 OpenRouter token semantics in ADR-0057.
+
+## Decision 53 (2026-09-07): candidate runtime artifact verification
+
+Continue G1 with a private, read-only artifact verifier. A versioned inert
+manifest names one release identity, one `GOOS/GOARCH` target, one relative
+binary path and one SHA-256 digest. Verification rejects duplicate/missing
+fields, traversal or absolute paths, symlink/nonregular files, target mismatch,
+bad digests and unreadable inputs before any candidate execution. The Cobra
+request is `FACTORY_BRIDGE_PROTOCOL=1 runtime verify MANIFEST ROOT TARGET`;
+status 0 emits deterministic metadata, status 1 reports I/O/integrity failure,
+and status 2 rejects malformed private operands. No public dispatcher,
+installer, download, activation, fallback, cleanup or legacy asset changes are
+part of this slice. AC 5.2/5.4 and FR-019/020/022 remain incomplete until
+authenticated release delivery, all four target artifacts and lifecycle
+recovery are separately evidenced.
+
+CI follow-up: construct malformed artifact manifests from test-owned fixture
+data rather than reading a path operand back into the fixture writer. Remove
+unused fixture parameters without changing assertions or disabling lint rules.
+Manifest values must also reject embedded tabs so emitted metadata retains
+exactly four tab-separated fields; spaces in artifact filenames remain valid.
+Open the binary through an `os.Root` handle confined to the artifact directory
+and check the opened file type before hashing. The manifest remains an explicit
+caller-selected read-only input and may live outside the artifact directory.

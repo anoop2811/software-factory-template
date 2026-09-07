@@ -2052,3 +2052,9 @@ installer, download, activation, fallback, cleanup or legacy asset changes are
 part of this slice. AC 5.2/5.4 and FR-019/020/022 remain incomplete until
 authenticated release delivery, all four target artifacts and lifecycle
 recovery are separately evidenced.
+
+CI follow-up: construct malformed artifact manifests from test-owned fixture
+data rather than reading a path operand back into the fixture writer. Remove
+unused fixture parameters without changing assertions or disabling lint rules.
+Manifest values must also reject embedded tabs so emitted metadata retains
+exactly four tab-separated fields; spaces in artifact filenames remain valid.

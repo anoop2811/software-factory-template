@@ -104,7 +104,7 @@ func parseManifest(ctx context.Context, reader io.Reader) (Metadata, error) {
 			return Metadata{}, fmt.Errorf("invalid artifact manifest field at line %d", line)
 		}
 		key, field := parts[0], parts[1]
-		if field == "" || strings.ContainsAny(field, "\r\n") {
+		if field == "" || strings.ContainsAny(field, "\t\r\n") {
 			return Metadata{}, fmt.Errorf("invalid artifact manifest value at line %d", line)
 		}
 		seen[key] = true

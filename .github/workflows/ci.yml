@@ -25,6 +25,9 @@ jobs:
       - name: Break/fix self-tests (every gate proven)
         run: ./scripts/selftest/run.sh
 
+      - name: Adversarial review request fixtures (no API calls)
+        run: ./scripts/selftest/adversarial-review.sh
+
       - name: Selftest with optional pack sources absent
         run: ./scripts/selftest/optional-packs.sh
 

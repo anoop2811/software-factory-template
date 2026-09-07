@@ -1,3 +1,4 @@
+# Managed by: factory review-lane. Remove with: ./factory review-lane disable
 name: Adversarial review
 
 # Advisory first-pass review on pull requests. It is NEVER a required check:
@@ -67,11 +68,11 @@ jobs:
       - name: Review
         if: hashFiles('review-skip') == ''
         env:
-          REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
+          REVIEW_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           if [ -z "${REVIEW_API_KEY:-}" ]; then
             {
-              echo "The repository secret __REVIEW_API_KEY_SECRET__ is not set."
+              echo "The repository secret OPENROUTER_API_KEY is not set."
               echo ""
               echo "Add it in Settings → Secrets and variables → Actions, or disable"
               echo "the lane with \`./factory review-lane disable\`."

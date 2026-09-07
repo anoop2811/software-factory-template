@@ -82,6 +82,13 @@ acceptance references before cleanup.
 | Product packs | Go, TypeScript, Java/Gradle/Maven and polyglot behavior; pack test regexes, local hooks and unchanged product build selection | `packs/*/pack.yaml`, pack hook/build/workflow entries; `scripts/selftest/java-build-tool.sh`, `scripts/selftest/maven-quality.sh`, `scripts/selftest/optional-packs.sh` |
 | Tests and CI | Behavioral negative controls, registered-hook proofs and explicit asset completeness rather than shell-text grep success; separate optional/paid gating | `scripts/hooks/copy-manifest-check.sh:4`, `scripts/selftest/`, `.github/workflows/`, `eval/` |
 
+## Candidate accounting progress
+
+The [native usage accounting candidate](USAGE.md) starts G2 with decoded-event
+metadata normalization for all three harnesses. It does not replace installed
+controllers, qualify live streams or retire `budget_adapters.py`; the G2
+supervision, locking and safe-delivery requirements above remain open.
+
 ## Gates still open
 
 - EX-001 remains a recorded discrepancy in immutable baseline bytes. Anoop

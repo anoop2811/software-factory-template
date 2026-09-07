@@ -2141,3 +2141,15 @@ cleaning embedded path components or changing the independent reader protocol.
 Delivery evidence refinement: add writer cases to existing packaged conformance,
 prove an immutable pre-writer binary fails them, and exercise the staged writer
 on all four native targets with Go/Python absent from runtime PATH.
+
+
+## Decision 59 (2026-09-07): Go native usage accounting candidate
+
+After merged PR #86, implement ADR-0064's metadata-only accounting boundary for
+Codex, Claude Code and OpenCode as the first G2 candidate slice. Preserve native
+unknown/null and failure/completeness semantics before porting admission and
+process supervision. Use an explicit private Cobra request over decoded event
+arrays, an immutable Python normalization oracle, outside-in Ginkgo/Gomega TDD
+and native packaged conformance. No installed routing, paid call, active legacy
+retirement or upgrade cleanup is authorized by this slice; their existing
+migration acceptance gates remain open.

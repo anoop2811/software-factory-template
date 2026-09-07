@@ -411,4 +411,20 @@ var _ = Describe("Packaged runtime conformance", func() {
 		Expect(entries).To(HaveLen(2))
 	})
 
+	// per docs/adr/0064-go-native-usage-accounting.md:86
+	DescribeTable("normalizes native usage without Python or native CLIs on PATH", func(harness string) {
+		cost := "0.25"
+		if harness == "codex" {
+			cost = "null"
+		}
+		result := usageProcess(cwd, "["+usageEvents[harness]+"]", binary, "usage", "normalize", harness)
+		Expect(result.status).To(Equal(0), result.stderr)
+		Expect(result.stderr).To(BeEmpty())
+		Expect(result.stdout).To(HaveSuffix("\n"))
+		Expect(usageMetadata(result.stdout)).To(Equal(usageMetadata(usageExpected(harness, usageTokens[harness], cost, true, false))))
+		entries, err := os.ReadDir(cwd)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(entries).To(BeEmpty())
+	}, Entry("Codex accounting", "codex"), Entry("Claude accounting", "claude"), Entry("OpenCode accounting", "opencode"))
+
 })

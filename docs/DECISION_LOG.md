@@ -2094,3 +2094,25 @@ remain separate gates. No existing installation assets are replaced in this slic
 Review refinement: keep the source-bundle compiler identity in the shared artifact
 contract so packaging and staging cannot drift through separate version literals.
 The independent acceptance fixtures retain their explicit expected version.
+
+## Decision 57 (2026-09-07): Go local-hook entry normalization
+
+Implement ADR-0062 as the next G1 sourceable-library slice. Keep caller-shell
+field splitting and pathname expansion in the thin adapter; move hook grouping
+and comma-field normalization into one Go implementation behind the private
+Cobra protocol. Configuration remains literal data, source-time execution is
+forbidden, and the candidate retains explicit runtime selection without fallback.
+Independent baseline/expected-output Ginkgo acceptance must fail before code.
+Public routing and installation lifecycle remain unchanged; this does not
+authorize legacy cleanup or claim full G1 compatibility.
+
+Pre-implementation characterization refinement: empty tokens produced by adjacent
+non-whitespace IFS delimiters terminate the prior hook and reset flag attachment.
+They cannot simply be discarded: `a.sh::--strict:b.sh` with IFS `:` prints only
+`a.sh` and `b.sh`. Preserve that boundary in Go and independent acceptance.
+
+Security refinement before correction: review reproduced arithmetic execution of
+configuration assigned to an inherited integer scratch variable. Remove named
+scratch assignments from the new adapter; use positional data/status transport
+and preserve IFS through literal positional slots. Require an independent
+marker-file RED/GREEN regression and literal output with inherited attributes.

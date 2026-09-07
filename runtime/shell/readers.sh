@@ -39,3 +39,44 @@ role_tier() {
 resolve_tier() {
   _factory_reader_call role resolve "$1" "$2"
 }
+
+# Expansion belongs to the host shell; grouping belongs to Go.
+# docs/adr/0062-go-local-hook-normalization.md:32.
+factory_local_hooks() (
+  # Positional parameters cannot inherit integer or nameref variable attributes.
+  # Frame status separately so a failed read never becomes hook data.
+  set -- "$(if factory_config_get local_hooks; then
+    printf '\n0'
+  else
+    printf '\n%d' "$?"
+  fi)"
+  case "${1##*
+}" in
+    0) ;;
+    *) return "${1##*
+}" ;;
+  esac
+  # Recapture only the value, retaining command substitution's LF trimming.
+  set -- "$(printf '%s' "${1%
+*}")"
+  case "$1" in
+    *,*)
+      set -- "$1" "${IFS+x}" "${IFS-}"
+      IFS=','
+      # shellcheck disable=SC2086 # Preserve baseline splitting and pathname expansion.
+      set -- "$2" "$3" $1
+      if [ "$1" = x ]; then
+        IFS=$2
+      else
+        unset IFS
+      fi
+      shift 2
+      _factory_reader_call config hooks commas "$@"
+      ;;
+    *)
+      # shellcheck disable=SC2086 # Preserve the caller's IFS and glob options.
+      set -- $1
+      _factory_reader_call config hooks words "$@"
+      ;;
+  esac
+)

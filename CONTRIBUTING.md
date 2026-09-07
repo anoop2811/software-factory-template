@@ -2,7 +2,7 @@
 
 **In short**
 
-- The template runs its own factory. The gates below are hooks that will reject your commit or push, not conventions to remember.
+- The template runs its own factory checks. Enable the local main-push guard with `git config --local core.hooksPath .githooks`; CI and the full pre-push command enforce the broader checks. See [self-hosting](docs/SELF_HOSTING.md).
 - Decisions go in `docs/DECISION_LOG.md` before the code that implements them.
 - Every new or changed hook ships with a break/fix fixture. No fixture, no merge.
 - Direct pushes to `main` are blocked. Push a feature branch, open a PR.

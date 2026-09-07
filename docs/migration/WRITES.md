@@ -125,7 +125,7 @@ An initial full-suite run also caught an obsolete reader fixture that called
 `config set` an unknown operation. Its token now names `unknown-operation`;
 its status, stdout and no-mutation assertions remain unchanged.
 
-On the final source/test snapshot, the complete source gate exited 0:
+Before the subsequent fixture-only lint annotation, the complete source gate exited 0:
 
 ```sh
 rtk proxy env PATH="/private/tmp/factory-quality-tools:$PATH" make go-runtime-source-check
@@ -153,3 +153,16 @@ diff-aware-check: all 1 dispatched check(s) passed
 Independent correctness/tests and security reviews were rechecked after their
 findings were addressed. Live paid-model execution, installed activation and
 upgrade backup/cleanup acceptance are not claimed by this evidence.
+
+Linux CI passed acceptance but reported G703 at the shared test-fixture writer.
+The same warning reproduced locally with Linux-target analysis; the sink now
+records its test-owned temporary-path boundary with a line-scoped annotation.
+Production scanning and acceptance assertions are unchanged. The repeated command:
+
+```sh
+rtk proxy env GOOS=linux GOARCH=amd64 /private/tmp/factory-quality-tools/golangci-lint run --config packs/go/.golangci.yml ./...
+```
+
+```text
+0 issues.
+```

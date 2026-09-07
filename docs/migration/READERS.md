@@ -36,7 +36,8 @@ through PATH.
 `FACTORY_BRIDGE_PROTOCOL=1` selects a separate Cobra tree in the same binary.
 This developer protocol is not a new public command surface. An empty or absent
 protocol variable retains ordinary CLI dispatch; unknown versions refuse with
-status 2. The following commands are the only supported private requests:
+status 2. The read-only requests are listed below; the additional export/legacy
+requests are documented in [the export candidate](EXPORTS.md).
 
 | Request | Result |
 | --- | --- |

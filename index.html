@@ -524,6 +524,7 @@
   <div class="wrap">
     <a class="domain" href="#">softwareaifactory<span class="sh">.sh</span></a>
     <nav>
+      <a href="#features">Features</a>
       <a href="#why">Why</a>
       <a href="#differs">How it differs</a>
       <a href="#inside">Inside</a>
@@ -548,6 +549,7 @@
       </div>
       <h1>Your AI agents follow rules.<br>Ours <span class="pass-word">exit&nbsp;non-zero</span> if they don't.</h1>
       <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we build our own product with — it's what stuck after an agent told us a change was verified when the check had never run.</p>
+      <p class="lede"><a href="#features">Budget controls, run observability, and bounded repair loops</a> &mdash; choose how much work your agents can take on.</p>
       <div class="whofor">
         <span class="tag">For a <b>solo dev</b> driving one coding agent</span>
         <span class="tag">or a <b>team</b> whose agents open PRs</span>
@@ -573,6 +575,42 @@
         <div class="term-body" id="term"><span class="cursor"></span></div>
       </div>
       <p class="term-note"># Actual behavior of scripts/hooks/test-edit-denial.sh and scripts/selftest/run.sh — not a mock.</p>
+    </div>
+  </section>
+
+  <!-- Feature scope: docs/adr/0053-advertise-budget-and-loop-features.md:5. -->
+  <section id="features" class="band" aria-labelledby="features-heading">
+    <div class="wrap">
+      <span class="eyebrow green">$ budgeting &middot; observability &middot; loop engineering</span>
+      <h2 id="features-heading">Give your agents limits. See where the work goes.</h2>
+      <p class="lede">Choose a local preview, a single budgeted invocation, or a bounded repair loop. The shared controls support Codex, Claude Code, and OpenCode through their native CLIs. Model execution is opt-in; your existing permissions and factory gates still apply.</p>
+      <p class="table-note"><strong>Available on main.</strong> These additions are not included in the current v0.1.6 release. Use the <a href="#install">install or upgrade instructions with <code>--ref main</code></a> to try them.</p>
+      <div class="grid3">
+        <div class="cell">
+          <span class="mono-label">factory budget</span>
+          <h3>Budgeting: set limits before launch</h3>
+          <p>Limit task attempts, session runs, execution time, and concurrent factory invocations. Preview the plan locally before enabling a run. Optional estimated-cost thresholds can warn or stop further launches; they are not a guaranteed dollar cap. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md">Choose your budget controls &rarr;</a></p>
+        </div>
+        <div class="cell c-blue">
+          <span class="mono-label">factory budget report</span>
+          <h3>Observability: inspect each attempt</h3>
+          <p>See the harness, role, requested model, duration, outcome, reported tokens, and available cost estimates. Missing usage stays unknown. The local, gitignored ledger stores metadata without prompts or responses; export reports as JSON. Native harness history follows its own settings. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md#execution-and-storage">Explore run reporting &rarr;</a></p>
+        </div>
+        <div class="cell c-violet">
+          <span class="mono-label">factory loop</span>
+          <h3>Loop engineering: repair within bounds</h3>
+          <p>Manual mode runs your configured check without calling a model. Explicit bounded mode coordinates implementation, checks, separate review, and repair through the same budget. It stops on exhausted limits or stalled progress and leaves evidence and a next action for handoff. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
+        </div>
+      </div>
+      <div class="qs" aria-label="Local feature previews without model calls"><span class="dim"># inspect limits; new runs are disabled until you opt in</span>
+<span class="prompt">$</span> ./factory budget plan --harness codex --session demo --task first
+
+<span class="dim"># inspect local run history</span>
+<span class="prompt">$</span> ./factory budget report --session demo --json
+
+<span class="dim"># preview the default manual loop; no checks or model calls</span>
+<span class="prompt">$</span> ./factory loop plan --harness codex --session demo --task first</div>
+      <p class="table-note">Use <code>--harness claude</code> or <code>--harness opencode</code> with the same commands. Budget limits cover factory-managed launches, not unrelated interactive sessions or individual model turns inside a harness. Bounded loops require both <code>loop_enabled</code> and <code>budget_enabled</code>; <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md#usage-and-cost-choices">allow for reviewer calls in the budget</a>.</p>
     </div>
   </section>
 

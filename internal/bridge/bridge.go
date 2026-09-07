@@ -1,4 +1,4 @@
-// Package bridge provides the private, read-only sourceable-library protocol.
+// Package bridge provides the private sourceable-library protocol.
 // It does not install or activate public adapters. docs/DECISION_LOG.md:1960.
 package bridge
 
@@ -59,6 +59,19 @@ func Run(ctx context.Context, args []string) int {
 			fmt.Fprintln(cmd.ErrOrStderr(), "factory bridge:", err)
 		}
 		return writeValue(cmd, value)
+	}))
+	// Mutation has literal arguments and preserves the legacy missing-file diagnostic.
+	// docs/adr/0063-go-configuration-writes.md:15.
+	configCommand.AddCommand(command("set", configArgs(2, 2), func(cmd *cobra.Command, args []string) error {
+		path, err := config.File(cmd.Context())
+		if err == nil {
+			err = config.Set(cmd.Context(), path, args[0], args[1])
+		}
+		if err != nil {
+			status = 1
+			fmt.Fprintln(cmd.ErrOrStderr(), err)
+		}
+		return nil
 	}))
 	configCommand.AddCommand(command("has", configArgs(1, 1), func(cmd *cobra.Command, args []string) error {
 		path, err := config.File(cmd.Context())

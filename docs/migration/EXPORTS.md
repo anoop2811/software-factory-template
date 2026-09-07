@@ -69,7 +69,8 @@ candidate currently follows the latter behavior; independent tests record the
 difference rather than treating it as an approved correction. A cutover decision
 must resolve it before activation (docs/adr/0056-go-configuration-export-plans.md:97).
 
-Configuration writes and local-hook tokenization remain separate slices. Release
+The [configuration-write candidate](WRITES.md) adds the setter to this shim;
+[local-hook registration](LOCAL_HOOKS.md) uses the separate reader shim. Release
 artifacts, authentication, recoverable activation and the manual adopter pilot
 must pass before changing installed entrypoints. At that transition, replaced
 owned code must move into ignored local recovery storage and follow predecessor

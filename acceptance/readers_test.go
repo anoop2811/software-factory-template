@@ -191,7 +191,7 @@ var _ = Describe("G1 reader protocol and filesystem boundaries", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(files).To(BeEmpty())
 	}, Entry("no request", []string{}), Entry("config namespace only", []string{"config"}), Entry("role namespace only", []string{"role"}),
-		Entry("unknown operation", []string{"config", "set", "key", "value"}), Entry("public operation is not private", []string{"budget", "run"}),
+		Entry("unknown operation", []string{"config", "unknown-operation", "key", "value"}), Entry("public operation is not private", []string{"budget", "run"}),
 		Entry("file surplus operand", []string{"config", "file", "extra"}), Entry("get missing key", []string{"config", "get"}),
 		Entry("get surplus operand", []string{"config", "get", "key", "default", "extra"}), Entry("has missing key", []string{"config", "has"}),
 		Entry("has surplus operand", []string{"config", "has", "key", "extra"}), Entry("tier missing role", []string{"role", "tier"}),

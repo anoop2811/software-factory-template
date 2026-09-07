@@ -134,3 +134,9 @@ factory_config_load_legacy() {
   done
   _factory_config_plan config legacy "$_factory_config_legacy_file" "$@"
 }
+
+# Literal arguments only; no caller-variable assignments or shell evaluation.
+# docs/adr/0063-go-configuration-writes.md:18.
+factory_config_set() {
+  _factory_config_call config set "$1" "$2"
+}

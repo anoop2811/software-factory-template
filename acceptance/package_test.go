@@ -371,4 +371,44 @@ var _ = Describe("Packaged runtime conformance", func() {
 		_, err := os.Stat(marker)
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
+	// per docs/adr/0063-go-configuration-writes.md:96
+	// per docs/adr/0063-go-configuration-writes.md:37
+	// per docs/adr/0063-go-configuration-writes.md:51
+	It("writes literal bytes and retains modes and siblings without Go or Python on PATH", func() {
+		selected := filepath.Join(cwd, "factory.yaml")
+		writeFixture(selected, []byte("model: old\r\nother: keep\r\nmodel: duplicate\n"), 0640)
+		Expect(os.Chmod(selected, 0640)).To(Succeed())
+		sibling := filepath.Join(cwd, "factory.yaml.factory-bak")
+		writeFixture(sibling, []byte("caller backup"), 0600)
+		env["FACTORY_CONFIG"] = selected
+		value := "packaged/value&literal|slash\\tail"
+		Expect(readerProcess(cwd, env, binary, "config", "set", "model", value)).To(Equal(cliResult{"", "", 0}))
+		expectWriteFile(selected, "model: \""+value+"\"\nother: keep\r\nmodel: \""+value+"\"\n", 0640)
+		expectWriteFile(sibling, "caller backup", 0600)
+		Expect(readerProcess(cwd, env, binary, "config", "get", "model")).To(Equal(cliResult{value, "", 0}))
+		entries, err := os.ReadDir(cwd)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(entries).To(HaveLen(2))
+	})
+
+	// per docs/adr/0063-go-configuration-writes.md:30
+	It("refuses writes through a symlink and preserves the referent without external tools", func() {
+		selected := filepath.Join(cwd, "factory.yaml")
+		referent := filepath.Join(cwd, "actual.yaml")
+		writeFixture(referent, []byte("model: original\n"), 0600)
+		Expect(os.Symlink(referent, selected)).To(Succeed())
+		env["FACTORY_CONFIG"] = selected
+		result := readerProcess(cwd, env, binary, "config", "set", "model", "new")
+		Expect(result.status).To(Equal(1))
+		Expect(result.stdout).To(BeEmpty())
+		Expect(result.stderr).NotTo(BeEmpty())
+		expectWriteFile(referent, "model: original\n", 0600)
+		target, err := os.Readlink(selected)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(target).To(Equal(referent))
+		entries, err := os.ReadDir(cwd)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(entries).To(HaveLen(2))
+	})
+
 })

@@ -77,8 +77,9 @@ open compatibility boundaries, not approved behavior corrections.
 
 The [configuration export candidate](EXPORTS.md) adds a separate Bash adapter
 for export and legacy loading. The [local-hook candidate](LOCAL_HOOKS.md) adds entry grouping through
-this reader shim while retaining caller-shell expansion. Writes remain a
-subsequent slice. Packaging, artifact trust, recoverable upgrades and manual
+this reader shim while retaining caller-shell expansion. The
+[configuration-write candidate](WRITES.md) adds writes through the Bash
+configuration shim; installed activation remains gated. Packaging, artifact trust, recoverable upgrades and manual
 adopter qualification must pass before default activation. That later work must
 move owned superseded assets into ignored local recovery storage and apply the
 approved predecessor retention/cleanup rules; this candidate removes no assets.

@@ -37,8 +37,9 @@ Client hooks can be disabled, so they do not replace GitHub branch protection.
 ## Adversarial CI review
 
 The source repository opts into the same `factory review-lane` capability
-available to adopters. factory.yaml records the selected GLM 5.3 Flash model
-(`z-ai/glm-5.3-flash`) and `OPENROUTER_API_KEY` secret name. The shared review
+available to adopters. factory.yaml records DeepSeek V4 Flash 0731
+(`deepseek/deepseek-v4-flash-0731`), DeepInfra routing, and the
+`OPENROUTER_API_KEY` secret name. The shared review
 runner defaults to OpenRouter; no native harness model setting is needed.
 
 Add the key through GitHub Settings > Secrets and variables > Actions. Never
@@ -57,12 +58,28 @@ factory.yaml or `REVIEW_REASONING_EFFORT` in the environment (caller wins).
 No effective value means provider defaults; an explicitly empty caller value
 also overrides configured effort. The gateway values are
 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; choose only values
-supported by your model. GLM 5.3 Flash requires reasoning and supports `low`,
-`high`, and `max`, defaulting to `max`. This repository selects `low` within the
-same 4096-token allowance. Reasoning tokens share that allowance with the final
-answer. Low effort trades reasoning depth for a better chance of completion;
-it does not guarantee a complete review. Anthropic/OpenAI requests are unchanged.
-See docs/adr/0054-explicit-review-reasoning-effort.md:17.
+supported by your model. This repository selects `none` to disable thinking and
+keep the 4096-token allowance available for the review text. Reasoning tokens,
+when enabled, share that allowance with the final answer. Disabling thinking
+does not guarantee a complete or accurate review.
+See docs/adr/0055-pin-deepseek-review-provider.md:5.
+
+OpenRouter hosting is selectable with `review_openrouter_provider` in factory.yaml
+or `REVIEW_OPENROUTER_PROVIDER` in the environment. Caller values, including an
+explicit empty value, override YAML and legacy factory.config. Empty means omit
+the routing override. Use a lowercase provider slug such as `deepinfra`, or an
+endpoint slug such as `deepinfra/fp8`. A nonempty selection sends one provider in
+`order`, with `allow_fallbacks: false` and `require_parameters: true`. This keeps
+requests on that provider and requires support for the supplied parameters.
+If no eligible endpoint is available, the review fails visibly; it does not
+fall back to another provider. The repository's `deepinfra` selection permits
+DeepInfra endpoint variants. Anthropic/OpenAI requests and native harness role
+tiers are unchanged. See docs/adr/0055-pin-deepseek-review-provider.md:20.
+
+The workflow checks out the trusted base commit. A PR changing these settings
+therefore runs with the previous configuration; the new selection takes effect
+after merge and a subsequent eligible PR event. Fake-HTTP fixtures establish the
+request shape, not live DeepInfra completion or review quality.
 
 ## Source templates and remaining boundaries
 
@@ -107,7 +124,8 @@ After PR #76 merged and the secret was added, updating PR #77 triggered
 on 2026-09-07 UTC. The authenticated response ended with `finish_reason=length`;
 the lane posted an incomplete-review notice. A successful workflow status did
 not establish a completed model review. Explicit reasoning-effort configuration
-was added afterward; its live completion remains pending merge and a new event.
+was added afterward. That historical run does not establish completion with
+the currently selected model and provider.
 
 The initial doctor drift warning was traced to an empty .claude/hooks directory:
 sync-claude creates it, Git does not store it, and the doctor's directory snapshot

@@ -18,6 +18,7 @@ set -euo pipefail
 #   REVIEW_MODEL     model id; falls back to the frontier tier for the provider
 #   REVIEW_API_KEY   the key itself, supplied by CI from a repository secret
 #   REVIEW_REASONING_EFFORT  optional OpenRouter effort; empty keeps provider defaults
+#   REVIEW_OPENROUTER_PROVIDER  optional hosting slug; empty keeps gateway routing
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -50,8 +51,7 @@ if [ -z "$API_KEY" ]; then
   exit 1
 fi
 
-# Model: explicit REVIEW_MODEL wins, else this provider's frontier tier — the
-# reviewer is the one role never routed to a cheap model (docs/COST_AND_TOKENS.md).
+# Model: explicit REVIEW_MODEL wins, else this provider's frontier tier.
 MODEL="${REVIEW_MODEL:-}"
 if [ -z "$MODEL" ]; then
   case "$PROVIDER" in
@@ -134,6 +134,7 @@ case "$PROVIDER" in
     # Reasoning shares the output allowance; keep adopter defaults unless set.
     # docs/adr/0054-explicit-review-reasoning-effort.md:17.
     EFFORT="${REVIEW_REASONING_EFFORT:-}"
+    ROUTE="${REVIEW_OPENROUTER_PROVIDER:-}"
     if [ "$PROVIDER" != "openai" ]; then
       case "$EFFORT" in
         ''|none|minimal|low|medium|high|xhigh|max) ;;
@@ -141,13 +142,22 @@ case "$PROVIDER" in
           echo "adversarial-review: invalid REVIEW_REASONING_EFFORT; use none, minimal, low, medium, high, xhigh, max, or empty." >&2
           exit 1 ;;
       esac
+      # Validate a single hosting slug before any request; never evaluate it.
+      # docs/adr/0055-pin-deepseek-review-provider.md:27.
+      if [ -n "$ROUTE" ] && ! [[ "$ROUTE" =~ ^[a-z0-9]+([-/][a-z0-9]+)*$ ]]; then
+        echo "adversarial-review: invalid REVIEW_OPENROUTER_PROVIDER; use a lowercase provider or endpoint slug, or empty." >&2
+        exit 1
+      fi
     fi
     # Bound OpenRouter output while preserving the OpenAI request contract.
     # docs/adr/0052-self-hosted-adversarial-review.md:19.
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" \
+    # A selected host is pinned without fallback and must support the parameters.
+    # docs/adr/0055-pin-deepseek-review-provider.md:20.
+    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" --arg route "$ROUTE" \
       '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]} +
        (if $p == "openai" then {} else
-         {max_tokens:4096} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end)
+         {max_tokens:4096} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
+         (if $route == "" then {} else {provider:{order:[$route],allow_fallbacks:false,require_parameters:true}} end)
        end)')"
     RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \

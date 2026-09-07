@@ -2070,3 +2070,13 @@ and integrity without execution, fallback, compilation or network access.
 Independent acceptance precedes implementation. Release qualification and
 authentication remain open questions; this read-only candidate does not
 activate adapters, replace legacy assets or claim completed packaging.
+
+## Decision 55 (2026-09-07): source bundles and attested release delivery
+
+Anoop approved Ubuntu 24.04+/macOS 14+ on amd64/arm64 and GitHub build
+attestations with offline bundles. Implement ADR-0060: build an explicit source
+commit into a deterministic candidate archive, test native packaged binaries,
+and attest release archives in a trusted release workflow. Keep local labels
+distinct from authentication; trust roots and expected source/workflow identity
+come from outside the downloaded artifact. Preserve existing outputs and clean
+owned build staging. No adopter activation or legacy deletion occurs here.

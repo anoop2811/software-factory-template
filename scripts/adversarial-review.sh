@@ -130,11 +130,19 @@ case "$PROVIDER" in
     else
       ENDPOINT="https://openrouter.ai/api/v1/chat/completions"
     fi
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" \
-      '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]}')"
+    # Bound OpenRouter output while preserving the OpenAI request contract.
+    # docs/adr/0052-self-hosted-adversarial-review.md:19.
+    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" \
+      '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]} +
+       (if $p == "openai" then {} else {max_tokens:4096} end)')"
     RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
       -d "$BODY")" || RESPONSE=""
+    if [ "$PROVIDER" != "openai" ] && \
+        printf '%s' "$RESPONSE" | jq -e '.choices[0].finish_reason == "length"' >/dev/null 2>&1; then
+      echo "adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length)." >&2
+      exit 1
+    fi
     TEXT="$(printf '%s' "$RESPONSE" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)"
     ;;
 esac

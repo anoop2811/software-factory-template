@@ -120,8 +120,9 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 
 ## Contributing
 
-Contributions are welcome. The template runs its own factory, so the gates are
-hooks that reject a bad commit or push, not conventions to remember.
+Contributions are welcome. The template runs its own factory checks and
+acceptance fixtures. [Self-hosting](docs/SELF_HOSTING.md) explains local hook
+activation, CI review and the boundaries between source templates and adopters.
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — the workflow, the gates, and the break/fix fixture rule
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — the standards we hold each other to

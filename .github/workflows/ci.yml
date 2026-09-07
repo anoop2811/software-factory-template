@@ -42,6 +42,7 @@ jobs:
           find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
           bash -n factory
           sh -n runtime/shell/readers.sh
+          bash -n runtime/shell/config.sh
 
       - name: shellcheck
         run: |
@@ -49,6 +50,7 @@ jobs:
           find scripts -name '*.sh' -print0 | xargs -0 shellcheck -S warning -x
           shellcheck -S warning -x factory
           shellcheck -s sh -S warning runtime/shell/readers.sh
+          shellcheck -s bash -S warning runtime/shell/config.sh
 
       - name: Set up Go (for pinned actionlint)
         uses: actions/setup-go@v6

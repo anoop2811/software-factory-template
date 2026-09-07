@@ -74,7 +74,8 @@ Read diagnostics retain file/reason/status but differ in sed/grep versus Go
 framing; Linux Bash may additionally warn about discarded NUL bytes. These are
 open compatibility boundaries, not approved behavior corrections.
 
-Configuration export/legacy loading, writes and local-hook tokenization are
+The [configuration export candidate](EXPORTS.md) adds a separate Bash adapter
+for export and legacy loading. Writes and local-hook tokenization remain
 subsequent slices. Packaging, artifact trust, recoverable upgrades and manual
 adopter qualification must pass before default activation. That later work must
 move owned superseded assets into ignored local recovery storage and apply the

@@ -245,6 +245,7 @@ case "$MODEL_PROVIDER" in
   *)         REVIEW_API_KEY_SECRET="${REVIEW_API_KEY_SECRET:-OPENROUTER_API_KEY}" ;;
 esac
 REVIEW_MODEL="${REVIEW_MODEL:-}"
+REVIEW_MAX_TOKENS="${REVIEW_MAX_TOKENS:-8192}"
 if [ "$MODEL_PROVIDER" != "inherit" ]; then
   CLAUDE_ECONOMY_MODEL="${CLAUDE_ECONOMY_MODEL:-claude-haiku-4-5}"
   CODEX_ECONOMY_MODEL="${CODEX_ECONOMY_MODEL:-gpt-5.6-luna}"
@@ -639,6 +640,7 @@ codex_economy_model: "$CODEX_ECONOMY_MODEL"
 review_lane: "$REVIEW_LANE"
 review_model: "$REVIEW_MODEL"
 review_api_key_secret: "$REVIEW_API_KEY_SECRET"
+review_max_tokens: "$REVIEW_MAX_TOKENS"
 
 # ── Toolchain versions ───────────────────────────────────────────────
 go_version: "$GO_VERSION"

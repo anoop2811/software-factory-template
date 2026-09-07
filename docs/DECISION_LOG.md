@@ -2025,3 +2025,15 @@ If the immutable baseline and candidate both return 126, admit that observed
 platform result alongside 1/127 in the baseline sanity assertion; retain exact
 candidate-to-baseline status and normalized diagnostic equality. Do not change
 production dispatch or mask a differential failure by selecting a different PATH.
+
+## Decision 52 (2026-09-06): configurable adversarial-review output cap
+
+The advisory OpenRouter review lane's fixed 4096-token cap produced an
+incomplete live review with `finish_reason: length`. Raise the repository
+default to 8192 and expose `review_max_tokens` / `REVIEW_MAX_TOKENS` with
+caller-over-YAML-over-legacy precedence. Accept only decimal values from 1024
+through 32768 and reject invalid input before the HTTP request. Keep Anthropic's
+4096 request and OpenAI's existing body unchanged. The value is a ceiling, not
+a spend guarantee; one request, the diff bound, timeout, provider pin and
+truncation refusal remain in force. Record the live failure and authoritative
+OpenRouter token semantics in ADR-0057.

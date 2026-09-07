@@ -73,6 +73,27 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return nil
 	}))
+	// Plans carry literal data for parent-shell effects, not generated shell code.
+	// docs/adr/0056-go-configuration-export-plans.md:10.
+	configCommand.AddCommand(command("export", preservedArgs(0), func(cmd *cobra.Command, args []string) error {
+		path, err := config.File(cmd.Context())
+		if err != nil {
+			return err
+		}
+		actions, err := config.ExportPlan(cmd.Context(), path, args)
+		if err != nil {
+			return err
+		}
+		return config.WritePlan(cmd.OutOrStdout(), actions)
+	}))
+	configCommand.AddCommand(command("legacy", preservedArgs(1), func(cmd *cobra.Command, args []string) error {
+		actions, err := config.LegacyPlan(cmd.Context(), args[0], args[1:])
+		if err != nil {
+			status = 1
+			return err
+		}
+		return config.WritePlan(cmd.OutOrStdout(), actions)
+	}))
 	roleCommand := command("role", cobra.NoArgs, nil)
 	roleCommand.AddCommand(command("tier", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
 		return writeValue(cmd, roles.Tier(args[0]))
@@ -91,9 +112,26 @@ func Run(ctx context.Context, args []string) int {
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "factory bridge:", err)
+		if status != 0 {
+			return status
+		}
 		return 2
 	}
 	return status
+}
+
+func preservedArgs(offset int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := cobra.MinimumNArgs(offset)(cmd, args); err != nil {
+			return err
+		}
+		for _, key := range args[offset:] {
+			if !config.KnownExportKey(key) {
+				return fmt.Errorf("invalid preserved configuration key %q", key)
+			}
+		}
+		return nil
+	}
 }
 
 func command(name string, args cobra.PositionalArgs, run func(*cobra.Command, []string) error) *cobra.Command {

@@ -30,9 +30,10 @@ code. This constrained grammar supports base providers and endpoint names.
 Do not validate or apply this OpenRouter-only setting to native OpenAI or
 Anthropic requests; preserve their existing request and response contracts.
 
-Retain the 4096-token output limit, 180-second timeout, one request without
-automatic retry, incomplete-response refusal, diff-size bound, and trusted-base
-workflow controls. Provider unavailability must not silently select a different
+Retain the one-request policy, 180-second timeout, incomplete-response refusal,
+diff-size bound, and trusted-base workflow controls. ADR-0057 supersedes the
+initial 4096-token output limit with the validated, configurable cap. Provider
+unavailability must not silently select a different
 provider or trigger another paid invocation. No strict dollar ceiling, speed,
 review quality, or successful live completion is claimed by changing settings.
 

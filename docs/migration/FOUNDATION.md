@@ -61,8 +61,10 @@ stage gate. Decision 50 approves the EX-001 prerequisite correction, initial
 v0.1.6/merged-baseline coverage, and a mandatory manual adopter pilot. Platform,
 artifact trust and detailed pilot exit criteria remain open.
 The [read-only reader candidate](READERS.md) adds its own observed RED/GREEN
-cycle for configuration lookup and role resolution. Configuration export, writes
-and complete sourced-library parity still need their own acceptance cycles. Artifact delivery and transactional migration/recovery must pass before
+cycle for configuration lookup and role resolution. The
+[configuration export candidate](EXPORTS.md) extends the candidate through a
+Bash adapter. Writes and complete sourced-library parity still need acceptance.
+Artifact delivery and transactional migration/recovery must pass before
 an adopter switches runtime. Local gitignored backup retention and predecessor
 cleanup remain mandatory acceptance criteria for that delivery work.
 

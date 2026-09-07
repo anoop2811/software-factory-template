@@ -36,7 +36,8 @@ through PATH.
 `FACTORY_BRIDGE_PROTOCOL=1` selects a separate Cobra tree in the same binary.
 This developer protocol is not a new public command surface. An empty or absent
 protocol variable retains ordinary CLI dispatch; unknown versions refuse with
-status 2. The following commands are the only supported private requests:
+status 2. The read-only requests are listed below; the additional export/legacy
+requests are documented in [the export candidate](EXPORTS.md).
 
 | Request | Result |
 | --- | --- |
@@ -74,7 +75,8 @@ Read diagnostics retain file/reason/status but differ in sed/grep versus Go
 framing; Linux Bash may additionally warn about discarded NUL bytes. These are
 open compatibility boundaries, not approved behavior corrections.
 
-Configuration export/legacy loading, writes and local-hook tokenization are
+The [configuration export candidate](EXPORTS.md) adds a separate Bash adapter
+for export and legacy loading. Writes and local-hook tokenization remain
 subsequent slices. Packaging, artifact trust, recoverable upgrades and manual
 adopter qualification must pass before default activation. That later work must
 move owned superseded assets into ignored local recovery storage and apply the

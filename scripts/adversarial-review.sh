@@ -19,6 +19,7 @@ set -euo pipefail
 #   REVIEW_API_KEY   the key itself, supplied by CI from a repository secret
 #   REVIEW_REASONING_EFFORT  optional OpenRouter effort; empty keeps provider defaults
 #   REVIEW_OPENROUTER_PROVIDER  optional hosting slug; empty keeps gateway routing
+#   REVIEW_MAX_TOKENS  optional OpenRouter completion cap; defaults to 8192
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -148,15 +149,32 @@ case "$PROVIDER" in
         echo "adversarial-review: invalid REVIEW_OPENROUTER_PROVIDER; use a lowercase provider or endpoint slug, or empty." >&2
         exit 1
       fi
+      MAX_TOKENS="${REVIEW_MAX_TOKENS:-8192}"
+      if ! [[ "$MAX_TOKENS" =~ ^[0-9]+$ ]]; then
+        echo "adversarial-review: invalid REVIEW_MAX_TOKENS; use a decimal value from 1024 through 32768." >&2
+        exit 1
+      fi
+      # Normalize leading zeroes before bounded arithmetic, so an arbitrarily
+      # long decimal cannot overflow Bash's integer evaluator.
+      MAX_TOKENS="${MAX_TOKENS#"${MAX_TOKENS%%[!0]*}"}"
+      [ -n "$MAX_TOKENS" ] || MAX_TOKENS=0
+      MAX_TOKENS_DIGITS=${#MAX_TOKENS}
+      if [ "$MAX_TOKENS_DIGITS" -gt 5 ] ||
+        { [ "$MAX_TOKENS_DIGITS" -eq 5 ] && [ "$MAX_TOKENS" -gt 32768 ]; } ||
+        { [ "$MAX_TOKENS_DIGITS" -lt 4 ] ||
+          { [ "$MAX_TOKENS_DIGITS" -eq 4 ] && [ "$MAX_TOKENS" -lt 1024 ]; }; }; then
+        echo "adversarial-review: invalid REVIEW_MAX_TOKENS; use a decimal value from 1024 through 32768." >&2
+        exit 1
+      fi
     fi
     # Bound OpenRouter output while preserving the OpenAI request contract.
-    # docs/adr/0052-self-hosted-adversarial-review.md:19.
+    # docs/adr/0057-configurable-review-output-cap.md:8.
     # A selected host is pinned without fallback and must support the parameters.
     # docs/adr/0055-pin-deepseek-review-provider.md:20.
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" --arg route "$ROUTE" \
+    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" --arg route "$ROUTE" --argjson max_tokens "${MAX_TOKENS:-8192}" \
       '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]} +
        (if $p == "openai" then {} else
-         {max_tokens:4096} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
+         {max_tokens:$max_tokens} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
          (if $route == "" then {} else {provider:{order:[$route],allow_fallbacks:false,require_parameters:true}} end)
        end)')"
     RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \

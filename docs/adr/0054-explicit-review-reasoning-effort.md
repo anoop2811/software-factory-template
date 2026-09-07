@@ -22,12 +22,12 @@ xhigh and max; reject any other nonempty value before HTTP. A model may support
 only a subset, and its provider may reject an unsupported value. Do not apply
 this OpenRouter setting to Anthropic or OpenAI requests.
 
-This repository explicitly selects low, supported by GLM 5.3 Flash, while
-retaining max_tokens 4096, the diff bound, 180-second timeout, single request,
-truncation refusal and all trusted-base workflow guards. This controls reasoning
-effort without increasing the output allowance or switching the user's model.
-Low effort trades reasoning depth for a better chance of returning findings
-within the fixed allowance; completion and review quality are not guaranteed.
+At the time this decision was written, the repository selected low while
+retaining max_tokens 4096. ADR-0057 supersedes that output-cap value: the
+current default is configurable and 8192. The diff bound, 180-second timeout,
+single request, truncation refusal and trusted-base workflow guards remain.
+Reasoning effort still trades reasoning depth against the configured allowance;
+completion and review quality are not guaranteed.
 
 Independent fake-HTTP tests must first fail for configured effort, environment
 precedence and invalid-setting refusal, then pass after implementation. Preserve

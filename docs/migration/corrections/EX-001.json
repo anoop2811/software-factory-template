@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "EX-001",
+  "patch_file": "EX-001.patch",
+  "patch_sha256": "95bcf7d51be6fb42bbd4b13d87ef03296c38fa2c34912e7dba2b46794750b7ef",
+  "baselines": [
+    {
+      "label": "v0.1.6",
+      "commit": "b71ecc32e07ecd87eb330ba8e497c86612f92acd"
+    },
+    {
+      "label": "merged-bash",
+      "commit": "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"
+    }
+  ],
+  "path": "scripts/lib/config.sh",
+  "original_sha256": "38fbc5580c8f676d9fc28e56b17b928d11a00fa05727f248fed09b07f21b811c",
+  "corrected_sha256": "6f0691698bf4dba96eefcbecf024370492ed5068164c1a77d641ec0a6b804f8c",
+  "git_mode": "100755"
+}

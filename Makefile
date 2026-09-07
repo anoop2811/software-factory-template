@@ -15,6 +15,39 @@ loop-selftest:
 	@if [ -x scripts/selftest/loop.sh ]; then ./scripts/selftest/loop.sh; \
 	else echo "loop-selftest: template-only acceptance fixtures not installed"; fi
 
+# The factory implementation has a Go module; installing this Makefile in an
+# adopter does not select a Go application pack or require Go tooling there.
+# The workflow also identifies this source tree, so deleting go.mod or cmd does
+# not turn a broken factory checkout into a successful template-only skip.
+.PHONY: go-runtime-check go-runtime-source-check
+go-runtime-check:
+	@if [ -f .github/workflows/go-runtime.yml ] || \
+		grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod 2>/dev/null; then \
+		$(MAKE) go-runtime-source-check; \
+	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
+
+go-runtime-source-check:
+	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
+		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
+	@test -d cmd/factory && test -d acceptance || \
+		{ echo "go-runtime-check: required candidate CLI or acceptance sources are missing" >&2; exit 1; }
+	@git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
+		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }
+	@GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
+		UNFORMATTED="$$(printf '%s\n' "$$GO_DIRS" | while IFS= read -r GO_DIR; do gofmt -l "$$GO_DIR" || exit 1; done)" || exit 1; \
+		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }
+# The canonical pack gate expects its installed scripts/hooks path in argv[0].
+# Source it with that path so it scans this repository, not packs/go; all gate
+# behavior remains in the pack rather than a second factory implementation.
+	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"
+	go vet ./...
+	go test -race -count=1 ./...
+	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
+		go build -o "$$BUILD_DIR/factory" ./cmd/factory
+	golangci-lint run --config packs/go/.golangci.yml ./...
+	gosec ./...
+	govulncheck ./...
+
 doctor:
 	./scripts/factory-doctor.sh
 
@@ -25,7 +58,7 @@ doctor:
 #
 # check_command comes from factory.yaml, which the language pack sets. Empty means
 # no pack is installed yet, and the factory gates alone are the honest answer.
-check: selftest budget-selftest loop-selftest
+check: selftest budget-selftest loop-selftest go-runtime-check
 	@CMD="$$(FACTORY_CONFIG=factory.yaml bash -c '. scripts/lib/config.sh; factory_config_get check_command')"; \
 	if [ -n "$$CMD" ]; then \
 		echo "check: running the configured product checks"; \

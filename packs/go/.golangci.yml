@@ -11,6 +11,15 @@
 # — three more than the v1 file asked for.
 version: "2"
 linters:
+  settings:
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: dot-imports
+          arguments:
+            - allowedPackages:
+                - github.com/onsi/ginkgo/v2
+                - github.com/onsi/gomega
   enable:
     - bodyclose
     - errorlint

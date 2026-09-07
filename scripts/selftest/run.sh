@@ -613,8 +613,11 @@ check "factory.yaml wins over a legacy factory.config" "economy" \
 # override possible — but only the caller's, so the YAML still beats the legacy.
 # cost_profile is set to "economy" in the YAML above, so this genuinely tests the
 # precedence rather than a key the file happens to omit.
-check "the caller's environment beats factory.yaml" "standard" \
-  "$( cd "$CFGROOT" && COST_PROFILE=standard bash -c '. scripts/lib/config.sh; factory_config_export; printf "%s" "${COST_PROFILE:-}"' )"
+# Three distinct values expose a legacy overwrite that equal caller/legacy
+# values would hide. This reader preserves literal values; consumer validation
+# is separate. docs/DECISION_LOG.md:1899.
+check "the caller's environment beats factory.yaml and legacy config" "caller-profile" \
+  "$( cd "$CFGROOT" && COST_PROFILE=caller-profile bash -c '. scripts/lib/config.sh; factory_config_export; printf "%s" "${COST_PROFILE:-}"' )"
 check "a legacy factory.config still fills the gaps" "claude-opus-4-8" \
   "$( cd "$CFGROOT" && . scripts/lib/config.sh && factory_config_export && printf '%s' "${CLAUDE_FRONTIER_MODEL:-}" )"
 

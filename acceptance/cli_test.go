@@ -62,7 +62,7 @@ var _ = BeforeSuite(func() {
 func writeFixture(path string, contents []byte, mode os.FileMode) {
 	GinkgoHelper()
 	Expect(os.MkdirAll(filepath.Dir(path), 0755)).To(Succeed())
-	Expect(os.WriteFile(path, contents, mode)).To(Succeed())
+	Expect(os.WriteFile(path, contents, mode)).To(Succeed()) // #nosec G703 -- fixture callers supply test-owned temporary paths, including deliberate path-traversal cases; no external request selects this destination.
 }
 
 func fixture() (string, string) {

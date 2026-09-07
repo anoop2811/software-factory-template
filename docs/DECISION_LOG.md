@@ -2116,3 +2116,28 @@ configuration assigned to an inherited integer scratch variable. Remove named
 scratch assignments from the new adapter; use positional data/status transport
 and preserve IFS through literal positional slots. Require an independent
 marker-file RED/GREEN regression and literal output with inherited attributes.
+
+## Decision 58 (2026-09-07): candidate Go configuration writes
+
+Implement ADR-0063 for `factory_config_set` behind the private Cobra protocol.
+Preserve baseline literal replacement/append bytes and unrelated settings, use
+a same-directory prepared replacement for admitted regular files, and refuse
+unsupported links/modes or invalid requests without fallback. Independent
+baseline and failure acceptance must fail before implementation. This explicit
+single-writer candidate does not claim installed activation, concurrent legacy
+writer exclusion, transactional migration or recovery retention/cleanup.
+
+Review refinement before correction: when publication detects an unexpected
+temporary-file identity, cleanup must not delete that unknown replacement by
+pathname. Capture and recheck the created inode before cleanup; preserve
+mismatches with a visible refusal. A deterministic collaborator regression must
+fail before correction. This does not expand the single-writer contract to CAS.
+
+Path characterization refinement before correction: the legacy setter captures
+its resolved filename through command substitution, which removes trailing LF.
+Preserve that trimming at the setter boundary, including an empty result, without
+cleaning embedded path components or changing the independent reader protocol.
+
+Delivery evidence refinement: add writer cases to existing packaged conformance,
+prove an immutable pre-writer binary fails them, and exercise the staged writer
+on all four native targets with Go/Python absent from runtime PATH.

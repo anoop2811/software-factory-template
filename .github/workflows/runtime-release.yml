@@ -1,0 +1,62 @@
+name: Attested runtime release assets
+
+# Signing is unavailable to PRs; docs/adr/0060-runtime-source-bundles.md:57.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == 'anoop2811/software-factory-template'
+    uses: ./.github/workflows/runtime-bundles.yml
+    with:
+      version: ${{ github.event.release.tag_name }}
+  attest:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: runtime-*
+          path: bundles
+      - name: Prepare uniquely named release assets
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          for target in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            (cd "bundles/runtime-$target" && sha256sum --check SHA256SUMS)
+            cp "bundles/runtime-$target/factory-runtime.tar.gz" "release/factory-runtime-$VERSION-$target.tar.gz"
+          done
+          (cd release && sha256sum ./*.tar.gz > SHA256SUMS)
+      - name: Attest candidate archives
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release/*.tar.gz
+      - name: Verify identity and attach assets to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.event.release.tag_name }}
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          gh attestation trusted-root > "$RUNNER_TEMP/trusted-root.jsonl"
+          for archive in release/*.tar.gz; do
+            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/runtime-release.yml" \
+              --source-digest "$GITHUB_SHA" --source-ref "$GITHUB_REF" \
+              --bundle "$BUNDLE" --custom-trusted-root "$RUNNER_TEMP/trusted-root.jsonl" \
+              --deny-self-hosted-runners
+          done
+          cp "$BUNDLE" release/runtime-attestations.jsonl
+          gh release upload "$VERSION" release/* --repo "$GITHUB_REPOSITORY"

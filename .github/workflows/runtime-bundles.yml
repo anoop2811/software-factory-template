@@ -1,0 +1,69 @@
+name: Native runtime bundles
+
+# Developer packaging only; docs/adr/0060-runtime-source-bundles.md:50.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux/amd64
+            artifact: linux-amd64
+          - os: ubuntu-24.04-arm
+            target: linux/arm64
+            artifact: linux-arm64
+          - os: macos-15-intel
+            target: darwin/amd64
+            artifact: darwin-amd64
+          - os: macos-14
+            target: darwin/arm64
+            artifact: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache: true
+      - name: Provision developer dependencies
+        run: go mod download
+      - name: Build committed source and test the packaged executable
+        env:
+          TARGET: ${{ matrix.target }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_VERSION:-local-$GITHUB_SHA}"
+          output="$RUNNER_TEMP/runtime-bundle"
+          go run ./cmd/factory-package --source "$GITHUB_WORKSPACE" \
+            --revision "$GITHUB_SHA" --target "$TARGET" --version "$version" --output "$output"
+          binary="$output/store/$version/$TARGET/bin/factory-runtime"
+          FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
+            -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: runtime-${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/runtime-bundle/factory-runtime.tar.gz
+            ${{ runner.temp }}/runtime-bundle/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7

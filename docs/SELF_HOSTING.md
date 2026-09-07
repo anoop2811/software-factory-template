@@ -52,6 +52,18 @@ skipped explicitly; truncated responses and failures are reported as unperformed
 or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
 
+OpenRouter reasoning effort is selectable with `review_reasoning_effort` in
+factory.yaml or `REVIEW_REASONING_EFFORT` in the environment (caller wins).
+No effective value means provider defaults; an explicitly empty caller value
+also overrides configured effort. The gateway values are
+`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; choose only values
+supported by your model. GLM 5.3 Flash requires reasoning and supports `low`,
+`high`, and `max`, defaulting to `max`. This repository selects `low` within the
+same 4096-token allowance. Reasoning tokens share that allowance with the final
+answer. Low effort trades reasoning depth for a better chance of completion;
+it does not guarantee a complete review. Anthropic/OpenAI requests are unchanged.
+See docs/adr/0054-explicit-review-reasoning-effort.md:17.
+
 ## Source templates and remaining boundaries
 
 Run adoption/install/upgrade exercises in temporary adopter repositories. Running
@@ -87,8 +99,15 @@ regressions now pass with `adversarial-review: 17 passed, 0 failed`. A copied-tr
 negative control weakening only the generated workflow guard returned
 `adversarial-review: 16 passed, 1 failed` and identified that generated file.
 These are structural workflow assertions and fake-HTTP behavior, not live GitHub
-permission or model evidence. Live OpenRouter CI remains pending secret setup,
-workflow merge and a subsequent PR event.
+permission or model evidence. At that point live OpenRouter CI was pending
+secret setup, workflow merge and a subsequent PR event.
+
+After PR #76 merged and the secret was added, updating PR #77 triggered
+[the first live run](https://github.com/anoop2811/software-factory-template/actions/runs/34084339301)
+on 2026-09-07 UTC. The authenticated response ended with `finish_reason=length`;
+the lane posted an incomplete-review notice. A successful workflow status did
+not establish a completed model review. Explicit reasoning-effort configuration
+was added afterward; its live completion remains pending merge and a new event.
 
 The initial doctor drift warning was traced to an empty .claude/hooks directory:
 sync-claude creates it, Git does not store it, and the doctor's directory snapshot

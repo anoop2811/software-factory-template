@@ -32,6 +32,7 @@ STATUS=0
 
 reset_fixture() {
   STATUS="not run"
+  rm -f "$FIXTURE/factory.config"
   cat > "$FIXTURE/factory.yaml" <<'CONFIG'
 model_provider: openrouter
 review_model: z-ai/glm-5.3-flash
@@ -72,13 +73,13 @@ repository_default_provider() {
   cp "$ROOT/factory.yaml" "$FIXTURE/factory.yaml"
   ! grep -q '^model_provider:' "$FIXTURE/factory.yaml" || return 1
   lane_settings="$(env -i PATH="$PATH" FACTORY_CONFIG="$FIXTURE/factory.yaml" \
-    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret' \
+    bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort' \
     config-reader "$ROOT/scripts/lib/config.sh")" || return 1
-  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY' ] || return 1
+  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nlow' ] || return 1
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://openrouter.ai/api/v1/chat/completions' "$FIXTURE/args" || return 1
-  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 4096 and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
+  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 4096 and .reasoning == {effort:"low"} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
 }
 
 # These source constraints do not prove GitHub runtime execution.
@@ -173,15 +174,15 @@ empty_diff() {
 
 anthropic_contract() {
   printf '%s' '{"content":[{"text":"No findings."}]}' > "$FIXTURE/response.json"
-  run_review MODEL_PROVIDER=anthropic REVIEW_MODEL=fixture-anthropic
+  run_review MODEL_PROVIDER=anthropic REVIEW_MODEL=fixture-anthropic REVIEW_REASONING_EFFORT=unsupported-fixture-value
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://api.anthropic.com/v1/messages' "$FIXTURE/args" || return 1
-  jq -e '.model == "fixture-anthropic" and .max_tokens == 4096 and (.system | type == "string") and .messages[0].role == "user"' "$FIXTURE/body.json" >/dev/null || return 1
+  jq -e '.model == "fixture-anthropic" and .max_tokens == 4096 and (has("reasoning") | not) and (.system | type == "string") and .messages[0].role == "user"' "$FIXTURE/body.json" >/dev/null || return 1
   grep -qFx 'No findings.' "$FIXTURE/stdout"
 }
 
 openai_contract() {
-  run_review MODEL_PROVIDER=openai REVIEW_MODEL=fixture-openai
+  run_review MODEL_PROVIDER=openai REVIEW_MODEL=fixture-openai REVIEW_REASONING_EFFORT=unsupported-fixture-value
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://api.openai.com/v1/chat/completions' "$FIXTURE/args" || return 1
   jq -e '.model == "fixture-openai" and (keys | sort) == ["messages","model"] and (.messages | length) == 2' "$FIXTURE/body.json" >/dev/null
@@ -221,6 +222,74 @@ no_findings_success() {
   grep -qFx 'No findings.' "$FIXTURE/stdout"
 }
 
+# Request configuration only: gateway vocabulary is not a claim that every
+# model supports every effort. docs/adr/0054-explicit-review-reasoning-effort.md:20.
+configured_reasoning() {
+  printf 'review_reasoning_effort: low\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.reasoning == {effort:"low"} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+}
+
+unconfigured_reasoning() {
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '(has("reasoning") | not) and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null
+}
+
+reasoning_environment_override() {
+  printf 'review_reasoning_effort: low\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_REASONING_EFFORT=high
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.reasoning == {effort:"high"}' "$FIXTURE/body.json" >/dev/null
+}
+
+reasoning_empty_override() {
+  printf 'review_reasoning_effort: high\n' >> "$FIXTURE/factory.yaml"
+  run_review REVIEW_REASONING_EFFORT=
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e 'has("reasoning") | not' "$FIXTURE/body.json" >/dev/null
+}
+
+legacy_reasoning_precedence() {
+  printf 'REVIEW_REASONING_EFFORT=high\n' > "$FIXTURE/factory.config"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.reasoning == {effort:"high"}' "$FIXTURE/body.json" >/dev/null || return 1
+  reset_fixture
+  printf 'REVIEW_REASONING_EFFORT=high\n' > "$FIXTURE/factory.config"
+  printf 'review_reasoning_effort: low\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  [ "$STATUS" -eq 0 ] && one_request || return 1
+  jq -e '.reasoning == {effort:"low"}' "$FIXTURE/body.json" >/dev/null
+}
+
+gateway_reasoning_values() {
+  local effort
+  for effort in none minimal low medium high xhigh max; do
+    reset_fixture
+    run_review "REVIEW_REASONING_EFFORT=$effort"
+    [ "$STATUS" -eq 0 ] && one_request || return 1
+    jq -e --arg effort "$effort" '.reasoning == {effort:$effort} and .max_tokens == 4096' "$FIXTURE/body.json" >/dev/null || return 1
+  done
+}
+
+invalid_configured_reasoning() {
+  printf 'review_reasoning_effort: unsupported-effort\n' >> "$FIXTURE/factory.yaml"
+  run_review
+  failed_without_findings && no_requests || return 1
+  grep -qi 'reasoning' "$FIXTURE/stderr"
+}
+
+literal_invalid_reasoning() {
+  local literal
+  printf -v literal '$(touch "%s")' "$FIXTURE/reasoning-marker"
+  run_review "REVIEW_REASONING_EFFORT=$literal"
+  [ ! -e "$FIXTURE/reasoning-marker" ] || return 1
+  failed_without_findings && no_requests || return 1
+  grep -qi 'reasoning' "$FIXTURE/stderr"
+}
+
 check() {
   local name="$1" scenario="$2"
   reset_fixture
@@ -251,6 +320,14 @@ check 'caller model overrides configured model' environment_override
 check 'malformed response cannot become approval' malformed_response
 check 'missing diff refuses before HTTP' missing_diff
 check 'complete no-findings answer remains valid' no_findings_success
+check 'configured reasoning effort reaches OpenRouter within existing cap' configured_reasoning
+check 'unconfigured reasoning preserves provider defaults' unconfigured_reasoning
+check 'caller reasoning effort overrides configuration' reasoning_environment_override
+check 'explicit empty caller effort omits configured reasoning' reasoning_empty_override
+check 'legacy reasoning fallback remains below YAML precedence' legacy_reasoning_precedence
+check 'documented gateway reasoning vocabulary is forwarded literally' gateway_reasoning_values
+check 'invalid configured reasoning refuses before HTTP' invalid_configured_reasoning
+check 'invalid caller reasoning is inert data and refuses before HTTP' literal_invalid_reasoning
 
 printf 'adversarial-review: %s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]

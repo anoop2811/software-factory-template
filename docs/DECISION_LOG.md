@@ -2061,3 +2061,12 @@ exactly four tab-separated fields; spaces in artifact filenames remain valid.
 Open the binary through an `os.Root` handle confined to the artifact directory
 and check the opened file type before hashing. The manifest remains an explicit
 caller-selected read-only input and may live outside the artifact directory.
+
+## Decision 54 (2026-09-07): deterministic local runtime selection
+
+Add the explicit private `runtime resolve STORE VERSION TARGET` prerequisite
+described in ADR-0059. Resolve one version/target slot and verify both identity
+and integrity without execution, fallback, compilation or network access.
+Independent acceptance precedes implementation. Release qualification and
+authentication remain open questions; this read-only candidate does not
+activate adapters, replace legacy assets or claim completed packaging.

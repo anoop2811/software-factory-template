@@ -20,3 +20,25 @@ traversal, target mismatch, symlink refusal and malformed private operands.
 This does not complete G1: signed provenance, release packaging, four-target
 artifact qualification, staging, activation, backup/recovery and cleanup remain
 required before any adopter-facing runtime switch.
+
+## Select an exact local version
+
+The private selector expects a store arranged as
+`STORE/VERSION/GOOS/GOARCH/runtime.manifest`. Each manifest names its binary
+relative to that target directory. For example:
+
+```sh
+FACTORY_BRIDGE_PROTOCOL=1 ./factory-go runtime resolve ./local-artifacts v0.2.0 linux/amd64
+```
+
+Only that slot is inspected. Its version, target and SHA-256 must match; a
+missing or invalid slot returns failure even when other versions are available.
+Success prints version, target, binary path relative to the store and SHA-256
+as four tab-separated fields. This command never executes the selected binary.
+The version is a literal label; moving aliases such as `latest` are rejected.
+It does not prove publisher authentication or bind a release label to a source
+revision. A later activation must perform its own locked validation.
+
+This is the FR-020 local selection prerequisite, described in
+[ADR-0059](../adr/0059-deterministic-runtime-selection.md). Binary distribution
+still awaits the platform qualification and authentication decisions in Q2/Q3.

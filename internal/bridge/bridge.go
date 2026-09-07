@@ -109,6 +109,13 @@ func Run(ctx context.Context, args []string) int {
 		return writeValue(cmd, roles.Resolve(args[0], args[1]))
 	}))
 	runtimeCommand := command("runtime", cobra.NoArgs, nil)
+	emitMetadata := func(cmd *cobra.Command, metadata artifact.Metadata) error {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", metadata.Version, metadata.Target, metadata.Binary, metadata.SHA256)
+		if err != nil {
+			status = 1
+		}
+		return err
+	}
 	runtimeCommand.AddCommand(command("verify", cobra.ExactArgs(3), func(cmd *cobra.Command, args []string) error {
 		metadata, err := artifact.Verify(cmd.Context(), args[0], args[1], args[2])
 		if err != nil {
@@ -117,8 +124,17 @@ func Run(ctx context.Context, args []string) int {
 			}
 			return err
 		}
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", metadata.Version, metadata.Target, metadata.Binary, metadata.SHA256)
-		return err
+		return emitMetadata(cmd, metadata)
+	}))
+	runtimeCommand.AddCommand(command("resolve", cobra.ExactArgs(3), func(cmd *cobra.Command, args []string) error {
+		metadata, err := artifact.Resolve(cmd.Context(), args[0], args[1], args[2])
+		if err != nil {
+			if !errors.Is(err, artifact.ErrInvalidRequest) {
+				status = 1
+			}
+			return err
+		}
+		return emitMetadata(cmd, metadata)
 	}))
 	root.AddCommand(configCommand, roleCommand, runtimeCommand)
 	// Cobra initializes hidden completion commands even when its default

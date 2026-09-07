@@ -45,7 +45,7 @@ jobs:
           cache: true
       - name: Provision developer dependencies
         run: go mod download
-      - name: Build committed source and test the packaged executable
+      - name: Build committed source, stage the archive and test its executable
         env:
           TARGET: ${{ matrix.target }}
           RELEASE_VERSION: ${{ inputs.version }}
@@ -56,7 +56,13 @@ jobs:
           output="$RUNNER_TEMP/runtime-bundle"
           go run ./cmd/factory-package --source "$GITHUB_WORKSPACE" \
             --revision "$GITHUB_SHA" --target "$TARGET" --version "$version" --output "$output"
-          binary="$output/store/$version/$TARGET/bin/factory-runtime"
+          # Staging is explicit local mode for this workflow's own source build.
+          # docs/adr/0061-runtime-bundle-staging.md:85.
+          staged="$RUNNER_TEMP/runtime-stage"
+          go run ./cmd/factory-stage --archive "$output/factory-runtime.tar.gz" \
+            --version "$version" --revision "$GITHUB_SHA" --target "$TARGET" \
+            --output "$staged" --local
+          binary="$staged/$version/$TARGET/bin/factory-runtime"
           FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
             -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

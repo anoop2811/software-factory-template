@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-)
 
-const compilerVersion = "go1.27.1"
+	"github.com/anoop2811/software-factory-template/internal/artifact"
+)
 
 // ErrInvalidRequest distinguishes malformed operands from operational failures.
 var ErrInvalidRequest = errors.New("invalid packaging request")
@@ -176,8 +176,8 @@ func compile(ctx context.Context, options Options, workspace string) error {
 		return fmt.Errorf("compiler version: %w: %s", err, output)
 	}
 	fields := strings.Fields(string(output))
-	if len(fields) != 4 || fields[0] != "go" || fields[1] != "version" || fields[2] != compilerVersion {
-		return fmt.Errorf("compiler must be %s; received %q", compilerVersion, strings.TrimSpace(string(output)))
+	if len(fields) != 4 || fields[0] != "go" || fields[1] != "version" || fields[2] != artifact.SourceGoVersion {
+		return fmt.Errorf("compiler must be %s; received %q", artifact.SourceGoVersion, strings.TrimSpace(string(output)))
 	}
 	if err = checkModuleReplacements(ctx, compiler, filepath.Join(workspace, "source"), env); err != nil {
 		return err

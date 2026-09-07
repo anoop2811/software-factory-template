@@ -14,6 +14,8 @@ import (
 	"path"
 	"path/filepath"
 	"time"
+
+	"github.com/anoop2811/software-factory-template/internal/artifact"
 )
 
 const archiveName = "factory-runtime.tar.gz"
@@ -44,7 +46,7 @@ func createBundle(root *os.Root, options Options) (string, []string, error) {
 	if err = writeFile(root, manifestName, []byte(manifest), 0644); err != nil {
 		return "", nil, err
 	}
-	metadata, err := json.Marshal(sourceMetadata{options.Revision, options.Version, options.Target, compilerVersion, "source-build"})
+	metadata, err := json.Marshal(sourceMetadata{options.Revision, options.Version, options.Target, artifact.SourceGoVersion, "source-build"})
 	if err != nil {
 		return "", nil, err
 	}

@@ -171,6 +171,13 @@ func safeChild(root, relative string) (string, error) {
 	if relative == "" || filepath.IsAbs(relative) || filepath.VolumeName(relative) != "" {
 		return "", fmt.Errorf("%w: binary path must be relative", ErrInvalidRequest)
 	}
+	// Reject parent traversal before cleaning can hide a symlinked component.
+	// docs/adr/0059-deterministic-runtime-selection.md:32.
+	for _, part := range strings.Split(relative, string(filepath.Separator)) {
+		if part == ".." {
+			return "", fmt.Errorf("%w: binary path contains parent traversal", ErrInvalidRequest)
+		}
+	}
 	clean := filepath.Clean(relative)
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("%w: binary path escapes artifact root", ErrInvalidRequest)

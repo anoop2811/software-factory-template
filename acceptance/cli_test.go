@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -107,6 +108,26 @@ func routeEntries() []TableEntry {
 		entries = append(entries, Entry(route.command, route.command, route.script))
 	}
 	return entries
+}
+
+// Only Bash's known fixture invocation prefix and optional source-line framing
+// differ for the candidate. Preserve every error path, word, line and newline.
+// Raw framing remains a recorded compatibility limitation, not exact parity.
+// per specs/001-go-runtime-conversion.md:460
+func normalizeBashDiagnostic(stderr, invocation string) (string, error) {
+	lines := strings.SplitAfter(stderr, "\n")
+	lineContext := regexp.MustCompile(`^line [0-9]+: `)
+	for i, line := range lines {
+		if line == "" {
+			continue
+		}
+		prefix := invocation + ": "
+		if !strings.HasPrefix(line, prefix) {
+			return "", fmt.Errorf("unexpected Bash diagnostic invocation prefix: %q", line)
+		}
+		lines[i] = lineContext.ReplaceAllString(strings.TrimPrefix(line, prefix), "")
+	}
+	return strings.Join(lines, ""), nil
 }
 
 var _ = Describe("The developer-built Cobra command boundary", func() {
@@ -234,10 +255,17 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			result := invoke(root, cwd, executable, "", "report")
 			Expect(result.status).To(Equal(baseline.status), executable)
 			Expect(result.stdout).To(BeEmpty(), executable)
-			// OS-specific error prose and the legacy Bash source line are not
-			// normalized into a false exact-output promise.
 			Expect(result.stderr).To(ContainSubstring("factory-report.sh"), executable)
 			Expect(result.stderr).NotTo(ContainSubstring("Usage:"), executable)
+			baselineDiagnostic, err := normalizeBashDiagnostic(baseline.stderr, filepath.Join(root, "legacy-factory"))
+			Expect(err).NotTo(HaveOccurred())
+			invocation := filepath.Join(root, "legacy-factory")
+			if executable == "factory" {
+				invocation = path
+			}
+			diagnostic, err := normalizeBashDiagnostic(result.stderr, invocation)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(diagnostic).To(Equal(baselineDiagnostic), executable)
 		}
 	}, Entry("executable directory", "directory"), Entry("missing interpreter", "interpreter"))
 

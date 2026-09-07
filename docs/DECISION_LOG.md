@@ -1873,3 +1873,9 @@ this candidate stage. The Go dispatcher still selects only canonical routes.
 Decision 49 lint review correction: explicitly enable revive default rules
 while customizing the two allowed dot-import packages. Pinned linter debug
 output showed a custom rule list otherwise drops 22 defaults; retain all 23.
+
+Decision 49 diagnostic characterization: native Bash exec failures preserve
+status and error meaning but identify a different invocation/source-line context
+in this candidate. Record that raw-framing difference explicitly, strengthen
+independent comparison after narrow fixture-context normalization, and leave
+production acceptance open rather than silently approving a parity exception.

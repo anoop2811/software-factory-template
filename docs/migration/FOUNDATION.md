@@ -42,6 +42,18 @@ The dialect rule and lint configuration remain shared with the Go pack. Only
 the two blessed BDD packages are exempt from the dot-import style rule. Direct
 process execution exceptions are scoped to the relevant calls with rationales.
 
+## Known candidate diagnostic difference
+
+For executable-directory and missing-interpreter failures, native Bash returns
+the baseline status and error description. Its diagnostic prefix identifies the
+candidate's script invocation rather than the legacy dispatcher, with a different
+shell source-line marker. Acceptance compares the error description after
+removing only that fixture-specific invocation/source-location framing.
+Raw stderr framing is therefore not byte-identical. This is recorded as an open
+characterization boundary for production cutover, not an approved compatibility
+exception or a completed stage. Normal help and factory-owned errors retain
+exact output comparisons.
+
 ## Next acceptance boundaries
 
 The [inventory](COMPATIBILITY_INVENTORY.md) lists every remaining surface and

@@ -2058,3 +2058,6 @@ data rather than reading a path operand back into the fixture writer. Remove
 unused fixture parameters without changing assertions or disabling lint rules.
 Manifest values must also reject embedded tabs so emitted metadata retains
 exactly four tab-separated fields; spaces in artifact filenames remain valid.
+Open the binary through an `os.Root` handle confined to the artifact directory
+and check the opened file type before hashing. The manifest remains an explicit
+caller-selected read-only input and may live outside the artifact directory.

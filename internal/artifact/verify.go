@@ -55,11 +55,16 @@ func Verify(ctx context.Context, manifestPath, root, target string) (Metadata, e
 	if err := validateRoot(root); err != nil {
 		return Metadata{}, err
 	}
-	binaryPath, err := safeChild(root, metadata.Binary)
+	_, err = safeChild(root, metadata.Binary)
 	if err != nil {
 		return Metadata{}, fmt.Errorf("artifact binary: %w", err)
 	}
-	actual, err := digest(ctx, binaryPath)
+	artifactRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return Metadata{}, fmt.Errorf("open artifact root: %w", err)
+	}
+	defer artifactRoot.Close()
+	actual, err := digest(ctx, artifactRoot, metadata.Binary)
 	if err != nil {
 		return Metadata{}, fmt.Errorf("artifact binary: %w", err)
 	}
@@ -199,15 +204,23 @@ func regularNoSymlink(path string) (*os.File, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 		return nil, errors.New("manifest is not a regular file")
 	}
+	// #nosec G304 -- Explicit caller-selected read-only manifest; it may be outside the binary root.
 	return os.Open(path)
 }
 
-func digest(ctx context.Context, path string) (string, error) {
-	file, err := os.Open(path)
+func digest(ctx context.Context, root *os.Root, path string) (string, error) {
+	file, err := root.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", errors.New("binary is not a regular file")
+	}
 	hash := sha256.New()
 	buffer := make([]byte, 32*1024)
 	for {

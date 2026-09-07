@@ -1759,3 +1759,40 @@ close probe resources despite those errors and retain typed PID ownership when
 termination or exit cannot be established. Provenance: observed 2026-09-06 by
 independent fault injection into the actual preflight/controller path during
 PR #72 review (LOOP-PREFLIGHT-CLEANUP-OSERROR).
+
+## Decision 48 (2026-09-06): specify a compatible Go conversion before implementation
+
+What: draft specs/001-go-runtime-conversion.md using ai-craft's twelve-section
+SPEC_TEMPLATE.md at commit 3d6c1bbb8f84116e34519382c826030324a06e77. The
+proposal covers staged conversion of factory-owned runtime logic into Go,
+with stable command/hook/sourced-library compatibility, safe delivery, existing
+state preservation, recoverable upgrades and evidence-gated legacy cleanup.
+Existing capability roadmap names and percentages remain unchanged.
+
+Why: the user requested the Go conversion spec after merging PR #72, explicitly
+requiring backward compatibility and cleanup as part of conversion. The spec is
+a draft for human review; this decision authorizes documentation, not an
+implementation, toolchain update, production migration or release. Detailed
+proposed alternatives and consequences live in the spec's Decision Record.
+
+Provenance: user direction, 2026-09-06; PR #72 merged as
+76952eaa63aebd1ecd282f5ab51dd7c3627cb497, read back from GitHub this session.
+Template: https://github.com/anoop2811/ai-craft/blob/3d6c1bbb8f84116e34519382c826030324a06e77/SPEC_TEMPLATE.md
+(read from the reference checkout 2026-09-06).
+
+Decision 48 user refinement (2026-09-06): Cobra is required for the Go CLI,
+and every conversion slice follows outside-in TDD with Ginkgo v2 and Gomega.
+The spec records external acceptance RED before implementation, focused
+collaborator RED/GREEN as needed, then refactor, preserving evaluator separation
+and the existing command/error/flag contracts. This remains a documentation task.
+
+Decision 48 retention refinement (2026-09-06): the user requested that upgrades
+retire superseded factory assets into a local gitignored recovery folder rather
+than retaining old implementations indefinitely. Specify private per-migration
+backups of replaced/removed owned assets, preserved original paths and restore
+metadata, exclusion from all active discovery, and one successful release
+transition of default retention. A later distinct release may prune unchanged
+eligible backups only after its own required deterministic checks pass, retaining
+the immediately preceding installation's recovery set. Failed upgrades, explicit
+holds, edits or uncertain ownership prevent automatic deletion and are reported.
+This updates the spec only; it moves or deletes no existing factory files.

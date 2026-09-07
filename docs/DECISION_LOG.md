@@ -1796,3 +1796,80 @@ eligible backups only after its own required deterministic checks pass, retainin
 the immediately preceding installation's recovery set. Failed upgrades, explicit
 holds, edits or uncertain ownership prevent automatic deletion and are reported.
 This updates the spec only; it moves or deletes no existing factory files.
+
+## Decision 49 (2026-09-06): start Go conversion with characterized contracts
+
+What: begin the user-authorized conversion on the merged Decision 48 spec.
+The first reviewable slice records the baseline asset/surface inventory and
+independent outside-in Ginkgo/Gomega compatibility cases, and introduces the
+Cobra command boundary behind a developer-built candidate rather than switching
+installed entrypoints before release/recovery readiness is established. A
+command converted in this slice must meet its external behavior before any
+production routing changes; unconverted commands retain the canonical scripts.
+
+The inventory covers every tracked baseline asset, its hash/mode, intended
+stage, ownership class and convert/retain/retire disposition. It is a reviewed
+planning artifact, never permission to delete adopter files. Negative controls
+must reject missing/unclassified assets and command-contract drift. Runtime
+activation, backup/cleanup and artifact distribution remain gated by Decision
+48's target/trust/recovery questions; nothing may silently download or activate
+a development candidate in an adopter.
+
+Why: the user requested starting the highest-priority Go conversion, using
+Cobra and outside-in TDD with Ginkgo/Gomega, after merging PR #73. Baseline
+a380dffb76bb18f1e616504a34775853eedad0ad includes the specification; behavior
+comparison remains anchored to 76952ea and v0.1.6 as recorded there. The
+configuration-precedence discrepancy EX-001 is pending the user's explicit
+choice and must not be silently folded into parity. Progress tables belong in
+the chat after each iteration; do not add the new row to FEATURE_ROADMAP.md.
+
+Decision 49 toolchain research before pinning (2026-09-06): Go 1.27.1
+(released 2026-09-01, https://go.dev/doc/devel/release), Cobra v1.10.2
+(published 2025-12-04, https://github.com/spf13/cobra/releases/tag/v1.10.2),
+Ginkgo v2.32.1 (2026-08-10, https://github.com/onsi/ginkgo/releases/tag/v2.32.1)
+and Gomega v1.43.0 (2026-08-27, https://github.com/onsi/gomega/releases/tag/v1.43.0)
+were read from their authoritative releases this session. Pin these development
+dependencies in the factory's own module; do not alter adopter pack selection.
+The installed shell dispatcher stays the default throughout this candidate slice.
+
+Decision 49 enforcement refinement: the factory module's Go acceptance and
+quality checks join its own check target, while adopted non-factory modules
+remain unaffected. Reuse the Go pack dialect gate and lint configuration rather
+than copying policy. Extend configured test patterns to _test.go and protect
+cmd/internal implementation paths. Template-only CI fetches the baseline Git
+history needed by independent inventory comparison.
+
+Quality/action releases checked from official pages/API 2026-09-06 before pinning:
+- golangci-lint v2.13.2, published 2026-08-27:
+  https://github.com/golangci/golangci-lint/releases/tag/v2.13.2
+- gosec v2.29.0, published 2026-08-26:
+  https://github.com/securego/gosec/releases/tag/v2.29.0
+- govulncheck v1.1.4, published 2025-01-13:
+  https://github.com/golang/vuln/releases/tag/v1.1.4
+- actions/checkout v7.0.1, published 2026-07-20:
+  https://github.com/actions/checkout/releases/tag/v7.0.1
+- actions/setup-go v7.0.0, published 2026-07-16:
+  https://github.com/actions/setup-go/releases/tag/v7.0.0
+
+Decision 49 lint integration: permit only the blessed Ginkgo/Gomega packages
+in revive's dot-imports rule in the shared Go pack config; retain the rule for
+all other imports. The installed revive rule documentation explicitly supports
+allowedPackages (github.com/mgechev/revive v1.15.0 RULES_DESCRIPTIONS.md, read
+2026-09-06). Ignore the developer-only /factory-go binary and document its
+colocated build; neither the shell entrypoint nor installed assets change.
+
+Decision 49 review correction: use the Go pack's test filename boundary for
+factory test protection, including shell-command payloads with trailing tokens.
+An end-of-string-only pattern was observed to allow a test edit followed by
+`&& echo done`; this new configuration must preserve the existing hook contract.
+
+Decision 49 execution-edge refinement after observed acceptance RED: retain
+normal direct process replacement, and on an exec failure use the baseline's
+PATH-selected Bash through a constant positional exec program. Bash supplies
+its own no-shebang fallback and platform-specific failure status; no caller
+argument is interpolated into shell source. Bash remains a prerequisite for
+this candidate stage. The Go dispatcher still selects only canonical routes.
+
+Decision 49 lint review correction: explicitly enable revive default rules
+while customizing the two allowed dot-import packages. Pinned linter debug
+output showed a custom rule list otherwise drops 22 defaults; retain all 23.

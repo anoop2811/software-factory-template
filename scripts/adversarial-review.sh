@@ -20,6 +20,8 @@ set -euo pipefail
 #   REVIEW_REASONING_EFFORT  optional OpenRouter effort; empty keeps provider defaults
 #   REVIEW_OPENROUTER_PROVIDER  optional hosting slug; empty keeps gateway routing
 #   REVIEW_MAX_TOKENS  optional OpenRouter completion cap; defaults to 8192
+# Environment only:
+#   REVIEW_TIMEOUT_SECONDS  total HTTP deadline, 1..480; defaults to 480
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -43,6 +45,20 @@ done
 # shellcheck source=lib/config.sh
 . "$ROOT_DIR/scripts/lib/config.sh"
 factory_config_export
+
+# Normalize before arithmetic, keeping the transport deadline inside the CI job.
+# docs/adr/0065-adversarial-review-transport-deadline.md:23.
+TIMEOUT="${REVIEW_TIMEOUT_SECONDS:-480}"
+if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]]; then
+  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 480." >&2
+  exit 1
+fi
+TIMEOUT="${TIMEOUT#"${TIMEOUT%%[!0]*}"}"
+[ -n "$TIMEOUT" ] || TIMEOUT=0
+if [ "${#TIMEOUT}" -gt 3 ] || [ "$TIMEOUT" -lt 1 ] || [ "$TIMEOUT" -gt 480 ]; then
+  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 480." >&2
+  exit 1
+fi
 
 PROVIDER="${MODEL_PROVIDER:-openrouter}"
 API_KEY="${REVIEW_API_KEY:-}"
@@ -114,6 +130,38 @@ USER_PROMPT="Review this diff.
 $DIFF
 \`\`\`"
 
+# Keep partial bodies private and classify transfer failure before extraction.
+# docs/adr/0065-adversarial-review-transport-deadline.md:36.
+RESPONSE_FILE="$(umask 077; mktemp "${TMPDIR:-/tmp}/factory-review.XXXXXX")"
+trap 'rm -f -- "$RESPONSE_FILE"' EXIT
+
+request_review() {
+  local curl_status=0 transport http_status total_seconds first_byte_seconds received_bytes _extra
+  transport="$(curl -sS --connect-timeout 15 --max-time "$TIMEOUT" \
+    --output "$RESPONSE_FILE" \
+    --write-out '%{http_code}\t%{time_total}\t%{time_starttransfer}\t%{size_download}' \
+    "$@" 2>/dev/null)" || curl_status=$?
+  IFS=$'\t' read -r http_status total_seconds first_byte_seconds received_bytes _extra <<< "$transport" || true
+  # Metadata is never interpolated into diagnostics unless it is numeric.
+  [[ "$http_status" =~ ^[0-9]{3}$ ]] || http_status=unknown
+  [[ "$total_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]] || total_seconds=unknown
+  [[ "$first_byte_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]] || first_byte_seconds=unknown
+  [[ "$received_bytes" =~ ^[0-9]+([.][0-9]+)?$ ]] || received_bytes=unknown
+  if [ "$curl_status" -eq 28 ]; then
+    echo "adversarial-review: request timed out." >&2
+  elif [ "$curl_status" -ne 0 ]; then
+    echo "adversarial-review: transport failure." >&2
+  elif ! [[ "$http_status" =~ ^2[0-9]{2}$ ]]; then
+    echo "adversarial-review: HTTP request failed." >&2
+  else
+    RESPONSE="$(cat "$RESPONSE_FILE")"
+    return 0
+  fi
+  printf 'adversarial-review: curl_status=%s http_status=%s total_seconds=%s first_byte_seconds=%s received_bytes=%s\n' \
+    "$curl_status" "$http_status" "$total_seconds" "$first_byte_seconds" "$received_bytes" >&2
+  return 1
+}
+
 # Two request shapes cover the three providers: Anthropic has its own Messages
 # API; OpenRouter and OpenAI are both OpenAI-compatible chat completions.
 case "$PROVIDER" in
@@ -121,9 +169,9 @@ case "$PROVIDER" in
     ENDPOINT="https://api.anthropic.com/v1/messages"
     BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" \
       '{model:$m, max_tokens:4096, system:$s, messages:[{role:"user",content:$u}]}')"
-    RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \
+    request_review "$ENDPOINT" \
       -H "x-api-key: $API_KEY" -H "anthropic-version: 2023-06-01" \
-      -H "content-type: application/json" -d "$BODY")" || RESPONSE=""
+      -H "content-type: application/json" -d "$BODY" || exit 1
     TEXT="$(printf '%s' "$RESPONSE" | jq -r '.content[0].text // empty' 2>/dev/null || true)"
     ;;
   *)
@@ -177,9 +225,9 @@ case "$PROVIDER" in
          {max_tokens:$max_tokens} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
          (if $route == "" then {} else {provider:{order:[$route],allow_fallbacks:false,require_parameters:true}} end)
        end)')"
-    RESPONSE="$(curl -sS --max-time 180 "$ENDPOINT" \
+    request_review "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
-      -d "$BODY")" || RESPONSE=""
+      -d "$BODY" || exit 1
     if [ "$PROVIDER" != "openai" ] && \
         printf '%s' "$RESPONSE" | jq -e '.choices[0].finish_reason == "length"' >/dev/null 2>&1; then
       echo "adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length)." >&2

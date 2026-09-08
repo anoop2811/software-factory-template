@@ -37,8 +37,8 @@ Client hooks can be disabled, so they do not replace GitHub branch protection.
 ## Adversarial CI review
 
 The source repository opts into the same `factory review-lane` capability
-available to adopters. factory.yaml records DeepSeek V4 Flash 0731
-(`deepseek/deepseek-v4-flash-0731`), DeepInfra routing, and the
+available to adopters. factory.yaml records GLM 5.3 Flash
+(`z-ai/glm-5.3-flash`), DeepInfra routing, and the
 `OPENROUTER_API_KEY` secret name. The shared review
 runner defaults to OpenRouter; no native harness model setting is needed.
 
@@ -47,13 +47,27 @@ commit it. After the workflow is merged, same-repository PR open/update/reopen
 events targeting the default branch fetch the diff as data and post an advisory
 review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
 
-The lane permits one HTTP request per run, a 200000-byte diff, a 180-second
-request timeout and an 8192-token OpenRouter output cap by default. Set
+The lane permits one HTTP request per run, a 200000-byte diff, a 480-second
+total request deadline (with a separate 15-second connection limit) and an 8192-token OpenRouter output cap by default. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
 to a decimal value from 1024 through 32768; the caller value wins. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
 or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
+
+Set the GitHub Actions repository **variable** `REVIEW_TIMEOUT_SECONDS` to a
+whole number from 1 through 480 to override the deadline. It is a variable, not
+a secret; an empty/unset value uses 480. Locally, set the same environment
+variable. This transport setting is intentionally not a factory.yaml key.
+Generated review-lane workflows carry the same variable binding. Older installed
+workflows need their normal upgrade before that binding is available.
+
+The deadline controls waiting time, not the model's token allowance. Timeouts
+now report safe HTTP/timing/byte evidence and never publish partial findings.
+They do not prove the provider performed no work or incurred no cost. There is
+no automatic retry or provider fallback. The PR #87 failure hit the old hard-coded
+180-second curl deadline; its discarded partial response cannot establish why
+the provider took longer. See [ADR-0065](adr/0065-adversarial-review-transport-deadline.md).
 
 OpenRouter reasoning effort is selectable with `review_reasoning_effort` in
 factory.yaml or `REVIEW_REASONING_EFFORT` in the environment (caller wins).
@@ -64,7 +78,7 @@ supported by your model. This repository selects `none` to disable thinking and
 keep the configured token allowance available for the review text. Reasoning tokens,
 when enabled, share that allowance with the final answer. Disabling thinking
 does not guarantee a complete or accurate review.
-See docs/adr/0055-pin-deepseek-review-provider.md:5.
+See [Decision 61](DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review) for the current model and reasoning selection.
 
 OpenRouter hosting is selectable with `review_openrouter_provider` in factory.yaml
 or `REVIEW_OPENROUTER_PROVIDER` in the environment. Caller values, including an
@@ -76,7 +90,9 @@ requests on that provider and requires support for the supplied parameters.
 If no eligible endpoint is available, the review fails visibly; it does not
 fall back to another provider. The repository's `deepinfra` selection permits
 DeepInfra endpoint variants. Anthropic/OpenAI requests and native harness role
-tiers are unchanged. See docs/adr/0055-pin-deepseek-review-provider.md:20.
+tiers are unchanged. The provider-routing contract remains in
+[ADR-0055](adr/0055-pin-deepseek-review-provider.md); its historical DeepSeek model
+selection is superseded by [Decision 61](DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review).
 
 The workflow checks out the trusted base commit. A PR changing these settings
 therefore runs with the previous configuration; the new selection takes effect

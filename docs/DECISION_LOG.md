@@ -2153,3 +2153,34 @@ arrays, an immutable Python normalization oracle, outside-in Ginkgo/Gomega TDD
 and native packaged conformance. No installed routing, paid call, active legacy
 retirement or upgrade cleanup is authorized by this slice; their existing
 migration acceptance gates remain open.
+
+
+## Decision 60 (2026-09-07): distinguish review transport deadlines from token exhaustion
+
+Implement ADR-0065 after the confirmed curl 180-second cutoff on PR #87. Give the
+single request a configurable bounded deadline through an environment/Actions
+variable, preserve cost controls and expose safe failure diagnostics. Do not
+pretend a timeout returned a model review or claim a provider-side root cause
+that the old logs cannot establish. Decision 59 belongs to the separate pending
+Go accounting PR #87; this correction is based directly on main.
+
+
+## Decision 61 (2026-09-08 UTC): select GLM 5.3 Flash for adversarial review
+
+Select `z-ai/glm-5.3-flash` in the repository's
+`review_model`. Retain the DeepInfra provider selection, reasoning effort `none`,
+8192-token cap, bounded transport deadline and single-request policy. Update
+the repository request fixture and self-hosting documentation to match. Native
+harness model tiers and adopter defaults are outside this configuration change.
+
+Source fetched 2026-09-08:
+https://openrouter.ai/api/v1/models/z-ai/glm-5.3-flash/endpoints confirms the
+model ID and a DeepInfra endpoint advertising reasoning and max_tokens support.
+This metadata does not establish live review quality or reliability. The trusted
+base workflow adopts the setting on new PR events after this change is merged.
+
+This decision supersedes only the DeepSeek model selection in ADR-0055; its
+provider-routing contract remains in force. ADR-0057 continues to define the
+output cap, and ADR-0065 defines the transport deadline. The requested model
+change is tracked in https://github.com/anoop2811/software-factory-template/pull/89.
+Dates in this entry and its source check are UTC.

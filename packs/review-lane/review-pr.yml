@@ -67,6 +67,7 @@ jobs:
       - name: Review
         if: hashFiles('review-skip') == ''
         env:
+          REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS }}
           REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
         run: |
           if [ -z "${REVIEW_API_KEY:-}" ]; then

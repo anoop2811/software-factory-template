@@ -37,7 +37,8 @@ outside the qualified compatibility domain; see the ADR for all boundaries.
 ## Remaining conversion
 
 This is the accounting component, not the process supervisor or budget admission
-controller. Raw stream decoding, response display, native preflight, deadlines,
+controller. The [raw stream candidate](STREAMS.md) extends metadata parsing separately.
+Response display, native preflight, deadlines,
 shared legacy/Go locks, history publication and loop recovery remain to be
 ported. Installed activation requires the migration's delivery, recovery and
 manual pilot gates. Superseded Python files will be retired only with their

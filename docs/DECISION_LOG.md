@@ -2224,3 +2224,13 @@ from the shared default in self-hosting docs. No automatic retry is introduced.
 Observed source: https://github.com/anoop2811/software-factory-template/pull/87#issuecomment-5578045428
 (run https://github.com/anoop2811/software-factory-template/actions/runs/34178898119).
 Live completion requires a fresh trusted-base PR event after merge.
+
+
+## Decision 64 (2026-09-08 UTC): Go raw native event parsing candidate
+
+Implement ADR-0066 after PR #87's decoded usage-accounting boundary. Preserve
+whole-document-first Python parsing and line fallback before shared accounting,
+with independent compiled CLI and packaged conformance. Keep installed runtime
+and recovery/retirement gates unchanged. Non-finite numbers, Unicode surrogate
+identity and splitlines behavior require explicit parity rather than assuming
+Go's default JSON decoder is equivalent.

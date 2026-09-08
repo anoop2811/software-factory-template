@@ -46,19 +46,24 @@ func Normalize(ctx context.Context, harness string, input io.Reader) (Metadata, 
 	if !ok {
 		return Metadata{}, errors.New("invalid usage event input")
 	}
-	var result Metadata
-	switch harness {
-	case "codex":
-		result = codex(ctx, events)
-	case "claude":
-		result = claude(ctx, events)
-	case "opencode":
-		result = opencode(ctx, events)
-	}
+	result := normalizeEvents(ctx, harness, events)
 	if ctx.Err() != nil {
 		return Metadata{}, errors.New("invalid usage event input")
 	}
 	return result, nil
+}
+
+func normalizeEvents(ctx context.Context, harness string, events []any) Metadata {
+	switch harness {
+	case "codex":
+		return codex(ctx, events)
+	case "claude":
+		return claude(ctx, events)
+	case "opencode":
+		return opencode(ctx, events)
+	default:
+		return Metadata{}
+	}
 }
 
 type contextReader struct {

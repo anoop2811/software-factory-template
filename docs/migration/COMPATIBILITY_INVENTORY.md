@@ -85,9 +85,11 @@ acceptance references before cleanup.
 ## Candidate accounting progress
 
 The [native usage accounting candidate](USAGE.md) starts G2 with decoded-event
-metadata normalization for all three harnesses. It does not replace installed
-controllers, qualify live streams or retire `budget_adapters.py`; the G2
-supervision, locking and safe-delivery requirements above remain open.
+metadata normalization for all three harnesses. The [raw stream candidate](STREAMS.md)
+adds bounded captured-output parsing into that metadata boundary. These candidates
+do not replace installed controllers, qualify live CLI versions or retire
+`budget_adapters.py`; the G2 supervision, locking and safe-delivery requirements
+above remain open.
 
 ## Gates still open
 

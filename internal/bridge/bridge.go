@@ -183,6 +183,28 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return nil
 	}))
+	// Raw stdout keeps Python framing while sharing metadata normalization.
+	// docs/adr/0066-go-native-event-streams.md:8.
+	usageCommand.AddCommand(command("parse", func(cmd *cobra.Command, args []string) error {
+		if err := cobra.ExactArgs(1)(cmd, args); err != nil {
+			return err
+		}
+		if !usage.Supported(args[0]) {
+			return errors.New("unsupported usage harness")
+		}
+		return nil
+	}, func(cmd *cobra.Command, args []string) error {
+		metadata, err := usage.Parse(cmd.Context(), args[0], cmd.InOrStdin())
+		if err != nil {
+			status = 1
+			return err
+		}
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(metadata); err != nil {
+			status = 1
+			return errors.New("cannot write usage metadata")
+		}
+		return nil
+	}))
 	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request

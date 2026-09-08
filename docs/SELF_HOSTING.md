@@ -51,7 +51,9 @@ The lane permits one HTTP request per run, a 200000-byte diff, a 480-second
 total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
 The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
-to a decimal value from 1024 through 32768; the caller value wins. Oversized diffs are
+to a decimal value from 1024 through 32768; the caller value wins. An explicitly
+empty `REVIEW_MAX_TOKENS` overrides YAML and uses the shared 8192-token default.
+Leave the environment variable unset to use the configured YAML cap. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
 or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.

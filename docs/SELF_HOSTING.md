@@ -48,9 +48,12 @@ events targeting the default branch fetch the diff as data and post an advisory
 review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
 
 The lane permits one HTTP request per run, a 200000-byte diff, a 480-second
-total request deadline (with a separate 15-second connection limit) and an 8192-token OpenRouter output cap by default. Set
+total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
+The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
-to a decimal value from 1024 through 32768; the caller value wins. Oversized diffs are
+to a decimal value from 1024 through 32768; the caller value wins. An explicitly
+empty `REVIEW_MAX_TOKENS` overrides YAML and uses the shared 8192-token default.
+Leave the environment variable unset to use the configured YAML cap. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
 or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
@@ -76,10 +79,12 @@ also overrides configured effort. The gateway values are
 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; choose only values
 supported by your model. This repository selects `low`, the lowest supported
 GLM 5.3 Flash API effort; thinking cannot be disabled for this model. Reasoning
-tokens share the 8192-token output allowance with the final review. Low effort
+tokens share this repository's 32768-token output allowance with the final review. Low effort
 does not guarantee a complete or accurate review. See
 [Decision 62](DECISION_LOG.md#decision-62-2026-09-08-utc-use-supported-glm-review-reasoning)
-for the correction to Decision 61's reasoning setting and the
+for the correction to Decision 61's reasoning setting,
+[Decision 63](DECISION_LOG.md#decision-63-2026-09-08-utc-bound-the-glm-review-output-allowance)
+for the repository cap increase after an observed truncated review, and the
 [model's reasoning requirements](https://docs.z.ai/guides/capabilities/thinking).
 
 OpenRouter hosting is selectable with `review_openrouter_provider` in factory.yaml

@@ -2192,3 +2192,23 @@ states that GLM-5.3/Flash cannot disable thinking and supports low/high/max API
 efforts. Listing a reasoning parameter in endpoint metadata does not establish
 which values a model accepts. Update the repository request assertion and
 self-hosting guidance; keep generic effort support for other models unchanged.
+
+
+## Decision 63 (2026-09-08 UTC): bound the GLM review output allowance
+
+PR #87 run 34178898119 completed its HTTP request after the low-effort correction
+but returned `finish_reason=length`, so no complete review was published. Increase
+this repository's configured review_max_tokens from 8192 to 32768, the maximum
+accepted by the current factory setting, as requested by the user. Retain GLM
+Flash, low reasoning, DeepInfra, the 480-second deadline and one request per run.
+Reasoning and final text share this allowance; raising the token ceiling can
+increase billed output and does not guarantee completion or quality.
+
+This supersedes only Decision 62's retained repository cap. Keep the shared
+runner/adopter default at 8192 and the validated 1024..32768 range from ADR-0057.
+Update the real repository request assertion and distinguish the configured cap
+from the shared default in self-hosting docs. No automatic retry is introduced.
+
+Observed source: https://github.com/anoop2811/software-factory-template/pull/87#issuecomment-5578045428
+(run https://github.com/anoop2811/software-factory-template/actions/runs/34178898119).
+Live completion requires a fresh trusted-base PR event after merge.

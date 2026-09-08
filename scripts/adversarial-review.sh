@@ -21,7 +21,7 @@ set -euo pipefail
 #   REVIEW_OPENROUTER_PROVIDER  optional hosting slug; empty keeps gateway routing
 #   REVIEW_MAX_TOKENS  optional OpenRouter completion cap; defaults to 8192
 # Environment only:
-#   REVIEW_TIMEOUT_SECONDS  total HTTP deadline, 1..480; defaults to 480
+#   REVIEW_TIMEOUT_SECONDS  total HTTP deadline, 1..1200; defaults to 1200
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -47,16 +47,16 @@ done
 factory_config_export
 
 # Normalize before arithmetic, keeping the transport deadline inside the CI job.
-# docs/adr/0065-adversarial-review-transport-deadline.md:23.
-TIMEOUT="${REVIEW_TIMEOUT_SECONDS:-480}"
+# docs/DECISION_LOG.md:2236.
+TIMEOUT="${REVIEW_TIMEOUT_SECONDS:-1200}"
 if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]]; then
-  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 480." >&2
+  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 1200." >&2
   exit 1
 fi
 TIMEOUT="${TIMEOUT#"${TIMEOUT%%[!0]*}"}"
 [ -n "$TIMEOUT" ] || TIMEOUT=0
-if [ "${#TIMEOUT}" -gt 3 ] || [ "$TIMEOUT" -lt 1 ] || [ "$TIMEOUT" -gt 480 ]; then
-  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 480." >&2
+if [ "${#TIMEOUT}" -gt 4 ] || [ "$TIMEOUT" -lt 1 ] || [ "$TIMEOUT" -gt 1200 ]; then
+  echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 1200." >&2
   exit 1
 fi
 

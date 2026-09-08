@@ -47,7 +47,7 @@ commit it. After the workflow is merged, same-repository PR open/update/reopen
 events targeting the default branch fetch the diff as data and post an advisory
 review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
 
-The lane permits one HTTP request per run, a 200000-byte diff, a 480-second
+The lane permits one HTTP request per run, a 200000-byte diff, a 1200-second
 total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
 The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
@@ -59,9 +59,11 @@ or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
 
 Set the GitHub Actions repository **variable** `REVIEW_TIMEOUT_SECONDS` to a
-whole number from 1 through 480 to override the deadline. It is a variable, not
-a secret; an empty/unset value uses 480. Locally, set the same environment
-variable. This transport setting is intentionally not a factory.yaml key.
+whole number from 1 through 1200 to override the deadline. It is a variable, not
+a secret; an empty/unset value uses 1200. Locally, set the same environment
+variable. The Actions job allows 25 minutes, leaving five minutes beyond the
+maximum request deadline for setup and reporting. This transport setting is
+intentionally not a factory.yaml key.
 Generated review-lane workflows carry the same variable binding. Older installed
 workflows need their normal upgrade before that binding is available.
 
@@ -70,7 +72,9 @@ now report safe HTTP/timing/byte evidence and never publish partial findings.
 They do not prove the provider performed no work or incurred no cost. There is
 no automatic retry or provider fallback. The PR #87 failure hit the old hard-coded
 180-second curl deadline; its discarded partial response cannot establish why
-the provider took longer. See [ADR-0065](adr/0065-adversarial-review-transport-deadline.md).
+the provider took longer. See [ADR-0065](adr/0065-adversarial-review-transport-deadline.md);
+[Decision 65](DECISION_LOG.md#decision-65-2026-09-08-utc-allow-bounded-long-review-completion)
+supersedes its original 480-second ceiling after the observed PR #92 timeout.
 
 OpenRouter reasoning effort is selectable with `review_reasoning_effort` in
 factory.yaml or `REVIEW_REASONING_EFFORT` in the environment (caller wins).

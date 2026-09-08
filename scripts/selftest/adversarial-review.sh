@@ -103,11 +103,11 @@ repository_default_provider() {
   lane_settings="$(env -i PATH="$PATH" FACTORY_CONFIG="$FIXTURE/factory.yaml" \
     bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort; printf "\n"; factory_config_get review_openrouter_provider; printf "\n"; factory_config_get review_max_tokens' \
     config-reader "$ROOT/scripts/lib/config.sh")" || return 1
-  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nlow\ndeepinfra\n8192' ] || return 1
+  [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nlow\ndeepinfra\n32768' ] || return 1
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://openrouter.ai/api/v1/chat/completions' "$FIXTURE/args" || return 1
-  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 8192 and .reasoning == {effort:"low"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
+  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 32768 and .reasoning == {effort:"low"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
 }
 
 # These source constraints do not prove GitHub runtime execution.

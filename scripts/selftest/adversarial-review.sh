@@ -107,7 +107,7 @@ repository_default_provider() {
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1
   grep -qFx 'https://openrouter.ai/api/v1/chat/completions' "$FIXTURE/args" || return 1
-  jq -e '.model == "deepseek/deepseek-v4-flash-0731" and .max_tokens == 8192 and .reasoning == {effort:"none"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
+  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 8192 and .reasoning == {effort:"none"} and .provider == {order:["deepinfra"],allow_fallbacks:false,require_parameters:true} and .messages[1].role == "user"' "$FIXTURE/body.json" >/dev/null
 }
 
 # These source constraints do not prove GitHub runtime execution.

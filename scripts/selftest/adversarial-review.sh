@@ -15,14 +15,35 @@ cat > "$FIXTURE/bin/curl" <<'CURL'
 set -euo pipefail
 printf 'x' >> "$FIXTURE_CALLS"
 printf '%s\n' "$@" > "$FIXTURE_ARGS"
+output=""; format=""; limit=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    -d) printf '%s' "$2" > "$FIXTURE_BODY"; shift 2 ;;
+    -d|--data-binary) printf '%s' "$2" > "$FIXTURE_BODY"; shift 2 ;;
+    -o|--output) output="$2"; shift 2 ;;
+    -w|--write-out) format="$2"; shift 2 ;;
+    --max-time) limit="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
-cat "$FIXTURE_RESPONSE"
-exit "${FIXTURE_CURL_STATUS:-0}"
+status="${FIXTURE_CURL_STATUS:-0}"
+if [ "${FIXTURE_REQUIRED_SECONDS:-0}" -gt "$limit" ]; then status=28; fi
+if [ -n "$output" ]; then
+  cat "$FIXTURE_RESPONSE" > "$output"
+  printf '%s\n' "$output" > "$FIXTURE_OUTPUT_RECORD"
+  ls -ld "$output" | cut -c 2-10 > "$FIXTURE_MODE_RECORD"
+else
+  cat "$FIXTURE_RESPONSE"
+fi
+if [ -n "$format" ]; then
+  format="${format//'%{http_code}'/${FIXTURE_HTTP_STATUS:-200}}"
+  format="${format//'%{response_code}'/${FIXTURE_HTTP_STATUS:-200}}"
+  format="${format//'%{time_total}'/${FIXTURE_TIME_TOTAL:-240.000}}"
+  format="${format//'%{time_starttransfer}'/0.250}"
+  format="${format//'%{size_download}'/660}"
+  printf '%b' "$format"
+fi
+if [ "$status" -ne 0 ]; then printf '%s\n' 'private-curl-error fixture-not-a-secret' >&2; fi
+exit "$status"
 CURL
 chmod +x "$FIXTURE/bin/curl"
 
@@ -42,6 +63,11 @@ CONFIG
   : > "$FIXTURE/calls"
   : > "$FIXTURE/args"
   : > "$FIXTURE/body.json"
+  : > "$FIXTURE/output-path"
+  : > "$FIXTURE/output-mode"
+  mkdir -p "$FIXTURE/http-temp"
+  chmod 700 "$FIXTURE/http-temp"
+  printf '%s' 'preserve sibling' > "$FIXTURE/http-temp/sentinel"
 }
 
 run_review() {
@@ -50,6 +76,8 @@ run_review() {
     FACTORY_CONFIG="$FIXTURE/factory.yaml" REVIEW_API_KEY=fixture-not-a-secret \
     FIXTURE_CALLS="$FIXTURE/calls" FIXTURE_ARGS="$FIXTURE/args" \
     FIXTURE_BODY="$FIXTURE/body.json" FIXTURE_RESPONSE="$FIXTURE/response.json" \
+    FIXTURE_OUTPUT_RECORD="$FIXTURE/output-path" FIXTURE_MODE_RECORD="$FIXTURE/output-mode" \
+    TMPDIR="$FIXTURE/http-temp" \
     "$@" bash "$FIXTURE/template/scripts/adversarial-review.sh" "$FIXTURE/diff.patch" \
     > "$FIXTURE/stdout" 2> "$FIXTURE/stderr" || STATUS=$?
 }
@@ -185,7 +213,7 @@ missing_key() {
 http_failure() {
   run_review FIXTURE_CURL_STATUS=28
   failed_without_findings && one_request || return 1
-  grep -qFx -- '--max-time' "$FIXTURE/args" && grep -qFx '180' "$FIXTURE/args" || return 1
+  grep -qFx -- '--max-time' "$FIXTURE/args" && grep -qFx '480' "$FIXTURE/args" || return 1
   ! grep -qE '^--retry([=-]|$)' "$FIXTURE/args"
 }
 
@@ -392,6 +420,102 @@ literal_invalid_route() {
   grep -qi 'provider' "$FIXTURE/stderr"
 }
 
+timeout_delayed_success() {
+  run_review FIXTURE_REQUIRED_SECONDS=240
+  [ "$STATUS" -eq 0 ] && one_request && [ ! -s "$FIXTURE/stderr" ] || return 1
+  grep -q 'A concrete finding' "$FIXTURE/stdout" || return 1
+  jq -e '.max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
+}
+
+timeout_overrides() {
+  local value
+  for value in 1 240 480 000240 ''; do
+    : > "$FIXTURE/calls"
+    run_review "REVIEW_TIMEOUT_SECONDS=$value"
+    [ "$STATUS" -eq 0 ] && one_request || return 1
+    case "$value" in ''|480) value=480 ;; 000240) value=240 ;; esac
+    grep -qFx -- "$value" "$FIXTURE/args" || return 1
+    grep -qFx -- '--connect-timeout' "$FIXTURE/args" || return 1
+    grep -qFx -- '15' "$FIXTURE/args" || return 1
+  done
+}
+
+timeout_invalid() {
+  local value
+  for value in 0 481 -1 1.5 1e2 ' 240' abc 999999999999999999999999999999999999; do
+    : > "$FIXTURE/calls"
+    run_review "REVIEW_TIMEOUT_SECONDS=$value"
+    failed_without_findings && no_requests || return 1
+    grep -q 'REVIEW_TIMEOUT_SECONDS' "$FIXTURE/stderr" || return 1
+  done
+}
+
+timeout_diagnostics() {
+  run_review FIXTURE_CURL_STATUS=28
+  failed_without_findings && one_request || return 1
+  grep -qi 'timed out' "$FIXTURE/stderr" || return 1
+  grep -q '28' "$FIXTURE/stderr" && grep -q '200' "$FIXTURE/stderr" || return 1
+  grep -q '240.000' "$FIXTURE/stderr" && grep -q '0.250' "$FIXTURE/stderr" && grep -q '660' "$FIXTURE/stderr" || return 1
+  ! grep -qE 'private-curl-error|fixture-not-a-secret|A concrete finding' "$FIXTURE/stderr"
+}
+
+transport_diagnostics() {
+  run_review FIXTURE_CURL_STATUS=7
+  failed_without_findings && one_request || return 1
+  grep -qi 'transport' "$FIXTURE/stderr" && grep -q '7' "$FIXTURE/stderr" || return 1
+  ! grep -qE 'private-curl-error|fixture-not-a-secret|A concrete finding' "$FIXTURE/stderr"
+}
+
+http_status_refusal() {
+  run_review FIXTURE_HTTP_STATUS=503
+  failed_without_findings && one_request || return 1
+  grep -q '503' "$FIXTURE/stderr" || return 1
+  ! grep -q 'A concrete finding' "$FIXTURE/stderr"
+}
+
+timeout_all_providers() {
+  local provider
+  for provider in openrouter openai anthropic; do
+    : > "$FIXTURE/calls"
+    run_review "MODEL_PROVIDER=$provider" REVIEW_TIMEOUT_SECONDS=240 FIXTURE_CURL_STATUS=28
+    failed_without_findings && one_request || return 1
+    grep -qFx '240' "$FIXTURE/args" || return 1
+    grep -qi 'timed out' "$FIXTURE/stderr" || return 1
+  done
+}
+
+timeout_metric_sanitization() {
+  run_review FIXTURE_CURL_STATUS=28 FIXTURE_TIME_TOTAL=$'private-metric\nfixture-not-a-secret'
+  failed_without_findings && one_request || return 1
+  grep -qi 'timed out' "$FIXTURE/stderr" || return 1
+  ! grep -qE 'private-metric|fixture-not-a-secret|private-curl-error' "$FIXTURE/stderr"
+}
+
+timeout_private_cleanup() {
+  local status path
+  for status in 0 28 7; do
+    : > "$FIXTURE/calls"
+    run_review "FIXTURE_CURL_STATUS=$status"
+    one_request || return 1
+    [ -s "$FIXTURE/output-path" ] || return 1
+    path="$(cat "$FIXTURE/output-path")"
+    case "$path" in "$FIXTURE/http-temp/"*) ;; *) return 1 ;; esac
+    [ "$(cat "$FIXTURE/output-mode")" = 'rw-------' ] || return 1
+    [ ! -e "$path" ] || return 1
+    [ "$(cat "$FIXTURE/http-temp/sentinel")" = 'preserve sibling' ] || return 1
+    [ "$(find "$FIXTURE/http-temp" -mindepth 1 | wc -l | tr -d ' ')" = 1 ] || return 1
+  done
+}
+
+timeout_workflow_wiring() {
+  local file
+  for file in "$ROOT/.github/workflows/adversarial-review.yml" "$ROOT/packs/review-lane/review-pr.yml"; do
+    sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$file" |
+      grep -q '^          REVIEW_TIMEOUT_SECONDS:.*vars.REVIEW_TIMEOUT_SECONDS' || return 1
+    grep -q 'timeout-minutes: 10' "$file" || return 1
+  done
+}
+
 check() {
   local name="$1" scenario="$2"
   reset_fixture
@@ -405,7 +529,17 @@ check() {
   fi
 }
 
-check 'configured OpenRouter model and markdown' configured_success
+check 'delayed completion gets bounded time without a larger token cap' timeout_delayed_success
+check 'timeout overrides normalize and retain a separate connect bound' timeout_overrides
+check 'invalid timeouts refuse before HTTP' timeout_invalid
+check 'timeout diagnostics preserve numeric evidence without leaking partial data' timeout_diagnostics
+check 'transport failures are distinct from absent review content' transport_diagnostics
+check 'HTTP errors cannot turn valid-looking partial content into findings' http_status_refusal
+check 'all providers share the same bounded timeout contract' timeout_all_providers
+check 'malformed transport metrics cannot leak raw diagnostic data' timeout_metric_sanitization
+check 'private response storage is cleaned without touching existing siblings' timeout_private_cleanup
+check 'active and generated workflows expose the Actions timeout variable' timeout_workflow_wiring
+check 'configured OpenRouter model and markdown'  configured_success
 check 'repository config uses default OpenRouter without native provider selection' repository_default_provider
 check 'structural: privileged job requires same repository AND default base branch' trusted_base_guard
 check 'OpenRouter default 8192-token response cap' openrouter_cap

@@ -234,7 +234,7 @@ var _ = Describe("G2 native event stream accounting", func() {
 		root, cwd := fixture()
 		result := usageProcess(cwd, input, filepath.Join(root, "factory"), "usage", "parse", "codex")
 		Expect(result).To(Equal(cliResult{"", "factory bridge: invalid usage stream input\n", 1}))
-	}, Entry("more than16MiB", strings.Repeat(" ", 16*1024*1024+1)),
+	}, Entry("more than 16 MiB", strings.Repeat(" ", 16*1024*1024+1)),
 		Entry("depth513", strings.TrimSuffix(codexAccounting, "}")+`,"private":`+strings.Repeat("[", 512)+"0"+strings.Repeat("]", 512)+"}"))
 
 	// per docs/adr/0066-go-native-event-streams.md:19

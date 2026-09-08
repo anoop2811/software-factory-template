@@ -37,8 +37,8 @@ Client hooks can be disabled, so they do not replace GitHub branch protection.
 ## Adversarial CI review
 
 The source repository opts into the same `factory review-lane` capability
-available to adopters. factory.yaml records DeepSeek V4 Flash 0731
-(`deepseek/deepseek-v4-flash-0731`), DeepInfra routing, and the
+available to adopters. factory.yaml records GLM 5.3 Flash
+(`z-ai/glm-5.3-flash`), DeepInfra routing, and the
 `OPENROUTER_API_KEY` secret name. The shared review
 runner defaults to OpenRouter; no native harness model setting is needed.
 

@@ -2151,3 +2151,18 @@ variable, preserve cost controls and expose safe failure diagnostics. Do not
 pretend a timeout returned a model review or claim a provider-side root cause
 that the old logs cannot establish. Decision 59 belongs to the separate pending
 Go accounting PR #87; this correction is based directly on main.
+
+
+## Decision 61 (2026-09-08): select GLM 5.3 Flash for adversarial review
+
+At the user's request, select `z-ai/glm-5.3-flash` in the repository's
+`review_model`. Retain the DeepInfra provider selection, reasoning effort `none`,
+8192-token cap, bounded transport deadline and single-request policy. Update
+the repository request fixture and self-hosting documentation to match. Native
+harness model tiers and adopter defaults are outside this configuration change.
+
+Source fetched 2026-09-08:
+https://openrouter.ai/api/v1/models/z-ai/glm-5.3-flash/endpoints confirms the
+model ID and a DeepInfra endpoint advertising reasoning and max_tokens support.
+This metadata does not establish live review quality or reliability. The trusted
+base workflow adopts the setting on new PR events after this change is merged.

@@ -34,7 +34,7 @@ loop_check_timeout_seconds: 120
 loop_check_command: ""
 loop_no_progress_limit: 1
 review_api_key_secret: "OPENROUTER_API_KEY"
-review_max_tokens: "8192"
+review_max_tokens: "32768"
 review_model: "z-ai/glm-5.3-flash"
 review_lane: "on"
 

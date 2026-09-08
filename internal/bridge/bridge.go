@@ -4,6 +4,7 @@ package bridge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/artifact"
 	"github.com/anoop2811/software-factory-template/internal/config"
 	"github.com/anoop2811/software-factory-template/internal/roles"
+	"github.com/anoop2811/software-factory-template/internal/usage"
 	"github.com/spf13/cobra"
 )
 
@@ -158,7 +160,30 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return emitMetadata(cmd, metadata)
 	}))
-	root.AddCommand(configCommand, roleCommand, runtimeCommand)
+	// Admit the harness before touching stdin; emit metadata only.
+	// docs/adr/0064-go-native-usage-accounting.md:17.
+	usageCommand := command("usage", cobra.NoArgs, nil)
+	usageCommand.AddCommand(command("normalize", func(cmd *cobra.Command, args []string) error {
+		if err := cobra.ExactArgs(1)(cmd, args); err != nil {
+			return err
+		}
+		if !usage.Supported(args[0]) {
+			return errors.New("unsupported usage harness")
+		}
+		return nil
+	}, func(cmd *cobra.Command, args []string) error {
+		metadata, err := usage.Normalize(cmd.Context(), args[0], cmd.InOrStdin())
+		if err != nil {
+			status = 1
+			return err
+		}
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(metadata); err != nil {
+			status = 1
+			return errors.New("cannot write usage metadata")
+		}
+		return nil
+	}))
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.

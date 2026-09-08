@@ -40,7 +40,9 @@ including a partial body that happens to contain valid JSON. Capture safe numeri
 transport evidence (curl status, HTTP status, total time, time to first byte and
 received byte count) on failures without echoing credentials, request headers,
 request body, raw partial response or arbitrary curl stderr. Preserve existing
-provider error handling where a completed response supplies a valid error.
+provider error handling where a completed HTTP 2xx response supplies a valid error.
+For HTTP non-2xx responses, emit only the numeric transport diagnostics above;
+do not extract or display the response body, even when it contains valid JSON.
 Temporary response storage must be private and removed on exit. Existing success
 stdout remains review markdown with no diagnostics added to success stderr.
 

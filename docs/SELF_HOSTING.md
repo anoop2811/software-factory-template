@@ -74,11 +74,13 @@ factory.yaml or `REVIEW_REASONING_EFFORT` in the environment (caller wins).
 No effective value means provider defaults; an explicitly empty caller value
 also overrides configured effort. The gateway values are
 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; choose only values
-supported by your model. This repository selects `none` to disable thinking and
-keep the configured token allowance available for the review text. Reasoning tokens,
-when enabled, share that allowance with the final answer. Disabling thinking
-does not guarantee a complete or accurate review.
-See [Decision 61](DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review) for the current model and reasoning selection.
+supported by your model. This repository selects `low`, the lowest supported
+GLM 5.3 Flash API effort; thinking cannot be disabled for this model. Reasoning
+tokens share the 8192-token output allowance with the final review. Low effort
+does not guarantee a complete or accurate review. See
+[Decision 62](DECISION_LOG.md#decision-62-2026-09-08-utc-use-supported-glm-review-reasoning)
+for the correction to Decision 61's reasoning setting and the
+[model's reasoning requirements](https://docs.z.ai/guides/capabilities/thinking).
 
 OpenRouter hosting is selectable with `review_openrouter_provider` in factory.yaml
 or `REVIEW_OPENROUTER_PROVIDER` in the environment. Caller values, including an

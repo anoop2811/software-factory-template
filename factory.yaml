@@ -38,6 +38,6 @@ review_max_tokens: "8192"
 review_model: "z-ai/glm-5.3-flash"
 review_lane: "on"
 
-# Disable thinking and pin DeepInfra; the output cap is configurable (ADR-0057).
-review_reasoning_effort: "none"
+# Use low reasoning and pin DeepInfra; the output cap is configurable (ADR-0057).
+review_reasoning_effort: "low"
 review_openrouter_provider: "deepinfra"

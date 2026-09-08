@@ -1,6 +1,6 @@
 # ADR-0055: select DeepSeek review through DeepInfra
 
-Status: accepted for implementation, 2026-09-07 UTC.
+Status: accepted for implementation, 2026-09-07 UTC; model selection superseded by [Decision 61](../DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review). Provider-routing contract retained.
 
 The user explicitly selected DeepSeek V4 Flash 0731 through DeepInfra for this
 repository's advisory review. Set review_model to
@@ -30,7 +30,7 @@ code. This constrained grammar supports base providers and endpoint names.
 Do not validate or apply this OpenRouter-only setting to native OpenAI or
 Anthropic requests; preserve their existing request and response contracts.
 
-Retain the one-request policy, 180-second timeout, incomplete-response refusal,
+Retain the one-request policy, bounded timeout (now defined by ADR-0065), incomplete-response refusal,
 diff-size bound, and trusted-base workflow controls. ADR-0057 supersedes the
 initial 4096-token output limit with the validated, configurable cap. Provider
 unavailability must not silently select a different

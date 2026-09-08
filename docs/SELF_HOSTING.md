@@ -78,7 +78,7 @@ supported by your model. This repository selects `none` to disable thinking and
 keep the configured token allowance available for the review text. Reasoning tokens,
 when enabled, share that allowance with the final answer. Disabling thinking
 does not guarantee a complete or accurate review.
-See docs/adr/0055-pin-deepseek-review-provider.md:5.
+See [Decision 61](DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review) for the current model and reasoning selection.
 
 OpenRouter hosting is selectable with `review_openrouter_provider` in factory.yaml
 or `REVIEW_OPENROUTER_PROVIDER` in the environment. Caller values, including an
@@ -90,7 +90,9 @@ requests on that provider and requires support for the supplied parameters.
 If no eligible endpoint is available, the review fails visibly; it does not
 fall back to another provider. The repository's `deepinfra` selection permits
 DeepInfra endpoint variants. Anthropic/OpenAI requests and native harness role
-tiers are unchanged. See docs/adr/0055-pin-deepseek-review-provider.md:20.
+tiers are unchanged. The provider-routing contract remains in
+[ADR-0055](adr/0055-pin-deepseek-review-provider.md); its historical DeepSeek model
+selection is superseded by [Decision 61](DECISION_LOG.md#decision-61-2026-09-08-utc-select-glm-53-flash-for-adversarial-review).
 
 The workflow checks out the trusted base commit. A PR changing these settings
 therefore runs with the previous configuration; the new selection takes effect

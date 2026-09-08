@@ -2153,9 +2153,9 @@ that the old logs cannot establish. Decision 59 belongs to the separate pending
 Go accounting PR #87; this correction is based directly on main.
 
 
-## Decision 61 (2026-09-08): select GLM 5.3 Flash for adversarial review
+## Decision 61 (2026-09-08 UTC): select GLM 5.3 Flash for adversarial review
 
-At the user's request, select `z-ai/glm-5.3-flash` in the repository's
+Select `z-ai/glm-5.3-flash` in the repository's
 `review_model`. Retain the DeepInfra provider selection, reasoning effort `none`,
 8192-token cap, bounded transport deadline and single-request policy. Update
 the repository request fixture and self-hosting documentation to match. Native
@@ -2166,3 +2166,9 @@ https://openrouter.ai/api/v1/models/z-ai/glm-5.3-flash/endpoints confirms the
 model ID and a DeepInfra endpoint advertising reasoning and max_tokens support.
 This metadata does not establish live review quality or reliability. The trusted
 base workflow adopts the setting on new PR events after this change is merged.
+
+This decision supersedes only the DeepSeek model selection in ADR-0055; its
+provider-routing contract remains in force. ADR-0057 continues to define the
+output cap, and ADR-0065 defines the transport deadline. The requested model
+change is tracked in https://github.com/anoop2811/software-factory-template/pull/89.
+Dates in this entry and its source check are UTC.

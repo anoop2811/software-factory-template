@@ -2184,3 +2184,23 @@ provider-routing contract remains in force. ADR-0057 continues to define the
 output cap, and ADR-0065 defines the transport deadline. The requested model
 change is tracked in https://github.com/anoop2811/software-factory-template/pull/89.
 Dates in this entry and its source check are UTC.
+
+
+## Decision 62 (2026-09-08 UTC): use supported GLM review reasoning
+
+Supersede Decision 61's retained `none` reasoning setting with `low`, the lowest
+documented effort for GLM 5.3 Flash. Keep the model, DeepInfra route, 8192-token
+cap, transport deadline and single-request policy. Reasoning shares the output
+cap; low effort does not disable thinking or guarantee a complete review.
+
+PR #87 run 34178226454 returned HTTP 400 after 0.130382 seconds, not a timeout.
+The exact server error body was not retained. The incompatible setting is a
+confirmed configuration defect and a likely explanation, not a proven decoding
+of the discarded response. A fresh trusted-base PR event after merge is needed
+to establish live success.
+
+Source fetched 2026-09-08 UTC: https://docs.z.ai/guides/capabilities/thinking
+states that GLM-5.3/Flash cannot disable thinking and supports low/high/max API
+efforts. Listing a reasoning parameter in endpoint metadata does not establish
+which values a model accepts. Update the repository request assertion and
+self-hosting guidance; keep generic effort support for other models unchanged.

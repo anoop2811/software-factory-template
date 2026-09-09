@@ -2234,3 +2234,25 @@ with independent compiled CLI and packaged conformance. Keep installed runtime
 and recovery/retirement gates unchanged. Non-finite numbers, Unicode surrogate
 identity and splitlines behavior require explicit parity rather than assuming
 Go's default JSON decoder is equivalent.
+
+
+## Decision 65 (2026-09-08 UTC): allow bounded long review completion
+
+PR #92 run 34190938017 reached the 480-second client deadline with HTTP 200,
+first byte at 0.336393 seconds and 1760 bytes received. No complete review was
+produced. This confirms the request deadline, not the provider's exact latency
+cause or the meaning of its partial bytes.
+
+Raise the review request default/ceiling to 1200 seconds, configurable through
+existing REVIEW_TIMEOUT_SECONDS (1..1200); raise both active and generated
+workflow jobs to 25 minutes, leaving five minutes for setup and posting. This
+supersedes ADR-0065's deadline/ceiling and ten-minute job sizing only. Keep the
+15-second connection limit, model, reasoning, token cap, diff cap and one-request
+policy. No retry, fallback or claim of provider reliability is introduced.
+Longer execution consumes more Actions time; it does not raise the model output
+cap. An empty/unset variable uses 1200; smaller explicit values remain supported.
+Normalize leading zeroes and bound decimal length before arithmetic.
+
+Source: https://github.com/anoop2811/software-factory-template/pull/92#issuecomment-5579866181.
+Decision 64 belongs to the separate Go stream-parsing PR #92. A new PR event
+after this correction is merged is required for live trusted-base qualification.

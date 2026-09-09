@@ -47,6 +47,21 @@ exit "$status"
 CURL
 chmod +x "$FIXTURE/bin/curl"
 
+cat > "$FIXTURE/bin/factory-go-client" <<'GOCLIENT'
+#!/bin/bash
+set -euo pipefail
+printf 'x' >> "$FIXTURE_GO_CALLS"
+printf '%s\n' "$@" > "$FIXTURE_GO_ARGS"
+cat > "$FIXTURE_GO_BODY"
+printf '%s\n%s\n%s\n' "${REVIEW_API_KEY-}" "${REVIEW_TIMEOUT_SECONDS-}" "${REVIEW_HTTP_RETRIES-}" > "$FIXTURE_GO_ENV"
+if [ "${FIXTURE_GO_STATUS:-0}" -ne 0 ]; then
+  printf '%s\n' 'fixture Go client failed; private payload must not trigger curl fallback' >&2
+  exit "$FIXTURE_GO_STATUS"
+fi
+cat "$FIXTURE_GO_RESPONSE"
+GOCLIENT
+chmod +x "$FIXTURE/bin/factory-go-client"
+
 PASSED=0
 FAILED=0
 STATUS=0
@@ -65,6 +80,11 @@ CONFIG
   : > "$FIXTURE/body.json"
   : > "$FIXTURE/output-path"
   : > "$FIXTURE/output-mode"
+  : > "$FIXTURE/go-calls"
+  : > "$FIXTURE/go-args"
+  : > "$FIXTURE/go-body.json"
+  : > "$FIXTURE/go-env"
+  printf '%s\n' '### major — streamed.go:1' 'A complete streamed finding.' > "$FIXTURE/go-response"
   mkdir -p "$FIXTURE/http-temp"
   chmod 700 "$FIXTURE/http-temp"
   printf '%s' 'preserve sibling' > "$FIXTURE/http-temp/sentinel"
@@ -77,6 +97,9 @@ run_review() {
     FIXTURE_CALLS="$FIXTURE/calls" FIXTURE_ARGS="$FIXTURE/args" \
     FIXTURE_BODY="$FIXTURE/body.json" FIXTURE_RESPONSE="$FIXTURE/response.json" \
     FIXTURE_OUTPUT_RECORD="$FIXTURE/output-path" FIXTURE_MODE_RECORD="$FIXTURE/output-mode" \
+    FIXTURE_GO_CALLS="$FIXTURE/go-calls" FIXTURE_GO_ARGS="$FIXTURE/go-args" \
+    FIXTURE_GO_BODY="$FIXTURE/go-body.json" FIXTURE_GO_ENV="$FIXTURE/go-env" \
+    FIXTURE_GO_RESPONSE="$FIXTURE/go-response" \
     TMPDIR="$FIXTURE/http-temp" \
     "$@" bash "$FIXTURE/template/scripts/adversarial-review.sh" "$FIXTURE/diff.patch" \
     > "$FIXTURE/stdout" 2> "$FIXTURE/stderr" || STATUS=$?
@@ -84,7 +107,55 @@ run_review() {
 
 one_request() { [ "$(wc -c < "$FIXTURE/calls")" -eq 1 ]; }
 no_requests() { [ ! -s "$FIXTURE/calls" ]; }
+one_go_request() { [ "$(wc -c < "$FIXTURE/go-calls")" -eq 1 ]; }
+no_go_requests() { [ ! -s "$FIXTURE/go-calls" ]; }
 failed_without_findings() { [ "$STATUS" -ne 0 ] && [ ! -s "$FIXTURE/stdout" ]; }
+
+selected_go_client_contract() {
+  run_review REVIEW_GO_CLIENT="$FIXTURE/bin/factory-go-client" REVIEW_HTTP_RETRIES=1 REVIEW_TIMEOUT_SECONDS=240
+  [ "$STATUS" -eq 0 ] && no_requests && one_go_request || return 1
+  [ "$(cat "$FIXTURE/go-args")" = $'review\nopenrouter' ] || return 1
+  jq -e '.model == "z-ai/glm-5.3-flash" and .max_tokens == 8192 and (has("stream") | not) and (.messages | length) == 2' "$FIXTURE/go-body.json" >/dev/null || return 1
+  [ "$(sed -n '1p' "$FIXTURE/go-env")" = fixture-not-a-secret ] || return 1
+  [ "$(sed -n '2p' "$FIXTURE/go-env")" = 240 ] || return 1
+  [ "$(sed -n '3p' "$FIXTURE/go-env")" = 1 ] || return 1
+  cmp -s "$FIXTURE/go-response" "$FIXTURE/stdout"
+}
+
+selected_go_client_failure_has_no_fallback() {
+  run_review REVIEW_GO_CLIENT="$FIXTURE/bin/factory-go-client" FIXTURE_GO_STATUS=73
+  failed_without_findings && no_requests && one_go_request || return 1
+  grep -q 'Go client failed' "$FIXTURE/stderr"
+}
+
+invalid_go_client_paths_refuse_without_execution() {
+  local value literal
+  mkdir -p "$FIXTURE/not-a-client"
+  printf '%s' 'not executable' > "$FIXTURE/not-executable"
+  printf -v literal '%s/$(touch "%s")' "$FIXTURE" "$FIXTURE/go-client-marker"
+  for value in relative-client "$FIXTURE/absent-client" "$FIXTURE/not-a-client" "$FIXTURE/not-executable" "$literal"; do
+    : > "$FIXTURE/calls"
+    : > "$FIXTURE/go-calls"
+    run_review "REVIEW_GO_CLIENT=$value"
+    failed_without_findings && no_requests && no_go_requests || return 1
+    [ ! -e "$FIXTURE/go-client-marker" ] || return 1
+    grep -q 'REVIEW_GO_CLIENT' "$FIXTURE/stderr" || return 1
+  done
+}
+
+selected_go_client_is_openrouter_only() {
+  printf '%s' '{"content":[{"text":"No findings."}]}' > "$FIXTURE/response.json"
+  run_review MODEL_PROVIDER=anthropic REVIEW_MODEL=fixture-anthropic REVIEW_GO_CLIENT="$FIXTURE/bin/factory-go-client"
+  [ "$STATUS" -eq 0 ] && one_request && no_go_requests || return 1
+  reset_fixture
+  run_review MODEL_PROVIDER=openai REVIEW_MODEL=fixture-openai REVIEW_GO_CLIENT="$FIXTURE/bin/factory-go-client"
+  [ "$STATUS" -eq 0 ] && one_request && no_go_requests
+}
+
+empty_go_client_keeps_legacy_openrouter() {
+  run_review REVIEW_GO_CLIENT=
+  [ "$STATUS" -eq 0 ] && one_request && no_go_requests
+}
 
 configured_success() {
   run_review
@@ -516,6 +587,32 @@ timeout_workflow_wiring() {
   done
 }
 
+go_client_workflow_wiring() {
+  local active="$ROOT/.github/workflows/adversarial-review.yml"
+  local generated="$ROOT/packs/review-lane/review-pr.yml"
+  local build_line review_line
+
+  # The privileged active workflow builds only trusted base source before the
+  # secret-bearing review step, and pins setup-go by immutable commit.
+  grep -qE '^        uses: actions/setup-go@[[:xdigit:]]{40}( #.*)?$' "$active" || return 1
+  grep -q 'go-version:.*1\.27\.1' "$active" || return 1
+  build_line="$(grep -nE 'go build .*cmd/factory|go build .*\./cmd/factory' "$active" | head -1 | cut -d: -f1)"
+  review_line="$(grep -n '^      - name: Review$' "$active" | cut -d: -f1)"
+  [ -n "$build_line" ] && [ -n "$review_line" ] && [ "$build_line" -lt "$review_line" ] || return 1
+  sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$active" |
+    grep -q '^          REVIEW_GO_CLIENT:' || return 1
+  sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$active" |
+    grep -q '^          REVIEW_HTTP_RETRIES:.*1' || return 1
+
+  # Generated adopters receive opt-in variables only. Enabling the lane must
+  # not introduce a Go installation or build requirement.
+  ! grep -q 'actions/setup-go@\|go build .*cmd/factory' "$generated" || return 1
+  sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$generated" |
+    grep -q '^          REVIEW_GO_CLIENT:.*vars.REVIEW_GO_CLIENT' || return 1
+  sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$generated" |
+    grep -q '^          REVIEW_HTTP_RETRIES:.*vars.REVIEW_HTTP_RETRIES'
+}
+
 check() {
   local name="$1" scenario="$2"
   reset_fixture
@@ -539,6 +636,12 @@ check 'all providers share the same bounded timeout contract' timeout_all_provid
 check 'malformed transport metrics cannot leak raw diagnostic data' timeout_metric_sanitization
 check 'private response storage is cleaned without touching existing siblings' timeout_private_cleanup
 check 'active and generated workflows expose the Actions timeout variable' timeout_workflow_wiring
+check 'selected OpenRouter Go client receives literal JSON and bounded environment' selected_go_client_contract
+check 'selected Go client failure never falls back to curl' selected_go_client_failure_has_no_fallback
+check 'invalid Go client paths refuse without execution or HTTP' invalid_go_client_paths_refuse_without_execution
+check 'Go client selection leaves Anthropic and OpenAI on legacy HTTP' selected_go_client_is_openrouter_only
+check 'explicit empty Go client keeps legacy OpenRouter HTTP' empty_go_client_keeps_legacy_openrouter
+check 'trusted active workflow builds Go while generated adopters remain opt-in' go_client_workflow_wiring
 check 'configured OpenRouter model and markdown'  configured_success
 check 'repository config uses default OpenRouter without native provider selection' repository_default_provider
 check 'structural: privileged job requires same repository AND default base branch' trusted_base_guard

@@ -6,8 +6,9 @@ set -euo pipefail
 # gates a merge — a model's opinion is not a computational control, and the
 # factory does not pretend otherwise. The gates block; this one advises.
 #
-# It calls the provider's HTTP API directly rather than driving a harness CLI, so
-# CI needs only curl and jq — no agent runtime, no node, no toolchain.
+# It calls provider HTTP APIs directly without a harness CLI. The legacy default
+# uses curl and jq; OpenRouter can explicitly select a prebuilt Go client. This
+# repository's trusted-base CI builds that client before supplying its API key.
 #
 # Usage:
 #   ./scripts/adversarial-review.sh <diff-file>          # writes markdown to stdout
@@ -22,6 +23,8 @@ set -euo pipefail
 #   REVIEW_MAX_TOKENS  optional OpenRouter completion cap; defaults to 8192
 # Environment only:
 #   REVIEW_TIMEOUT_SECONDS  total HTTP deadline, 1..1200; defaults to 1200
+#   REVIEW_GO_CLIENT  optional absolute executable path for OpenRouter only
+#   REVIEW_HTTP_RETRIES  Go client retry allowance, 0 or 1; defaults to 0
 #
 # Exit 0 = a review was produced (findings or not). Exit 1 = it could not run.
 # A failure here must never look like an approval, so the caller prints the
@@ -225,6 +228,23 @@ case "$PROVIDER" in
          {max_tokens:$max_tokens} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
          (if $route == "" then {} else {provider:{order:[$route],allow_fallbacks:false,require_parameters:true}} end)
        end)')"
+    # Explicit selection never falls back after a client failure.
+    # docs/adr/0067-streaming-adversarial-review-client.md:32.
+    if [ "$PROVIDER" != openai ] && [ -n "${REVIEW_GO_CLIENT:-}" ]; then
+      case "$REVIEW_GO_CLIENT" in
+        /*) ;;
+        *) echo "adversarial-review: REVIEW_GO_CLIENT must name an absolute executable file." >&2; exit 1 ;;
+      esac
+      if [ ! -f "$REVIEW_GO_CLIENT" ] || [ ! -x "$REVIEW_GO_CLIENT" ]; then
+        echo "adversarial-review: REVIEW_GO_CLIENT must name an absolute executable file." >&2
+        exit 1
+      fi
+      printf '%s' "$BODY" | /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 \
+        "REVIEW_API_KEY=$API_KEY" "REVIEW_TIMEOUT_SECONDS=$TIMEOUT" \
+        "REVIEW_HTTP_RETRIES=${REVIEW_HTTP_RETRIES:-0}" \
+        "$REVIEW_GO_CLIENT" review openrouter
+      exit "$?"
+    fi
     request_review "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
       -d "$BODY" || exit 1

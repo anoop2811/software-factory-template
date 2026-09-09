@@ -68,6 +68,8 @@ jobs:
         if: hashFiles('review-skip') == ''
         env:
           REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS }}
+          REVIEW_GO_CLIENT: ${{ vars.REVIEW_GO_CLIENT }}
+          REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES }}
           REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
         run: |
           if [ -z "${REVIEW_API_KEY:-}" ]; then
@@ -79,7 +81,8 @@ jobs:
             } > review.md
             exit 0
           fi
-          if ! ./scripts/adversarial-review.sh pr.diff > review.md 2> review.err; then
+          set -o pipefail
+          if ! ./scripts/adversarial-review.sh pr.diff 2>&1 > review.md | tee review.err; then
             {
               echo "The review could not run, so this PR has **not** been reviewed by a model."
               echo ""

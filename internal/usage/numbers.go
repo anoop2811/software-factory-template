@@ -9,7 +9,7 @@ import (
 )
 
 func integerSyntax(number json.Number) bool {
-	return !strings.ContainsAny(string(number), ".eE")
+	return number != "NaN" && number != "Infinity" && number != "-Infinity" && !strings.ContainsAny(string(number), ".eE")
 }
 
 func finite(value float64) bool {

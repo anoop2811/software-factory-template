@@ -67,6 +67,11 @@ func equalityNumber(value any) (json.Number, bool) {
 }
 
 func equalNumber(a, b json.Number) bool {
+	// Python's decoder reuses one NaN object, so container identity compares equal.
+	// docs/adr/0066-go-native-event-streams.md:43.
+	if a == "NaN" && b == "NaN" {
+		return true
+	}
 	aInteger, bInteger := integerSyntax(a), integerSyntax(b)
 	if aInteger && bInteger {
 		if a == "-0" {

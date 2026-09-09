@@ -47,7 +47,7 @@ done
 factory_config_export
 
 # Normalize before arithmetic, keeping the transport deadline inside the CI job.
-# docs/DECISION_LOG.md:2236.
+# docs/DECISION_LOG.md:2246.
 TIMEOUT="${REVIEW_TIMEOUT_SECONDS:-1200}"
 if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]]; then
   echo "adversarial-review: invalid REVIEW_TIMEOUT_SECONDS; use a decimal value from 1 through 1200." >&2

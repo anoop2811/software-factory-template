@@ -427,4 +427,21 @@ var _ = Describe("Packaged runtime conformance", func() {
 		Expect(entries).To(BeEmpty())
 	}, Entry("Codex accounting", "codex"), Entry("Claude accounting", "claude"), Entry("OpenCode accounting", "opencode"))
 
+	// per docs/adr/0066-go-native-event-streams.md:69
+	DescribeTable("parses raw native streams without Python or native CLIs on PATH", func(harness string) {
+		cost := "0.25"
+		if harness == "codex" {
+			cost = "null"
+		}
+		input := `{"type":"ignored","private":"must-not-emit-credential"}` + "\r\n" + usageEvents[harness]
+		result := usageProcess(cwd, input, binary, "usage", "parse", harness)
+		Expect(result.status).To(Equal(0), result.stderr)
+		Expect(result.stderr).To(BeEmpty())
+		Expect(result.stdout).To(HaveSuffix("\n"))
+		Expect(usageMetadata(result.stdout)).To(Equal(usageMetadata(usageExpected(harness, usageTokens[harness], cost, true, false))))
+		entries, err := os.ReadDir(cwd)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(entries).To(BeEmpty())
+	}, Entry("Codex stream", "codex"), Entry("Claude stream", "claude"), Entry("OpenCode stream", "opencode"))
+
 })

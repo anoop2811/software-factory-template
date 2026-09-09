@@ -23,8 +23,9 @@ func expectStreamParity(root, cwd, harness, input, expected string) {
 	}
 	python, err := exec.LookPath("python3")
 	Expect(err).NotTo(HaveOccurred())
-	// Only the immutable parse_events AST is executed from budget.py. Importing
-	// the controller itself would introduce unrelated command/lifecycle behavior.
+	// Extract only parse_events from immutable budget.py to avoid controller
+	// startup. The immutable budget_adapters.py module is executed by runpy below
+	// to obtain normalize, including that adapter module's top-level imports.
 	oracle := `import ast,json,runpy,sys
 sys.set_int_max_str_digits(4300)
 source=ast.parse(open(sys.argv[1],encoding="utf-8").read())
@@ -235,7 +236,7 @@ var _ = Describe("G2 native event stream accounting", func() {
 		result := usageProcess(cwd, input, filepath.Join(root, "factory"), "usage", "parse", "codex")
 		Expect(result).To(Equal(cliResult{"", "factory bridge: invalid usage stream input\n", 1}))
 	}, Entry("more than 16 MiB", strings.Repeat(" ", 16*1024*1024+1)),
-		Entry("depth513", strings.TrimSuffix(codexAccounting, "}")+`,"private":`+strings.Repeat("[", 512)+"0"+strings.Repeat("]", 512)+"}"))
+		Entry("513 total levels including the outer object", strings.TrimSuffix(codexAccounting, "}")+`,"private":`+strings.Repeat("[", 512)+"0"+strings.Repeat("]", 512)+"}"))
 
 	// per docs/adr/0066-go-native-event-streams.md:19
 	DescribeTable("refuses unsupported command operands", func(args []string) {

@@ -1,7 +1,7 @@
 # ADR-0065: Bounded review transport deadlines and diagnostics
 
 Date: 2026-09-07
-Status: implementation correction
+Status: implementation correction; deadline/ceiling and job sizing superseded by [Decision 65](../DECISION_LOG.md#decision-65-2026-09-08-utc-allow-bounded-long-review-completion). Other transport safeguards retained.
 
 ## Observed failure
 

@@ -213,7 +213,7 @@ missing_key() {
 http_failure() {
   run_review FIXTURE_CURL_STATUS=28
   failed_without_findings && one_request || return 1
-  grep -qFx -- '--max-time' "$FIXTURE/args" && grep -qFx '480' "$FIXTURE/args" || return 1
+  grep -qFx -- '--max-time' "$FIXTURE/args" && grep -qFx '1200' "$FIXTURE/args" || return 1
   ! grep -qE '^--retry([=-]|$)' "$FIXTURE/args"
 }
 
@@ -421,7 +421,7 @@ literal_invalid_route() {
 }
 
 timeout_delayed_success() {
-  run_review FIXTURE_REQUIRED_SECONDS=240
+  run_review FIXTURE_REQUIRED_SECONDS=600
   [ "$STATUS" -eq 0 ] && one_request && [ ! -s "$FIXTURE/stderr" ] || return 1
   grep -q 'A concrete finding' "$FIXTURE/stdout" || return 1
   jq -e '.max_tokens == 8192' "$FIXTURE/body.json" >/dev/null
@@ -429,11 +429,11 @@ timeout_delayed_success() {
 
 timeout_overrides() {
   local value
-  for value in 1 240 480 000240 ''; do
+  for value in 1 240 480 1200 0001200 000240 ''; do
     : > "$FIXTURE/calls"
     run_review "REVIEW_TIMEOUT_SECONDS=$value"
     [ "$STATUS" -eq 0 ] && one_request || return 1
-    case "$value" in ''|480) value=480 ;; 000240) value=240 ;; esac
+    case "$value" in ''|1200|0001200) value=1200 ;; 000240) value=240 ;; esac
     grep -qFx -- "$value" "$FIXTURE/args" || return 1
     grep -qFx -- '--connect-timeout' "$FIXTURE/args" || return 1
     grep -qFx -- '15' "$FIXTURE/args" || return 1
@@ -442,7 +442,7 @@ timeout_overrides() {
 
 timeout_invalid() {
   local value
-  for value in 0 481 -1 1.5 1e2 ' 240' abc 999999999999999999999999999999999999; do
+  for value in 0 1201 -1 1.5 1e2 ' 240' abc 999999999999999999999999999999999999; do
     : > "$FIXTURE/calls"
     run_review "REVIEW_TIMEOUT_SECONDS=$value"
     failed_without_findings && no_requests || return 1
@@ -512,7 +512,7 @@ timeout_workflow_wiring() {
   for file in "$ROOT/.github/workflows/adversarial-review.yml" "$ROOT/packs/review-lane/review-pr.yml"; do
     sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$file" |
       grep -q '^          REVIEW_TIMEOUT_SECONDS:.*vars.REVIEW_TIMEOUT_SECONDS' || return 1
-    grep -q 'timeout-minutes: 10' "$file" || return 1
+    grep -q 'timeout-minutes: 25' "$file" || return 1
   done
 }
 

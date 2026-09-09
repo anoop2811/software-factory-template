@@ -36,7 +36,7 @@ jobs:
     # The boundary. Only same-repo PRs into the default branch get this token.
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     env:
       PR: ${{ github.event.pull_request.number }}
       REPO: ${{ github.repository }}

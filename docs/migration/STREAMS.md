@@ -30,9 +30,10 @@ normalizer retains its separate input contract.
 
 This is bounded raw-output interpretation after collection, matching the legacy
 parser placement. Reader chunks may split lines or UTF-8 sequences; they are not
-independently published. Native process supervision, response-text extraction,
-preflight, state publication, mixed-runtime locks and installed activation still
-need their own acceptance. No Python script is retired in this candidate. The
+independently published. The [native execution candidate](NATIVE.md) adds
+supervision, response extraction and preflight as internal components. State
+publication, mixed-runtime locks and installed activation still need their own
+acceptance. No Python script is retired in this candidate. The
 migration's gitignored recovery copies and retention/pruning policy remain
 required when installed implementations are replaced.
 

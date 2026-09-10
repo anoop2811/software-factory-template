@@ -36,11 +36,12 @@ outside the qualified compatibility domain; see the ADR for all boundaries.
 
 ## Remaining conversion
 
-This is the accounting component, not the process supervisor or budget admission
-controller. The [raw stream candidate](STREAMS.md) extends metadata parsing separately.
-Response display, native preflight, deadlines,
-shared legacy/Go locks, history publication and loop recovery remain to be
-ported. Installed activation requires the migration's delivery, recovery and
+This is the accounting component. The [raw stream candidate](STREAMS.md) extends
+metadata parsing separately, and the [native execution candidate](NATIVE.md)
+covers invocation, preflight, supervision and response selection. Budget
+admission, shared legacy/Go locks, history publication, authorized response
+display and loop recovery remain to be ported. Installed activation requires
+the migration's delivery, recovery and
 manual pilot gates. Superseded Python files will be retired only with their
 replacement, gitignored recovery copies and predecessor cleanup in place.
 

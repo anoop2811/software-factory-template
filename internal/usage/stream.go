@@ -15,19 +15,32 @@ func Parse(ctx context.Context, harness string, input io.Reader) (Metadata, erro
 	if !Supported(harness) {
 		return Metadata{}, errors.New("unsupported usage harness")
 	}
-	data, err := io.ReadAll(io.LimitReader(&contextReader{ctx, input}, (16<<20)+1))
-	if err != nil || len(data) > 16<<20 || ctx.Err() != nil {
-		return Metadata{}, errors.New("invalid usage stream input")
-	}
-	events, err := streamEvents(ctx, data)
+	events, err := readStreamEvents(ctx, input)
 	if err != nil {
-		return Metadata{}, errors.New("invalid usage stream input")
+		return Metadata{}, err
 	}
 	result := normalizeEvents(ctx, harness, events)
 	if ctx.Err() != nil {
 		return Metadata{}, errors.New("invalid usage stream input")
 	}
 	return result, nil
+}
+
+// Shared bounded input keeps accounting and answer selection on the same parser.
+// docs/adr/0068-go-native-harness-execution.md:142.
+func readStreamEvents(ctx context.Context, input io.Reader) ([]any, error) {
+	if input == nil {
+		return nil, errors.New("invalid usage stream input")
+	}
+	data, err := io.ReadAll(io.LimitReader(&contextReader{ctx, input}, (16<<20)+1))
+	if err != nil || len(data) > 16<<20 || ctx.Err() != nil {
+		return nil, errors.New("invalid usage stream input")
+	}
+	events, err := streamEvents(ctx, data)
+	if err != nil {
+		return nil, errors.New("invalid usage stream input")
+	}
+	return events, nil
 }
 
 // Whole-document decoding precedes Python's splitlines and blank-line filtering.

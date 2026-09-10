@@ -70,7 +70,8 @@ workflows need their normal upgrade before that binding is available.
 The deadline controls waiting time, not the model's token allowance. Timeouts
 now report safe HTTP/timing/byte evidence and never publish partial findings.
 They do not prove the provider performed no work or incurred no cost. There is
-no automatic retry or provider fallback. The PR #87 failure hit the old hard-coded
+no automatic retry in the legacy curl client and no automatic provider fallback.
+The PR #87 failure hit the old hard-coded
 180-second curl deadline; its discarded partial response cannot establish why
 the provider took longer. See [ADR-0065](adr/0065-adversarial-review-transport-deadline.md);
 [Decision 65](DECISION_LOG.md#decision-65-2026-09-08-utc-allow-bounded-long-review-completion)
@@ -109,6 +110,42 @@ The workflow checks out the trusted base commit. A PR changing these settings
 therefore runs with the previous configuration; the new selection takes effect
 after merge and a subsequent eligible PR event. Fake-HTTP fixtures establish the
 request shape, not live DeepInfra completion or review quality.
+
+## Streaming review client
+
+The repository workflow selects the Go OpenRouter client described in
+[ADR-0067](adr/0067-streaming-adversarial-review-client.md). It builds the existing
+pinned module from the trusted base commit before supplying the review secret.
+The PR diff remains data; PR-head code is never built in the privileged job.
+The shared shell entry point still supports Codex, Claude Code and OpenCode.
+
+The client reads streamed events and publishes findings only after a complete,
+successfully terminated response. Heartbeats, reasoning and HTTP 200 alone are
+not a review. Safe counts and timings appear in Actions logs; prompts, reasoning
+text and raw provider errors do not. A failed stream does not publish partial
+findings and is not retried. Streaming improves cancellation handling; client
+tests cannot establish a provider's actual billing or availability.
+
+| Setting | Repository workflow | Adopter default | Meaning |
+| --- | --- | --- | --- |
+| `REVIEW_GO_CLIENT` | Trusted-base compiled binary | Empty (legacy curl) | Absolute path to a trusted compatible factory Go binary |
+| `REVIEW_HTTP_RETRIES` | `1` | `0` | At most one retry for an initial HTTP 429/503; `0` disables |
+| `REVIEW_TIMEOUT_SECONDS` | `1200` | `1200` | One total deadline, including backoff and retry, range 1..1200 |
+
+Set the retries Actions variable to `0` for the cheapest single-attempt policy.
+The retry honors a valid Retry-After up to 60 seconds; absent headers use a
+2..5-second jittered delay. Longer or malformed Retry-After values stop instead
+of retrying early. Retrying can add prompt-processing charges even without
+content. The model, provider pin and token allowance remain unchanged. There is
+no silent switch to another model/provider or replay after an ambiguous failure.
+
+Generated adopter workflows expose the client path and retry variables without
+requiring an application Go module. To opt in, provision a trusted compatible
+binary on the runner and set REVIEW_GO_CLIENT to its absolute path. The script
+does not build, download or silently fall back after selecting that client.
+An empty client setting keeps the existing curl implementation, including its
+single-attempt behavior; REVIEW_HTTP_RETRIES applies only to the Go client.
+The Go installation/cleanup migration remains a separate acceptance boundary.
 
 ## Source templates and remaining boundaries
 

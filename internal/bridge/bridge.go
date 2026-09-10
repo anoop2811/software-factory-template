@@ -13,6 +13,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
 	"github.com/anoop2811/software-factory-template/internal/config"
+	"github.com/anoop2811/software-factory-template/internal/review"
 	"github.com/anoop2811/software-factory-template/internal/roles"
 	"github.com/anoop2811/software-factory-template/internal/usage"
 	"github.com/spf13/cobra"
@@ -205,7 +206,16 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return nil
 	}))
-	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand)
+	// docs/adr/0067-streaming-adversarial-review-client.md:15.
+	reviewCommand := command("review", cobra.NoArgs, nil)
+	reviewCommand.AddCommand(command("openrouter", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
+		if err := review.Run(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr()); err != nil {
+			status = 1
+			return err
+		}
+		return nil
+	}))
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.

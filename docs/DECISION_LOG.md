@@ -2256,3 +2256,16 @@ Normalize leading zeroes and bound decimal length before arithmetic.
 Source: https://github.com/anoop2811/software-factory-template/pull/92#issuecomment-5579866181.
 Decision 64 belongs to the separate Go stream-parsing PR #92. A new PR event
 after this correction is merged is required for live trusted-base qualification.
+
+
+## Decision 66 (2026-09-09 UTC): bounded streaming adversarial review client
+
+Implement ADR-0067 after the transport-only deadline correction. Use the existing
+Go/Cobra runtime for an explicitly selected OpenRouter streaming transport,
+retaining the shared shell entry point and legacy adopter default. Validate full
+completion before publishing, distinguish safe progress from final findings,
+and allow an opt-in single retry only for initial HTTP 429/503. Keep the selected
+model/provider and output cap; no hidden model/provider failover or ambiguous
+request replay. This repository selects the Go client and one retry in its
+trusted-base workflow, with Actions variables permitting zero retries. Record
+research and independent outside-in failure evidence before claiming delivery.

@@ -53,6 +53,15 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
+      - name: Set up the pinned Go toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+
+      - name: Build the trusted review client before exposing its API key
+        run: go build -o "$RUNNER_TEMP/factory-review-client" ./cmd/factory
+
       - name: Fetch the PR diff as data
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,6 +78,8 @@ jobs:
         if: hashFiles('review-skip') == ''
         env:
           REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS }}
+          REVIEW_GO_CLIENT: ${{ runner.temp }}/factory-review-client
+          REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES != '' && vars.REVIEW_HTTP_RETRIES || '1' }}
           REVIEW_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           if [ -z "${REVIEW_API_KEY:-}" ]; then
@@ -80,7 +91,8 @@ jobs:
             } > review.md
             exit 0
           fi
-          if ! ./scripts/adversarial-review.sh pr.diff > review.md 2> review.err; then
+          set -o pipefail
+          if ! ./scripts/adversarial-review.sh pr.diff 2>&1 > review.md | tee review.err; then
             {
               echo "The review could not run, so this PR has **not** been reviewed by a model."
               echo ""

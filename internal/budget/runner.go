@@ -152,12 +152,12 @@ func (runner *Runner) executeAdmitted(ctx context.Context, request Request, prep
 	// Preserve native timeout evidence when unresolved ownership is the error.
 	// docs/adr/0070-go-budget-execution-controller.md:138.
 	retainedTimeout := execution.Outcome == "timeout" && execution.OwnershipUnconfirmed && completion.ProcessPID != nil
-	if completion.ProcessPID == nil || (executionErr != nil || publicationErr != nil) && !retainedTimeout {
+	if completion.ProcessPID == nil || ((executionErr != nil || publicationErr != nil) && !retainedTimeout) {
 		completion.Outcome = "launch_error"
 	}
 	var processingErr error
 	var answer string
-	if executionErr == nil && publicationErr == nil && !completion.OwnershipUnconfirmed && (execution.Outcome == "completed" || execution.Outcome == "failed") {
+	if executionErr == nil && publicationErr == nil && !completion.OwnershipUnconfirmed && completion.ProcessPID != nil && (completion.Outcome == "completed" || completion.Outcome == "failed") {
 		metadata, err := runner.parse(cleanupCtx, request.Harness, bytes.NewReader(execution.Stdout))
 		processingErr = err
 		if err == nil {

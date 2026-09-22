@@ -3,7 +3,6 @@ package budget
 import (
 	"context"
 	"errors"
-	"github.com/anoop2811/software-factory-template/internal/usage"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/usage"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -421,5 +421,32 @@ var _ = ginkgo.Describe("Budget controller vanished lock", func() {
 		Expect(calls).To(Equal(2))
 		_, err = os.Stat(filepath.Join(ledger.root, ".factory/budget.lock"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
+	})
+})
+
+var _ = ginkgo.Describe("Budget controller missing process identity", func() {
+	// per docs/adr/0070-go-budget-execution-controller.md:93
+	ginkgo.It("skips usage and response processing after completed execution is downgraded to launch error", func() {
+		runner, cfg, request, input := runnerFixture()
+		runner.ops.execute = func(context.Context, native.Plan, time.Duration, func(context.Context, int) error) (native.Execution, error) {
+			code := 0
+			return native.Execution{Outcome: "completed", ExitCode: &code, ExitConfirmed: true, Stdout: []byte("PRIVATE_UNOWNED_OUTPUT")}, nil
+		}
+		parsed, answered := 0, 0
+		runner.ops.parse = func(context.Context, string, io.Reader) (usage.Metadata, error) {
+			parsed++
+			return usage.Metadata{Complete: true}, nil
+		}
+		runner.ops.response = func(context.Context, string, io.Reader) (string, error) {
+			answered++
+			return "PRIVATE_UNOWNED_ANSWER", nil
+		}
+		result, err := runner.Run(context.Background(), request, cfg, input)
+		Expect(err).To(HaveOccurred())
+		Expect(parsed).To(BeZero(), "launch_error must not parse unowned process output")
+		Expect(answered).To(BeZero(), "launch_error must not select an answer")
+		Expect(result.ExitCode).NotTo(BeZero())
+		Expect(result.Response).To(BeEmpty())
+		Expect(result.Record).To(BeNil())
 	})
 })

@@ -48,7 +48,11 @@ func controllerBuild() {
 	DeferCleanup(os.RemoveAll, dir)
 	module, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	Expect(err).NotTo(HaveOccurred())
-	version := strings.Fields(strings.SplitN(string(module), "\ngo ", 2)[1])[0]
+	parts := strings.SplitN(string(module), "\ngo ", 2)
+	Expect(parts).To(HaveLen(2), "controller fixture requires a go directive in repository go.mod")
+	fields := strings.Fields(parts[1])
+	Expect(fields).NotTo(BeEmpty(), "controller fixture requires a Go version after the go directive")
+	version := fields[0]
 	writeFixture(filepath.Join(dir, "go.mod"), []byte("module github.com/anoop2811/software-factory-template/acceptance/controllerfixture\n\ngo "+version+"\nrequire github.com/anoop2811/software-factory-template v0.0.0\nreplace github.com/anoop2811/software-factory-template => "+root+"\n"), 0600)
 	writeFixture(filepath.Join(dir, "main.go"), []byte(controllerDriverSource), 0600)
 	args := []string{"build", "-mod=mod", "-o", filepath.Join(dir, "controller-driver"), "."}

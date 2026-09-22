@@ -179,3 +179,15 @@ ordinary binaries as well as race-instrumented binaries before qualification.
 
 Reference fetched 2026-09-22 UTC: https://pkg.go.dev/os#Root.OpenFile and
 https://pkg.go.dev/os#pkg-constants define file opening and exclusive creation.
+
+
+## Review clarification: downgraded completion parsing
+
+A completion downgraded to launch_error because it lacks a process identity must
+skip usage parsing and answer extraction, even if a private test collaborator
+returns an inconsistent native completed/failed outcome. Gate processing on the
+normalized completion outcome and a present PID. Ledger.Finalize independently
+clears launch-error claims; retain that defense. The concrete native executor
+always records a spawned PID and returns ordinary confirmed interruption as an
+outcome with nil error. Do not broaden timeout uncertainty handling to claim a
+confirmed interruption when process ownership is unresolved.

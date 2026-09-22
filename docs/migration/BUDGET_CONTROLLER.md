@@ -242,3 +242,63 @@ No vulnerabilities found.
 Linux-target golangci-lint was also rerun after the final correction and returned
 `0 issues.` Independent correctness and security review reported no remaining
 actionable findings. Linux runtime execution and GitHub CI are separate checks.
+
+
+## PR #97 review follow-up
+
+The advisory review completed successfully on the original head. Its claimed
+persisted launch-error usage and ordinary interruption regression were refuted:
+Ledger.Finalize clears launch-error claims or refuses contradictory no-PID exit
+evidence; the native executor records a PID before invoking the spawn callback
+and ordinary confirmed cancellation returns the interrupted outcome with nil
+error. An independent real-child test passed:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=reviewer go test ./acceptance -count=1 -v -ginkgo.focus='finalizes an interrupted native child after parent cancellation' -ginkgo.no-color
+```
+
+```text
+1 Passed | 0 Failed
+ok  github.com/anoop2811/software-factory-template/acceptance 2.232s
+```
+
+The controller nevertheless now skips parsing after its completion is downgraded
+to launch_error. An independently authored inconsistent-collaborator case first
+failed because parsing ran once; it does not demonstrate persisted corruption:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test ./internal/budget -ginkgo.focus='Budget controller missing process identity' -ginkgo.no-color -ginkgo.succinct -count=1
+```
+
+RED: one case ran, zero passed, one failed (parsed=1, expected=0).
+The correction also adds explicit boolean grouping and diagnostic assertions
+before the fixture indexes the Go directive. No dependencies change.
+
+Before adding the regression, enumeration confirmed the original 28 internal
+controller cases; the review's suggested 25 count was incorrect:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test ./internal/budget -ginkgo.focus='Budget controller' -ginkgo.dry-run -ginkgo.v -ginkgo.no-color -count=1 -v
+```
+
+This enumerated 28 of 33 cases; dry-run is not behavioral execution evidence.
+The new regression raises the controller count to 29.
+
+
+Final focused race qualification after the review correction:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/budget -ginkgo.focus='Budget controller' -ginkgo.no-color -ginkgo.succinct -count=1
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer FACTORY_CONTROLLER_TEST_RACE=1 go test -race ./acceptance -ginkgo.focus='G2 composed budget controller' -ginkgo.no-color -ginkgo.succinct -count=1
+```
+
+```text
+ok  github.com/anoop2811/software-factory-template/internal/budget 6.937s
+ok  github.com/anoop2811/software-factory-template/acceptance 15.624s
+```
+
+These cover 29 internal and 23 outside-in cases. The evaluator redirected output
+to local logs. `rtk proxy env FACTORY_AGENT_ROLE=reviewer go vet ./internal/budget
+./acceptance` exited 0 with no output; the Linux-target lint command above was
+rerun and returned `0 issues.` The full source gate evidence earlier describes
+the original PR head; this small follow-up was qualified with affected suites.

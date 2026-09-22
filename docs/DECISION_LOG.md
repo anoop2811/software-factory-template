@@ -2269,3 +2269,17 @@ model/provider and output cap; no hidden model/provider failover or ambiguous
 request replay. This repository selects the Go client and one retry in its
 trusted-base workflow, with Actions variables permitting zero retries. Record
 research and independent outside-in failure evidence before claiming delivery.
+
+
+## Decision 68 (2026-09-21 UTC): interoperable Go budget ledger and admission
+
+Implement ADR-0069 under the approved Go runtime conversion specification.
+Preserve schema-1 history, exact counters, unknown fields and the persistent
+Python flock inode. Add read-only planning/reporting and atomic reservation,
+PID publication and finalization as an internal component. Deadline-aware lock
+waiting, bounded writes and explicit ambiguous-publication errors prevent
+unsafe retry or spending after uncertain storage. Record narrowed input and
+filesystem qualification before implementation. No public run route, installed
+activation, paid invocation or legacy retirement belongs to this slice.
+Decision 67 and ADR-0068 are in the separately open native-execution PR #95;
+this independent component is based on main and does not assume its merge.

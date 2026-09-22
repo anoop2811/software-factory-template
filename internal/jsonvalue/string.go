@@ -1,4 +1,4 @@
-package usage
+package jsonvalue
 
 import (
 	"context"
@@ -20,12 +20,12 @@ func (p *pythonJSON) string(ctx context.Context) (string, error) {
 		case character == '"':
 			return result.String(), nil
 		case character < 0x20:
-			return "", jsonSyntaxError{}
+			return "", SyntaxError{}
 		case character != '\\':
 			result.WriteByte(character)
 		default:
 			if p.offset == len(p.data) {
-				return "", jsonSyntaxError{}
+				return "", SyntaxError{}
 			}
 			escaped := p.data[p.offset]
 			p.offset++
@@ -68,16 +68,16 @@ func (p *pythonJSON) string(ctx context.Context) (string, error) {
 					result.WriteRune(code)
 				}
 			default:
-				return "", jsonSyntaxError{}
+				return "", SyntaxError{}
 			}
 		}
 	}
-	return "", jsonSyntaxError{}
+	return "", SyntaxError{}
 }
 
 func (p *pythonJSON) codeUnit() (rune, error) {
 	if len(p.data)-p.offset < 4 {
-		return 0, jsonSyntaxError{}
+		return 0, SyntaxError{}
 	}
 	var code rune
 	for range 4 {
@@ -92,7 +92,7 @@ func (p *pythonJSON) codeUnit() (rune, error) {
 		case character >= 'A' && character <= 'F':
 			code += rune(character-'A') + 10
 		default:
-			return 0, jsonSyntaxError{}
+			return 0, SyntaxError{}
 		}
 	}
 	return code, nil

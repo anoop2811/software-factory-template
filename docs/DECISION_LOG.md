@@ -2271,6 +2271,20 @@ trusted-base workflow, with Actions variables permitting zero retries. Record
 research and independent outside-in failure evidence before claiming delivery.
 
 
+## Decision 67 (2026-09-10 UTC): Go native harness execution component
+
+Implement ADR-0068 under the approved Go conversion specification. Port native
+invocation preparation, local capability checks, process-group supervision and
+answer selection for Codex, Claude Code and OpenCode. Exercise the internal
+component through independently compiled fake-process acceptance. Do not expose
+a public or private launch command that bypasses the controller's locked budget
+admission and ownership publication. Record bounded help probing and refusal of
+nonpositive allowances as explicit safety tightenings of the immutable baseline.
+Installed controller activation, interoperable ledger integration and legacy
+retirement retain their existing delivery/recovery gates. No paid native run is
+part of implementation or acceptance.
+
+
 ## Decision 68 (2026-09-21 UTC): interoperable Go budget ledger and admission
 
 Implement ADR-0069 under the approved Go runtime conversion specification.

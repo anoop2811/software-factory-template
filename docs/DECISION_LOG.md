@@ -2283,3 +2283,17 @@ nonpositive allowances as explicit safety tightenings of the immutable baseline.
 Installed controller activation, interoperable ledger integration and legacy
 retirement retain their existing delivery/recovery gates. No paid native run is
 part of implementation or acceptance.
+
+
+## Decision 68 (2026-09-21 UTC): interoperable Go budget ledger and admission
+
+Implement ADR-0069 under the approved Go runtime conversion specification.
+Preserve schema-1 history, exact counters, unknown fields and the persistent
+Python flock inode. Add read-only planning/reporting and atomic reservation,
+PID publication and finalization as an internal component. Deadline-aware lock
+waiting, bounded writes and explicit ambiguous-publication errors prevent
+unsafe retry or spending after uncertain storage. Record narrowed input and
+filesystem qualification before implementation. No public run route, installed
+activation, paid invocation or legacy retirement belongs to this slice.
+Decision 67 and ADR-0068 are in the separately open native-execution PR #95;
+this independent component is based on main and does not assume its merge.

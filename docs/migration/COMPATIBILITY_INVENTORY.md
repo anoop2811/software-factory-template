@@ -92,6 +92,11 @@ supervision and response selection. These candidates do not replace installed
 controllers, qualify live CLI versions or retire `budget_adapters.py`; controller
 integration, locking and safe-delivery requirements above remain open.
 
+The [budget ledger candidate](BUDGET_LEDGER.md) adds the internal shared-storage
+and admission boundary. Its qualification is separate from controller execution,
+installed activation and runtime retirement. The legacy lock inode and schema
+remain the interoperability boundary; candidate source does not authorize cleanup.
+
 ## Gates still open
 
 - EX-001 remains a recorded discrepancy in immutable baseline bytes. Anoop

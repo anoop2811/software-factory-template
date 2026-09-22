@@ -2297,3 +2297,15 @@ filesystem qualification before implementation. No public run route, installed
 activation, paid invocation or legacy retirement belongs to this slice.
 Decision 67 and ADR-0068 are in the separately open native-execution PR #95;
 this independent component is based on main and does not assume its merge.
+
+
+## Decision 69 (2026-09-22 UTC): compose the Go budget execution controller
+
+Implement ADR-0070 by composing the existing ledger, native supervisor and usage
+parser. Keep read-only admission before native probes, recheck deadlines inside
+the shared lock, publish child ownership before stdin, and finalize exactly once
+with bounded cleanup after cancellation. Return an answer only after confirmed
+ownership and durable final metadata. Do not expose a launch route or activate
+an installed replacement in this slice. Prefer idiomatic concrete Go composition
+over new abstraction frameworks; additional libraries require concrete benefit
+and verified permissive open-source licenses. Existing dependencies suffice.

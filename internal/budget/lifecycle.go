@@ -17,6 +17,15 @@ import (
 // Admit rechecks the current ledger under the shared lock before appending one
 // reservation: docs/adr/0069-go-budget-ledger-admission.md:79.
 func (l *Ledger) Admit(ctx context.Context, r Request, c Config) (Admission, error) {
+	return l.admit(ctx, r, c, nil)
+}
+
+// A controller may tighten execution time after waiting for the shared lock.
+// The standalone ledger's finite-float contract remains unchanged.
+// docs/adr/0070-go-budget-execution-controller.md:21.
+type admissionPolicy func(context.Context, Config, float64) (Config, error)
+
+func (l *Ledger) admit(ctx context.Context, r Request, c Config, policy admissionPolicy) (Admission, error) {
 	if err := validateRequest(r); err != nil {
 		return Admission{}, err
 	}
@@ -53,6 +62,13 @@ func (l *Ledger) Admit(ctx context.Context, r Request, c Config) (Admission, err
 	}
 	if err := ctx.Err(); err != nil {
 		return Admission{}, err
+	}
+	if policy != nil {
+		c, err = policy(ctx, c, plan.RemainingSessionSeconds)
+		if err != nil {
+			return Admission{Plan: plan}, err
+		}
+		plan.Configuration = c
 	}
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {

@@ -191,3 +191,24 @@ clears launch-error claims; retain that defense. The concrete native executor
 always records a spawned PID and returns ordinary confirmed interruption as an
 outcome with nil error. Do not broaden timeout uncertainty handling to claim a
 confirmed interruption when process ownership is unresolved.
+
+
+## Cleanup timing regression boundary
+
+Measure the finalization lock-wait regression from the collaborator's acquired
+lock immediately before returning execution, rather than including unrelated
+admission/preflight filesystem work. Retain a finite upper bound and the
+five-second lower-bound check, plus error/no-answer/no-final-record assertions.
+This test clarification does not change the production cleanup deadline.
+
+
+## Overflow fixture lifecycle
+
+The overflow fixture must stay alive after writing limit+1 bytes until the
+supervisor terminates it, under the existing external test watchdog. Immediate
+exit races group signaling with an unreaped child on Darwin: an isolated local
+probe observed EPERM before reap and ESRCH after reap. This is consistent with
+the macOS CI ownership-uncertainty failure, but that CI run did not record the
+underlying syscall error. Preserve production fail-closed signaling semantics
+and the existing signal-failure regressions. Do not suppress EPERM or accept an
+active launch_error as a successful overflow test result.

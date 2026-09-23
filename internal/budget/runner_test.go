@@ -216,12 +216,14 @@ var _ = ginkgo.Describe("Budget controller admission policy", func() {
 		Expect(err).NotTo(HaveOccurred())
 		defer file.Close()
 		defer func() { Expect(syscall.Flock(int(file.Fd()), syscall.LOCK_UN)).To(Succeed()) }()
+		// per docs/adr/0070-go-budget-execution-controller.md:198
+		var started time.Time
 		runner.ops.execute = func(ctx context.Context, p native.Plan, d time.Duration, spawn func(context.Context, int) error) (native.Execution, error) {
 			execution, err := runnerSuccess(ctx, p, d, spawn)
 			Expect(syscall.Flock(int(file.Fd()), syscall.LOCK_EX)).To(Succeed())
+			started = time.Now()
 			return execution, err
 		}
-		started := time.Now()
 		result, err := runner.Run(context.Background(), request, cfg, input)
 		Expect(err).To(HaveOccurred())
 		Expect(time.Since(started)).To(BeNumerically(">=", 4900*time.Millisecond))

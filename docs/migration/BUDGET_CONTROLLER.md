@@ -302,3 +302,57 @@ to local logs. `rtk proxy env FACTORY_AGENT_ROLE=reviewer go vet ./internal/budg
 ./acceptance` exited 0 with no output; the Linux-target lint command above was
 rerun and returned `0 issues.` The full source gate evidence earlier describes
 the original PR head; this small follow-up was qualified with affected suites.
+
+
+## macOS CI overflow fixture follow-up
+
+The macOS source job for dcf1b3e failed the overflow case with an active
+launch_error and ownership uncertainty after approximately 0.052 seconds of
+native execution. Linux source CI passed. This is not an unused-import compile
+failure: the embedded driver has no syscall import, and the outer test uses
+syscall.Mkfifo. An independently compiled disabled-plan case passed (1.143s).
+The cited baseline commit, PR comment and ADR clauses were checked directly;
+the citation gate skips when the citation prefix is empty.
+
+Thirty local repetitions of the original overflow case passed, so the CI failure
+was not reproduced locally. A separate Darwin probe observed a relevant boundary:
+
+```text
+rtk proxy go run /private/tmp/probe-zombie-group.go
+iteration=0 kill=operation not permitted wait=<nil> postreap=no such process
+```
+
+This is consistent with the CI ownership result, not proof of its exact syscall
+error. The fixture now remains alive after emitting limit+1 bytes, requiring the
+supervisor to terminate it under the existing test watchdog. Production signaling
+and ownership rules remain unchanged; temporary diagnostics were removed.
+The cleanup timing regression now starts after acquiring its competing lock,
+retaining both its 4.9-second lower and seven-second upper assertions.
+
+
+Post-correction focused race commands (output redirected to local logs):
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer FACTORY_CONTROLLER_TEST_RACE=1 go test -race ./acceptance -ginkgo.focus='G2 composed budget controller' -ginkgo.no-color -ginkgo.succinct -count=1
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/budget -ginkgo.focus='Budget controller' -ginkgo.no-color -ginkgo.succinct -count=1
+rtk proxy env FACTORY_AGENT_ROLE=reviewer go test -race ./internal/native -count=1
+```
+
+```text
+ok  github.com/anoop2811/software-factory-template/acceptance 18.433s
+ok  github.com/anoop2811/software-factory-template/internal/budget 6.997s
+ok  github.com/anoop2811/software-factory-template/internal/native 1.552s
+```
+
+The first two cover 23 outside-in and 29 internal controller cases. The overflow
+assertion now also requires exit_code=-9, establishing supervisor termination.
+Linux-target golangci-lint returned `0 issues.` Final independent diff review
+reported no actionable findings. Refreshed platform CI remains separate evidence.
+
+
+The revised ordinary overflow case also passed 30 consecutive runs (1.287s to
+1.864s), with unchanged outcome/claim assertions and the new forced-exit check:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer bash -c 'for attempt in {1..30}; do go test ./acceptance -ginkgo.focus="G2 composed budget controller boundaries.*stdout overflow" -ginkgo.no-color -ginkgo.succinct -count=1 || exit "$?"; done > /private/tmp/pr97-overflow-fixed-30.log 2>&1; result=$?; tail -32 /private/tmp/pr97-overflow-fixed-30.log; exit "$result"'
+```

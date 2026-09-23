@@ -23,7 +23,7 @@ type command struct{Root string;Request budget.Request;Environment map[string]st
 func main(){if filepath.Base(os.Args[0])!="controller-driver"{fake();return};var c command;if json.NewDecoder(os.Stdin).Decode(&c)!=nil{os.Exit(2)};ctx,interrupt:=context.WithCancel(context.Background());defer interrupt();if c.CancelMillis>0{timer:=time.AfterFunc(time.Duration(c.CancelMillis)*time.Millisecond,interrupt);defer timer.Stop()};cancel:=func(){};if c.TimeoutMillis!=0{ctx,cancel=context.WithTimeout(ctx,time.Duration(c.TimeoutMillis)*time.Millisecond)};defer cancel();cfg,err:=budget.Configuration(c.Environment);out:=map[string]any{};if err==nil{result,e:=budget.NewRunner(c.Root).Run(ctx,c.Request,cfg,c.Input);out["result"]=result;out["response"]=result.Response;err=e};if err!=nil{out["error"]=err.Error()};json.NewEncoder(os.Stdout).Encode(out)}
 func fake(){cwd,_:=os.Getwd();mode:=os.Getenv("CONTROLLER_FIXTURE_MODE");help:=false;for _,arg:=range os.Args[1:]{if arg=="--help"{help=true}};capture:=map[string]any{"argv":os.Args[1:],"cwd":cwd,"role":os.Getenv("FACTORY_AGENT_ROLE"),"help":help};if help{log(capture);if mode=="bad-help"{fmt.Print("unrecognized fixture");return};fmt.Print("--json --sandbox --cd --model --config --print --output-format --agent --permission-mode --format");return}
  first:=make([]byte,1);n,_:=os.Stdin.Read(first);published:=false;raw,_:=os.ReadFile(filepath.Join(cwd,".factory","budget.json"));var history map[string]any;if json.Unmarshal(raw,&history)==nil{if rows,ok:=history["runs"].([]any);ok{for _,value:=range rows{row:=value.(map[string]any);if row["process_pid"]==float64(os.Getpid())&&row["status"]=="active"{published=true}}}};rest,_:=io.ReadAll(os.Stdin);capture["stdin"]=string(append(first[:n],rest...));capture["pid_published_before_input"]=published;capture["pid"]=os.Getpid();log(capture)
- if mode=="stall"{time.Sleep(30*time.Second);return};if mode=="overflow"{io.WriteString(os.Stdout,strings.Repeat("x",16*1024*1024+1));return};if mode=="incomplete"{fmt.Println("{}");return}
+ if mode=="stall"{time.Sleep(30*time.Second);return};if mode=="overflow"{io.WriteString(os.Stdout,strings.Repeat("x",16*1024*1024+1));time.Sleep(30*time.Second);return};if mode=="incomplete"{fmt.Println("{}");return}
  emit:=func(value string){if mode=="invalid-answer"{value=strings.ReplaceAll(value,"PRIVATE_ANSWER","\\ud800")};fmt.Println(value)}
  switch filepath.Base(os.Args[0]){
  case "codex":emit("{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"PRIVATE_ANSWER\"}}");emit("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":3,\"cached_input_tokens\":1,\"output_tokens\":2}}")
@@ -192,6 +192,10 @@ var _ = Describe("G2 composed budget controller boundaries", func() {
 		record := result["Record"].(map[string]any)
 		Expect(record["outcome"]).To(Equal(outcome))
 		Expect(record["status"]).To(Equal("completed"))
+		// per docs/adr/0070-go-budget-execution-controller.md:207
+		if mode == "overflow" {
+			Expect(record["exit_code"]).To(Equal(json.Number("-9")), "overflow fixture must be terminated by the supervisor")
+		}
 		if mode != "nonzero" {
 			Expect(record["tokens"]).To(BeNil())
 			Expect(record["estimated_usd"]).To(BeNil())

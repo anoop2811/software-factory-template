@@ -2309,3 +2309,12 @@ ownership and durable final metadata. Do not expose a launch route or activate
 an installed replacement in this slice. Prefer idiomatic concrete Go composition
 over new abstraction frameworks; additional libraries require concrete benefit
 and verified permissive open-source licenses. Existing dependencies suffice.
+
+
+## Decision 70 (2026-09-23 UTC): expose a source-only Go budget command candidate
+
+Implement ADR-0071 using the existing Cobra, ledger and execution controller.
+Preserve live admission-plan output, final metadata and answer privacy through a
+private compiled command boundary. Characterize plan/report text and JSON against
+the immutable Python baseline before implementation. Keep installed shell model
+routing, public activation and legacy retirement for their existing gates.

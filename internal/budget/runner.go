@@ -24,6 +24,7 @@ type RunInput struct {
 	Prompt       *string
 	Environment  map[string]string
 	WantResponse bool
+	OnPlan       func(Plan) error `json:"-"`
 }
 type RunResult struct {
 	Plan     Plan
@@ -60,6 +61,9 @@ func (runner *Runner) Run(ctx context.Context, request Request, config Config, i
 		return result, controllerError("cannot plan budget execution", err)
 	}
 	if len(result.Plan.Blockers) > 0 {
+		if err := observePlan(ctx, input.OnPlan, result.Plan); err != nil {
+			return result, controllerError("cannot publish budget plan", err)
+		}
 		return result, nil
 	}
 	if _, err := executionDuration(config.TimeoutSeconds); err != nil {
@@ -83,7 +87,7 @@ func (runner *Runner) Run(ctx context.Context, request Request, config Config, i
 	if err != nil {
 		return result, controllerError("budget execution deadline expired", err)
 	}
-	admission, err := runner.ledger.admit(ctx, request, config, executionAdmission)
+	admission, err := runner.ledger.admitObserved(ctx, request, config, executionAdmission, input.OnPlan, true)
 	if err != nil {
 		return result, controllerError("budget execution admission failed", err)
 	}

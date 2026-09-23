@@ -130,3 +130,7 @@ mode/hash against the baseline, including the symlink blob.
 The [budget execution controller candidate](BUDGET_CONTROLLER.md) composes the
 ledger, supervisor and usage parser internally. Public rendering/routing, loop
 integration and safe activation remain outstanding compatibility obligations.
+
+The [budget command candidate](BUDGET_COMMAND.md) adds a private compiled
+plan/run/report boundary. Public argument-diagnostic compatibility, installed
+model routing and transactional delivery remain outstanding.

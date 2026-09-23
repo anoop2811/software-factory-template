@@ -356,3 +356,54 @@ The revised ordinary overflow case also passed 30 consecutive runs (1.287s to
 ```sh
 rtk proxy env FACTORY_AGENT_ROLE=spec-writer bash -c 'for attempt in {1..30}; do go test ./acceptance -ginkgo.focus="G2 composed budget controller boundaries.*stdout overflow" -ginkgo.no-color -ginkgo.succinct -count=1 || exit "$?"; done > /private/tmp/pr97-overflow-fixed-30.log 2>&1; result=$?; tail -32 /private/tmp/pr97-overflow-fixed-30.log; exit "$result"'
 ```
+
+
+## Reservation test phase and cleanup correction
+
+The Linux source job for 50d7809 failed in the reservation-duration test, while
+macOS source CI passed. Its assertion compared a duration reserved under the
+lock with the remaining deadline after durable publication. Slow publication can
+legitimately consume time between those phases. The assertion panic also skipped
+the test worker join, racing deferred file.Close with the worker's file.Fd.
+
+A test-only 200ms delay in reservation sync reproduced both failures locally:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer bash -c 'go test -race ./internal/budget -ginkgo.focus="recomputes reservation duration" -ginkgo.no-color -ginkgo.succinct -count=1 > /private/tmp/pr97-admission-duration-red.log 2>&1; result=$?; tail -30 /private/tmp/pr97-admission-duration-red.log; exit "$result"'
+```
+
+```text
+actual duration: 790744459ns
+expected maximum: 605162334ns
+race detected during execution of test
+```
+
+The test correction compares against a timestamp before lock release, checks
+that execution keeps the original parent deadline, and joins the unlocking
+worker before closing its descriptor even on assertion failure. The injected
+publication latency stays in the test. Production timing and locking behavior
+are unchanged. This replaces the inaccurate assertion rather than increasing
+production deadlines or suppressing race detection.
+
+
+The complete 29-case internal controller race selection passed after correction:
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/budget -ginkgo.focus='Budget controller' -ginkgo.no-color -ginkgo.succinct -count=1
+```
+
+```text
+ok  github.com/anoop2811/software-factory-template/internal/budget 7.051s
+```
+
+The test's parent deadline is two seconds to allow the intentional publication
+latency; its allowance bound remains derived from the actual monotonic deadline
+and lock-release timestamp. Linux-target golangci-lint was rerun with `0 issues.`
+Independent review found no remaining issue in this test correction.
+
+
+Thirty focused race repetitions also passed (1.684s to 1.863s):
+
+```sh
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer bash -c 'for attempt in {1..30}; do go test -race ./internal/budget -ginkgo.focus="recomputes reservation duration" -ginkgo.no-color -ginkgo.succinct -count=1 || exit "$?"; done > /private/tmp/pr97-admission-duration-race-30.log 2>&1; result=$?; tail -32 /private/tmp/pr97-admission-duration-race-30.log; exit "$result"'
+```

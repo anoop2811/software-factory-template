@@ -212,3 +212,14 @@ the macOS CI ownership-uncertainty failure, but that CI run did not record the
 underlying syscall error. Preserve production fail-closed signaling semantics
 and the existing signal-failure regressions. Do not suppress EPERM or accept an
 active launch_error as a successful overflow test result.
+
+
+## Admission duration regression boundary
+
+The reservation duration is computed after lock acquisition, before durable
+publication. Measure its deadline bound against a monotonic timestamp recorded
+before the competing lock is released; later fsync time must not make a valid
+reservation fail the test. Execution retains the original parent deadline.
+The test must join its unlocking worker before closing the shared descriptor,
+including assertion-failure paths. A delayed-publication fixture must still
+prove lock-wait deduction and preservation of the execution context deadline.

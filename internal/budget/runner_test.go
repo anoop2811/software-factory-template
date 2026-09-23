@@ -185,27 +185,61 @@ var _ = ginkgo.Describe("Budget controller admission policy", func() {
 		Expect(result.Record).To(BeNil())
 	})
 	// per docs/adr/0070-go-budget-execution-controller.md:61
+	// per docs/adr/0070-go-budget-execution-controller.md:219
 	ginkgo.It("recomputes reservation duration after waiting for the lock", func() {
 		runner, cfg, request, input := runnerFixture()
+		syncs := 0
+		runner.ledger.ops.syncFile = func(file *os.File) error {
+			syncs++
+			if syncs == 1 {
+				time.Sleep(200 * time.Millisecond)
+			}
+			return file.Sync()
+		}
 		file, err := os.OpenFile(filepath.Join(runner.ledger.root, ".factory/budget.lock"), os.O_CREATE|os.O_RDWR, 0600)
 		Expect(err).NotTo(HaveOccurred())
 		defer file.Close()
-		Expect(syscall.Flock(int(file.Fd()), syscall.LOCK_EX)).To(Succeed())
-		released := make(chan error, 1)
+		fd := int(file.Fd())
+		Expect(syscall.Flock(fd, syscall.LOCK_EX)).To(Succeed())
+		type releaseEvent struct {
+			at  time.Time
+			err error
+		}
+		released := make(chan releaseEvent, 1)
+		done := make(chan struct{})
+		workerStarted := false
+		// Join on assertion panic as well as success, before the earlier deferred Close.
+		defer func() {
+			if workerStarted {
+				<-done
+			}
+		}()
 		runner.ops.preflight = func(context.Context, native.Plan) error {
-			go func() { time.Sleep(200 * time.Millisecond); released <- syscall.Flock(int(file.Fd()), syscall.LOCK_UN) }()
+			workerStarted = true
+			go func() {
+				defer close(done)
+				time.Sleep(200 * time.Millisecond)
+				at := time.Now()
+				err := syscall.Flock(fd, syscall.LOCK_UN)
+				released <- releaseEvent{at: at, err: err}
+			}()
 			return nil
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		runner.ops.execute = func(ctx context.Context, p native.Plan, d time.Duration, spawn func(context.Context, int) error) (native.Execution, error) {
-			deadline, _ := ctx.Deadline()
-			Expect(d).To(BeNumerically("<", 850*time.Millisecond))
-			Expect(d).To(BeNumerically("<=", time.Until(deadline)+30*time.Millisecond))
-			return runnerSuccess(ctx, p, d, spawn)
+		parentDeadline, ok := ctx.Deadline()
+		Expect(ok).To(BeTrue())
+		runner.ops.execute = func(executionCtx context.Context, p native.Plan, d time.Duration, spawn func(context.Context, int) error) (native.Execution, error) {
+			event := <-released
+			Expect(event.err).To(Succeed())
+			deadline, ok := executionCtx.Deadline()
+			Expect(ok).To(BeTrue())
+			Expect(deadline).To(Equal(parentDeadline))
+			Expect(d).To(BeNumerically(">", 0))
+			Expect(d).To(BeNumerically("<=", parentDeadline.Sub(event.at)), "reservation must deduct the time waiting for the ledger lock")
+			return runnerSuccess(executionCtx, p, d, spawn)
 		}
 		result, err := runner.Run(ctx, request, cfg, input)
-		Expect(<-released).To(Succeed())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ExitCode).To(BeZero())
 	})

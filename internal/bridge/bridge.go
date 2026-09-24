@@ -9,17 +9,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
-	"github.com/anoop2811/software-factory-template/internal/budget"
 	"github.com/anoop2811/software-factory-template/internal/budgetcmd"
 	"github.com/anoop2811/software-factory-template/internal/config"
-	"github.com/anoop2811/software-factory-template/internal/loop"
-	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/anoop2811/software-factory-template/internal/review"
 	"github.com/anoop2811/software-factory-template/internal/roles"
 	"github.com/anoop2811/software-factory-template/internal/usage"
@@ -230,58 +225,12 @@ func Run(ctx context.Context, args []string) int {
 		status = budgetcmd.Run(cmd.Context(), args, environment, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		return nil
 	}))
-	// Fingerprints observe local state without checkpoint writes or native calls.
-	// docs/adr/0073-go-loop-fingerprint-foundation.md:13.
-	loopCommand := command("loop", cobra.NoArgs, nil)
-	loopCommand.AddCommand(command("fingerprint", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
-		// Interrupts cancel and reap isolated probes before this private command returns.
-		// docs/adr/0073-go-loop-fingerprint-foundation.md:141.
-		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		environment := capturedEnvironment()
-		checkout := environment["FACTORY_LOOP_ROOT"]
-		if checkout == "" {
-			var err error
-			checkout, err = os.Getwd()
-			if err != nil {
-				return errors.New("cannot establish loop fingerprint")
-			}
-		}
-		configuration, err := loop.Configuration(ctx, environment)
-		if err != nil {
-			return errors.New("invalid loop configuration")
-		}
-		budgetConfiguration, err := budget.Configuration(environment)
-		if err != nil {
-			return errors.New("invalid loop budget configuration")
-		}
-		snapshot, err := loop.StableSnapshot(ctx, checkout, configuration, environment)
-		if err != nil {
-			return errors.New("cannot establish loop source snapshot")
-		}
-		policy, err := loop.Policy(ctx, configuration, budgetConfiguration, environment)
-		if err != nil {
-			return errors.New("cannot fingerprint loop policy")
-		}
-		data, err := json.Marshal(struct {
-			Configuration loop.Config      `json:"configuration"`
-			Snapshot      loop.Fingerprint `json:"snapshot"`
-			Policy        string           `json:"policy"`
-		}{configuration, snapshot, policy})
-		if err != nil {
-			return errors.New("cannot encode loop fingerprint")
-		}
-		data = append(data, '\n')
-		if err := output.WriteEvent(ctx, cmd.OutOrStdout(), data); err != nil {
-			return errors.New("cannot write loop fingerprint")
-		}
-		return nil
-	}))
+	loopCommand := loopCommands()
 	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.
-	if !registeredRequest(root, args) || (len(args) > 0 && args[0] == "loop" && len(args) != 2) {
+	if !registeredRequest(root, args) || (len(args) > 0 && args[0] == "loop" && !loopRequest(args)) {
 		fmt.Fprintln(os.Stderr, "factory bridge: unsupported request")
 		return 2
 	}

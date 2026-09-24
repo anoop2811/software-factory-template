@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
 	"io"
 	"unicode/utf8"
+
+	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
 )
 
 const historyLimit = 32 << 20
@@ -251,4 +252,21 @@ func cloneValue(value any) any {
 func cloneRecord(row map[string]any) Record { return Record{data: cloneValue(row).(map[string]any)} }
 func emptyHistory() History {
 	return History{data: map[string]any{"schema": json.Number("1"), "runs": []any{}}}
+}
+
+// HasActive checks validated ledger state without exposing mutable records.
+// docs/adr/0074-go-loop-checkpoint-storage.md:96.
+func (h History) HasActive(ctx context.Context) (bool, error) {
+	if err := validateHistory(ctx, h); err != nil {
+		return false, err
+	}
+	for _, row := range h.rows() {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		if row["status"] == "active" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"math/big"
 	"slices"
-	"strings"
 	"unicode/utf8"
+
+	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
 )
 
 // Configuration preserves the environment-only budget settings and defaults.
@@ -29,16 +30,8 @@ func Configuration(environment map[string]string) (Config, error) {
 		key, defaultValue string
 		target            **big.Int
 	}{{"MAX_ATTEMPTS", "1", &c.MaxAttempts}, {"MAX_SESSION_RUNS", "5", &c.MaxSessionRuns}, {"MAX_CONCURRENT", "1", &c.MaxConcurrent}} {
-		raw := get(field.key, field.defaultValue)
-		if raw == "" || strings.Trim(raw, "0123456789") != "" || len(strings.TrimLeft(raw, "0")) > 309 {
-			return Config{}, errors.New("invalid budget integer configuration")
-		}
-		value, ok := new(big.Int).SetString(raw, 10)
-		if !ok || value.Sign() <= 0 {
-			return Config{}, errors.New("invalid budget integer configuration")
-		}
-		f, _ := value.Float64()
-		if !finite(f) {
+		value, err := jsonvalue.PositiveInteger(get(field.key, field.defaultValue))
+		if err != nil {
 			return Config{}, errors.New("invalid budget integer configuration")
 		}
 		*field.target = value

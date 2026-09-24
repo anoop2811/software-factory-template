@@ -51,7 +51,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(os.RemoveAll, buildDir)
 	// Build success is setup, not behavioral RED. per specs/001-go-runtime-conversion.md:289
-	build := exec.Command("go", "build", "-o", filepath.Join(buildDir, "factory"), "./cmd/factory") // #nosec G204 -- test-owned output path and fixed candidate package.
+	buildArgs := []string{"build", "-o", filepath.Join(buildDir, "factory"), "./cmd/factory"}
+	if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
+		buildArgs = append([]string{"build", "-race"}, buildArgs[1:]...)
+	}
+	build := exec.Command("go", buildArgs...) // #nosec G204 -- test-owned output path and fixed candidate package.
 	build.Dir = root
 	output, err := build.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred(), "compiled CLI setup failed: %s", output)

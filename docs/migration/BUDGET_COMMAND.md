@@ -12,9 +12,10 @@ long flags, including equals forms, read-only reporting, text/JSON metadata,
 pre-execution plan output and post-finalization text answers. Report does not
 require valid execution configuration. JSON is newline-delimited metadata only.
 
-Python argparse help/error prose, abbreviated long flags and short-option edge
-cases remain open compatibility obligations. The private command refuses them
-explicitly. Shell YAML/model selection, loop integration, artifact activation,
+The initial candidate refused help and abbreviated options.
+[ADR-0072 argument qualification](BUDGET_ARGUMENTS.md) supersedes that temporary
+restriction with legacy grammar/status/channel parity and enumerated human-prose
+normalization. Shell YAML/model selection, loop integration, artifact activation,
 gitignored recovery backups and old-script retirement remain separate gates.
 No dependency is added and no paid model calls are used for validation.
 

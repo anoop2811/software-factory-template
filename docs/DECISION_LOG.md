@@ -2318,3 +2318,13 @@ Preserve live admission-plan output, final metadata and answer privacy through a
 private compiled command boundary. Characterize plan/report text and JSON against
 the immutable Python baseline before implementation. Keep installed shell model
 routing, public activation and legacy retirement for their existing gates.
+
+
+## Decision 71 (2026-09-23 UTC): complete source budget argument compatibility
+
+Implement ADR-0072 with the existing Cobra/pflag command schema and a bounded
+legacy argument normalizer. Preserve help/usage channels, statuses, literal
+values, unique prefixes and help/error precedence against the immutable Python
+oracle. Enumerate permitted human-prose normalization before independent RED
+tests; retain machine output and all no-effects requirements. Keep installation,
+shell model routing and legacy retirement outside this source-only slice.

@@ -3,6 +3,7 @@ package budget
 import (
 	"errors"
 	"math/big"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -105,15 +106,18 @@ func validID(s string) bool {
 	}
 	return true
 }
-func harness(s string) bool { return s == "codex" || s == "claude" || s == "opencode" }
-func role(s string) bool {
-	switch s {
-	case "spec-writer", "implementer", "refactorer", "reviewer", "wiki-maintainer":
-		return true
-	default:
-		return false
-	}
-}
+
+var harnessValues = [...]string{"codex", "claude", "opencode"}
+var roleValues = [...]string{"spec-writer", "implementer", "refactorer", "reviewer", "wiki-maintainer"}
+
+func harness(value string) bool { return slices.Contains(harnessValues[:], value) }
+func role(value string) bool    { return slices.Contains(roleValues[:], value) }
+
+// Domain choices are copied so command presentation cannot mutate validation.
+// docs/adr/0072-go-budget-argument-compatibility.md:109.
+func Harnesses() []string { return slices.Clone(harnessValues[:]) }
+func Roles() []string     { return slices.Clone(roleValues[:]) }
+
 func validateRequest(r Request) error {
 	if !validID(r.Session) || !validID(r.Task) || !harness(r.Harness) || !role(r.Role) || !utf8.ValidString(r.Model) {
 		return errors.New("invalid budget request")
@@ -124,3 +128,9 @@ func validateRequest(r Request) error {
 	}
 	return nil
 }
+
+// ValidSessionID, ValidHarness and ValidRole expose the existing argument domains
+// to presentation parsing without duplicating policy. docs/adr/0072-go-budget-argument-compatibility.md:59.
+func ValidSessionID(value string) bool { return validID(value) }
+func ValidHarness(value string) bool   { return harness(value) }
+func ValidRole(value string) bool      { return role(value) }

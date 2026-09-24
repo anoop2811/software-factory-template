@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/budget"
+	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -22,17 +23,14 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 		_, _ = fmt.Fprintln(stderr, "factory budget: "+message)
 		return code
 	}
-	if len(args) == 0 || (args[0] != "plan" && args[0] != "run" && args[0] != "report") {
-		return fail("invalid command arguments", 2)
+	root := rootCommand()
+	operation, operands, rootHelp, rootUnknown, err := selectAction(ctx, root, args)
+	if err != nil {
+		return argumentFailure(ctx, stderr, root, err.Error())
 	}
-	// Boolean switches take no explicit value, unlike scalar flag=value forms.
-	// docs/adr/0071-go-budget-command-candidate.md:120.
-	for _, argument := range args[1:] {
-		if strings.HasPrefix(argument, "--json=") {
-			return fail("invalid command arguments", 2)
-		}
+	if rootHelp {
+		return showHelp(ctx, stdout, root, fail)
 	}
-	operation := args[0]
 	var request budget.Request
 	var prompt, maxCost string
 	var jsonOutput bool
@@ -41,16 +39,25 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 	command.SetOut(stdout)
 	command.SetErr(stderr)
 	flags := command.Flags()
-	flags.BoolVar(&jsonOutput, "json", false, "")
-	flags.StringVar(&request.Session, "session", "", "")
+	flags.BoolP("help", "h", false, "Show command help")
+	flags.BoolVar(&jsonOutput, "json", false, "Emit JSON metadata")
+	if err := stringOption(command, &request.Session, "session", "", "Session identifier", operation != "report"); err != nil {
+		return fail("cannot configure budget command", 2)
+	}
 	if operation != "report" {
-		flags.StringVar(&request.Task, "task", "", "")
-		flags.StringVar(&request.Harness, "harness", "", "")
-		flags.StringVar(&request.Role, "role", "implementer", "")
-		flags.StringVar(&maxCost, "max-cost-usd", "", "")
+		if err := stringOption(command, &request.Task, "task", "", "Task identifier", true); err != nil {
+			return fail("cannot configure budget command", 2)
+		}
+		if err := stringOption(command, &request.Harness, "harness", "", "Native harness: "+strings.Join(budget.Harnesses(), ", "), true); err != nil {
+			return fail("cannot configure budget command", 2)
+		}
+		flags.StringVar(&request.Role, "role", "implementer", "Factory role: "+strings.Join(budget.Roles(), ", "))
+		flags.StringVar(&maxCost, "max-cost-usd", "", "Requested strict USD ceiling")
 	}
 	if operation == "run" {
-		flags.StringVar(&prompt, "prompt-file", "", "")
+		if err := stringOption(command, &prompt, "prompt-file", "", "Prompt file path", true); err != nil {
+			return fail("cannot configure budget command", 2)
+		}
 	}
 	status := 0
 	invoked := false
@@ -59,18 +66,6 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 		invoked = true
 		if err := cmd.Context().Err(); err != nil {
 			return errors.New("budget command context ended")
-		}
-		if flags.Changed("help") {
-			return errors.New("invalid command arguments")
-		}
-		if flags.Changed("session") && request.Session == "" {
-			return errors.New("invalid command arguments")
-		}
-		if operation != "report" && (request.Session == "" || request.Task == "" || request.Harness == "") {
-			return errors.New("invalid command arguments")
-		}
-		if operation == "run" && !flags.Changed("prompt-file") {
-			return errors.New("invalid command arguments")
 		}
 		if flags.Changed("max-cost-usd") {
 			request.MaxCostUSD = &maxCost
@@ -143,11 +138,29 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 		}
 		return nil
 	}
-	// Parse a single leaf before Cobra can dispatch its hidden completion commands.
-	// Scalar values remain literal; only leftover positional operands are refused.
-	// docs/adr/0071-go-budget-command-candidate.md:28.
-	if err := command.ParseFlags(args[1:]); err != nil || len(flags.Args()) != 0 {
-		return fail("invalid command arguments", 2)
+	// Classify legacy grammar before Cobra's leaf parse and hidden discovery.
+	// docs/adr/0072-go-budget-argument-compatibility.md:54.
+	normalized, help, unknown, err := normalizeArguments(ctx, command, operands)
+	if err != nil {
+		return argumentFailure(ctx, stderr, command, err.Error())
+	}
+	if help {
+		return showHelp(ctx, stdout, command, fail)
+	}
+	if err := command.ParseFlags(normalized); err != nil || len(flags.Args()) != 0 {
+		return argumentFailure(ctx, stderr, command, "invalid option syntax")
+	}
+	if err := command.ValidateRequiredFlags(); err != nil {
+		return argumentFailure(ctx, stderr, command, err.Error())
+	}
+	if unknown || rootUnknown {
+		return argumentFailure(ctx, stderr, command, "unrecognized option or positional operand")
+	}
+	if flags.Changed("session") && !budget.ValidSessionID(request.Session) {
+		return argumentFailure(ctx, stderr, command, "invalid session identifier")
+	}
+	if operation != "report" && !budget.ValidSessionID(request.Task) {
+		return argumentFailure(ctx, stderr, command, "invalid task identifier")
 	}
 	command.SetArgs([]string{})
 	if err := command.ExecuteContext(ctx); err != nil {
@@ -163,4 +176,18 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 		return fail("invalid command arguments", 2)
 	}
 	return status
+}
+
+// Argument presentation contains only registered metadata and fixed categories;
+// raw operands never enter diagnostics. docs/adr/0072-go-budget-argument-compatibility.md:46.
+func argumentFailure(ctx context.Context, writer io.Writer, command *cobra.Command, message string) int {
+	data := []byte(command.UsageString() + "\nfactory budget: error: " + message + "\n")
+	_ = output.WriteEvent(ctx, writer, data)
+	return 2
+}
+func showHelp(ctx context.Context, writer io.Writer, command *cobra.Command, fail func(string, int) int) int {
+	if err := output.WriteEvent(ctx, writer, []byte(command.UsageString())); err != nil {
+		return fail("cannot write command help", 2)
+	}
+	return 0
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func loopCommands() *cobra.Command {
+func loopCommands(status *int) *cobra.Command {
 	loopCommand := command("loop", cobra.NoArgs, nil)
 	loopCommand.AddCommand(command("fingerprint", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
 		// Interrupts cancel and reap isolated probes before this private command returns.
@@ -61,6 +61,11 @@ func loopCommands() *cobra.Command {
 		return nil
 	}))
 	loopCommand.AddCommand(command("checkpoint", cobra.ArbitraryArgs, runCheckpoint))
+	loopCommand.AddCommand(command("manual", cobra.ArbitraryArgs, func(cmd *cobra.Command, args []string) error {
+		code, err := runManual(cmd, args)
+		*status = code
+		return err
+	}))
 	return loopCommand
 }
 
@@ -69,6 +74,9 @@ func loopCommands() *cobra.Command {
 func loopRequest(args []string) bool {
 	if len(args) == 2 && args[1] == "fingerprint" {
 		return true
+	}
+	if len(args) == 6 && args[1] == "manual" {
+		return (args[2] == "plan" || args[2] == "run" || args[2] == "resume") && budget.ValidHarness(args[3]) && budget.ValidSessionID(args[4]) && budget.ValidSessionID(args[5])
 	}
 	if len(args) < 3 || args[1] != "checkpoint" {
 		return false
@@ -160,4 +168,43 @@ func runCheckpoint(cmd *cobra.Command, args []string) error {
 		return errors.New("cannot write loop checkpoint")
 	}
 	return nil
+}
+
+// Manual requests select only deterministic execution under a persistent checkpoint lock.
+// docs/adr/0075-go-manual-loop-controller.md:47.
+func runManual(cmd *cobra.Command, args []string) (int, error) {
+	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	environment := capturedEnvironment()
+	root := environment["FACTORY_LOOP_ROOT"]
+	if root == "" {
+		var err error
+		root, err = os.Getwd()
+		if err != nil {
+			return 2, errors.New("cannot locate manual loop checkout")
+		}
+	}
+	controller := loop.NewManualController(root)
+	request := loop.ManualRequest{Harness: args[1], Session: args[2], Task: args[3], Environment: environment}
+	var result loop.ManualResult
+	if args[0] == "plan" {
+		plan, err := controller.Plan(ctx, request)
+		if err != nil {
+			return 2, errors.New("cannot plan manual loop")
+		}
+		result = loop.ManualResult{Plan: &plan}
+		if len(plan.Blockers) > 0 {
+			result.ExitCode = 2
+		}
+	} else {
+		var err error
+		result, err = controller.Run(ctx, request, args[0] == "resume")
+		if err != nil {
+			return 2, errors.New("manual loop stopped before terminal publication; inspect checkpoint")
+		}
+	}
+	if err := result.Write(ctx, cmd.OutOrStdout()); err != nil {
+		return 2, errors.New("cannot write manual loop result")
+	}
+	return result.ExitCode, nil
 }

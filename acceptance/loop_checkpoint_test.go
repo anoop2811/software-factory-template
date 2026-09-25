@@ -384,6 +384,7 @@ var _ = Describe("G2 loop checkpoint global resume blockers", func() {
 			row["tokens"] = nil
 			row["estimated_usd"] = nil
 			row["exit_code"] = nil
+			row["ended_at"] = nil
 			budgetBytes = budgetHistory(row)
 			writeFixture(budgetPath, budgetBytes, 0600)
 		}

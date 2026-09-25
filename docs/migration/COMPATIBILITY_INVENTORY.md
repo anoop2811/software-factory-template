@@ -136,3 +136,9 @@ plan/run/report boundary. [Argument qualification](BUDGET_ARGUMENTS.md) covers
 help, legacy flag grammar and diagnostic channels with explicitly normalized
 human prose. Installed model routing and transactional delivery remain
 outstanding.
+
+The [loop fingerprint foundation](LOOP_FINGERPRINTS.md) adds private read-only
+configuration, policy and source identity for future checkpoint freshness.
+Checkpoint storage/recovery, manual execution/resume and bounded iteration
+remain separate milestones of the existing loop conversion package. It neither
+activates an installed Go loop nor authorizes retiring the Python controller.

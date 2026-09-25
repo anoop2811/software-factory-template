@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
+	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
 	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
@@ -27,7 +27,7 @@ func RenderPlan(ctx context.Context, writer io.Writer, plan Plan, jsonOutput boo
 	fmt.Fprintf(&text, "Budget plan: %s, role %s, session %s, task %s\n", plan.Harness, plan.Role, plan.Session, plan.Task)
 	fmt.Fprintf(&text, "Model: %s (%s)\n", model, plan.ModelSource)
 	fmt.Fprintf(&text, "Remaining: %s task attempts; %s session runs; %.3fs session time; %d active runs\n", plan.RemainingAttempts, plan.RemainingSessionRuns, plan.RemainingSessionSeconds, plan.ActiveRuns)
-	fmt.Fprintf(&text, "Per-run timeout: %ss; checkout concurrency: %s\n", pythonFloatText(plan.Configuration.TimeoutSeconds), plan.Configuration.MaxConcurrent)
+	fmt.Fprintf(&text, "Per-run timeout: %ss; checkout concurrency: %s\n", jsonvalue.FloatText(plan.Configuration.TimeoutSeconds), plan.Configuration.MaxConcurrent)
 	fmt.Fprintf(&text, "Cost reporting: %s\n", plan.CostReporting)
 	text.WriteString("Services: model provider inherited; tool services unknown (harness/project configuration)\n")
 	for _, blocker := range plan.Blockers {
@@ -107,20 +107,7 @@ func costText(value any) (string, error) {
 	if !ok {
 		return "", errors.New("invalid budget cost presentation")
 	}
-	return pythonFloatText(number), nil
-}
-func pythonFloatText(value float64) string {
-	scientific := strconv.FormatFloat(value, 'e', -1, 64)
-	_, exponent, _ := strings.Cut(scientific, "e")
-	power, _ := strconv.Atoi(exponent)
-	if power >= -4 && power < 16 {
-		text := strconv.FormatFloat(value, 'f', -1, 64)
-		if !strings.ContainsRune(text, '.') {
-			text += ".0"
-		}
-		return text
-	}
-	return scientific
+	return jsonvalue.FloatText(number), nil
 }
 func renderJSON(ctx context.Context, writer io.Writer, value any) error {
 	if err := ctx.Err(); err != nil {

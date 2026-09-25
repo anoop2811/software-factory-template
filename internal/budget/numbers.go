@@ -5,10 +5,10 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"regexp"
 	"strconv"
 	"strings"
-	"unicode"
+
+	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
 )
 
 func finite(f float64) bool { return !math.IsInf(f, 0) && !math.IsNaN(f) }
@@ -151,41 +151,9 @@ func (s *numberSum) atLeast(threshold float64) (bool, error) {
 }
 
 func pythonFloat(raw string) (float64, error) {
-	raw = strings.TrimSpace(raw)
-	var text strings.Builder
-	for _, r := range raw {
-		if r < 128 {
-			text.WriteRune(r)
-			continue
-		}
-		digit := -1
-		for _, span := range unicode.Digit.R16 {
-			if r >= rune(span.Lo) && r <= rune(span.Hi) && (r-rune(span.Lo))%rune(span.Stride) == 0 {
-				digit = int((r-rune(span.Lo))/rune(span.Stride)) % 10
-				break
-			}
-		}
-		if digit < 0 {
-			for _, span := range unicode.Digit.R32 {
-				if uint32(r) >= span.Lo && uint32(r) <= span.Hi && (uint32(r)-span.Lo)%span.Stride == 0 {
-					digit = int((uint32(r)-span.Lo)/span.Stride) % 10
-					break
-				}
-			}
-		}
-		if digit < 0 {
-			return 0, errors.New("invalid budget number")
-		}
-		text.WriteByte(byte('0' + digit))
-	}
-	number := text.String()
-	matched, _ := regexp.MatchString(`^[+-]?(?:[0-9](?:_?[0-9])*(?:\.(?:[0-9](?:_?[0-9])*)?)?|\.[0-9](?:_?[0-9])*)(?:[eE][+-]?[0-9](?:_?[0-9])*)?$`, number)
-	if !matched {
+	value, err := jsonvalue.PositiveFloat(raw)
+	if err != nil {
 		return 0, errors.New("invalid budget number")
 	}
-	f, err := strconv.ParseFloat(strings.ReplaceAll(number, "_", ""), 64)
-	if err != nil || !finite(f) || f <= 0 {
-		return 0, errors.New("invalid budget number")
-	}
-	return f, nil
+	return value, nil
 }

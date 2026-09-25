@@ -2336,3 +2336,12 @@ and separates fixed Go assertions from interpreter-dependent oracle observations
 The macOS job exposed further newer-parser differences; pin the CI oracle to
 maintained Python 3.12.14 through version-pinned uv, without relaxing those tests
 or adding a Python requirement to the Go runtime.
+
+## Decision 72 (2026-09-24 UTC): establish Go loop checkpoint fingerprints
+
+Implement ADR-0073 as the read-only foundation of loop-controller conversion.
+Preserve Python's canonical identity, Git/source/policy inputs and explicit
+configuration semantics. Reuse shared numeric handling and bound private probe
+and file reads; qualify refusals before activation. Add independent compiled-CLI
+RED evidence before implementation. Checkpoints, process execution, recovery
+transitions and installed cleanup remain separate milestones.

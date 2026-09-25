@@ -2328,3 +2328,11 @@ values, unique prefixes and help/error precedence against the immutable Python
 oracle. Enumerate permitted human-prose normalization before independent RED
 tests; retain machine output and all no-effects requirements. Keep installation,
 shell model routing and legacy retirement outside this source-only slice.
+
+Follow-up 2026-09-25 UTC: Linux CI exposed a CPython patch-level difference for
+malformed mixed short-help groups. Retain the specified deterministic Go refusal;
+ADR-0072's short-help qualification explicitly bounds this source-parity exception
+and separates fixed Go assertions from interpreter-dependent oracle observations.
+The macOS job exposed further newer-parser differences; pin the CI oracle to
+maintained Python 3.12.14 through version-pinned uv, without relaxing those tests
+or adding a Python requirement to the Go runtime.

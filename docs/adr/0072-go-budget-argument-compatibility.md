@@ -109,3 +109,67 @@ command diagnostics and exercise both metadata and help writers independently.
 Help must identify which options are required and the supported harness/role
 choices, using shared registered/domain metadata. Human-prose normalization does
 not permit misleading optionality or omission of accepted choices.
+
+## Python patch-level short-help qualification
+
+The declared rejection of attached non-help characters remains the deterministic
+Go contract: mixed groups such as `-hj`, `-hx` and `-hhj` return 2, write usage
+and a sanitized error to stderr, and have no execution or storage effects.
+Explicit help values such as `-h=false` also remain invalid.
+
+The Linux CI differential exposed a Python patch-level exception on 2026-09-25
+UTC. Executing the authoritative CPython argparse sources under the same local
+interpreter showed mixed groups return 2 in v3.12.1/v3.12.2 but help/status 0 in
+v3.12.3 and v3.13.0. Source fetched on that date:
+https://raw.githubusercontent.com/python/cpython/v3.12.3/Lib/argparse.py.
+The immutable factory source therefore does not freeze its interpreter's parsing
+semantics. This narrowly qualifies the blanket status-parity rule above for
+the malformed help forms enumerated here and in the follow-up below. Valid help
+and all other argument status, channel, value and effect requirements remain unchanged.
+
+Test these malformed groups against the fixed Go refusal contract directly.
+Characterize the immutable Python oracle separately against a minimal argparse
+parser using the same resolved interpreter, without guessing behavior from a
+version string or accepting success from Go. Record both known Python behaviors.
+This exception is a source-qualification boundary, not a claim of byte-for-byte
+compatibility with every Python installation or completed installed activation.
+
+## Reproducible CI interpreter
+
+The subsequent macOS CI job exposed five additional newer-argparse differences
+in help precedence, negative numeric operands and root terminators. Do not relax
+those assertions. Pin the source-conformance job's Python interpreter to 3.12.14
+on both platforms, retaining the maintained 3.12 series used for this contract.
+This is the oracle interpreter, not a new runtime requirement for Go adopters.
+Print and assert its exact version before the gate. Local reproduction must use
+the same interpreter; newer-version compatibility remains separate evidence.
+
+Authoritative sources read 2026-09-25 UTC: Python 3.12.14 was released 2026-08-12
+(https://www.python.org/downloads/release/python-31214/). The setup-python manifest
+has no macOS asset for that security-only release, so use uv's managed standalone
+Python on Linux and macOS. Pin setup-uv v10.2.0 (released 2026-09-21) to commit
+c18668ad3cf93ea998bef934396af7bb5c839dc7, and uv 0.12.19 (released 2026-09-25).
+Sources: https://github.com/astral-sh/setup-uv/releases/tag/v10.2.0 and
+https://github.com/astral-sh/uv/releases/tag/0.12.19. The former is MIT licensed;
+uv is Apache-2.0/MIT licensed. Its official action metadata supports an activated
+environment in a temporary directory, avoiding new checkout files or an adopter
+dependency. Native managed Python 3.12.14 must pass the focused matrix before
+pushing, and both CI platform jobs must pass before merge.
+
+## Maintained-interpreter help precedence follow-up
+
+Before pushing the pin, the native Python 3.12.14 matrix exposed two backported
+help changes: `plan -h --h` (ambiguous help/harness prefix after help) and
+`-- report -h` (root terminator before command selection) now produce help/status
+0 rather than the historical refusal/status 2. Preserve the existing specified
+Go refusal for these two invalid-input boundaries as well. Assert exact Go
+status/channels, sanitized diagnostic and no effects; characterize the immutable
+oracle against independent minimal argparse configurations under the same
+interpreter. No success status is permitted from Go for these cases.
+
+The enumerated exceptions are therefore mixed non-help short groups, ambiguity
+after valid help, and root terminator before a command plus help. Do not generalize
+this exception to ordinary valid help, other ambiguity/terminator placements,
+numeric grammar, values, native effects or successful command output. The three
+negative-number differences observed under Python 3.14 remain outside the pinned
+oracle contract; their existing 3.12 comparisons stay strict and unchanged.

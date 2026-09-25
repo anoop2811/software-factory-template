@@ -151,3 +151,45 @@ var _ = Describe("Budget command writer failure", func() {
 		}
 	}, Entry("plan write", 1, "write"), Entry("plan short", 1, "short"), Entry("plan flush", 1, "flush"), Entry("record write", 2, "write"), Entry("record short", 2, "short"), Entry("record flush", 2, "flush"), Entry("answer write", 3, "write"), Entry("answer short", 3, "short"), Entry("answer flush", 3, "flush"))
 })
+
+var _ = Describe("Budget argument help writer failures", func() {
+	// per docs/adr/0072-go-budget-argument-compatibility.md:62
+	DescribeTable("checks help writes and flushes without touching execution state", func(mode string, leaf bool) {
+		env, _, root := commandFixture(false)
+		env["FACTORY_BUDGET_ENABLED"] = "INVALID"
+		Expect(os.MkdirAll(filepath.Join(root, ".factory"), 0700)).To(Succeed())
+		path := filepath.Join(root, ".factory/budget.json")
+		before := []byte("PRIVATE_INVALID_HISTORY")
+		Expect(os.WriteFile(path, before, 0600)).To(Succeed())
+		args := []string{"--help"}
+		if leaf {
+			args = []string{"run", "--help"}
+		}
+		writer := &failingOutput{mode: mode, failAt: 1}
+		var stderr bytes.Buffer
+		status := Run(context.Background(), args, env, writer, &stderr)
+		if mode == "ok" {
+			Expect(status).To(BeZero())
+			Expect(stderr.String()).To(BeEmpty())
+			Expect(strings.ToLower(writer.String())).To(ContainSubstring("usage:"))
+		} else {
+			Expect(status).NotTo(BeZero())
+			Expect(stderr.String()).NotTo(BeEmpty())
+			Expect(stderr.Len()).To(BeNumerically("<", 1024))
+			Expect(stderr.String()).NotTo(ContainSubstring("PRIVATE"))
+		}
+		Expect(writer.writes).To(Equal(1))
+		if mode == "ok" || mode == "flush" {
+			Expect(writer.flushes).To(Equal(1))
+		} else {
+			Expect(writer.flushes).To(BeZero())
+		}
+		after, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(after).To(Equal(before))
+		for _, name := range []string{"ready", ".factory/budget.lock"} {
+			_, err = os.Stat(filepath.Join(root, name))
+			Expect(os.IsNotExist(err)).To(BeTrue())
+		}
+	}, Entry("root short write", "short", false), Entry("root write failure", "write", false), Entry("leaf flush failure", "flush", true), Entry("leaf success", "ok", true))
+})

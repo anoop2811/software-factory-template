@@ -132,5 +132,7 @@ ledger, supervisor and usage parser internally. Public rendering/routing, loop
 integration and safe activation remain outstanding compatibility obligations.
 
 The [budget command candidate](BUDGET_COMMAND.md) adds a private compiled
-plan/run/report boundary. Public argument-diagnostic compatibility, installed
-model routing and transactional delivery remain outstanding.
+plan/run/report boundary. [Argument qualification](BUDGET_ARGUMENTS.md) covers
+help, legacy flag grammar and diagnostic channels with explicitly normalized
+human prose. Installed model routing and transactional delivery remain
+outstanding.

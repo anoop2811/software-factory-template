@@ -28,6 +28,19 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: true
+      # per docs/adr/0072-go-budget-argument-compatibility.md:137
+      - name: Install qualified Python interpreter
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.19'
+          python-version: '3.12.14'
+          activate-environment: true
+          venv-path: ${{ runner.temp }}/factory-python
+          no-project: true
+          enable-cache: false
+      - name: Confirm qualified Python interpreter
+        run: |
+          python3 -c "import sys; print(sys.version); assert sys.version_info[:3] == (3, 12, 14)"
       - name: Install pinned quality tools
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2

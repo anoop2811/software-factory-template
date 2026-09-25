@@ -9,6 +9,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
 // RenderPlan publishes one complete presentation event before execution.
@@ -136,19 +138,14 @@ func renderJSON(ctx context.Context, writer io.Writer, value any) error {
 // Flush every logical event and refuse short writes before admission can proceed.
 // docs/adr/0071-go-budget-command-candidate.md:73.
 func writeEvent(ctx context.Context, writer io.Writer, data []byte) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	count, err := writer.Write(data)
-	if err != nil || count != len(data) {
+	err := output.WriteEvent(ctx, writer, data)
+	if errors.Is(err, output.ErrWrite) {
 		return errors.New("cannot write budget output")
 	}
-	if flusher, ok := writer.(interface{ Flush() error }); ok {
-		if err := flusher.Flush(); err != nil {
-			return errors.New("cannot flush budget output")
-		}
+	if errors.Is(err, output.ErrFlush) {
+		return errors.New("cannot flush budget output")
 	}
-	return ctx.Err()
+	return err
 }
 
 // RenderAnswer shares the same checked event writer as metadata. The caller

@@ -97,18 +97,16 @@ var _ = Describe("G2 budget command candidate", func() {
 })
 
 var _ = Describe("G2 budget command validation", func() {
-	// per docs/adr/0071-go-budget-command-candidate.md:28
+	// per docs/adr/0072-go-budget-argument-compatibility.md:46
 	DescribeTable("refuses invalid command input without state or native calls", func(args []string) {
 		root, cwd := fixture()
-		out := budgetCLI(root, cwd, args)
+		out := budgetArgumentParity(root, cwd, args)
 		Expect(out.status).To(Equal(2))
 		Expect(out.stdout).To(BeEmpty())
-		Expect(out.stderr).To(HavePrefix("factory budget: "))
-		Expect(strings.Count(out.stderr, "\n")).To(Equal(1))
 		Expect(out.stderr).NotTo(ContainSubstring("factory bridge:"))
 		_, err := os.Stat(filepath.Join(root, ".factory"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
-	}, Entry("missing action", []string{}), Entry("missing required", []string{"plan"}), Entry("empty session", []string{"plan", "--session=", "--task=t", "--harness=codex"}), Entry("invalid ID", []string{"plan", "--session=../x", "--task=t", "--harness=codex"}), Entry("invalid harness", []string{"plan", "--session=s", "--task=t", "--harness=other"}), Entry("invalid role", []string{"plan", "--session=s", "--task=t", "--harness=codex", "--role=other"}), Entry("unknown flag", []string{"report", "--other"}), Entry("report task scope", []string{"report", "--task=t"}), Entry("extra positional", []string{"report", "extra"}), Entry("abbreviation", []string{"report", "--sess=s"}), Entry("help", []string{"report", "--help"}), Entry("explicit false help", []string{"report", "--help=false"}), Entry("explicit false JSON", []string{"report", "--json=false"}), Entry("explicit true JSON", []string{"report", "--json=true"}), Entry("completion", []string{"completion"}), Entry("hidden completion", []string{"report", "__complete", "--session"}), Entry("hidden completion no descriptions", []string{"report", "__completeNoDesc", "--session"}), Entry("run missing prompt", []string{"run", "--session=s", "--task=t", "--harness=claude"}))
+	}, Entry("missing action", []string{}), Entry("missing required", []string{"plan"}), Entry("empty session", []string{"plan", "--session=", "--task=t", "--harness=codex"}), Entry("invalid ID", []string{"plan", "--session=../x", "--task=t", "--harness=codex"}), Entry("invalid harness", []string{"plan", "--session=s", "--task=t", "--harness=other"}), Entry("invalid role", []string{"plan", "--session=s", "--task=t", "--harness=codex", "--role=other"}), Entry("unknown flag", []string{"report", "--other"}), Entry("report task scope", []string{"report", "--task=t"}), Entry("extra positional", []string{"report", "extra"}), Entry("explicit false help", []string{"report", "--help=false"}), Entry("explicit false JSON", []string{"report", "--json=false"}), Entry("explicit true JSON", []string{"report", "--json=true"}), Entry("completion", []string{"completion"}), Entry("hidden completion", []string{"report", "__complete", "--session"}), Entry("hidden completion no descriptions", []string{"report", "__completeNoDesc", "--session"}), Entry("run missing prompt", []string{"run", "--session=s", "--task=t", "--harness=claude"}))
 	// per docs/adr/0071-go-budget-command-candidate.md:31
 	It("uses the last scalar flag while preserving default role and exported model", func() {
 		root, cwd := fixture()

@@ -225,7 +225,7 @@ func Run(ctx context.Context, args []string) int {
 		status = budgetcmd.Run(cmd.Context(), args, environment, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		return nil
 	}))
-	loopCommand := loopCommands()
+	loopCommand := loopCommands(&status)
 	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request

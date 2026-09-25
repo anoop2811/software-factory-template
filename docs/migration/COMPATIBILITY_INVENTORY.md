@@ -147,3 +147,8 @@ The [loop checkpoint candidate](LOOP_CHECKPOINTS.md) shares the budget ledger's
 filesystem machinery and preserves checkpoint JSON and persistent lock identity.
 Its read-only resume assessment checks supplied observations; actual manual
 execution/resume and bounded iteration remain separate qualification milestones.
+
+The [manual loop controller candidate](MANUAL_LOOPS.md) composes deterministic
+check execution and fresh manual resume using existing supervision and storage.
+Its qualification evidence is tracked separately from bounded model loops,
+public argument integration and installed activation/retirement.

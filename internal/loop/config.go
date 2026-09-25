@@ -47,10 +47,7 @@ func Configuration(ctx context.Context, environment map[string]string) (Config, 
 	if enabled != "true" && enabled != "false" {
 		return Config{}, loopError()
 	}
-	split := func(value string) []string {
-		return strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || (r >= 0x1c && r <= 0x1f) })
-	}
-	c := Config{Enabled: enabled == "true", CheckCommand: get("CHECK_COMMAND", ""), TestPatterns: split(get("TEST_PATTERNS", "")), ProtectedPaths: split(get("PROTECTED_PATHS", ""))}
+	c := Config{Enabled: enabled == "true", CheckCommand: get("CHECK_COMMAND", ""), TestPatterns: pythonFields(get("TEST_PATTERNS", "")), ProtectedPaths: pythonFields(get("PROTECTED_PATHS", ""))}
 	var err error
 	c.MaxAttempts, err = jsonvalue.PositiveInteger(get("MAX_ATTEMPTS", "2"))
 	if err != nil {
@@ -117,4 +114,8 @@ func Policy(ctx context.Context, c Config, b budget.Config, environment map[stri
 	}
 	budgets := map[string]any{"enabled": b.Enabled, "action": b.Action, "max_attempts": b.MaxAttempts, "max_session_runs": b.MaxSessionRuns, "max_concurrent": b.MaxConcurrent, "timeout_seconds": b.TimeoutSeconds, "session_seconds": b.SessionSeconds, "estimated_usd": cost}
 	return digest(ctx, map[string]any{"loop": c.value(), "budget": budgets, "models": models, "config_path": jsonvalue.RawString(environment["FACTORY_LOOP_CONFIG_PATH"]), "native_overlay": jsonvalue.RawString(environment["OPENCODE_CONFIG_CONTENT"])})
+}
+
+func pythonFields(value string) []string {
+	return strings.FieldsFunc(value, func(r rune) bool { return unicode.IsSpace(r) || (r >= 0x1c && r <= 0x1f) })
 }

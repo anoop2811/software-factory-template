@@ -39,6 +39,7 @@ func defaultProcessOps() processOps {
 }
 
 type runOptions struct {
+	environment []string
 	limit       int
 	mergeStderr bool
 	consume     func(context.Context, []byte) (bool, error)
@@ -180,9 +181,12 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if err != nil {
 		return result, errors.New("cannot resolve native harness")
 	}
-	command := exec.Command(binary, plan.Argv[1:]...) // #nosec G204 -- internal admitted argv is passed literally, without a shell.
+	command := exec.Command(binary, plan.Argv[1:]...) // #nosec G204 -- admitted argv is literal; only ExecuteCheck intentionally selects the user-configured shell.
 	command.Dir = plan.Root
 	command.Env = mergedEnvironment(plan.Environment)
+	if options.environment != nil {
+		command.Env = options.environment
+	}
 	command.Stdin, command.Stdout, command.Stderr = pipes.inputR, pipes.outputW, pipes.errorW
 	if options.mergeStderr {
 		command.Stderr = pipes.outputW
@@ -353,6 +357,9 @@ func findExecutable(name, root string) (string, error) {
 	if !exists {
 		searchPath = "/bin:/usr/bin"
 	}
+	return findExecutableOnPath(name, root, searchPath)
+}
+func findExecutableOnPath(name, root, searchPath string) (string, error) {
 	for _, directory := range strings.Split(searchPath, string(os.PathListSeparator)) {
 		if directory == "" {
 			directory = "."

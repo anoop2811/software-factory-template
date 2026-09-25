@@ -11,6 +11,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+type argumentProbeProfile struct {
+	Status         int
+	Stdout, Stderr bool
+}
+
 // per docs/adr/0072-go-budget-argument-compatibility.md:72
 func budgetArgumentParity(root, cwd string, args []string, extra ...string) cliResult {
 	GinkgoHelper()
@@ -160,18 +165,9 @@ print(json.dumps({'status':status,'stdout':bool(out.getvalue()),'stderr':bool(er
 		probe := budgetCLIProcess(root, cwd, python, []string{"-B", "-c", program, group})
 		Expect(probe.status).To(BeZero())
 		Expect(probe.stderr).To(BeEmpty())
-		var profile struct {
-			Status         int
-			Stdout, Stderr bool
-		}
+		var profile argumentProbeProfile
 		Expect(json.Unmarshal([]byte(probe.stdout), &profile)).To(Succeed())
-		Expect(profile).To(Or(Equal(struct {
-			Status         int
-			Stdout, Stderr bool
-		}{2, false, true}), Equal(struct {
-			Status         int
-			Stdout, Stderr bool
-		}{0, true, false})))
+		Expect(profile).To(Or(Equal(argumentProbeProfile{2, false, true}), Equal(argumentProbeProfile{0, true, false})))
 		oracle := budgetCLIOracle(root, cwd, args, extra...)
 		Expect(oracle.status).To(Equal(profile.Status))
 		Expect(oracle.stdout != "").To(Equal(profile.Stdout))
@@ -189,7 +185,7 @@ print(json.dumps({'status':status,'stdout':bool(out.getvalue()),'stderr':bool(er
 })
 
 var _ = Describe("G2 budget maintained help-precedence qualification", func() {
-	// per docs/adr/0072-go-budget-argument-compatibility.md:137
+	// per docs/adr/0072-go-budget-argument-compatibility.md:161
 	DescribeTable("retains fixed refusal for explicitly qualified parser precedence differences", func(args []string) {
 		root, cwd := fixture()
 		extra := []string{"FACTORY_BUDGET_ENABLED=INVALID"}
@@ -222,18 +218,9 @@ print(json.dumps({'status':status,'stdout':bool(out.getvalue()),'stderr':bool(er
 		probe := budgetCLIProcess(root, cwd, python, append([]string{"-B", "-c", program}, args...))
 		Expect(probe.status).To(BeZero())
 		Expect(probe.stderr).To(BeEmpty())
-		var profile struct {
-			Status         int
-			Stdout, Stderr bool
-		}
+		var profile argumentProbeProfile
 		Expect(json.Unmarshal([]byte(probe.stdout), &profile)).To(Succeed())
-		Expect(profile).To(Or(Equal(struct {
-			Status         int
-			Stdout, Stderr bool
-		}{2, false, true}), Equal(struct {
-			Status         int
-			Stdout, Stderr bool
-		}{0, true, false})))
+		Expect(profile).To(Or(Equal(argumentProbeProfile{2, false, true}), Equal(argumentProbeProfile{0, true, false})))
 		oracle := budgetCLIOracle(root, cwd, args, extra...)
 		Expect(oracle.status).To(Equal(profile.Status))
 		Expect(oracle.stdout != "").To(Equal(profile.Stdout))

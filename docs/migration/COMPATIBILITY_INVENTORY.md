@@ -126,3 +126,7 @@ Classification is a reviewed planning decision and must not be inferred anew by
 an upgrader from extensions. An independent inventory gate must reject missing,
 duplicate, extra, malformed or unclassified entries and compare every recorded
 mode/hash against the baseline, including the symlink blob.
+
+The [budget execution controller candidate](BUDGET_CONTROLLER.md) composes the
+ledger, supervisor and usage parser internally. Public rendering/routing, loop
+integration and safe activation remain outstanding compatibility obligations.

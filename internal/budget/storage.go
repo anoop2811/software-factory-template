@@ -11,6 +11,8 @@ import (
 )
 
 type storageOps struct {
+	openLock      func(*os.Root, int) (*os.File, error)
+	openHistory   func(*os.Root) (*os.File, error)
 	syncFile      func(*os.File) error
 	syncDirectory func(*os.File) error
 	rename        func(*os.Root, string, string) error
@@ -55,7 +57,19 @@ func (l *Ledger) Read(ctx context.Context) (History, error) {
 		return emptyHistory(), nil
 	}
 	defer s.close()
-	return s.read(ctx)
+	// Only acquisition of a proven replaced snapshot may repeat; domain writes and
+	// locked reads remain single attempts. docs/adr/0070-go-budget-execution-controller.md:146.
+	for attempt := 0; attempt < 8; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return History{}, err
+		}
+		history, err := s.read(ctx)
+		var replaced snapshotReplacedError
+		if !errors.As(err, &replaced) {
+			return history, err
+		}
+	}
+	return History{}, storageError()
 }
 func (l *Ledger) openStorage(ctx context.Context, create bool) (result *storage, returned error) {
 	if err := ctx.Err(); err != nil {
@@ -156,13 +170,24 @@ func (s *storage) read(ctx context.Context) (History, error) {
 	if err != nil || !regular(before) {
 		return History{}, storageError()
 	}
-	file, err := s.directory.OpenFile("budget.json", os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	var file *os.File
+	if s.ops.openHistory != nil {
+		file, err = s.ops.openHistory(s.directory)
+	} else {
+		file, err = s.directory.OpenFile("budget.json", os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	}
 	if err != nil {
 		return History{}, storageError()
 	}
 	defer file.Close()
 	opened, err := file.Stat()
-	if err != nil || !regular(opened) || !os.SameFile(before, opened) || opened.Size() > historyLimit {
+	if err != nil || !snapshotDescriptor(opened) || opened.Size() > historyLimit {
+		return History{}, storageError()
+	}
+	if !regular(opened) || !os.SameFile(before, opened) {
+		if s.replacedSnapshot(before) {
+			return History{}, snapshotReplacedError{}
+		}
 		return History{}, storageError()
 	}
 	history, err := ParseHistory(ctx, file)
@@ -170,7 +195,13 @@ func (s *storage) read(ctx context.Context) (History, error) {
 		return History{}, err
 	}
 	after, err := file.Stat()
-	if err != nil || !regular(after) || !os.SameFile(opened, after) || opened.Size() != after.Size() || !opened.ModTime().Equal(after.ModTime()) {
+	if err != nil || !snapshotDescriptor(after) || !os.SameFile(opened, after) || opened.Size() != after.Size() || !opened.ModTime().Equal(after.ModTime()) {
+		return History{}, storageError()
+	}
+	if !regular(after) {
+		if s.replacedSnapshot(opened) {
+			return History{}, snapshotReplacedError{}
+		}
 		return History{}, storageError()
 	}
 	s.historyInfo = after
@@ -188,7 +219,20 @@ func (l *Ledger) locked(ctx context.Context) (*storage, error) {
 	if err := ctx.Err(); err != nil {
 		return fail(err)
 	}
-	s.lock, err = s.directory.OpenFile("budget.lock", os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	// Exclusive first creation avoids the observed competing O_CREATE failure;
+	// only an existing lock permits opening again, never recreation.
+	// docs/adr/0070-go-budget-execution-controller.md:167.
+	openLock := s.ops.openLock
+	if openLock == nil {
+		openLock = func(directory *os.Root, flags int) (*os.File, error) {
+			return directory.OpenFile("budget.lock", flags, 0600)
+		}
+	}
+	flags := os.O_RDWR | syscall.O_NOFOLLOW | syscall.O_NONBLOCK
+	s.lock, err = openLock(s.directory, flags|os.O_CREATE|os.O_EXCL)
+	if errors.Is(err, os.ErrExist) {
+		s.lock, err = openLock(s.directory, flags)
+	}
 	if err != nil {
 		return fail(storageError())
 	}
@@ -336,4 +380,19 @@ func copyPID(pid *int) *int {
 	}
 	copied := *pid
 	return &copied
+}
+
+// A detached regular descriptor is evidence only when a different safe pathname
+// occupant exists. Symlink, hard-link, parse and in-place mutation failures are
+// never reclassified as replacement. docs/adr/0070-go-budget-execution-controller.md:146.
+type snapshotReplacedError struct{}
+
+func (snapshotReplacedError) Error() string { return "budget snapshot was atomically replaced" }
+func snapshotDescriptor(info os.FileInfo) bool {
+	metadata, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.Mode().IsRegular() && metadata.Nlink <= 1
+}
+func (s *storage) replacedSnapshot(previous os.FileInfo) bool {
+	current, err := s.directory.Lstat("budget.json")
+	return err == nil && regular(current) && !os.SameFile(previous, current)
 }

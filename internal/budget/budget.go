@@ -1,4 +1,4 @@
-// Package budget owns local metadata and admission; it never launches a model.
+// Package budget owns local admission, metadata and bounded native execution.
 package budget
 
 import (

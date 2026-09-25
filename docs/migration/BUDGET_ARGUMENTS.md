@@ -104,3 +104,32 @@ This selects the oracle's standard library as well as the application snapshot.
 The CI environment lives under `runner.temp`; it adds no project dependency or
 installed-factory requirement. Setup/action versions and authoritative release
 sources are recorded in ADR-0072.
+
+## Explicit short-help value review follow-up
+
+The next review found that `-h=h` and `-h=hh` lost their equals separator during
+classification and became successful repeated-help groups. The empty form `-h=`
+was already refused. RAN independent compiled root/leaf cases against the pinned
+oracle before correction:
+
+```text
+PATH=/private/tmp/factory-pr99-python-lsg4o68n/venv/bin:$PATH go test ./acceptance -ginkgo.focus='attached help letter|attached repeated help|empty help value|short repeated help' -ginkgo.no-color -ginkgo.succinct -count=1 -v
+Ran 8 of 1093 Specs in 3.163 seconds
+FAIL! -- 4 Passed | 4 Failed
+FAIL github.com/anoop2811/software-factory-template/acceptance 3.589s
+```
+
+The correction retains the raw suffix, including `=`, so explicit values fail
+while `-hh`/`-hhh` remain valid. No additional interpreter exception is added.
+RAN the corrected matrix with the actual managed Python 3.12.14 and compiled
+candidate race-instrumented:
+
+```text
+PATH=/private/tmp/factory-pr99-python-lsg4o68n/venv/bin:$PATH FACTORY_BUDGET_COMMAND_TEST_RACE=1 go test -race ./acceptance -ginkgo.focus='G2 budget (argument|malformed short-help|maintained help-precedence|command)' -ginkgo.no-color -ginkgo.succinct -count=1 -v
+Ran 117 of 1093 Specs in 58.343 seconds
+SUCCESS! -- 117 Passed | 0 Failed
+ok github.com/anoop2811/software-factory-template/acceptance 59.783s
+```
+
+The final matrix now includes 75 argument/help and 42 command/controller cases.
+Targeted production lint returned `0 issues.` Platform CI is rerun for this head.

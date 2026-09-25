@@ -90,9 +90,6 @@ func classify(ctx context.Context, command *cobra.Command, args []string) ([]arg
 			token.short = true
 			if raw != "-h" {
 				suffix := raw[2:]
-				if name == "-h" && attached {
-					suffix = value
-				}
 				token.explicit = &suffix
 			}
 		}

@@ -173,3 +173,12 @@ this exception to ordinary valid help, other ambiguity/terminator placements,
 numeric grammar, values, native effects or successful command output. The three
 negative-number differences observed under Python 3.14 remain outside the pinned
 oracle contract; their existing 3.12 comparisons stay strict and unchanged.
+
+## Explicit short-help values
+
+Review follow-up 2026-09-25 UTC: preserve the equals separator when classifying
+short help. `-h=h` and `-h=hh` are explicit values and must be refused, just like
+`-h=` and `-h=false`; they are not the valid repeated options `-hh` and `-hhh`.
+Independent compiled tests observed four root/leaf false successes against the
+pinned Python 3.12.14 oracle before correction. This enforces the existing
+explicit-value refusal requirement; it adds no interpreter exception.

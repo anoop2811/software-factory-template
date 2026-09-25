@@ -142,3 +142,8 @@ configuration, policy and source identity for future checkpoint freshness.
 Checkpoint storage/recovery, manual execution/resume and bounded iteration
 remain separate milestones of the existing loop conversion package. It neither
 activates an installed Go loop nor authorizes retiring the Python controller.
+
+The [loop checkpoint candidate](LOOP_CHECKPOINTS.md) shares the budget ledger's
+filesystem machinery and preserves checkpoint JSON and persistent lock identity.
+Its read-only resume assessment checks supplied observations; actual manual
+execution/resume and bounded iteration remain separate qualification milestones.

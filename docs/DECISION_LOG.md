@@ -2345,3 +2345,17 @@ configuration semantics. Reuse shared numeric handling and bound private probe
 and file reads; qualify refusals before activation. Add independent compiled-CLI
 RED evidence before implementation. Checkpoints, process execution, recovery
 transitions and installed cleanup remain separate milestones.
+
+## Decision 73 (2026-09-24 UTC): preserve Go loop checkpoint storage and recovery
+
+Implement ADR-0074 as milestone two of the existing loop conversion package.
+Share the proven budget filesystem mechanics, preserve persistent Python lock
+interoperability and checkpoint identity, and expose private read/roundtrip and
+read-only resume assessment for independent qualification. No process recovery,
+counter reset, automatic retry or installed activation follows from assessment.
+Keep manual and bounded controllers as subsequent milestones. Require independent
+compiled RED and fault-injected publication/locking evidence before completion.
+
+Follow-up 2026-09-25 UTC: a terminal-input cancellation reproduction remained
+blocked after SIGTERM. ADR-0074 now requires pre-read refusal of unsupported
+nonregular devices, preserving caller ownership and the regular-file caveat.

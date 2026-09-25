@@ -166,3 +166,15 @@ repository source, not a new dependency, supplies the shared implementation.
 Input lifecycle APIs checked at https://pkg.go.dev/os#NewFile and
 https://pkg.go.dev/golang.org/x/sys/unix#FcntlInt; the pinned module's local LICENSE
 was inspected and is BSD-3-Clause.
+
+## Nonpollable device input follow-up
+
+Review reproduction on 2026-09-25 UTC observed the private resume-check command
+remaining blocked after SIGTERM when stdin was a terminal device. The pipe/socket
+adapter does not qualify character or block device cancellation. Before parsing,
+refuse nonregular file descriptors other than supported pipes/sockets with the
+existing sanitized input-preparation error. Do not close or change the caller's
+original descriptor. Regular files retain the stated synchronous filesystem
+limitations; supplied reader ownership rules remain unchanged. This private
+source boundary must not silently accept an unqualified device and hang.
+Independent refusal regressions precede the production correction.

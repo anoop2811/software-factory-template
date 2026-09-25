@@ -2355,3 +2355,7 @@ read-only resume assessment for independent qualification. No process recovery,
 counter reset, automatic retry or installed activation follows from assessment.
 Keep manual and bounded controllers as subsequent milestones. Require independent
 compiled RED and fault-injected publication/locking evidence before completion.
+
+Follow-up 2026-09-25 UTC: a terminal-input cancellation reproduction remained
+blocked after SIGTERM. ADR-0074 now requires pre-read refusal of unsupported
+nonregular devices, preserving caller ownership and the regular-file caveat.

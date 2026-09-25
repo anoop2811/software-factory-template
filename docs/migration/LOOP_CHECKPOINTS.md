@@ -125,3 +125,39 @@ diff-aware-check: all 1 dispatched check(s) passed
 Main-targeted GitHub checks do not run
 their normal gate on a stacked feature-branch base; local evidence is separate
 from GitHub CI, live native execution and installed-runtime qualification.
+
+## Device-input review correction
+
+Review on 2026-09-25 UTC reproduced a blocked terminal-input read surviving
+SIGTERM. ADR-0074 now requires rejecting unsupported device descriptors before
+parsing, preserving caller ownership. Independent device-refusal tests observed RED:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test ./internal/input -ginkgo.focus='refuses device' -ginkgo.no-color -count=1 -v
+0 Passed | 2 Failed | 6 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/input 0.475s
+```
+
+After correction, RAN the full input race suite in the PR #101 integration tree:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/input -count=1 -v
+8 Passed | 0 Failed | 0 Skipped
+ok github.com/anoop2811/software-factory-template/internal/input 1.855s
+```
+
+Both device cases assert refusal, unchanged descriptor flags and a still-readable
+original descriptor. Existing pipe setup/cancellation/restoration checks remain.
+The setup-failure test now explicitly requires nil cleanup. Targeted input lint
+reported `0 issues.` Fresh GitHub platform CI is required before merge.
+
+RAN the independent compiled PTY probe after building the corrected candidate:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer go build -o /private/tmp/pr101-security-factory ./cmd/factory
+rtk proxy env FACTORY_AGENT_ROLE=reviewer /private/tmp/factory-pr99-python-lsg4o68n/venv/bin/python3 -B /private/tmp/pr101-pty-probe.py
+{"status": 2, "stdout": "", "stderr": "factory bridge: cannot read loop resume request\n", "original_usable": true, "flags_unchanged": true, "state_created": false}
+```
+
+The probe supplied PTY slave stdin with a three-second process timeout, then read
+bytes through the caller's original descriptor. No external signal was required.

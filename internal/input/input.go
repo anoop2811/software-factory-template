@@ -42,8 +42,13 @@ func prepare(ctx context.Context, source io.Reader, ops setupOps) (io.Reader, fu
 	if err != nil {
 		return nil, nil, inputError()
 	}
-	if info.Mode()&(os.ModeNamedPipe|os.ModeSocket) == 0 {
+	if info.Mode().IsRegular() {
 		return source, func() error { return nil }, nil
+	}
+	// Refuse unqualified devices before changing or closing caller descriptors.
+	// docs/adr/0074-go-loop-checkpoint-storage.md:175.
+	if info.Mode()&(os.ModeNamedPipe|os.ModeSocket) == 0 {
+		return nil, nil, inputError()
 	}
 	raw, err := file.SyscallConn()
 	if err != nil {

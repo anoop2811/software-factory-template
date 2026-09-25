@@ -18,13 +18,21 @@ func (DepthError) Error() string { return "JSON nesting exceeds private limit" }
 
 type pythonJSON struct {
 	data              []byte
+	unique            bool
 	offset, nextCheck int
 }
 
 // A small decoder preserves Python's numeric extensions and Unicode identities.
 // It does not feed permissive values back through strict JSON: docs/adr/0066-go-native-event-streams.md:43.
 func Decode(ctx context.Context, data []byte) (any, error) {
-	parser := pythonJSON{data: data}
+	return decode(ctx, data, false)
+}
+
+// DecodeUnique preserves JSON identity while rejecting duplicate keys at every depth.
+// docs/adr/0076-go-bounded-loop-controller.md:94.
+func DecodeUnique(ctx context.Context, data []byte) (any, error) { return decode(ctx, data, true) }
+func decode(ctx context.Context, data []byte, unique bool) (any, error) {
+	parser := pythonJSON{data: data, unique: unique}
 	value, err := parser.value(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -175,6 +183,9 @@ func (p *pythonJSON) object(ctx context.Context, depth int) (any, error) {
 		value, err := p.value(ctx, depth)
 		if err != nil {
 			return nil, err
+		}
+		if _, exists := result[key]; p.unique && exists {
+			return nil, SyntaxError{}
 		}
 		result[key] = value
 		if err := p.space(ctx); err != nil {

@@ -10,8 +10,10 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
+	"github.com/anoop2811/software-factory-template/internal/budgetcmd"
 	"github.com/anoop2811/software-factory-template/internal/config"
 	"github.com/anoop2811/software-factory-template/internal/review"
 	"github.com/anoop2811/software-factory-template/internal/roles"
@@ -215,7 +217,21 @@ func Run(ctx context.Context, args []string) int {
 		}
 		return nil
 	}))
-	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand)
+	// The candidate adapter owns flag parsing, diagnostics and exit status.
+	// docs/adr/0071-go-budget-command-candidate.md:22.
+	budgetCommand := command("budget", cobra.NoArgs, nil)
+	budgetCommand.AddCommand(command("controller", cobra.ArbitraryArgs, func(cmd *cobra.Command, args []string) error {
+		environment := make(map[string]string)
+		for _, entry := range os.Environ() {
+			key, value, found := strings.Cut(entry, "=")
+			if found {
+				environment[key] = value
+			}
+		}
+		status = budgetcmd.Run(cmd.Context(), args, environment, cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return nil
+	}))
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand)
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.

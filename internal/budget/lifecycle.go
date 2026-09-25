@@ -26,6 +26,12 @@ func (l *Ledger) Admit(ctx context.Context, r Request, c Config) (Admission, err
 type admissionPolicy func(context.Context, Config, float64) (Config, error)
 
 func (l *Ledger) admit(ctx context.Context, r Request, c Config, policy admissionPolicy) (Admission, error) {
+	return l.admitObserved(ctx, r, c, policy, nil, false)
+}
+
+// Prepared controllers already checked read-only limits; their next decision
+// and presentation occur under the lock. docs/adr/0071-go-budget-command-candidate.md:104.
+func (l *Ledger) admitObserved(ctx context.Context, r Request, c Config, policy admissionPolicy, observer func(Plan) error, prepared bool) (Admission, error) {
 	if err := validateRequest(r); err != nil {
 		return Admission{}, err
 	}
@@ -33,16 +39,18 @@ func (l *Ledger) admit(ctx context.Context, r Request, c Config, policy admissio
 	if err != nil {
 		return Admission{}, err
 	}
-	initial, err := l.Read(ctx)
-	if err != nil {
-		return Admission{}, err
-	}
-	plan, err := MakePlan(ctx, r, c, initial)
-	if err != nil {
-		return Admission{}, err
-	}
-	if len(plan.Blockers) > 0 {
-		return Admission{Plan: plan}, nil
+	if !prepared {
+		initial, err := l.Read(ctx)
+		if err != nil {
+			return Admission{}, err
+		}
+		plan, err := MakePlan(ctx, r, c, initial)
+		if err != nil {
+			return Admission{}, err
+		}
+		if len(plan.Blockers) > 0 {
+			return Admission{Plan: plan}, nil
+		}
 	}
 	s, err := l.locked(ctx)
 	if err != nil {
@@ -53,11 +61,14 @@ func (l *Ledger) admit(ctx context.Context, r Request, c Config, policy admissio
 	if err != nil {
 		return Admission{}, err
 	}
-	plan, err = MakePlan(ctx, r, c, history)
+	plan, err := MakePlan(ctx, r, c, history)
 	if err != nil {
 		return Admission{}, err
 	}
 	if len(plan.Blockers) > 0 {
+		if err := observePlan(ctx, observer, plan); err != nil {
+			return Admission{Plan: plan}, err
+		}
 		return Admission{Plan: plan}, nil
 	}
 	if err := ctx.Err(); err != nil {
@@ -69,6 +80,9 @@ func (l *Ledger) admit(ctx context.Context, r Request, c Config, policy admissio
 			return Admission{Plan: plan}, err
 		}
 		plan.Configuration = c
+	}
+	if err := observePlan(ctx, observer, plan); err != nil {
+		return Admission{Plan: plan}, err
 	}
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {

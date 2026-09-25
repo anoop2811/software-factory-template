@@ -23,7 +23,7 @@ func manualFixture() (*ManualController, ManualRequest) {
 }
 
 var _ = Describe("Manual loop total deadline", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:72
+	// per docs/adr/0075-go-manual-loop-controller.md:73
 	It("does not launch after phase publication consumes the remaining total allowance", func() {
 		controller, request := manualFixture()
 		request.Environment["FACTORY_LOOP_TIMEOUT_SECONDS"] = "1"

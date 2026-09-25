@@ -171,7 +171,7 @@ func runCheckpoint(cmd *cobra.Command, args []string) error {
 }
 
 // Manual requests select only deterministic execution under a persistent checkpoint lock.
-// docs/adr/0075-go-manual-loop-controller.md:18.
+// docs/adr/0075-go-manual-loop-controller.md:47.
 func runManual(cmd *cobra.Command, args []string) (int, error) {
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

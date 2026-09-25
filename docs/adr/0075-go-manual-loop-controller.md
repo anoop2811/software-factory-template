@@ -120,3 +120,10 @@ No dependency version changes are needed. Authoritative API documentation read
 2026-09-25 UTC: https://pkg.go.dev/os/exec#Cmd.Wait and
 https://pkg.go.dev/context#WithoutCancel. Cancellation alone does not establish
 process-group cleanup; preserve the already-qualified supervision contract.
+
+## Validation-order qualification
+
+Read and validate existing checkpoint history before evaluating configuration
+that can execute ERE probes. A corrupt checkpoint must refuse without running
+those probes or creating execution state. This makes the existing immutable-oracle
+ordering explicit; the independent compiled-CLI regression already covers it.

@@ -103,7 +103,7 @@ func (c *ManualController) configuration(ctx context.Context, r ManualRequest) (
 }
 
 // Plan validates a stable observation but never creates checkpoint infrastructure.
-// docs/adr/0075-go-manual-loop-controller.md:31.
+// docs/adr/0075-go-manual-loop-controller.md:32.
 func (c *ManualController) Plan(ctx context.Context, r ManualRequest) (ManualPlan, error) {
 	if c == nil || c.store == nil || !validManual(r) {
 		return ManualPlan{}, manualError()

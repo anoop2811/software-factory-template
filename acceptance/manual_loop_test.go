@@ -44,7 +44,7 @@ func manualComparable(input string) any {
 }
 
 var _ = Describe("G2 manual loop core", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:32
+	// per docs/adr/0075-go-manual-loop-controller.md:30
 	It("plans manual checks with both features disabled without writing state", func() {
 		root, cwd, checkout := loopFixture()
 		oracle := manualLoopOracle(root, cwd, checkout, "plan", "codex")
@@ -56,7 +56,7 @@ var _ = Describe("G2 manual loop core", func() {
 		_, err := os.Stat(filepath.Join(checkout, ".factory"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
-	// per docs/adr/0075-go-manual-loop-controller.md:80
+	// per docs/adr/0075-go-manual-loop-controller.md:81
 	DescribeTable("runs one deterministic check and preserves manual outcome semantics", func(harness, check string, status int) {
 		root, cwd, checkout := loopFixture()
 		extra := []string{"FACTORY_LOOP_CHECK_COMMAND=" + check}
@@ -94,7 +94,7 @@ func manualNumber(value any) float64 {
 }
 
 var _ = Describe("G2 manual loop execution", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:64
+	// per docs/adr/0075-go-manual-loop-controller.md:65
 	DescribeTable("uses reviewer role, checkout cwd and empty stdin without probing native clients", func(harness string) {
 		root, cwd, checkout := loopFixture()
 		bin := filepath.Join(root, "no-native")
@@ -133,7 +133,7 @@ var _ = Describe("G2 manual loop execution", func() {
 		_, err = os.Stat(filepath.Join(checkout, ".factory/budget.json"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, Entry("Codex metadata", "codex"), Entry("Claude metadata", "claude"), Entry("OpenCode metadata", "opencode"))
-	// per docs/adr/0075-go-manual-loop-controller.md:35
+	// per docs/adr/0075-go-manual-loop-controller.md:75
 	It("retains no emitted check output in terminal JSON or stored history", func() {
 		root, cwd, checkout := loopFixture()
 		check := `printf '%s%s' PRIVATE_ OUTPUT; printf '%s%s' SECRET_ STDERR >&2`
@@ -162,7 +162,7 @@ var _ = Describe("G2 manual loop execution", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(checks)).To(Equal("x"))
 	})
-	// per docs/adr/0075-go-manual-loop-controller.md:76
+	// per docs/adr/0075-go-manual-loop-controller.md:79
 	DescribeTable("hands off after successful checks mutate their evidence basis", func(kind, check string) {
 		root, cwd, checkout := loopFixture()
 		actual := manualLoopCLI(root, cwd, checkout, "run", "claude", "FACTORY_LOOP_CHECK_COMMAND="+check)
@@ -180,7 +180,8 @@ var _ = Describe("G2 manual loop execution", func() {
 })
 
 var _ = Describe("G2 manual loop resume", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:42
+	// per docs/adr/0075-go-manual-loop-controller.md:43
+	// per docs/adr/0075-go-manual-loop-controller.md:57
 	It("matches repeated fresh Python resumes while preserving history and consumed allowance", func() {
 		root, cwd, checkout := loopFixture()
 		first := manualLoopCLI(root, cwd, checkout, "run", "opencode")
@@ -219,7 +220,7 @@ var _ = Describe("G2 manual loop resume", func() {
 			Expect(manualStored(checkout)["top_extension"]).To(Equal(history["top_extension"]))
 		}
 	})
-	// per docs/adr/0075-go-manual-loop-controller.md:42
+	// per docs/adr/0075-go-manual-loop-controller.md:43
 	DescribeTable("refuses stale resume without consuming another check", func(kind string) {
 		root, cwd, checkout := loopFixture()
 		marker := filepath.Join(cwd, "checks")
@@ -252,7 +253,7 @@ var _ = Describe("G2 manual loop resume", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(checks)).To(Equal("x"))
 	}, Entry("changed source", "source"), Entry("changed safety", "safety"), Entry("changed policy", "policy"), Entry("different harness", "harness"), Entry("changed empty-prompt identity", "prompt"))
-	// per docs/adr/0075-go-manual-loop-controller.md:42
+	// per docs/adr/0075-go-manual-loop-controller.md:43
 	It("refuses absent resume identity without creating a checkpoint", func() {
 		root, cwd, checkout := loopFixture()
 		loopRefused(manualLoopCLI(root, cwd, checkout, "resume", "codex"))
@@ -262,7 +263,7 @@ var _ = Describe("G2 manual loop resume", func() {
 })
 
 var _ = Describe("G2 manual loop admission", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:31
+	// per docs/adr/0075-go-manual-loop-controller.md:32
 	DescribeTable("matches manual blocker ordering and never executes the configured check", func(kind string) {
 		root, cwd, checkout := loopFixture()
 		extra := []string{}
@@ -295,7 +296,7 @@ var _ = Describe("G2 manual loop admission", func() {
 		_, err := os.Stat(filepath.Join(checkout, ".factory/loops.lock"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, Entry("missing check", "empty check"), Entry("active loop", "active loop"), Entry("uncertain loop", "uncertain loop"), Entry("active shared budget", "active budget"), Entry("combined blockers ordered", "combined"))
-	// per docs/adr/0075-go-manual-loop-controller.md:39
+	// per docs/adr/0075-go-manual-loop-controller.md:41
 	DescribeTable("preserves corrupt accounting without launching or repairing", func(name string) {
 		root, cwd, checkout := loopFixture()
 		path := filepath.Join(checkout, ".factory", name)
@@ -314,14 +315,14 @@ var _ = Describe("G2 manual loop admission", func() {
 		_, err := os.Stat(filepath.Join(checkout, ".factory"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, Entry("missing", []string{"run"}), Entry("invalid harness", []string{"run", "PRIVATE", "s", "t"}), Entry("invalid identity", []string{"run", "codex", "../PRIVATE", "t"}), Entry("extra", []string{"run", "codex", "s", "t", "PRIVATE"}), Entry("help", []string{"--help"}), Entry("unknown action", []string{"PRIVATE", "codex", "s", "t"}))
-	// per docs/adr/0075-go-manual-loop-controller.md:58
+	// per docs/adr/0075-go-manual-loop-controller.md:59
 	It("caps representable duration conversion for large finite limits", func() {
 		root, cwd, checkout := loopFixture()
 		actual := manualLoopCLI(root, cwd, checkout, "run", "codex", "FACTORY_LOOP_TIMEOUT_SECONDS=1e100", "FACTORY_LOOP_CHECK_TIMEOUT_SECONDS=1e100")
 		Expect(actual.status).To(BeZero(), "%+v", actual)
 		Expect(manualRecord(actual)["outcome"]).To(Equal("manual_passed"))
 	})
-	// per docs/adr/0075-go-manual-loop-controller.md:72
+	// per docs/adr/0075-go-manual-loop-controller.md:73
 	It("does not launch a check after the total allowance is exhausted", func() {
 		root, cwd, checkout := loopFixture()
 		marker := filepath.Join(cwd, "should-not-launch")
@@ -333,7 +334,7 @@ var _ = Describe("G2 manual loop admission", func() {
 })
 
 var _ = Describe("G2 manual loop supervised failures", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:72
+	// per docs/adr/0075-go-manual-loop-controller.md:73
 	DescribeTable("bounds checks by the smaller timeout and confirms process exit", func(total, checkTimeout string) {
 		root, cwd, checkout := loopFixture()
 		marker := filepath.Join(cwd, "check-pid")
@@ -352,7 +353,7 @@ var _ = Describe("G2 manual loop supervised failures", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(syscall.Kill(pid, 0)).To(Equal(syscall.ESRCH))
 	}, Entry("check timeout", "30", "0.2"), Entry("total remaining time", "2", "30"))
-	// per docs/adr/0075-go-manual-loop-controller.md:73
+	// per docs/adr/0075-go-manual-loop-controller.md:74
 	DescribeTable("bounds combined captured output without storing it", func(size string, success bool) {
 		root, cwd, checkout := loopFixture()
 		check := "/usr/bin/head -c " + size + " /dev/zero"
@@ -378,7 +379,7 @@ var _ = Describe("G2 manual loop supervised failures", func() {
 		}
 		Expect(len(out.stdout)).To(BeNumerically("<", 16000))
 	}, Entry("exact16MiB", "16777216", true), Entry("one byte excess", "16777217", false))
-	// per docs/adr/0075-go-manual-loop-controller.md:69
+	// per docs/adr/0075-go-manual-loop-controller.md:70
 	It("cleans a descendant holding stdout after its leader exits", func() {
 		root, cwd, checkout := loopFixture()
 		marker := filepath.Join(cwd, "descendant-pid")
@@ -402,7 +403,8 @@ var _ = Describe("G2 manual loop supervised failures", func() {
 })
 
 var _ = Describe("G2 manual loop process signals", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:91
+	// per docs/adr/0075-go-manual-loop-controller.md:90
+	// per docs/adr/0075-go-manual-loop-controller.md:98
 	DescribeTable("persists a certain interrupted handoff after cleaning its observed child", func(signal syscall.Signal) {
 		root, cwd, checkout := loopFixture()
 		marker := filepath.Join(cwd, "check-pid")
@@ -471,7 +473,7 @@ var _ = Describe("G2 manual loop process signals", func() {
 })
 
 var _ = Describe("G2 manual loop validation order", func() {
-	// per docs/adr/0075-go-manual-loop-controller.md:9
+	// per docs/adr/0075-go-manual-loop-controller.md:126
 	DescribeTable("refuses corrupt checkpoint before probing configured ERE patterns", func(action string) {
 		root, cwd, checkout := loopFixture()
 		history := filepath.Join(checkout, ".factory/loops.json")

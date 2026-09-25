@@ -29,7 +29,7 @@ func duration(seconds float64) time.Duration {
 }
 
 // Run holds checkpoint ownership through check execution and terminal publication.
-// docs/adr/0075-go-manual-loop-controller.md:41.
+// docs/adr/0075-go-manual-loop-controller.md:47.
 func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool) (ManualResult, error) {
 	if c == nil || c.store == nil || !validManual(r) {
 		return ManualResult{}, manualError()

@@ -2392,3 +2392,13 @@ qualification routes and public commands in the locally built binary. Preserve
 unaffected script exec boundaries and exact statuses; prohibit implicit fallback
 or repeated paid work. Qualify through independent outside-in tests before any
 installed dispatch change, while retaining explicit compatibility exceptions.
+
+
+## Decision 78 (2026-09-26 UTC): assess legacy installation reference files without mutation
+
+Implement ADR-0079 as the first prerequisite of G4 ownership/preview planning.
+Compare six budget/loop assets against a compiled immutable reference through
+confined read-only observation. Matching bytes never establish installation
+ownership, rollback readiness or activation authority. Require independent RED
+and negative filesystem evidence, preserve every adopter file, and leave public
+preview, trusted action planning and transactional delivery to later milestones.

@@ -227,11 +227,11 @@ func Run(ctx context.Context, args []string) int {
 		return nil
 	}))
 	loopCommand := loopCommands(&status)
-	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand)
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand, assessmentCommands(&status))
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.
-	if !registeredRequest(root, args) || (len(args) > 0 && args[0] == "loop" && !loopRequest(args)) {
+	if !registeredRequest(root, args) || (len(args) > 0 && args[0] == "loop" && !loopRequest(args)) || (len(args) > 0 && args[0] == "migration" && len(args) != 3) {
 		fmt.Fprintln(os.Stderr, "factory bridge: unsupported request")
 		return 2
 	}

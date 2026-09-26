@@ -197,3 +197,40 @@ No vulnerabilities found.
 ```
 
 The command exited 0. No further production changes followed this run.
+
+## Prompt cancellation review follow-up
+
+PR #103 review exposed cancellation returned by the bounded prompt reader being
+replaced with the generic validation error. ADR-0076:154 clarifies that context
+identity must survive this helper, without promising different caller handoff text.
+Independent deterministic mid-read cancellation and deadline cases observed RED:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test ./internal/loop -ginkgo.focus="Bounded loop prompt cancellation" -ginkgo.no-color -count=1 -v
+0 Passed | 2 Failed | 78 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/loop 0.385s
+```
+
+After the three-line context check, RAN the bounded internal race suite:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/loop -ginkgo.focus="Bounded loop" -ginkgo.no-color -count=1 -v
+34 Passed | 0 Failed | 46 Skipped
+ok github.com/anoop2811/software-factory-template/internal/loop 2.967s
+```
+
+Targeted loop lint returned `0 issues.` The new cases require no partial prompt
+and preserved cancellation/deadline identity. Fresh GitHub CI is required for
+this correction; the earlier full-source results remain historical evidence.
+
+RAN the compiled CLI bounded-loop matrix with race instrumentation and the pinned
+Python oracle interpreter after this correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer FACTORY_CLI_TEST_RACE=1 bash -c 'export PATH=/private/tmp/factory-pr99-python-lsg4o68n/venv/bin:$PATH; go test -race ./acceptance -ginkgo.focus="G2 bounded loop" -ginkgo.no-color -ginkgo.succinct -count=1 -v'
+58/1381 specs SUCCESS!
+PASS
+ok github.com/anoop2811/software-factory-template/acceptance 45.470s
+```
+
+Independent correction review found no remaining actionable issue.

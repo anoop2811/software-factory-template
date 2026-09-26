@@ -148,3 +148,12 @@ The command grammar inherits ADR-0072's explicitly enumerated interpreter
 qualification for malformed mixed short-help groups, ambiguity after help and
 root terminator before command/help. Keep the fixed Go refusal and no-effects
 assertions for loop commands too; no broader status normalization is permitted.
+
+## Prompt-read cancellation identity
+
+Preserve context cancellation and deadline errors when the bounded prompt reader
+observes them during reading, as already required before and after reading.
+Do not replace those errors with a generic prompt-validation error. Return no
+partial prompt. Ordinary file, encoding and size failures remain sanitized.
+This clarifies the helper's error contract without changing retry permission,
+caller handoff text or the regular-file syscall limitation.

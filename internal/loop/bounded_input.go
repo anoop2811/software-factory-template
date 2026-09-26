@@ -36,6 +36,9 @@ func loadLoopPrompt(ctx context.Context, path string) (string, error) {
 		return "", manualError()
 	}
 	data, err := io.ReadAll(io.LimitReader(boundedContextReader{ctx, file}, (2<<20)+1))
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if err != nil || len(data) > 2<<20 || !utf8.Valid(data) {
 		return "", manualError()
 	}

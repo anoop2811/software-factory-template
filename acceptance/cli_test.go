@@ -19,6 +19,7 @@ import (
 
 // This matrix is an independent compatibility oracle, not discovery from the
 // candidate's registrations. per specs/001-go-runtime-conversion.md:295
+// Budget/loop have native public qualification: per docs/adr/0078-go-public-budget-loop.md:43
 var commandRoutes = []struct{ command, script string }{
 	{"init", "scripts/factory-init.sh"},
 	{"doctor", "scripts/factory-doctor.sh"},
@@ -26,8 +27,6 @@ var commandRoutes = []struct{ command, script string }{
 	{"check", "scripts/pre-push-check.sh"},
 	{"selftest", "scripts/selftest/run.sh"},
 	{"report", "scripts/factory-report.sh"},
-	{"budget", "scripts/factory-budget.sh"},
-	{"loop", "scripts/factory-loop.sh"},
 	{"metrics", "scripts/factory-metrics.sh"},
 	{"review-lane", "scripts/factory-review-lane.sh"},
 	{"migrate-config", "scripts/factory-migrate-config.sh"},
@@ -141,13 +140,22 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		baseline := invoke(root, cwd, "legacy-factory", "", args...)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			result := invoke(root, cwd, executable, "", args...)
-			Expect(result).To(Equal(baseline), executable)
+			expected := baseline
+			// per docs/adr/0078-go-public-budget-loop.md:48
+			if executable == "factory" {
+				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
+				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Budget and loop use the Go runtime. Other commands use auditable scripts.", 1)
+			}
+			Expect(result).To(Equal(expected), executable)
 			Expect(result.status).To(Equal(0), executable)
 			Expect(result.stderr).To(BeEmpty(), executable)
 			Expect(result.stdout).To(ContainSubstring("Usage: factory <command> [args]"), executable)
 			for _, route := range commandRoutes {
 				Expect(result.stdout).To(ContainSubstring(route.command), executable)
 			}
+			Expect(result.stdout).To(ContainSubstring("budget"), executable)
+			Expect(result.stdout).To(ContainSubstring("loop"), executable)
 			Expect(strings.ToLower(result.stdout)).NotTo(ContainSubstring("completion"), executable)
 		}
 	},

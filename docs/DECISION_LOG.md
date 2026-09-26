@@ -2384,3 +2384,11 @@ caller/model precedence, literal argument scanning and three-harness model choic
 Qualify private configured routes through independent shell-oracle and compiled
 CLI tests before public dispatch or installed activation. Retain the existing
 progress denominator and separate migration/retirement gates.
+
+## Decision 77 (2026-09-26 UTC): route source-built budget and loop commands through Go
+
+Implement ADR-0078 by sharing configured-command orchestration between private
+qualification routes and public commands in the locally built binary. Preserve
+unaffected script exec boundaries and exact statuses; prohibit implicit fallback
+or repeated paid work. Qualify through independent outside-in tests before any
+installed dispatch change, while retaining explicit compatibility exceptions.

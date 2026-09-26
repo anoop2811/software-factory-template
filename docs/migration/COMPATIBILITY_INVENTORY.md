@@ -167,3 +167,8 @@ The [public budget/loop candidate](PUBLIC_BUDGET_LOOP.md) tracks source-built
 public command routing through shared Go orchestration. It preserves the other
 script exec boundaries and leaves installed dispatch, migration and retirement
 behind their separate acceptance gates.
+
+The [installation reference assessment](INSTALLATION_ASSESSMENT.md) begins the
+G4 ownership/preview foundation with read-only comparison of six legacy budget/
+loop paths. A reference match never establishes installation ownership or
+authorizes replacement; trusted action planning and public preview remain open.

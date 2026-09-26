@@ -17,6 +17,7 @@ import (
 
 func loopCommands(status *int) *cobra.Command {
 	loopCommand := command("loop", cobra.NoArgs, nil)
+	loopCommand.AddCommand(configuredCommand("loop", status))
 	loopCommand.AddCommand(command("fingerprint", cobra.NoArgs, func(cmd *cobra.Command, _ []string) error {
 		// Interrupts cancel and reap isolated probes before this private command returns.
 		// docs/adr/0073-go-loop-fingerprint-foundation.md:141.
@@ -77,7 +78,7 @@ func loopCommands(status *int) *cobra.Command {
 // Validate the complete literal request before Cobra or storage can reflect input.
 // docs/adr/0074-go-loop-checkpoint-storage.md:123.
 func loopRequest(args []string) bool {
-	if len(args) >= 2 && args[1] == "command" {
+	if len(args) >= 2 && (args[1] == "command" || args[1] == "configured") {
 		return true
 	}
 	if len(args) == 2 && args[1] == "fingerprint" {

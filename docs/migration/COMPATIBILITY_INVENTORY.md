@@ -157,3 +157,8 @@ The [bounded loop command candidate](BOUNDED_LOOPS.md) tracks implementation,
 check, review and repair through the shared budget controller, with the private
 Cobra command boundary. Its evidence distinguishes source qualification from
 installed dispatch, transactional upgrade and Python retirement.
+
+The [command environment candidate](COMMAND_ENVIRONMENT.md) tracks shared Go
+configuration and model routing around the existing budget/loop commands. Its
+private qualification precedes public dispatch and installed activation; it does
+not authorize retirement of the compatible shell adapters or Python files.

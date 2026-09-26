@@ -23,6 +23,9 @@ adversarial-review-selftest:
 # adopter does not select a Go application pack or require Go tooling there.
 # The workflow also identifies this source tree, so deleting go.mod or cmd does
 # not turn a broken factory checkout into a successful template-only skip.
+# docs/adr/0077-go-command-environment.md:137 — suite allowance, not operation deadlines.
+GO_RUNTIME_TEST_TIMEOUT ?= 15m
+
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
 	@if [ -f .github/workflows/go-runtime.yml ] || \
@@ -47,7 +50,7 @@ go-runtime-source-check:
 # behavior remains in the pack rather than a second factory implementation.
 	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"
 	go vet ./...
-	go test -race -count=1 ./...
+	go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./...
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory
 	golangci-lint run --config packs/go/.golangci.yml ./...

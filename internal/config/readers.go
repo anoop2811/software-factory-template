@@ -30,7 +30,17 @@ func File(ctx context.Context) (string, error) {
 		// The shell appends echo's dot after any stdout produced by failed Git.
 		output = append(output, '.', '\n')
 	}
-	return strings.TrimRight(string(output), "\n") + "/factory.yaml", nil
+	return ResolvePath("", string(output)), nil
+}
+
+// ResolvePath applies the shared explicit-path or Git-root selection rule.
+// Wrapper command-substitution normalization belongs to its caller.
+// docs/adr/0077-go-command-environment.md:44.
+func ResolvePath(explicit, gitRoot string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return strings.TrimRight(gitRoot, "\n") + "/factory.yaml"
 }
 
 // Get returns the first matching value, or fallback when absent or empty.

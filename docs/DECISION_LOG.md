@@ -2375,3 +2375,12 @@ Share manual check lifecycle, checkpoint storage and budget admission/execution
 for bounded implementation, review and repair. Preserve strict verdicts, finite
 allowances, evidence freshness and terminal handoffs. Qualify command semantics
 with independent outside-in tests; keep installed activation and cleanup pending.
+
+## Decision 76 (2026-09-26 UTC): compose Go command configuration and model routing
+
+Implement ADR-0077 by composing qualified configuration/export and role helpers
+with existing Go budget and loop commands. Preserve wrapper-derived settings,
+caller/model precedence, literal argument scanning and three-harness model choices.
+Qualify private configured routes through independent shell-oracle and compiled
+CLI tests before public dispatch or installed activation. Retain the existing
+progress denominator and separate migration/retirement gates.

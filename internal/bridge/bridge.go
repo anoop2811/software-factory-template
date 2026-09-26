@@ -220,6 +220,7 @@ func Run(ctx context.Context, args []string) int {
 	// The candidate adapter owns flag parsing, diagnostics and exit status.
 	// docs/adr/0071-go-budget-command-candidate.md:22.
 	budgetCommand := command("budget", cobra.NoArgs, nil)
+	budgetCommand.AddCommand(configuredCommand("budget", &status))
 	budgetCommand.AddCommand(command("controller", cobra.ArbitraryArgs, func(cmd *cobra.Command, args []string) error {
 		environment := capturedEnvironment()
 		status = budgetcmd.Run(cmd.Context(), args, environment, cmd.OutOrStdout(), cmd.ErrOrStderr())

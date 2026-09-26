@@ -10,6 +10,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/budget"
 	"github.com/anoop2811/software-factory-template/internal/input"
 	"github.com/anoop2811/software-factory-template/internal/loop"
+	"github.com/anoop2811/software-factory-template/internal/loopcmd"
 	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -66,12 +67,19 @@ func loopCommands(status *int) *cobra.Command {
 		*status = code
 		return err
 	}))
+	loopCommand.AddCommand(command("command", cobra.ArbitraryArgs, func(cmd *cobra.Command, args []string) error {
+		*status = loopcmd.Run(cmd.Context(), args, capturedEnvironment(), cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return nil
+	}))
 	return loopCommand
 }
 
 // Validate the complete literal request before Cobra or storage can reflect input.
 // docs/adr/0074-go-loop-checkpoint-storage.md:123.
 func loopRequest(args []string) bool {
+	if len(args) >= 2 && args[1] == "command" {
+		return true
+	}
 	if len(args) == 2 && args[1] == "fingerprint" {
 		return true
 	}

@@ -2367,3 +2367,11 @@ Compose stable fingerprints, locked checkpoints and shared process supervision
 for deterministic checks with cumulative resume allowances. Require independent
 compiled RED, Python parity and lifecycle failure evidence. Keep bounded paid
 loops, public argument integration and installed activation/cleanup separate.
+
+## Decision 75 (2026-09-25 UTC): compose Go bounded loops and loop commands
+
+Implement ADR-0076 as the final source milestone of the existing loop package.
+Share manual check lifecycle, checkpoint storage and budget admission/execution
+for bounded implementation, review and repair. Preserve strict verdicts, finite
+allowances, evidence freshness and terminal handoffs. Qualify command semantics
+with independent outside-in tests; keep installed activation and cleanup pending.

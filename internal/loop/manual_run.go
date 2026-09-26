@@ -2,6 +2,8 @@ package loop
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"os"
@@ -30,7 +32,7 @@ func duration(seconds float64) time.Duration {
 
 // Run holds checkpoint ownership through check execution and terminal publication.
 // docs/adr/0075-go-manual-loop-controller.md:47.
-func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool) (ManualResult, error) {
+func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (ManualResult, error) {
 	if c == nil || c.store == nil || !validManual(r) {
 		return ManualResult{}, manualError()
 	}
@@ -47,12 +49,21 @@ func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool
 	if err != nil {
 		return ManualResult{}, err
 	}
-	plan, err := makeManualPlan(ctx, r, cfg, h, bh)
+	plan, err := makeManualPlan(ctx, r, cfg, bc, h, bh)
 	if err != nil {
 		return ManualResult{}, err
 	}
 	if len(plan.Blockers) > 0 {
 		return ManualResult{Plan: &plan, ExitCode: 2}, nil
+	}
+	// Prompt refusal precedes checkpoint infrastructure, after read-only admission.
+	// docs/adr/0076-go-bounded-loop-controller.md:55.
+	promptText := ""
+	if requestMode(r) == "bounded" {
+		promptText, err = loadLoopPrompt(ctx, r.PromptFile)
+		if err != nil {
+			return ManualResult{}, err
+		}
 	}
 	transaction, err := c.store.Lock(ctx)
 	if err != nil {
@@ -67,7 +78,7 @@ func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool
 	if err != nil {
 		return ManualResult{}, err
 	}
-	plan, err = makeManualPlan(ctx, r, cfg, h, bh)
+	plan, err = makeManualPlan(ctx, r, cfg, bc, h, bh)
 	if err != nil {
 		return ManualResult{}, err
 	}
@@ -82,7 +93,7 @@ func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool
 	if err != nil {
 		return ManualResult{}, err
 	}
-	prompt, err := digest(ctx, "")
+	prompt, err := digest(ctx, promptText)
 	if err != nil {
 		return ManualResult{}, err
 	}
@@ -95,7 +106,7 @@ func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool
 		}
 	}
 	if resume {
-		_, err := AssessResume(ctx, h, bh, ResumeRequest{Session: r.Session, Task: r.Task, Harness: r.Harness, Mode: "manual", Snapshot: current, Policy: policy, Prompt: prompt, TimeoutSeconds: cfg.TimeoutSeconds})
+		_, err := AssessResume(ctx, h, bh, ResumeRequest{Session: r.Session, Task: r.Task, Harness: r.Harness, Mode: requestMode(r), Snapshot: current, Policy: policy, Prompt: prompt, TimeoutSeconds: cfg.TimeoutSeconds})
 		if err != nil {
 			return ManualResult{}, err
 		}
@@ -105,27 +116,29 @@ func (c *ManualController) Run(ctx context.Context, r ManualRequest, resume bool
 		if row != nil {
 			return ManualResult{}, manualError()
 		}
-		row = map[string]any{"session": r.Session, "task": r.Task, "harness": r.Harness, "mode": "manual", "status": "active", "outcome": "running", "phase": "starting", "owner_pid": json.Number(strconv.Itoa(os.Getpid())), "process_pid": nil, "started_at": time.Now().UTC().Format("2006-01-02T15:04:05Z"), "elapsed_seconds": number(0), "reserved_seconds": number(cfg.TimeoutSeconds), "attempts": json.Number("0"), "no_progress": json.Number("0"), "uncertain": false, "baseline": snapshotValue(current), "snapshot": snapshotValue(current), "policy": policy, "prompt": prompt, "evidence": []any{}, "budget_runs": []any{}, "stop_reason": "", "next_action": "Controller is active; do not overlap another run."}
+		row = map[string]any{"session": r.Session, "task": r.Task, "harness": r.Harness, "mode": requestMode(r), "status": "active", "outcome": "running", "phase": "starting", "owner_pid": json.Number(strconv.Itoa(os.Getpid())), "process_pid": nil, "started_at": time.Now().UTC().Format("2006-01-02T15:04:05Z"), "elapsed_seconds": number(0), "reserved_seconds": number(cfg.TimeoutSeconds), "attempts": json.Number("0"), "no_progress": json.Number("0"), "uncertain": false, "baseline": snapshotValue(current), "snapshot": snapshotValue(current), "policy": policy, "prompt": prompt, "evidence": []any{}, "budget_runs": []any{}, "stop_reason": "", "next_action": "Controller is active; do not overlap another run."}
 		h.data["runs"] = append(h.data["runs"].([]any), row)
 	}
 	if err := transaction.Write(ctx, h); err != nil {
 		return ManualResult{}, err
 	}
 	consumed, _ := row["elapsed_seconds"].(json.Number).Float64()
-	invocation := manualInvocation{controller: c, request: r, config: cfg, budget: bc, history: h, row: row, transaction: transaction, started: time.Now(), consumed: consumed}
-	return invocation.check(ctx)
+	invocation := manualInvocation{controller: c, request: r, config: cfg, budget: bc, history: h, row: row, transaction: transaction, started: time.Now(), consumed: consumed, prompt: promptText}
+	return invocation.run(ctx)
 }
 
 type manualInvocation struct {
-	controller  *ManualController
-	request     ManualRequest
-	config      Config
-	budget      budget.Config
-	history     History
-	row         map[string]any
-	transaction *Transaction
-	started     time.Time
-	consumed    float64
+	cleanupDeadline time.Time
+	controller      *Controller
+	request         ManualRequest
+	config          Config
+	budget          budget.Config
+	history         History
+	row             map[string]any
+	transaction     *Transaction
+	started         time.Time
+	consumed        float64
+	prompt          string
 }
 
 func (m *manualInvocation) elapsed() float64 { return m.consumed + time.Since(m.started).Seconds() }
@@ -134,6 +147,17 @@ func (m *manualInvocation) save(ctx context.Context) error {
 	return m.transaction.Write(ctx, m.history)
 }
 func (m *manualInvocation) fresh(ctx context.Context, previous *Fingerprint) (Fingerprint, error) {
+	if requestMode(m.request) == "bounded" {
+		prompt, err := loadLoopPrompt(ctx, m.request.PromptFile)
+		if err != nil {
+			return Fingerprint{}, err
+		}
+		identity, err := digest(ctx, prompt)
+		if err != nil || identity != m.row["prompt"] {
+			return Fingerprint{}, manualError()
+		}
+	}
+
 	policy, err := m.controller.ops.policy(ctx, m.config, m.budget, m.request.Environment)
 	if err != nil || policy != m.row["policy"] {
 		return Fingerprint{}, manualError()
@@ -153,7 +177,7 @@ func (m *manualInvocation) finish(parent context.Context, outcome, reason string
 	if m.transaction.failed {
 		return ManualResult{}, manualError()
 	}
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 5*time.Second)
+	ctx, cancel := m.cleanupContext(parent)
 	defer cancel()
 	deadline, _ := ctx.Deadline()
 	if parent.Err() != nil {
@@ -161,57 +185,94 @@ func (m *manualInvocation) finish(parent context.Context, outcome, reason string
 		reason = "Controller interrupted; inspect owned processes before recovery"
 	}
 	m.row["status"] = "stopped"
+	if outcome == "approved" {
+		m.row["status"] = "completed"
+	}
 	m.row["outcome"] = outcome
 	m.row["phase"] = "finished"
 	m.row["stop_reason"] = reason
 	m.row["next_action"] = manualNextAction
+	if outcome == "approved" {
+		m.row["next_action"] = "Review the changes and independent CI results."
+	}
 	if err := m.save(ctx); err != nil {
 		return ManualResult{}, err
 	}
 	record := Record{clone(m.row).(map[string]any)}
 	status := 2
-	if outcome == "manual_passed" {
+	if outcome == "manual_passed" || outcome == "approved" {
 		status = 0
 	}
 	return ManualResult{Record: &record, ExitCode: status, outputDeadline: deadline}, nil
 }
-func (m *manualInvocation) check(parent context.Context) (ManualResult, error) {
+
+type checkResult struct {
+	Passed   bool
+	Raw      []byte
+	Identity string
+	Terminal *ManualResult
+}
+
+func (m *manualInvocation) stopCheck(parent context.Context, outcome, reason string) (checkResult, error) {
+	result, err := m.finish(parent, outcome, reason)
+	if err != nil {
+		return checkResult{}, err
+	}
+	return checkResult{Terminal: &result}, nil
+}
+func (m *manualInvocation) run(parent context.Context) (ManualResult, error) {
 	ctx, cancel := context.WithDeadline(parent, m.started.Add(duration(m.config.TimeoutSeconds-m.consumed)))
 	defer cancel()
 	if ctx.Err() != nil {
 		return m.finish(parent, "handoff", "loop time limit reached")
 	}
+	if requestMode(m.request) == "bounded" {
+		return m.bounded(ctx, parent)
+	}
+	result, err := m.checkStage(ctx, parent)
+	if err != nil {
+		return ManualResult{}, err
+	}
+	if result.Terminal != nil {
+		return *result.Terminal, nil
+	}
+	if result.Passed {
+		return m.finish(parent, "manual_passed", "Manual check passed; implementation and review were not performed.")
+	}
+	return m.finish(parent, "manual_failed", "Manual check failed; no model was invoked.")
+}
+func (m *manualInvocation) checkStage(ctx, parent context.Context) (checkResult, error) {
 	bh, err := m.controller.ops.readBudget(ctx)
 	if ctx.Err() != nil {
-		return m.finish(parent, "handoff", "loop time limit reached")
+		return m.stopCheck(parent, "handoff", "loop time limit reached")
 	}
 	if err != nil {
 		m.row["uncertain"] = true
-		return m.finish(parent, "handoff", "Cannot establish budget ownership before check")
+		return m.stopCheck(parent, "handoff", "Cannot establish budget ownership before check")
 	}
 	active, err := bh.HasActive(ctx)
 	if err != nil || active {
 		m.row["uncertain"] = true
-		return m.finish(parent, "handoff", "active budget invocation blocks checks; inspect owned processes and recover first")
+		return m.stopCheck(parent, "handoff", "active budget invocation blocks checks; inspect owned processes and recover first")
 	}
 	before, err := m.fresh(ctx, nil)
 	if err != nil {
-		return m.finish(parent, "handoff", "Source or governing configuration changed; human handoff required")
+		return m.stopCheck(parent, "handoff", "Source or governing configuration changed; human handoff required")
 	}
 	allowance := duration(min(m.config.CheckTimeoutSeconds, m.config.TimeoutSeconds-m.elapsed()))
 	if allowance <= 0 {
-		return m.finish(parent, "handoff", "loop time limit reached")
+		return m.stopCheck(parent, "handoff", "loop time limit reached")
 	}
 	m.row["phase"] = "check"
 	if err := m.save(ctx); err != nil {
 		if ctx.Err() != nil && !m.transaction.failed {
-			return m.finish(parent, "handoff", "loop time limit reached")
+			return m.stopCheck(parent, "handoff", "loop time limit reached")
 		}
-		return ManualResult{}, err
+		return checkResult{}, err
 	}
 	allowance = duration(min(m.config.CheckTimeoutSeconds, m.config.TimeoutSeconds-m.elapsed()))
 	if ctx.Err() != nil || allowance <= 0 {
-		return m.finish(parent, "handoff", "loop time limit reached")
+		return m.stopCheck(parent, "handoff", "loop time limit reached")
 	}
 	execution, executionErr := m.controller.ops.execute(ctx, m.controller.root, m.config.CheckCommand, m.request.Environment, allowance, func(spawnContext context.Context, pid int) error {
 		if pid <= 0 {
@@ -221,7 +282,7 @@ func (m *manualInvocation) check(parent context.Context) (ManualResult, error) {
 		return m.save(spawnContext)
 	})
 	if m.transaction.failed {
-		return ManualResult{}, manualError()
+		return checkResult{}, manualError()
 	}
 	if execution.ProcessPID > 0 && !execution.ExitConfirmed {
 		m.row["process_pid"] = json.Number(strconv.Itoa(execution.ProcessPID))
@@ -234,7 +295,7 @@ func (m *manualInvocation) check(parent context.Context) (ManualResult, error) {
 	}
 	m.row["uncertain"] = execution.OwnershipUnconfirmed || (!certain && m.row["process_pid"] != nil)
 	if executionErr != nil || execution.ProcessPID <= 0 {
-		return m.finish(parent, "handoff", "Cannot confirm deterministic check execution; inspect owned processes")
+		return m.stopCheck(parent, "handoff", "Cannot confirm deterministic check execution; inspect owned processes")
 	}
 	var code any
 	if execution.ExitCode != nil {
@@ -243,21 +304,23 @@ func (m *manualInvocation) check(parent context.Context) (ManualResult, error) {
 	m.row["evidence"] = append(m.row["evidence"].([]any), map[string]any{"kind": "check", "command": jsonvalue.RawString(m.config.CheckCommand), "exit_code": code, "outcome": execution.Outcome, "duration_seconds": number(execution.ElapsedSeconds), "snapshot": snapshotValue(before), "harness": m.request.Harness, "role": "deterministic"})
 	if ctx.Err() != nil {
 		if parent.Err() != nil {
-			return m.finish(parent, "interrupted", "Controller interrupted; inspect owned processes before recovery")
+			return m.stopCheck(parent, "interrupted", "Controller interrupted; inspect owned processes before recovery")
 		}
-		return m.finish(parent, "handoff", "loop time limit reached")
+		return m.stopCheck(parent, "handoff", "loop time limit reached")
 	}
 	if err := m.save(ctx); err != nil {
-		return ManualResult{}, err
+		return checkResult{}, err
 	}
 	if _, err := m.fresh(ctx, &before); err != nil {
-		return m.finish(parent, "handoff", "Source or governing configuration changed; human handoff required")
+		return m.stopCheck(parent, "handoff", "Source or governing configuration changed; human handoff required")
 	}
 	if !certain || (execution.Outcome != "completed" && execution.Outcome != "failed") {
-		return m.finish(parent, "handoff", "check "+execution.Outcome+"; handoff required")
+		return m.stopCheck(parent, "handoff", "check "+execution.Outcome+"; handoff required")
 	}
-	if *execution.ExitCode == 0 {
-		return m.finish(parent, "manual_passed", "Manual check passed; implementation and review were not performed.")
+	rawHash := sha256.Sum256(execution.Stdout)
+	identity, err := digest(ctx, []any{before.Source, code, hex.EncodeToString(rawHash[:])})
+	if err != nil {
+		return checkResult{}, err
 	}
-	return m.finish(parent, "manual_failed", "Manual check failed; no model was invoked.")
+	return checkResult{Passed: *execution.ExitCode == 0, Raw: execution.Stdout, Identity: identity}, nil
 }

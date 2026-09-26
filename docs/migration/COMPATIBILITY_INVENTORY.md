@@ -162,3 +162,8 @@ The [command environment candidate](COMMAND_ENVIRONMENT.md) tracks shared Go
 configuration and model routing around the existing budget/loop commands. Its
 private qualification precedes public dispatch and installed activation; it does
 not authorize retirement of the compatible shell adapters or Python files.
+
+The [public budget/loop candidate](PUBLIC_BUDGET_LOOP.md) tracks source-built
+public command routing through shared Go orchestration. It preserves the other
+script exec boundaries and leaves installed dispatch, migration and retirement
+behind their separate acceptance gates.

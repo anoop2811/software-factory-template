@@ -10,11 +10,11 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
 	"github.com/anoop2811/software-factory-template/internal/budgetcmd"
 	"github.com/anoop2811/software-factory-template/internal/config"
+	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/anoop2811/software-factory-template/internal/review"
 	"github.com/anoop2811/software-factory-template/internal/roles"
 	"github.com/anoop2811/software-factory-template/internal/usage"
@@ -308,12 +308,5 @@ func writeValue(cmd *cobra.Command, value string) error {
 }
 
 func capturedEnvironment() map[string]string {
-	environment := make(map[string]string)
-	for _, entry := range os.Environ() {
-		key, value, found := strings.Cut(entry, "=")
-		if found {
-			environment[key] = value
-		}
-	}
-	return environment
+	return configuredcmd.CaptureEnvironment()
 }

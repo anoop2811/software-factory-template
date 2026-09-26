@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Commands use auditable scripts. Inspect scripts/ for their implementation.
+Budget and loop use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -69,6 +70,7 @@ func Run(ctx context.Context, args []string) int {
 		return 2
 	}
 
+	status := 0
 	root := &cobra.Command{
 		Use:                "factory",
 		SilenceErrors:      true,
@@ -96,6 +98,16 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Source-built budget/loop commands do not select colocated scripts.
+				// docs/adr/0078-go-public-budget-loop.md:29.
+				if name == "budget" || name == "loop" {
+					code, err := configuredcmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					status = code
+					if err != nil {
+						return fmt.Errorf("factory: %w", err)
+					}
+					return nil
+				}
 				return dispatch(cmd.Context(), name, script, forwarded)
 			},
 		})
@@ -105,7 +117,7 @@ func Run(ctx context.Context, args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	return 0
+	return status
 }
 
 func dispatch(ctx context.Context, command, script string, args []string) error {

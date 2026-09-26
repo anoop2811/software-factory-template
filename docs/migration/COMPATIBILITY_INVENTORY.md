@@ -152,3 +152,8 @@ The [manual loop controller candidate](MANUAL_LOOPS.md) composes deterministic
 check execution and fresh manual resume using existing supervision and storage.
 Its qualification evidence is tracked separately from bounded model loops,
 public argument integration and installed activation/retirement.
+
+The [bounded loop command candidate](BOUNDED_LOOPS.md) tracks implementation,
+check, review and repair through the shared budget controller, with the private
+Cobra command boundary. Its evidence distinguishes source qualification from
+installed dispatch, transactional upgrade and Python retirement.

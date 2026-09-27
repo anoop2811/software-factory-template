@@ -62,7 +62,7 @@ preview marker, --source=--dry-run remains a literal legacy-script invocation.
 
 ## Recovery and cleanup boundary
 
-Preview creates no local migration files and does not inspect backup folders.
+By default, preview creates no local migration files and skips backup inspection.
 It reports recovery as not assessed instead of inventing an empty inventory.
 The [canonical recovery requirements](../../specs/001-go-runtime-conversion.md)
 still require private ignored backups, removal of retired active implementations,
@@ -135,3 +135,11 @@ Independent security review reran the four compiled race cases successfully.
 SIGPIPE notification is scoped to this preview and stopped on return; other
 commands retain their signal behavior. The final full source gate and CI must
 qualify this corrected commit rather than reuse the earlier gate's result.
+
+## Optional recovery inspection
+
+Add the bare `--inspect-backups` flag for the bounded read-only
+[recovery inventory](RECOVERY_INSPECTION.md). Existing output stays unchanged
+without this option. With it, the report includes preservation reasons and
+integrity counts, while every activation/rollback/pruning restriction remains.
+No backup, receipt, ignore rule or other migration state is created.

@@ -82,8 +82,9 @@ func failure(code int, message string) error { return &Failure{Code: code, messa
 func Assess(ctx context.Context, root string) (Result, error) { return assess(ctx, root, ops{}) }
 
 type ops struct {
-	open func(parent *os.File, name string, flags int) (*os.File, error)
-	read func(file *os.File, buffer []byte) (int, error)
+	named func(parent *os.File, name string) (unix.Stat_t, error)
+	open  func(parent *os.File, name string, flags int) (*os.File, error)
+	read  func(file *os.File, buffer []byte) (int, error)
 }
 
 func assess(ctx context.Context, root string, operations ops) (Result, error) {

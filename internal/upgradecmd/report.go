@@ -2,20 +2,22 @@ package upgradecmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/assessment"
 )
 
 type previewReport struct {
-	SchemaVersion      int                   `json:"schema_version"`
-	Mode               string                `json:"mode"`
-	Coverage           string                `json:"coverage"`
-	Plan               assessment.PlanResult `json:"plan"`
-	AdoptionProposal   *assessment.Proposal  `json:"adoption_proposal"`
-	OwnershipBasis     string                `json:"ownership_basis"`
-	AuthorizedPaths    []string              `json:"authorized_paths"`
-	RecoveryAssessment string                `json:"recovery_assessment"`
+	SchemaVersion      int                           `json:"schema_version"`
+	Mode               string                        `json:"mode"`
+	Coverage           string                        `json:"coverage"`
+	Plan               assessment.PlanResult         `json:"plan"`
+	AdoptionProposal   *assessment.Proposal          `json:"adoption_proposal"`
+	OwnershipBasis     string                        `json:"ownership_basis"`
+	AuthorizedPaths    []string                      `json:"authorized_paths"`
+	RecoveryAssessment string                        `json:"recovery_assessment"`
+	RecoveryInventory  *assessment.RecoveryInventory `json:"recovery_inventory,omitempty"`
 }
 
 // Text names the incomplete scope and every remaining prerequisite without an
@@ -46,7 +48,21 @@ func renderText(report previewReport, confirmed bool) string {
 			text.WriteString("To confirm, rerun the same selection with --confirm-adoption DIGEST using the proposal digest above.\n")
 		}
 	}
-	text.WriteString("Backup and retention: not assessed. No backup changes made.\n")
+	if report.RecoveryInventory == nil {
+		text.WriteString("Backup and retention: not assessed. No backup changes made.\n")
+	} else {
+		inventory := report.RecoveryInventory
+		fmt.Fprintf(&text, "Recovery inventory: %s; enumeration complete: %t\n", inventory.RootStatus, inventory.Complete)
+		for _, set := range inventory.Sets {
+			held := "unknown"
+			if set.Held != nil {
+				held = strconv.FormatBool(*set.Held)
+			}
+			fmt.Fprintf(&text, "  %q: %s (%s); next action: %s; files: %d; bytes: %d; held: %s\n", set.Path, set.Classification, set.Reason, set.NextAction, set.FileCount, set.Bytes, held)
+		}
+		fmt.Fprintf(&text, "Recovery counts: sets=%d files=%d bytes=%d\n", inventory.SetCount, inventory.FileCount, inventory.Bytes)
+		text.WriteString("Restorable: false. Prune authorized: false. Integrity observations do not establish transaction authority. No backup changes made.\n")
+	}
 	text.WriteString("Legacy upgrade is separate: removing --dry-run selects the existing upgrade script; it does not apply this Go plan.\n")
 	return text.String()
 }

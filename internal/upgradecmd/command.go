@@ -21,6 +21,7 @@ type options struct {
 	paths        []string
 	confirmation string
 	json         bool
+	inspect      bool
 }
 
 // Claimed reserves any preview-marker spelling before legacy script discovery.
@@ -67,6 +68,15 @@ func Run(parent context.Context, args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "factory upgrade:", assessmentMessage(err))
 		return assessment.ErrorStatus(err)
 	}
+	if option.inspect {
+		inventory, inspectErr := assessment.InspectRecovery(ctx, ".")
+		if inspectErr != nil {
+			_, _ = fmt.Fprintln(stderr, "factory upgrade:", assessmentMessage(inspectErr))
+			return assessment.ErrorStatus(inspectErr)
+		}
+		report.RecoveryAssessment = "inspected"
+		report.RecoveryInventory = &inventory
+	}
 	var data []byte
 	if option.json {
 		data, err = json.Marshal(report)
@@ -81,6 +91,9 @@ func Run(parent context.Context, args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "factory upgrade: cannot write preview")
 		return 1
 	}
+	if report.RecoveryInventory != nil && report.RecoveryInventory.Status() == 1 {
+		return 1
+	}
 	return report.Plan.Status()
 }
 
@@ -90,13 +103,16 @@ func parse(args []string) (options, bool) {
 	for i := 0; i < len(args); i++ {
 		name, value, attached := strings.Cut(args[i], "=")
 		switch name {
-		case "--dry-run", "--json":
+		case "--dry-run", "--json", "--inspect-backups":
 			if attached || seen[name] {
 				return options{}, false
 			}
 			seen[name] = true
 			if name == "--json" {
 				result.json = true
+			}
+			if name == "--inspect-backups" {
+				result.inspect = true
 			}
 		case "--source", "--adopt-path", "--confirm-adoption":
 			if name != "--adopt-path" && seen[name] {

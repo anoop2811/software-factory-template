@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +27,7 @@ Usage: factory <command> [args]
               hook + adapter integrity, and a break/fix proof that every gate fires
   upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
               touches your factory.yaml, content, or customized files
+              Preview locally with --dry-run --source PATH (run at installation root)
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
@@ -38,7 +40,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Budget and loop use the Go runtime. Other commands use auditable scripts.
+Budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -106,6 +108,12 @@ func Run(ctx context.Context, args []string) int {
 					if err != nil {
 						return fmt.Errorf("factory: %w", err)
 					}
+					return nil
+				}
+				// A preview marker owns the route even when its arguments are invalid.
+				// docs/adr/0082-go-public-upgrade-preview.md:23.
+				if name == "upgrade" && upgradecmd.Claimed(forwarded) {
+					status = upgradecmd.Run(cmd.Context(), forwarded, os.Stdout, os.Stderr)
 					return nil
 				}
 				return dispatch(cmd.Context(), name, script, forwarded)

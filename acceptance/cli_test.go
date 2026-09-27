@@ -141,11 +141,18 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			result := invoke(root, cwd, executable, "", args...)
 			expected := baseline
-			// per docs/adr/0078-go-public-budget-loop.md:48
+			// per docs/adr/0082-go-public-upgrade-preview.md:109
 			if executable == "factory" {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Budget and loop use the Go runtime. Other commands use auditable scripts.", 1)
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
+				lines := strings.SplitAfter(expected.stdout, "\n")
+				for index, line := range lines {
+					if line == "              touches your factory.yaml, content, or customized files\n" {
+						lines[index] += "              Preview locally with --dry-run --source PATH (run at installation root)\n"
+					}
+				}
+				expected.stdout = strings.Join(lines, "")
 			}
 			Expect(result).To(Equal(expected), executable)
 			Expect(result.status).To(Equal(0), executable)

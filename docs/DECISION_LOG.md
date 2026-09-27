@@ -2424,3 +2424,20 @@ local metadata or claim historical provenance. Preserve modified/unknown files,
 keep activation and recovery gates separate, and retain the existing successful-
 later-release pruning policy with visible exceptions. No progress credit follows
 from the decision before independent implementation qualification and merge.
+
+
+## Decision 81 (2026-09-27 UTC): expose a scoped read-only Go upgrade preview
+
+Implement ADR-0082 by composing the qualified planner and explicit adoption at
+public upgrade --dry-run --source PATH. Reserve preview intent before legacy
+dispatch so invalid requests cannot mutate through fallback. Report partial
+six-file coverage, exact actions, confirmation and unresolved prerequisites.
+Use the current directory without Git/config execution; preserve nonpreview
+legacy dispatch and create no local migration state. Complete the existing public
+preview milestone only after independent qualification and merge; installation,
+recovery and cleanup remain separate work.
+
+Follow-up 2026-09-27 UTC: compiled closed-stdout evidence exposed SIGPIPE exit
+before the documented preview status-1 path. ADR-0082 now requires a separate
+preview-scoped buffered SIGPIPE notification with deferred Stop, preserving
+cancellation and all other routes. Independent RED preceded this correction.

@@ -67,6 +67,14 @@ func plan(ctx context.Context, root, source string, installedOps, sourceOps ops)
 		return PlanResult{}, err
 	}
 	defer sourceRoot.close()
+	result, _, err := planPinned(ctx, installedRoot, sourceRoot, installedOps, sourceOps)
+	return result, err
+}
+
+// Reuse the same action observations for consent validation; do not re-read a
+// separate identity and silently attach it to already computed actions.
+// docs/adr/0081-explicit-legacy-asset-adoption.md:77.
+func planPinned(ctx context.Context, installedRoot, sourceRoot directories, installedOps, sourceOps ops) (PlanResult, []Asset, error) {
 	result := PlanResult{
 		SchemaVersion: 1, ReferenceRevision: referenceRevision, Scope: "g2-budget-loop-six",
 		PriorOrigin: "unproven", SourceAuthentication: "unverified_local",
@@ -74,32 +82,34 @@ func plan(ctx context.Context, root, source string, installedOps, sourceOps ops)
 		Assets:   make([]PlanAsset, 0, len(catalog)), Counts: map[string]int{
 			"retain": 0, "replace_candidate": 0, "add_candidate": 0, "retire_candidate": 0, "preserve_customized": 0, "absent": 0, "conflict": 0, "assessment_error": 0,
 		}}
+	installedAssets := make([]Asset, 0, len(catalog))
 	for _, reference := range catalog {
 		if err := ctx.Err(); err != nil {
-			return PlanResult{}, err
+			return PlanResult{}, nil, err
 		}
 		installed, err := observe(ctx, installedRoot.last(), reference, installedOps)
 		if err != nil {
-			return PlanResult{}, err
+			return PlanResult{}, nil, err
 		}
+		installedAssets = append(installedAssets, installed)
 		proposed, err := observe(ctx, sourceRoot.last(), reference, sourceOps)
 		if err != nil {
-			return PlanResult{}, err
+			return PlanResult{}, nil, err
 		}
 		asset, err := plannedAsset(reference, installed, proposed)
 		if err != nil {
-			return PlanResult{}, err
+			return PlanResult{}, nil, err
 		}
 		result.Assets = append(result.Assets, asset)
 		result.Counts[asset.Action]++
 	}
 	if err := ctx.Err(); err != nil {
-		return PlanResult{}, err
+		return PlanResult{}, nil, err
 	}
 	if !installedRoot.valid() || !sourceRoot.valid() {
-		return PlanResult{}, failure(2, "unsafe assessment root")
+		return PlanResult{}, nil, failure(2, "unsafe assessment root")
 	}
-	return result, nil
+	return result, installedAssets, nil
 }
 
 // Reviewed intent is independent of arbitrary target omissions.

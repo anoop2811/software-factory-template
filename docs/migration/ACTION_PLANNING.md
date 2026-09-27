@@ -61,6 +61,8 @@ runtime activation or live native-client enforcement.
 ## Progress boundary
 
 Only the target-action half of ADR-0079's second ownership/preview milestone is
-in scope. Positive trusted-origin integration and integrated public preview
-remain open. This slice cannot close G2 activation/retirement or the complete
+in scope. The separate [explicit adoption design](../adr/0081-explicit-legacy-asset-adoption.md)
+permits operator-granted authority without asserting historical provenance.
+Its qualification and integrated public preview are separate from this original
+planner; ordinary `plan` remains blocked and never obtains consent from metadata. This slice cannot close G2 activation/retirement or the complete
 G4 lifecycle, and does not turn source comparison into an applicable upgrade.

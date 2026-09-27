@@ -18,7 +18,7 @@ func ordinary(stat unix.Stat_t) bool {
 	return stat.Mode&unix.S_IFMT == unix.S_IFREG && stat.Nlink == 1 && stat.Size >= 0 && stat.Size <= assetLimit
 }
 func unchanged(before, after unix.Stat_t) bool {
-	return sameIdentity(before, after) && before.Mode == after.Mode && before.Nlink == after.Nlink && before.Size == after.Size && before.Mtim == after.Mtim
+	return sameIdentity(before, after) && before.Mode == after.Mode && before.Nlink == after.Nlink && before.Size == after.Size && before.Mtim == after.Mtim && before.Ctim == after.Ctim
 }
 
 // Hash only bounded ordinary descriptors and recheck their named identity and
@@ -141,5 +141,6 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 	}
 	result = row(reference, class, observed)
 	result.fullMode = uint32(after.Mode) & 07777
+	result.identity = assetIdentity(after)
 	return result, nil
 }

@@ -177,3 +177,9 @@ The [target-action planner](ACTION_PLANNING.md) extends that observation to an
 explicit local source tree. Its proposals remain blocked by unproven origin,
 target qualification, quiescence and recovery; positive ownership authority and
 the public upgrade preview are still separate obligations.
+
+The [explicit legacy adoption flow](LEGACY_ADOPTION.md) records the approved
+operator-granted authority alternative for unchanged reference files. Historical
+origin stays unproven and no saved receipt grants consent. Source qualification
+and public application remain distinct; recovery, activation and cleanup retain
+their own gates.

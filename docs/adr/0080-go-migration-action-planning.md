@@ -1,6 +1,6 @@
 # ADR-0080: Conservative Go migration action planning
 
-Status: accepted for private source qualification; trusted ownership pending.
+Status: accepted for private source qualification; ownership alternatives refined by [ADR-0081](0081-explicit-legacy-asset-adoption.md).
 Decision: 79. Date: 2026-09-26 UTC.
 
 ## Purpose and honest scope

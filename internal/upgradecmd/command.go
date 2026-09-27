@@ -37,6 +37,11 @@ func Claimed(args []string) bool {
 // Run performs only the strict, read-only preview and owns its diagnostics/status.
 // docs/adr/0082-go-public-upgrade-preview.md:96.
 func Run(parent context.Context, args []string, stdout, stderr io.Writer) int {
+	// Keep broken pipes on the checked I/O path without canceling the preview.
+	// docs/adr/0082-go-public-upgrade-preview.md:144.
+	brokenPipe := make(chan os.Signal, 1)
+	signal.Notify(brokenPipe, syscall.SIGPIPE)
+	defer signal.Stop(brokenPipe)
 	option, ok := parse(args)
 	if !ok {
 		_, _ = fmt.Fprintln(stderr, "factory upgrade: invalid preview arguments")

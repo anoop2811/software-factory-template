@@ -2436,3 +2436,8 @@ Use the current directory without Git/config execution; preserve nonpreview
 legacy dispatch and create no local migration state. Complete the existing public
 preview milestone only after independent qualification and merge; installation,
 recovery and cleanup remain separate work.
+
+Follow-up 2026-09-27 UTC: compiled closed-stdout evidence exposed SIGPIPE exit
+before the documented preview status-1 path. ADR-0082 now requires a separate
+preview-scoped buffered SIGPIPE notification with deferred Stop, preserving
+cancellation and all other routes. Independent RED preceded this correction.

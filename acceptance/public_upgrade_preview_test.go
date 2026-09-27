@@ -1,12 +1,17 @@
 package acceptance_test
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -405,4 +410,54 @@ var _ = Describe("G4 public upgrade preview action projection", func() {
 			Expect(assessmentTree(root)).To(Equal(before))
 		}
 	}, Entry("retain", "retain"), Entry("replace", "replace_candidate"), Entry("add", "add_candidate"), Entry("retire", "retire_candidate"), Entry("customized", "preserve_customized"), Entry("absent", "absent"), Entry("conflict", "conflict"), Entry("I/O", "assessment_error"))
+})
+
+var _ = Describe("G4 public upgrade preview closed pipes", func() {
+	// per docs/adr/0082-go-public-upgrade-preview.md:144
+	DescribeTable("preserves selected status when an output reader is closed before launch", func(mode string, status int) {
+		binary, root, _ := assessmentFixture()
+		reader, writer, err := os.Pipe()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(reader.Close()).To(Succeed())
+		DeferCleanup(writer.Close)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		args := []string{"upgrade", "--dry-run", "--source=."}
+		if mode != "text" {
+			args = append(args, "--json")
+		}
+		if mode == "invalid stderr" {
+			args = append(args, "--PRIVATE_INVALID")
+		}
+		// Test-owned compiled executable and literal arguments; no shell evaluation.
+		command := exec.CommandContext(ctx, filepath.Join(binary, "factory"), args...) // #nosec G204 -- isolated compiled candidate path owned by this fixture.
+		command.Dir = root
+		for _, value := range os.Environ() {
+			if !strings.HasPrefix(value, "FACTORY_BRIDGE_PROTOCOL=") {
+				command.Env = append(command.Env, value)
+			}
+		}
+		command.Env = append(command.Env, "GORACE=atexit_sleep_ms=0")
+		var stdout, stderr bytes.Buffer
+		command.Stdout, command.Stderr = &stdout, &stderr
+		if mode == "invalid stderr" {
+			command.Stderr = writer
+		} else {
+			command.Stdout = writer
+		}
+		if mode == "both" {
+			command.Stderr = writer
+		}
+		err = command.Run()
+		Expect(ctx.Err()).NotTo(HaveOccurred())
+		var exitError *exec.ExitError
+		Expect(errors.As(err, &exitError)).To(BeTrue(), "actual error %v", err)
+		Expect(exitError.ExitCode()).To(Equal(status), "stderr: %q", stderr.String())
+		Expect(stdout.Len()).To(BeZero())
+		if mode == "invalid stderr" || mode == "both" {
+			Expect(stderr.Len()).To(BeZero())
+		} else {
+			Expect(stderr.String()).To(Equal("factory upgrade: cannot write preview\n"))
+		}
+	}, Entry("JSON stdout", "json", 1), Entry("text stdout", "text", 1), Entry("invalid arguments closed stderr", "invalid stderr", 2), Entry("both streams closed", "both", 1))
 })

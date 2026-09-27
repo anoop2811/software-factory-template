@@ -110,3 +110,28 @@ Independent correctness/security review reported no remaining actionable finding
 Full source-gate and current-head Linux/macOS CI evidence belong in the PR. This
 qualification closes source preview coverage for the six-path package only; it
 does not establish installed activation, complete factory coverage or cleanup.
+
+### Closed-pipe follow-up
+
+The combined 216-case run above preceded a process-level discovery: a compiled
+preview writing to an already closed stdout pipe exited on SIGPIPE (returncode
+-13) rather than returning the documented output-error status. Independent RED
+reproduced the missing error path before a preview-scoped signal correction.
+After that correction, four deterministic compiled cases closed the pipe reader
+before launch (JSON/text stdout, malformed-request stderr and both streams):
+
+```text
+FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -ginkgo.focus="G4 public upgrade preview closed pipes" -ginkgo.no-color -count=1 -v
+Ran 4 of 1660 Specs in 2.034 seconds
+SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 1656 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 3.602s
+
+FACTORY_AGENT_ROLE=spec-writer go test -race ./internal/upgradecmd -ginkgo.no-color -count=1 -v
+SUCCESS! -- 8 Passed | 0 Failed | 0 Pending | 0 Skipped
+ok github.com/anoop2811/software-factory-template/internal/upgradecmd 1.345s
+```
+
+Independent security review reran the four compiled race cases successfully.
+SIGPIPE notification is scoped to this preview and stopped on return; other
+commands retain their signal behavior. The final full source gate and CI must
+qualify this corrected commit rather than reuse the earlier gate's result.

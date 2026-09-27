@@ -131,3 +131,21 @@ failure and output/flush failure. Share existing filesystem observations rather
 than weakening their tests or inventing a second walker. Require compiled child
 race coverage, full source gates, Linux/macOS CI and independent review. These
 checks do not establish complete installed migration or cleanup behavior.
+
+## Qualification follow-up: closed output pipes
+
+On 2026-09-27, a real compiled preview with its stdout pipe reader already closed
+exited through SIGPIPE (Python returncode -13), with no diagnostic. Independent
+compiled RED reproduced the mismatch with the required output-failure status 1.
+The [official Go signal documentation](https://pkg.go.dev/os/signal#hdr-SIGPIPE),
+fetched 2026-09-27, confirms that fd 1/2 writes can terminate the process before
+returning EPIPE unless SIGPIPE notification is registered.
+
+During this preview command only, register a separate buffered SIGPIPE channel
+before argument diagnostics and defer signal.Stop across all return paths. Do not
+include SIGPIPE in the cancellation context, globally Ignore/Reset it, launch a
+drain goroutine, or change shared output and other command routes. This makes
+broken stdout reach the existing checked write/status-1 path and prevents a broken
+diagnostic pipe from replacing an already selected failure status. The command
+still does not claim atomic output or interruptible arbitrary regular-file I/O.
+Add deterministic compiled closed-reader coverage and retain all previous tests.

@@ -171,15 +171,21 @@ behind their separate acceptance gates.
 The [installation reference assessment](INSTALLATION_ASSESSMENT.md) begins the
 G4 ownership/preview foundation with read-only comparison of six legacy budget/
 loop paths. A reference match never establishes installation ownership or
-authorizes replacement; trusted action planning and public preview remain open.
+authorizes replacement; action planning, explicit adoption and public preview
+compose it through their separate contracts below.
 
 The [target-action planner](ACTION_PLANNING.md) extends that observation to an
 explicit local source tree. Its proposals remain blocked by unproven origin,
-target qualification, quiescence and recovery; positive ownership authority and
-the public upgrade preview are still separate obligations.
+target qualification, quiescence and recovery. Explicit adoption and the public
+preview are separate source interfaces; this original planner remains unauthorized.
 
 The [explicit legacy adoption flow](LEGACY_ADOPTION.md) records the approved
 operator-granted authority alternative for unchanged reference files. Historical
 origin stays unproven and no saved receipt grants consent. Source qualification
 and public application remain distinct; recovery, activation and cleanup retain
 their own gates.
+
+The [public upgrade preview](PUBLIC_UPGRADE_PREVIEW.md) composes the six-file
+planner and explicit adoption for a source-built read-only command. Its partial
+coverage and blocked activation are explicit; ordinary legacy upgrade/apply,
+complete installation assessment and recovery/cleanup remain outside its scope.

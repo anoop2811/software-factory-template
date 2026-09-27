@@ -10,8 +10,9 @@ An upgrade preview must list the exact additions, replacements, removals,
 compatibility adapters and preserved customizations. For unchanged known legacy
 files without reliable installation records, an explicit confirmation grants new
 management authority over the selected files. It does not claim historical proof.
-The eventual public upgrade flow will combine this confirmation with its preview;
-users should not have to maintain ownership receipts or hidden migration files.
+The [source-built public preview](PUBLIC_UPGRADE_PREVIEW.md) combines proposal
+inspection and confirmation. Installed application remains pending; users should
+not have to maintain ownership receipts or hidden migration files.
 
 A changed file invalidates the confirmation. Customized, unknown, missing or
 unsafe selected files cannot be adopted through this route. They remain visible

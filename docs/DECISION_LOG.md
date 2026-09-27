@@ -2402,3 +2402,13 @@ confined read-only observation. Matching bytes never establish installation
 ownership, rollback readiness or activation authority. Require independent RED
 and negative filesystem evidence, preserve every adopter file, and leave public
 preview, trusted action planning and transactional delivery to later milestones.
+
+
+## Decision 79 (2026-09-26 UTC): plan explicit legacy migration actions conservatively
+
+Implement ADR-0080 by comparing the six assessed legacy paths with an explicit
+local target source, reusing the confined observer. List candidate additions,
+replacements and explicitly scoped retirements while preserving customizations
+and reporting conflicts. Keep origin, authentication, quiescence and recovery
+prerequisites visibly blocked; untrusted local metadata never grants ownership.
+This closes only target-action planning, not positive provenance or activation.

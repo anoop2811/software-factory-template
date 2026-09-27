@@ -172,3 +172,8 @@ The [installation reference assessment](INSTALLATION_ASSESSMENT.md) begins the
 G4 ownership/preview foundation with read-only comparison of six legacy budget/
 loop paths. A reference match never establishes installation ownership or
 authorizes replacement; trusted action planning and public preview remain open.
+
+The [target-action planner](ACTION_PLANNING.md) extends that observation to an
+explicit local source tree. Its proposals remain blocked by unproven origin,
+target qualification, quiescence and recovery; positive ownership authority and
+the public upgrade preview are still separate obligations.

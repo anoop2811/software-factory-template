@@ -139,5 +139,7 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 	if *observed == reference.Reference && after.Mode&07000 == 0 {
 		class = "matching_reference"
 	}
-	return row(reference, class, observed), nil
+	result = row(reference, class, observed)
+	result.fullMode = uint32(after.Mode) & 07777
+	return result, nil
 }

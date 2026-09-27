@@ -189,3 +189,9 @@ The [public upgrade preview](PUBLIC_UPGRADE_PREVIEW.md) composes the six-file
 planner and explicit adoption for a source-built read-only command. Its partial
 coverage and blocked activation are explicit; ordinary legacy upgrade/apply,
 complete installation assessment and recovery/cleanup remain outside its scope.
+
+The opt-in [recovery inventory](RECOVERY_INSPECTION.md) adds bounded read-only
+inspection to the source preview. Matching private saved originals are integrity
+evidence only; local records never authorize restoration or pruning. Default
+preview output and installed scripts remain unchanged. Backup creation, controlled
+restoration, activation and retention remain separate incomplete milestones.

@@ -2441,3 +2441,14 @@ Follow-up 2026-09-27 UTC: compiled closed-stdout evidence exposed SIGPIPE exit
 before the documented preview status-1 path. ADR-0082 now requires a separate
 preview-scoped buffered SIGPIPE notification with deferred Stop, preserving
 cancellation and all other routes. Independent RED preceded this correction.
+
+
+## Decision 82 (2026-09-27 UTC): inspect recovery integrity without granting authority
+
+Implement ADR-0083 as the read-only inventory prerequisite of backup/rollback.
+An opt-in public preview inspects bounded private inert recovery records and
+saved reference assets. Self-consistent metadata never proves a committed
+transaction, restoration eligibility or pruning authority. Preserve current
+preview defaults and every activation blocker; no state or backup is created.
+Qualify independent outside-in failures, filesystem confinement and resource
+limits before granting only the inventory milestone of the existing package.

@@ -25,6 +25,9 @@ type referenceAsset struct {
 type Asset struct {
 	// Retain non-rendered special bits for conservative target-mode validation.
 	// docs/adr/0080-go-migration-action-planning.md:44.
+	// Adoption binds the complete identity used by this exact observation.
+	// docs/adr/0081-explicit-legacy-asset-adoption.md:79.
+	identity       AssetIdentity
 	fullMode       uint32
 	Path           string       `json:"path"`
 	Classification string       `json:"classification"`

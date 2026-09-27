@@ -39,6 +39,28 @@ func assessmentCommands(status *int) *cobra.Command {
 		}
 		return writeAssessment(ctx, cmd, result, result.Status(), status)
 	}))
+	// Explicit positional confirmation binds current selected identities only.
+	// docs/adr/0081-explicit-legacy-asset-adoption.md:28.
+	group.AddCommand(command("propose-adoption", cobra.RangeArgs(2, 7), func(cmd *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		result, err := assessment.ProposeAdoption(ctx, args[0], args[1:])
+		if err != nil {
+			*status = assessment.ErrorStatus(err)
+			return err
+		}
+		return writeAssessment(ctx, cmd, result, 0, status)
+	}))
+	group.AddCommand(command("plan-adopted", cobra.RangeArgs(4, 9), func(cmd *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		result, err := assessment.PlanAdopted(ctx, args[0], args[1], args[2], args[3:])
+		if err != nil {
+			*status = assessment.ErrorStatus(err)
+			return err
+		}
+		return writeAssessment(ctx, cmd, result, result.Status(), status)
+	}))
 	return group
 }
 
@@ -59,5 +81,16 @@ func migrationRequest(args []string) bool {
 	if len(args) < 2 {
 		return false
 	}
-	return (args[1] == "assess" && len(args) == 3) || (args[1] == "plan" && len(args) == 4)
+	switch args[1] {
+	case "assess":
+		return len(args) == 3
+	case "plan":
+		return len(args) == 4
+	case "propose-adoption":
+		return len(args) >= 4 && len(args) <= 9
+	case "plan-adopted":
+		return len(args) >= 6 && len(args) <= 11
+	default:
+		return false
+	}
 }

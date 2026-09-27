@@ -179,12 +179,14 @@ responses, lower token usage and native Windows support are not implied by Go.
 > When conversion assesses a replacement or deletion
 > Then uncertain ownership is reported and the existing file is preserved
 > And activation stops if that unresolved conflict prevents a complete compatible installation; it does not claim full conversion or silently overwrite the file.
+> And an explicit operator may adopt selected unchanged known reference files for future factory management after reviewing their exact scope; this grants new management authority without claiming historical origin
+> And adoption is bound to the observed installation and file identities, content, type and complete mode, revalidated before use; local receipts, configuration and environment cannot supply consent, and customized, missing, unsafe or unrecognized selected files are refused.
 
 ### Story 4: Remove obsolete factory code safely
 
 **AC 4.1: Proved obsolete files**
 
-> Given an obsolete path proven to belong to the prior factory release and matching its recorded content, type and mode
+> Given an obsolete path with validated prior-release ownership or explicit operator adoption under AC 3.4, matching its recorded content, type and mode
 > When its replacement passes acceptance and migration commits successfully
 > Then replaced or removed owned files are first backed up with their original paths and restore metadata under `.factory/backups/MIGRATION_ID/`, their backup is checked, and obsolete implementations leave active paths as part of the successful transaction
 > And backup creation failure prevents destructive replacement/removal; copying old files locally is not permission to overwrite customized or unknown files
@@ -315,7 +317,7 @@ responses, lower token usage and native Windows support are not implied by Go.
 | FR-012 | Upgrade MUST offer the read-only preview and explicit recovery contracts in section 8, preserve a reviewable diff and perform no automatic Git commit/push/merge. | MUST |
 | FR-013 | Activation MUST require complete verified assets and compatibility checks; interrupted changes MUST be recoverable, retryable and never reported as success. | MUST |
 | FR-014 | Rollback MUST restore installation assets only; it MUST NOT erase later user edits or reset consumed budget, evidence or process ownership. Incompatible rollback MUST refuse safely. | MUST |
-| FR-015 | Cleanup MUST use validated prior ownership and unchanged content/type/mode evidence, rechecked at mutation time. Missing evidence or conflicts MUST preserve the path. | MUST |
+| FR-015 | Cleanup MUST use validated prior ownership or explicit operator adoption under AC 3.4, and unchanged content/type/mode evidence, rechecked at mutation time. Missing evidence or conflicts MUST preserve the path. | MUST |
 | FR-016 | Extraction, staging, replacement, activation, rollback and cleanup MUST validate path/type/ownership and remain within explicitly approved installation/staging/recovery roots. They MUST NOT follow unsafe links, mutate outside referents, recursively delete unclassified directories, or infer ownership solely from a filename/extension/local untrusted manifest. | MUST |
 | FR-017 | Every stage MUST retire superseded active logic, update generated adapters/install manifests/CI/docs and remove unused runtime dependencies. Retained compatibility adapters MUST be listed with a reason and tested. | MUST |
 | FR-018 | Before destructive replacement/removal, unchanged factory-owned predecessor assets MUST be backed up and checked under `.factory/backups/MIGRATION_ID/`, with private inert copies and original path/content/type/mode/version metadata. Recovery copies MUST never be active fallback code, and no cleanup may delete the only usable recovery set. | MUST |
@@ -554,8 +556,20 @@ fixtures must include exact legacy digest vectors (floats, Unicode, nulls and
 modes) and both lock acquisition orders. An upgrade that changes governed inputs
 can invalidate evidence legitimately; preserving compatibility never authorizes
 changing stored fingerprints to make it fresh. Replacements
-and removals require a known source version and rechecked owned-asset evidence;
+and removals require a known reference version and rechecked owned-asset evidence
+(validated prior ownership or explicit operator adoption under AC 3.4);
 recovery restores installation changes without restoring old runtime history.
+
+**User refinement (2026-09-27 UTC):** explicit adoption of unchanged known legacy
+factory assets is approved. This establishes new management authority, not proof
+of historical installation. Show selected paths and reasons before confirmation;
+refuse changed selections or observations. Saved receipts are descriptive only,
+and application must revalidate under migration exclusion. The existing backup
+and retention rules remain mandatory: normal successful later-release upgrades
+prune eligible older recovery sets, while held, edited or unsafe exceptions remain
+visible with paths, counts, bytes and a next action. A planning/adoption command
+creates no backup, receipt or cache. See ADR-0081 for the private qualification
+boundary; adoption alone does not authorize activation or deletion.
 
 **Alternatives considered:** Resetting state would erase budget/ownership evidence;
 blanket removal would erase custom files; trusting a local manifest without

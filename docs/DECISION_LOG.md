@@ -2412,3 +2412,15 @@ replacements and explicitly scoped retirements while preserving customizations
 and reporting conflicts. Keep origin, authentication, quiescence and recovery
 prerequisites visibly blocked; untrusted local metadata never grants ownership.
 This closes only target-action planning, not positive provenance or activation.
+
+
+## Decision 80 (2026-09-27 UTC): authorize explicit adoption of unchanged legacy assets
+
+The user approved explicit legacy adoption and required transparent, bounded
+cleanup. ADR-0081 refines historical-ownership-only requirements to permit new
+operator-granted management authority over selected unchanged reference files.
+Bind confirmation to exact observations and revalidate; never infer consent from
+local metadata or claim historical provenance. Preserve modified/unknown files,
+keep activation and recovery gates separate, and retain the existing successful-
+later-release pruning policy with visible exceptions. No progress credit follows
+from the decision before independent implementation qualification and merge.

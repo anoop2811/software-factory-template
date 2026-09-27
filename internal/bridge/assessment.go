@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -24,16 +25,39 @@ func assessmentCommands(status *int) *cobra.Command {
 			*status = assessment.ErrorStatus(err)
 			return err
 		}
-		data, err := json.Marshal(result)
-		if err == nil {
-			err = output.WriteEvent(ctx, cmd.OutOrStdout(), append(data, '\n'))
-		}
+		return writeAssessment(ctx, cmd, result, result.Status(), status)
+	}))
+	// Local target comparisons remain blocked proposals, not apply authority.
+	// docs/adr/0080-go-migration-action-planning.md:29.
+	group.AddCommand(command("plan", cobra.ExactArgs(2), func(cmd *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		result, err := assessment.Plan(ctx, args[0], args[1])
 		if err != nil {
-			*status = 1
-			return errors.New("cannot write assessment")
+			*status = assessment.ErrorStatus(err)
+			return err
 		}
-		*status = result.Status()
-		return nil
+		return writeAssessment(ctx, cmd, result, result.Status(), status)
 	}))
 	return group
+}
+
+func writeAssessment(ctx context.Context, cmd *cobra.Command, result any, code int, status *int) error {
+	data, err := json.Marshal(result)
+	if err == nil {
+		err = output.WriteEvent(ctx, cmd.OutOrStdout(), append(data, '\n'))
+	}
+	if err != nil {
+		*status = 1
+		return errors.New("cannot write assessment")
+	}
+	*status = code
+	return nil
+}
+
+func migrationRequest(args []string) bool {
+	if len(args) < 2 {
+		return false
+	}
+	return (args[1] == "assess" && len(args) == 3) || (args[1] == "plan" && len(args) == 4)
 }

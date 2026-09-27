@@ -23,6 +23,9 @@ type referenceAsset struct {
 
 // Asset reports one scoped reference comparison, never mutation authority.
 type Asset struct {
+	// Retain non-rendered special bits for conservative target-mode validation.
+	// docs/adr/0080-go-migration-action-planning.md:44.
+	fullMode       uint32
 	Path           string       `json:"path"`
 	Classification string       `json:"classification"`
 	Reference      Observation  `json:"reference"`

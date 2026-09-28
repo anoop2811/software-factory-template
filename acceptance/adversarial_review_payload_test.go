@@ -101,7 +101,7 @@ else:
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "bash", filepath.Join(base, "template/scripts/adversarial-review.sh"), diffPath) // #nosec G204 -- actual repository script in isolated fixture, literal diff path, fake HTTP only.
+		command := exec.CommandContext(ctx, "/bin/bash", filepath.Join(base, "template/scripts/adversarial-review.sh"), diffPath) // #nosec G204 -- actual repository script in isolated fixture, literal diff path, fake HTTP only.
 		command.Env = environment
 		command.Dir = base
 		var stdout, stderr bytes.Buffer

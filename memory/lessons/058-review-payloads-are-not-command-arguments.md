@@ -11,3 +11,10 @@ reported jq "Argument list too long" before any provider request. The independen
 regression in acceptance/adversarial_review_payload_test.go:18 reproduced the
 large-argument boundary locally before production changes. Decision 84's
 follow-up in docs/DECISION_LOG.md is the canonical transport contract.
+
+The same qualification exposed a second boundary: the test originally resolved
+Homebrew Bash 5 while the production shebang selects /bin/bash (Bash 3 on macOS).
+Observed 2026-09-28 via GitHub run 36482756956 and a local /bin/bash reproduction:
+the old whitespace-removal substitution exceeded the 15-second test deadline;
+a presence check avoids rewriting the diff. Test the production interpreter,
+not whichever compatible-looking executable appears first on the author's PATH.

@@ -2483,3 +2483,9 @@ request contents, provider settings, deadlines and no-fallback behavior. Remove
 owned temporary data on exit and exercise a diff above 128 KiB independently.
 The trusted-base workflow cannot consume this correction until it is merged;
 its advisory success status is not evidence that a model reviewed this PR.
+
+The macOS qualification then exposed the preexisting whole-diff whitespace
+substitution in Bash 3 exceeding the test deadline for a permitted 192,226-byte
+diff. Use a non-whitespace presence test without constructing a stripped copy;
+preserve empty/whitespace-only behavior. Qualify the real /bin/bash interpreter
+used by the script shebang, retaining the existing test deadline.

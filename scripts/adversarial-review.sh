@@ -84,7 +84,7 @@ if [ -z "$MODEL" ]; then
 fi
 
 DIFF="$(cat "$DIFF_FILE")"
-if [ -z "${DIFF//[[:space:]]/}" ]; then
+if [[ ! "$DIFF" =~ [^[:space:]] ]]; then
   echo "_No reviewable change in this diff._"
   exit 0
 fi

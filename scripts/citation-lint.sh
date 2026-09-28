@@ -29,9 +29,27 @@ if [ -z "$DOCS_ROOT" ] || [ ! -d "$DOCS_ROOT" ]; then
   exit 0
 fi
 
+# Physical document roots cannot make inert recovery canonical input.
+# docs/adr/0084-exclude-inert-recovery-from-discovery.md:42.
+# Preserve path bytes; command substitution otherwise strips trailing newlines.
+# docs/adr/0084-exclude-inert-recovery-from-discovery.md:89.
+PROJECT_ROOT="$(pwd -P && printf '.')"
+PROJECT_ROOT="${PROJECT_ROOT%$'\n.'}"
+RECOVERY_ROOT="${PROJECT_ROOT%/}/.factory/backups"
+DOCS_ROOT="$(cd -- "$DOCS_ROOT" && pwd -P && printf '.')"
+DOCS_ROOT="${DOCS_ROOT%$'\n.'}"
+case "$DOCS_ROOT" in
+  "$RECOVERY_ROOT"|"$RECOVERY_ROOT"/*)
+    echo "CITATION-LINT FAIL: docs_root resolves inside reserved recovery storage" >&2
+    exit 1
+    ;;
+esac
+# find -path takes a pattern even when shell-quoted; escape its metacharacters.
+RECOVERY_PATTERN="$(printf '%s' "$RECOVERY_ROOT" | sed 's/[\\*?[]/\\&/g')"
+
 # Find all citations of the form PREFIX_*.md:NN in .go, .md, .yaml, .sh files
 # and in PR descriptions (passed via $PR_BODY env var if set)
-SOURCES=$(find . -name '*.go' -o -name '*.md' -o -name '*.yaml' -o -name '*.sh' 2>/dev/null | grep -v node_modules | grep -v .git || true)
+SOURCES=$(find . -path './.factory/backups' -prune -o \( -name '*.go' -o -name '*.md' -o -name '*.yaml' -o -name '*.sh' \) -print 2>/dev/null | grep -v node_modules | grep -v .git || true)
 
 # Also check PR body if provided
 if [ -n "${PR_BODY:-}" ]; then
@@ -54,7 +72,7 @@ for CITATION in $CITATIONS; do
   LINE=$(echo "$CITATION" | cut -d: -f2)
 
   # Find the file in the docs_root
-  FOUND=$(find "$DOCS_ROOT" -name "$FILE" -print -quit 2>/dev/null || true)
+  FOUND=$(find "$DOCS_ROOT" -path "$RECOVERY_PATTERN" -prune -o -name "$FILE" -print -quit 2>/dev/null || true)
 
   if [ -z "$FOUND" ]; then
     echo "CITATION-LINT FAIL: $CITATION — file not found in $DOCS_ROOT/"

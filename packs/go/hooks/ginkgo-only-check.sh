@@ -30,7 +30,8 @@ cd "$ROOT"
 # All matching below uses `grep -E` (POSIX ERE) for the same reason: no gate
 # should depend on a tool that may be absent. Word boundaries are spelled out
 # rather than using GNU's `\b`, which BSD/macOS grep does not reliably support.
-if ! FILES="$(git ls-files -- '*_test.go')"; then
+# Exclude even force-tracked recovery. docs/adr/0084-exclude-inert-recovery-from-discovery.md:24.
+if ! FILES="$(git ls-files -- '*_test.go' ':(top,exclude,literal).factory/backups')"; then
   echo "GINKGO-ONLY FAIL: cannot list test files (not a git checkout?)" >&2
   factory_log_event "ginkgo-only-check" "could not enumerate test files"
   exit 1

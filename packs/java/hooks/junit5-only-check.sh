@@ -27,6 +27,7 @@ cd "$ROOT"
 
 ERRORS=0
 
+# Inert recovery is not active source. docs/adr/0084-exclude-inert-recovery-from-discovery.md:24.
 while IFS= read -r FILE; do
   [ -n "$FILE" ] || continue
 
@@ -36,7 +37,7 @@ while IFS= read -r FILE; do
     echo "JUNIT5-ONLY FAIL: $FILE imports a JUnit 4/3 API — behavioral tests must use JUnit 5 (org.junit.jupiter)"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(find . \( -path '*/build/*' -o -path '*/target/*' -o -path '*/.git/*' \) -prune -o \
+done < <(find . \( -path './.factory/backups' -o -path '*/build/*' -o -path '*/target/*' -o -path '*/.git/*' \) -prune -o \
            -type f \( -name '*Test.java' -o -name '*Tests.java' -o -name '*IT.java' -o -name '*ITCase.java' \) -print)
 
 if [ "$ERRORS" -gt 0 ]; then

@@ -31,6 +31,7 @@ ERRORS=0
 # Forbidden module specifiers in a `from '...'` import or a require('...').
 FORBIDDEN="jest|@jest/globals|mocha|chai|jasmine|ava|node:test"
 
+# Inert recovery is not active source. docs/adr/0084-exclude-inert-recovery-from-discovery.md:24.
 while IFS= read -r FILE; do
   [ -n "$FILE" ] || continue
 
@@ -38,7 +39,7 @@ while IFS= read -r FILE; do
     echo "VITEST-ONLY FAIL: $FILE imports a non-Vitest test framework — behavioral tests must use Vitest"
     ERRORS=$((ERRORS + 1))
   fi
-done < <(find . \( -path '*/node_modules/*' -o -path '*/dist/*' -o -path '*/build/*' -o -path '*/.git/*' \) -prune -o \
+done < <(find . \( -path './.factory/backups' -o -path '*/node_modules/*' -o -path '*/dist/*' -o -path '*/build/*' -o -path '*/.git/*' \) -prune -o \
            -type f \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.test.js' -o -name '*.test.jsx' \
                       -o -name '*.spec.ts' -o -name '*.spec.tsx' -o -name '*.spec.js' -o -name '*.spec.jsx' \) -print)
 

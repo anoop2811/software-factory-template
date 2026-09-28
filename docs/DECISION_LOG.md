@@ -2474,3 +2474,12 @@ review-lane and gate subprocess boundaries until their corresponding conversions
 Do not confuse source-native orchestration with installed Go activation or authorize
 legacy deletion through initialization. Qualify filesystem and cancellation safety
 before merging this command and proceeding to doctor.
+
+Follow-up 2026-09-28 UTC: PR #112 exposed an operating-system argument-size
+failure in the trusted-base review script before any model request. Carry the
+full prompt and JSON request through private temporary files/stdin, for both
+request shapes and every transport, rather than command arguments. Preserve
+request contents, provider settings, deadlines and no-fallback behavior. Remove
+owned temporary data on exit and exercise a diff above 128 KiB independently.
+The trusted-base workflow cannot consume this correction until it is merged;
+its advisory success status is not evidence that a model reviewed this PR.

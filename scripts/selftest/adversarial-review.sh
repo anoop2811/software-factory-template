@@ -18,7 +18,13 @@ printf '%s\n' "$@" > "$FIXTURE_ARGS"
 output=""; format=""; limit=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    -d|--data-binary) printf '%s' "$2" > "$FIXTURE_BODY"; shift 2 ;;
+    -d) printf '%s' "$2" > "$FIXTURE_BODY"; shift 2 ;;
+    --data-binary)
+      case "$2" in
+        @*) cat -- "${2#@}" > "$FIXTURE_BODY" ;;
+        *) printf '%s' "$2" > "$FIXTURE_BODY" ;;
+      esac
+      shift 2 ;;
     -o|--output) output="$2"; shift 2 ;;
     -w|--write-out) format="$2"; shift 2 ;;
     --max-time) limit="$2"; shift 2 ;;

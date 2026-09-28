@@ -18,11 +18,13 @@ go build -o factory-go ./cmd/factory
 ./factory-go help
 ```
 
-Keep the binary beside this checkout's `scripts/` directory. It delegates all
-11 existing commands to those scripts and therefore carries their real effects;
-for example, `init` and `upgrade` retain their existing write behavior. This is
-a developer candidate, not an installer or a standalone distribution. The local
-`factory-go` output is gitignored; remove it when finished.
+Keep the binary beside this checkout's template assets. The original foundation
+candidate delegated all 11 commands to scripts. Subsequent decisions move budget,
+loop and read-only upgrade preview into Go; [native initialization](INIT.md) records
+the next command's implementation and qualification state. Ordinary upgrade and
+the remaining command routes still carry their script effects. This is a developer
+candidate, not a standalone distribution. The local `factory-go` output is
+gitignored; remove it when finished.
 
 ## Acceptance and quality checks
 

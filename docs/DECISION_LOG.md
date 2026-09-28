@@ -2463,3 +2463,14 @@ subtree from source and target discovery, retain active enforcement elsewhere,
 and explicitly exclude tracked recovery from the Go gate. Do not claim universal
 control over arbitrary user checks or native scanners, or award writer progress
 before its remaining prerequisites and implementation qualify.
+
+
+## Decision 84 (2026-09-28 UTC): implement native Go initialization
+
+Implement ADR-0085 for the user-requested command conversion sequence, beginning
+with init. Preserve its installation and pack behavior while keeping independent
+outside-in acceptance separate from production. Explicitly retain synchronization,
+review-lane and gate subprocess boundaries until their corresponding conversions.
+Do not confuse source-native orchestration with installed Go activation or authorize
+legacy deletion through initialization. Qualify filesystem and cancellation safety
+before merging this command and proceeding to doctor.

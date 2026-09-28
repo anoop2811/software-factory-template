@@ -2452,3 +2452,14 @@ transaction, restoration eligibility or pruning authority. Preserve current
 preview defaults and every activation blocker; no state or backup is created.
 Qualify independent outside-in failures, filesystem confinement and resource
 limits before granting only the inventory milestone of the existing package.
+
+
+## Decision 83 (2026-09-27 UTC): exclude recovery copies from active gate discovery
+
+Implement ADR-0084 before durable recovery creation. Ignoring backups is not
+sufficient: recursive citation and language-dialect gates still consume them,
+and archived docs can satisfy current citations. Prune only the reserved recovery
+subtree from source and target discovery, retain active enforcement elsewhere,
+and explicitly exclude tracked recovery from the Go gate. Do not claim universal
+control over arbitrary user checks or native scanners, or award writer progress
+before its remaining prerequisites and implementation qualify.

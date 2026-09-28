@@ -80,3 +80,10 @@ privileges; invalid-byte filename fixtures depend on filesystem support. A
 filesystem-independent raw-byte serialization regression covers display identity
 without that filesystem dependency. These results do not establish installed
 activation, backup creation, restoration or retention/pruning.
+
+## Discovery prerequisite
+
+[Recovery discovery exclusions](RECOVERY_DISCOVERY.md) keep factory-owned gates
+from consuming obsolete saved scripts, tests and documentation. This prerequisite
+does not create recovery sets or establish universal exclusions for arbitrary
+user commands and external scanners. Durable creation remains pending.

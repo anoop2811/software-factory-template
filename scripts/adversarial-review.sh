@@ -84,7 +84,7 @@ if [ -z "$MODEL" ]; then
 fi
 
 DIFF="$(cat "$DIFF_FILE")"
-if [ -z "${DIFF//[[:space:]]/}" ]; then
+if [[ ! "$DIFF" =~ [^[:space:]] ]]; then
   echo "_No reviewable change in this diff._"
   exit 0
 fi
@@ -133,10 +133,21 @@ USER_PROMPT="Review this diff.
 $DIFF
 \`\`\`"
 
-# Keep partial bodies private and classify transfer failure before extraction.
-# docs/adr/0065-adversarial-review-transport-deadline.md:36.
-RESPONSE_FILE="$(umask 077; mktemp "${TMPDIR:-/tmp}/factory-review.XXXXXX")"
-trap 'rm -f -- "$RESPONSE_FILE"' EXIT
+# Keep prompts and bodies private without passing payloads through argv.
+# docs/DECISION_LOG.md:2478.
+REQUEST_DIR="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/factory-review.XXXXXX")"
+trap 'rm -f -- "$REQUEST_DIR/system" "$REQUEST_DIR/user" "$REQUEST_DIR/request" "$REQUEST_DIR/response"; rmdir -- "$REQUEST_DIR"' EXIT
+SYSTEM_FILE="$REQUEST_DIR/system"
+USER_FILE="$REQUEST_DIR/user"
+REQUEST_FILE="$REQUEST_DIR/request"
+RESPONSE_FILE="$REQUEST_DIR/response"
+(
+  umask 077
+  printf '%s' "$SYSTEM_PROMPT" > "$SYSTEM_FILE"
+  printf '%s' "$USER_PROMPT" > "$USER_FILE"
+  : > "$REQUEST_FILE"
+  : > "$RESPONSE_FILE"
+)
 
 request_review() {
   local curl_status=0 transport http_status total_seconds first_byte_seconds received_bytes _extra
@@ -170,11 +181,11 @@ request_review() {
 case "$PROVIDER" in
   anthropic)
     ENDPOINT="https://api.anthropic.com/v1/messages"
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" \
-      '{model:$m, max_tokens:4096, system:$s, messages:[{role:"user",content:$u}]}')"
+    jq -n --arg m "$MODEL" --rawfile s "$SYSTEM_FILE" --rawfile u "$USER_FILE" \
+      '{model:$m, max_tokens:4096, system:$s, messages:[{role:"user",content:$u}]}' > "$REQUEST_FILE"
     request_review "$ENDPOINT" \
       -H "x-api-key: $API_KEY" -H "anthropic-version: 2023-06-01" \
-      -H "content-type: application/json" -d "$BODY" || exit 1
+      -H "content-type: application/json" --data-binary "@$REQUEST_FILE" || exit 1
     TEXT="$(printf '%s' "$RESPONSE" | jq -r '.content[0].text // empty' 2>/dev/null || true)"
     ;;
   *)
@@ -222,12 +233,12 @@ case "$PROVIDER" in
     # docs/adr/0057-configurable-review-output-cap.md:8.
     # A selected host is pinned without fallback and must support the parameters.
     # docs/adr/0055-pin-deepseek-review-provider.md:20.
-    BODY="$(jq -n --arg m "$MODEL" --arg s "$SYSTEM_PROMPT" --arg u "$USER_PROMPT" --arg p "$PROVIDER" --arg effort "$EFFORT" --arg route "$ROUTE" --argjson max_tokens "${MAX_TOKENS:-8192}" \
+    jq -n --arg m "$MODEL" --rawfile s "$SYSTEM_FILE" --rawfile u "$USER_FILE" --arg p "$PROVIDER" --arg effort "$EFFORT" --arg route "$ROUTE" --argjson max_tokens "${MAX_TOKENS:-8192}" \
       '{model:$m, messages:[{role:"system",content:$s},{role:"user",content:$u}]} +
        (if $p == "openai" then {} else
          {max_tokens:$max_tokens} + (if $effort == "" then {} else {reasoning:{effort:$effort}} end) +
          (if $route == "" then {} else {provider:{order:[$route],allow_fallbacks:false,require_parameters:true}} end)
-       end)')"
+       end)' > "$REQUEST_FILE"
     # Explicit selection never falls back after a client failure.
     # docs/adr/0067-streaming-adversarial-review-client.md:32.
     if [ "$PROVIDER" != openai ] && [ -n "${REVIEW_GO_CLIENT:-}" ]; then
@@ -239,15 +250,15 @@ case "$PROVIDER" in
         echo "adversarial-review: REVIEW_GO_CLIENT must name an absolute executable file." >&2
         exit 1
       fi
-      printf '%s' "$BODY" | /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 \
+      /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 \
         "REVIEW_API_KEY=$API_KEY" "REVIEW_TIMEOUT_SECONDS=$TIMEOUT" \
         "REVIEW_HTTP_RETRIES=${REVIEW_HTTP_RETRIES:-0}" \
-        "$REVIEW_GO_CLIENT" review openrouter
+        "$REVIEW_GO_CLIENT" review openrouter < "$REQUEST_FILE"
       exit "$?"
     fi
     request_review "$ENDPOINT" \
       -H "Authorization: Bearer $API_KEY" -H "content-type: application/json" \
-      -d "$BODY" || exit 1
+      --data-binary "@$REQUEST_FILE" || exit 1
     if [ "$PROVIDER" != "openai" ] && \
         printf '%s' "$RESPONSE" | jq -e '.choices[0].finish_reason == "length"' >/dev/null 2>&1; then
       echo "adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length)." >&2

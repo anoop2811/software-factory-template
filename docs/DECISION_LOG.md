@@ -2463,3 +2463,29 @@ subtree from source and target discovery, retain active enforcement elsewhere,
 and explicitly exclude tracked recovery from the Go gate. Do not claim universal
 control over arbitrary user checks or native scanners, or award writer progress
 before its remaining prerequisites and implementation qualify.
+
+
+## Decision 84 (2026-09-28 UTC): implement native Go initialization
+
+Implement ADR-0085 for the user-requested command conversion sequence, beginning
+with init. Preserve its installation and pack behavior while keeping independent
+outside-in acceptance separate from production. Explicitly retain synchronization,
+review-lane and gate subprocess boundaries until their corresponding conversions.
+Do not confuse source-native orchestration with installed Go activation or authorize
+legacy deletion through initialization. Qualify filesystem and cancellation safety
+before merging this command and proceeding to doctor.
+
+Follow-up 2026-09-28 UTC: PR #112 exposed an operating-system argument-size
+failure in the trusted-base review script before any model request. Carry the
+full prompt and JSON request through private temporary files/stdin, for both
+request shapes and every transport, rather than command arguments. Preserve
+request contents, provider settings, deadlines and no-fallback behavior. Remove
+owned temporary data on exit and exercise a diff above 128 KiB independently.
+The trusted-base workflow cannot consume this correction until it is merged;
+its advisory success status is not evidence that a model reviewed this PR.
+
+The macOS qualification then exposed the preexisting whole-diff whitespace
+substitution in Bash 3 exceeding the test deadline for a permitted 192,226-byte
+diff. Use a non-whitespace presence test without constructing a stripped copy;
+preserve empty/whitespace-only behavior. Qualify the real /bin/bash interpreter
+used by the script shebang, retaining the existing test deadline.

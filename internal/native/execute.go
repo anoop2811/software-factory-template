@@ -39,6 +39,7 @@ func defaultProcessOps() processOps {
 }
 
 type runOptions struct {
+	errorOutput io.Writer
 	environment []string
 	limit       int
 	mergeStderr bool
@@ -207,7 +208,14 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	outputDone := make(chan struct{})
 	go func() { defer close(outputDone); _, _ = io.Copy(captured, pipes.outputR) }()
 	errorDone := make(chan struct{})
-	go func() { defer close(errorDone); _, _ = io.Copy(io.Discard, pipes.errorR) }()
+	go func() {
+		defer close(errorDone)
+		destination := options.errorOutput
+		if destination == nil {
+			destination = io.Discard
+		}
+		_, _ = io.Copy(destination, pipes.errorR)
+	}()
 	inputDone := make(chan struct{})
 	var waitErr error
 	reaped := false

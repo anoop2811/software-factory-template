@@ -51,6 +51,29 @@ func Get(ctx context.Context, path, key, fallback string) (string, error) {
 	if err != nil || !found {
 		return fallback, err
 	}
+	return normalizeValue(value, fallback), nil
+}
+
+// GetBytes reads the same flat grammar from an already validated input snapshot.
+func GetBytes(ctx context.Context, data []byte, key, fallback string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return fallback, err
+	}
+	remaining := string(data)
+	for remaining != "" {
+		if err := ctx.Err(); err != nil {
+			return fallback, err
+		}
+		line, rest, _ := strings.Cut(remaining, "\n")
+		remaining = rest
+		if strings.HasPrefix(line, key+":") {
+			return normalizeValue(line[len(key)+1:], fallback), nil
+		}
+	}
+	return fallback, nil
+}
+
+func normalizeValue(value, fallback string) string {
 	value = strings.TrimLeft(value, " \t\r\v\f")
 	// Bash command substitution drops NUL bytes after sed removes leading space.
 	value = strings.ReplaceAll(value, "\x00", "")
@@ -69,9 +92,9 @@ func Get(ctx context.Context, path, key, fallback string) (string, error) {
 		value = strings.TrimRight(value, " \t\r\v\f")
 	}
 	if value == "" {
-		return fallback, nil
+		return fallback
 	}
-	return value, nil
+	return value
 }
 
 // Has distinguishes an explicitly empty setting from an absent setting.

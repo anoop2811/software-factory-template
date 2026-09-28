@@ -21,7 +21,6 @@ import (
 // candidate's registrations. per specs/001-go-runtime-conversion.md:295
 // Budget/loop have native public qualification: per docs/adr/0078-go-public-budget-loop.md:43
 var commandRoutes = []struct{ command, script string }{
-	{"init", "scripts/factory-init.sh"},
 	{"doctor", "scripts/factory-doctor.sh"},
 	{"upgrade", "scripts/factory-upgrade.sh"},
 	{"check", "scripts/pre-push-check.sh"},
@@ -145,7 +144,8 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			if executable == "factory" {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
+				// per docs/adr/0085-go-native-init.md:135
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {
 					if line == "              touches your factory.yaml, content, or customized files\n" {

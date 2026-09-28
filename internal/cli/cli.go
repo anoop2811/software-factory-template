@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
+Init, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -100,6 +101,16 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Native init uses assets beside the invoked source-built executable.
+				// docs/adr/0085-go-native-init.md:24.
+				if name == "init" {
+					directory, err := dispatcherDirectory()
+					if err != nil {
+						return err
+					}
+					status = initcmd.Run(cmd.Context(), forwarded, directory, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
 				// Source-built budget/loop commands do not select colocated scripts.
 				// docs/adr/0078-go-public-budget-loop.md:29.
 				if name == "budget" || name == "loop" {
@@ -132,19 +143,9 @@ func dispatch(ctx context.Context, command, script string, args []string) error 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	invocation := os.Args[0]
-	if !strings.ContainsRune(invocation, filepath.Separator) {
-		path, err := exec.LookPath(invocation)
-		// A relative PATH entry is valid here: the caller already selected and
-		// started this executable, and the shell boundary permits such entries.
-		if err != nil && !errors.Is(err, exec.ErrDot) {
-			return fmt.Errorf("factory: locate dispatcher: %w", err)
-		}
-		invocation = path
-	}
-	directory, err := filepath.Abs(filepath.Dir(invocation))
+	directory, err := dispatcherDirectory()
 	if err != nil {
-		return fmt.Errorf("factory: locate dispatcher directory: %w", err)
+		return err
 	}
 	path := filepath.Join(directory, "scripts", script)
 	if err := syscall.Access(path, 1); err != nil {
@@ -168,4 +169,22 @@ func dispatch(ctx context.Context, command, script string, args []string) error 
 	// #nosec G204 G702 -- The shell program is constant; trusted script path and literal argv are separate positional parameters.
 	err = syscall.Exec("/usr/bin/env", fallback, os.Environ())
 	return fmt.Errorf("factory: execute '%s': %w", command, err)
+}
+
+func dispatcherDirectory() (string, error) {
+	invocation := os.Args[0]
+	if !strings.ContainsRune(invocation, filepath.Separator) {
+		path, err := exec.LookPath(invocation)
+		// A relative PATH entry is valid here: the caller already selected and
+		// started this executable, and the shell boundary permits such entries.
+		if err != nil && !errors.Is(err, exec.ErrDot) {
+			return "", fmt.Errorf("factory: locate dispatcher: %w", err)
+		}
+		invocation = path
+	}
+	directory, err := filepath.Abs(filepath.Dir(invocation))
+	if err != nil {
+		return "", fmt.Errorf("factory: locate dispatcher directory: %w", err)
+	}
+	return directory, nil
 }

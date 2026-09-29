@@ -1,6 +1,6 @@
 # ADR-0085: Native Go initialization orchestration
 
-Status: accepted for implementation; qualification pending
+Status: accepted; source command qualified and merged in PR #112
 Date: 2026-09-28
 Decision: 84
 
@@ -47,7 +47,7 @@ Bound each answer to 64 KiB and refuse an oversized unterminated answer without
 waiting for EOF. Bound individual template inputs to 16 MiB and each discovered
 asset directory to 4096 entries, and the target root sidecar scan to 8192 entries,
 checking cancellation while processing them. Each external stage has a ten-minute
-deadline and separate 32 MiB stdout/stderr limits; reuse the supervisor's bounded
+deadline and separate 16 MiB stdout/stderr limits; reuse the supervisor's bounded
 five-second owned-group cleanup. Child output is captured for that supervision,
 so native init owns the optional interactive review-model question: after the
 main Proceed confirmation and before publication, when review is enabled and

@@ -17,6 +17,16 @@ type CommandResult struct {
 // ExecuteCommand supervises literal initializer tools without harness-role overlays.
 // docs/adr/0085-go-native-init.md:55.
 func ExecuteCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
+	return executeCommand(ctx, root, argv, environment, allowance, false)
+}
+
+// ExecuteCommandCombined preserves the proof script's shared output stream.
+// docs/adr/0086-go-native-doctor.md:72.
+func ExecuteCommandCombined(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
+	return executeCommand(ctx, root, argv, environment, allowance, true)
+}
+
+func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, combined bool) (CommandResult, error) {
 	if root == "" || len(argv) == 0 || argv[0] == "" {
 		return CommandResult{}, errors.New("invalid tool command")
 	}
@@ -50,7 +60,7 @@ func ExecuteCommand(ctx context.Context, root string, argv []string, environment
 	arguments := append([]string{binary}, argv[1:]...)
 	execution, err := supervise(child, Plan{Root: root, Argv: arguments}, allowance,
 		func(context.Context, int) error { return nil }, defaultProcessOps(),
-		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr})
+		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
 	data, overflow := stderr.snapshot()
 	if overflow {
 		err = errors.Join(err, errors.New("tool output limit exceeded"))

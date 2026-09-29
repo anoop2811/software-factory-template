@@ -50,7 +50,7 @@ func action(key, value string, preserved []string) Action {
 // Caller values are not serialized in the plan. docs/adr/0056-go-configuration-export-plans.md:33.
 func ExportPlan(ctx context.Context, path string, preserved []string) ([]Action, error) {
 	var actions []Action
-	legacy := legacyPath(path)
+	legacy := LegacyPath(path)
 	if info, err := os.Stat(legacy); err == nil && info.Mode().IsRegular() {
 		var err error
 		actions, err = LegacyPlan(ctx, legacy, preserved)
@@ -72,7 +72,9 @@ func ExportPlan(ctx context.Context, path string, preserved []string) ([]Action,
 
 // Preserve dirname's lexical path: cleaning an interior '..' can cross a
 // different directory when an earlier component is a symlink.
-func legacyPath(path string) string {
+// LegacyPath locates the fallback beside an explicit configuration without
+// cleaning symlink-sensitive interior parent components.
+func LegacyPath(path string) string {
 	trimmed := strings.TrimRight(path, "/")
 	separator := strings.LastIndexByte(trimmed, '/')
 	directory := "."

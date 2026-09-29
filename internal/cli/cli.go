@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
@@ -41,7 +42,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
+Init, doctor, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -101,6 +102,12 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Native diagnostics retain only the explicit shared tool boundaries.
+				// docs/adr/0086-go-native-doctor.md:18.
+				if name == "doctor" {
+					status = doctorcmd.Run(cmd.Context(), configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					return nil
+				}
 				// Native init uses assets beside the invoked source-built executable.
 				// docs/adr/0085-go-native-init.md:24.
 				if name == "init" {

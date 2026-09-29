@@ -2489,3 +2489,19 @@ substitution in Bash 3 exceeding the test deadline for a permitted 192,226-byte
 diff. Use a non-whitespace presence test without constructing a stripped copy;
 preserve empty/whitespace-only behavior. Qualify the real /bin/bash interpreter
 used by the script shebang, retaining the existing test deadline.
+
+
+## Decision 85 (2026-09-28 UTC): implement native Go health diagnostics
+
+Implement ADR-0086 after merged native init. Preserve doctor classifications,
+proof and adapter checks while moving its orchestration into Go. Generate adapter
+comparisons in private scratch state instead of rewriting and restoring adopter
+files. Reuse shared configuration and child supervision, keep explicit validation/
+synchronization boundaries, and report uncertainty honestly. No installed runtime
+activation or legacy cleanup is authorized by a health report. Qualify and merge
+this command before beginning the next requested conversion.
+
+Implementation inspection corrected the documented inherited capture bound: the
+shared supervisor limits each output stream to 16 MiB (internal/native/prepare.go).
+ADR-0085's earlier 32 MiB statement was inaccurate; align it and ADR-0086 with
+the unchanged implementation rather than increasing resource limits during a port.

@@ -13,25 +13,28 @@ func (r *report) gates(ctx context.Context, v map[string]string) {
 	} else {
 		r.line("[inert]", "test-edit-denial       no test_file_patterns set — the implementer can edit tests")
 	}
-	if v["citation_prefix"] == "" {
+	switch {
+	case v["citation_prefix"] == "":
 		r.line("[inert]", "citation-lint          no citation_prefix set (opt-in)")
-	} else if v["docs_root"] != "" && directory(r.path(v["docs_root"])) {
+	case v["docs_root"] != "" && directory(r.path(v["docs_root"])):
 		r.line("[ARMED]", "citation-lint          resolves "+v["citation_prefix"]+"*.md citations against "+v["docs_root"]+"/")
-	} else {
+	default:
 		r.line("[warn]", "citation-lint          citation_prefix set but docs_root '"+v["docs_root"]+"' is missing")
 	}
-	if v["check_command"] == "" {
+	switch {
+	case v["check_command"] == "":
 		r.line("[inert]", "diff-aware-check       no check_command set — nothing re-verified on change")
-	} else if regular(r.path("memory/.parity-stale")) {
+	case regular(r.path("memory/.parity-stale")):
 		r.line("[STALE]", "diff-aware-check       an OBSERVED parity claim is stale (memory/.parity-stale)")
-	} else {
+	default:
 		r.line("[ARMED]", "diff-aware-check       re-verifies via: "+v["check_command"])
 	}
-	if v["decision_log"] == "" {
+	switch {
+	case v["decision_log"] == "":
 		r.line("[warn]", "decision-log-gate      no decision_log configured")
-	} else if v["protected_paths"] != "" {
+	case v["protected_paths"] != "":
 		r.line("[ARMED]", "decision-log-gate      governance surfaces + protected_paths ("+v["protected_paths"]+") need a Decision")
-	} else {
+	default:
 		r.line("[ARMED]", "decision-log-gate      factory surfaces need a Decision (no protected_paths set)")
 	}
 	r.line("[ARMED]", "commit-message-lint    verification-claim + conventional-commit lint")
@@ -47,15 +50,16 @@ func (r *report) gates(ctx context.Context, v map[string]string) {
 		r.line("[inert]", "shared-script-enforce  no .opencode/plugin present")
 	}
 	found, err := wikiContent(ctx, r.path(v["wiki_root"]))
-	if err != nil {
+	switch {
+	case err != nil:
 		r.line("[warn]", "wiki-lint              cannot inspect wiki content: "+err.Error())
-	} else if found {
+	case found:
 		mode := "cited, reachable (staleness opt-in)"
 		if v["wiki_staleness"] == "true" {
 			mode = "cited, reachable, fresh"
 		}
 		r.line("[ARMED]", "wiki-lint              every wiki/ content page: "+mode+", links resolve")
-	} else {
+	default:
 		r.line("[inert]", "wiki-lint              no wiki content pages yet (wiki_root: "+v["wiki_root"]+")")
 	}
 	for _, lang := range shellFields(v["language_packs"]) {

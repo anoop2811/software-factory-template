@@ -26,10 +26,12 @@ func (r *report) hooksPath(ctx context.Context) error {
 		if unsafeResult(result) || ctx.Err() != nil {
 			return "", errors.New("git hooksPath probe did not complete safely")
 		}
-		if err != nil || !succeeded(result) {
-			return "", nil
+		if err == nil && succeeded(result) {
+			return strings.TrimRight(string(result.Stdout), "\n"), nil
 		}
-		return strings.TrimRight(string(result.Stdout), "\n"), nil
+		// Ordinary unavailable or unsuccessful Git probes retain the warning
+		// classification below; unsafe supervision failures were rejected above.
+		return "", nil
 	}
 	resolved, err := probe("rev-parse", "--git-path", "hooks/pre-push")
 	if err != nil {

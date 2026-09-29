@@ -317,7 +317,6 @@ exit 0
 		beforeInfo, err := os.Stat(path)
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, "CLAUDE.md.replaced-by-symlink"), []byte("OLD_BACKUP"), 0600)
-		before := nativeInitArtifacts(root)
 		body := ""
 		switch kind {
 		case "content":
@@ -332,7 +331,7 @@ exit 0
 		// Require a scratch cwd and excluded assets; inode/mtime assertions below
 		// additionally reject restore-after-write mutation of live adapters.
 		writeFixture(filepath.Join(root, "scripts/sync-claude.sh"), []byte("#!/bin/bash\n[ \"$PWD\" != \"$DOCTOR_LIVE_ROOT\" ] || exit 81\n[ ! -e node_modules/PRIVATE ] || exit 82\n[ ! -e .git ] || exit 83\n"+body+"\n"), 0700)
-		before = nativeInitArtifacts(root)
+		before := nativeInitArtifacts(root)
 		out := doctorRun(root, append(environment, "DOCTOR_LIVE_ROOT="+root), false)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		Expect(out.stdout).To(ContainSubstring("harness adapters drifted"))

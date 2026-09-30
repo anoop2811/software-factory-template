@@ -2518,3 +2518,26 @@ nonzero diagnostic on overflow. Count newline-bearing hook names once instead
 of counting their printed lines, and reject binary NUL event data whose shell
 interpretation differs by Bash version. Qualify boundaries independently before merge;
 do not award installed activation or legacy-retirement credit for this command.
+
+## Decision 87 (2026-09-30 UTC): implement native Go local metrics
+
+After merged report PR #114, implement ADR-0088. Move metrics computation and
+text/JSON/HTML rendering from Bash and embedded Python to Go, retaining the
+versioned schema, ordinary outputs and local-only behavior. Reuse bounded file
+and process components. Make generated HTML publication atomic and refuse
+unsafe destinations; preserve browser launch as an explicit detached,
+best-effort presentation boundary gated by TTY, CI and --no-open. Document
+numeric/resource bounds, stable sorting and per-file malformed-eval fallback
+rather than silently inheriting interpreter-dependent failures. Qualify and
+merge metrics before starting the next requested command.
+
+Metrics review identified possible output amplification from repeated template
+markers or per-task harness metadata. Bound generated JSON/HTML before full
+allocation, require one template marker, and cap aggregate eval task rows as
+specified in ADR-0088. Input byte limits alone do not bound derived output.
+
+A compiled metrics regression then observed SIGTERM fail to terminate a JSON
+write while the reader kept stdout open but stopped draining it. Correct the
+shared pipe/socket output cancellation boundary, preserving borrowed descriptor
+ownership and restoring its flags, before qualifying metrics. A closed-pipe
+test alone did not exercise this blocked-write case.

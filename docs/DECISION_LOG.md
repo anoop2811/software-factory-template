@@ -2541,3 +2541,14 @@ write while the reader kept stdout open but stopped draining it. Correct the
 shared pipe/socket output cancellation boundary, preserving borrowed descriptor
 ownership and restoring its flags, before qualifying metrics. A closed-pipe
 test alone did not exercise this blocked-write case.
+
+## Decision 88 (2026-09-30 UTC): implement native Go review-lane management
+
+After merged metrics PR #115, implement ADR-0089. Preserve the advisory lane's
+ordinary command behavior with bounded local reads, exact managed-workflow
+ownership and config-before-publication ordering. Validate GitHub secret names
+before literal substitution, reuse cancellable terminal and publication
+components where their contracts match, and route init/doctor lane operations
+through the native service without changing process-global cwd. Keep hosted
+review/model/provider behavior and installed legacy activation unchanged.
+Qualify and merge this command before starting config migration.

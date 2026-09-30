@@ -3,7 +3,6 @@ package metricscmd
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/fileinput"
+	"github.com/anoop2811/software-factory-template/internal/filepublish"
 	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
@@ -120,60 +120,11 @@ func publishHTML(ctx context.Context, path string, page []byte) (returned error)
 		}
 		mode = original.Mode().Perm()
 	}
-	name := ".metrics-" + rand.Text()
-	temporary, err := directory.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	stage, err := filepublish.Prepare(ctx, directory, ".metrics-", page, mode)
 	if err != nil {
 		return err
 	}
-	created, err := temporary.Stat()
-	if err != nil {
-		return errors.Join(err, temporary.Close())
-	}
-	closed, published := false, false
-	defer func() {
-		if !closed {
-			returned = errors.Join(returned, temporary.Close())
-		}
-		if published {
-			return
-		}
-		occupant, err := directory.Lstat(name)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-		case err != nil:
-			returned = errors.Join(returned, err)
-		case !os.SameFile(created, occupant):
-			returned = errors.Join(returned, errors.New("metrics temporary identity changed; cleanup refused"))
-		default:
-			returned = errors.Join(returned, directory.Remove(name))
-		}
-	}()
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if n, err := temporary.Write(page); err != nil {
-		return err
-	} else if n != len(page) {
-		return io.ErrShortWrite
-	}
-	if err := temporary.Chmod(mode); err != nil {
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		return err
-	}
-	prepared, err := temporary.Stat()
-	if err != nil {
-		return err
-	}
-	err = temporary.Close()
-	closed = true
-	if err != nil {
-		return err
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+	defer func() { returned = errors.Join(returned, stage.Cleanup()) }()
 	if err := checkDirectory(); err != nil {
 		return err
 	}
@@ -185,13 +136,5 @@ func publishHTML(ctx context.Context, path string, page []byte) (returned error)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return errors.New("metrics destination appeared during publication")
 	}
-	current, err = directory.Lstat(name)
-	if err != nil || !samePage(prepared, current) {
-		return errors.New("metrics temporary changed during publication")
-	}
-	if err := directory.Rename(name, "metrics.html"); err != nil {
-		return err
-	}
-	published = true
-	return nil
+	return stage.Publish(ctx, "metrics.html")
 }

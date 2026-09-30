@@ -480,8 +480,9 @@ var _ = Describe("Native Go doctor classifications", func() {
 		Expect(os.MkdirAll(filepath.Join(root, "real/child"), 0700)).To(Succeed())
 		Expect(os.Symlink(filepath.Join(root, "real/child"), filepath.Join(root, "link"))).To(Succeed())
 		writeFixture(filepath.Join(root, "real/factory.yaml"), []byte("project_name: fixture\n"), 0600)
-		writeFixture(filepath.Join(root, "real/factory.config"), []byte("REVIEW_LANE=on\n"), 0600)
+		writeFixture(filepath.Join(root, "real/factory.config"), []byte("REVIEW_LANE=on\nREVIEW_API_KEY_SECRET=LEXICAL_SECRET\n"), 0600)
 		writeFixture(filepath.Join(root, "factory.config"), []byte("REVIEW_LANE=off\n"), 0600)
+		writeFixture(filepath.Join(filepath.Dir(root), "bin/gh"), []byte("#!/bin/sh\nprintf 'LEXICAL_SECRET yesterday\\n'\n"), 0700)
 		environment = append(environment, "FACTORY_CONFIG="+root+"/link/../factory.yaml")
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
@@ -590,11 +591,12 @@ var _ = Describe("Native Go doctor classifications", func() {
 		Expect(out.stdout).To(ContainSubstring(diagnostic))
 	}, Entry("armed", "armed", "git resolves the pre-push hook"), Entry("inert", "inert", "pre-push hook is not executable"), Entry("hijacked", "hijacked", "core.hooksPath redirects git"), Entry("absent", "absent", "push gate not installed"))
 
-	// per docs/adr/0086-go-native-doctor.md:47
+	// per docs/adr/0089-go-native-review-lane.md:93
 	DescribeTable("never claims review credentials are present after a failed status lookup", func(body string, healthy bool) {
 		root, environment := doctorFixture()
-		environment = append(environment, "REVIEW_LANE=on")
-		writeFixture(filepath.Join(root, "scripts/factory-review-lane.sh"), []byte("#!/bin/bash\nif [ \"$1\" = secret-name ]; then echo FIXTURE_SECRET; exit 0; fi\n"+body), 0700)
+		environment = append(environment, "REVIEW_LANE=on", "REVIEW_API_KEY_SECRET=FIXTURE_SECRET")
+		Expect(os.Remove(filepath.Join(root, "scripts/factory-review-lane.sh"))).To(Succeed())
+		writeFixture(filepath.Join(filepath.Dir(root), "bin/gh"), []byte("#!/bin/sh\n"+body), 0700)
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		if healthy {
@@ -603,5 +605,5 @@ var _ = Describe("Native Go doctor classifications", func() {
 			Expect(out.stdout).NotTo(ContainSubstring("secret present"))
 			Expect(out.stdout).To(ContainSubstring("unverified"))
 		}
-	}, Entry("empty success", "exit 0\n", true), Entry("pending", "echo missing\nexit 0\n", false), Entry("failed empty", "exit 7\n", false))
+	}, Entry("secret listed", "echo 'FIXTURE_SECRET updated'\nexit 0\n", true), Entry("pending", "echo missing\nexit 0\n", false), Entry("failed empty", "exit 7\n", false))
 })

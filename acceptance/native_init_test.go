@@ -67,6 +67,7 @@ func nativeInitFixture() (string, string, []string) {
 	}
 	bin := filepath.Join(base, "bin")
 	writeFixture(filepath.Join(bin, "npm"), []byte("#!/bin/sh\nexit 0\n"), 0700)
+	writeFixture(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nexit 1\n"), 0700)
 	var environment []string
 	for _, value := range os.Environ() {
 		if !strings.HasPrefix(value, "FACTORY_") && !strings.HasPrefix(value, "GIT_") && !strings.HasPrefix(value, "PATH=") {
@@ -451,7 +452,7 @@ var _ = Describe("Native Go init external boundaries", func() {
 	DescribeTable("distinguishes advisory failures from mandatory gate attestation", func(which string, status int) {
 		source, target, environment := nativeInitFixture()
 		trace := filepath.Join(filepath.Dir(source), "external-trace")
-		scripts := map[string]string{"npm": filepath.Join(filepath.Dir(source), "bin/npm"), "sync": filepath.Join(source, "scripts/sync-opencode.sh"), "review": filepath.Join(source, "scripts/factory-review-lane.sh"), "selftest": filepath.Join(source, "scripts/selftest/run.sh")}
+		scripts := map[string]string{"npm": filepath.Join(filepath.Dir(source), "bin/npm"), "sync": filepath.Join(source, "scripts/sync-opencode.sh"), "selftest": filepath.Join(source, "scripts/selftest/run.sh")}
 		for name, path := range scripts {
 			code := "0"
 			if name == which {
@@ -464,6 +465,9 @@ var _ = Describe("Native Go init external boundaries", func() {
 			script += "exit " + code + "\n"
 			writeFixture(path, []byte(script), 0700)
 		}
+		if which == "review" {
+			writeFixture(filepath.Join(source, "packs/review-lane/review-pr.yml"), []byte("missing required secret placeholder\n"), 0600)
+		}
 		fields := []string{"Native Project", "native-project", "@example", "native-user", "", "", "", "inherit", "standard", "y"}
 		out := nativeInitRun(source, target, nativeInitInput(fields, nil, "y"), environment, []string{"--pack", "none"})
 		Expect(out.status).To(Equal(status), "%+v", out)
@@ -474,7 +478,13 @@ var _ = Describe("Native Go init external boundaries", func() {
 		Expect(text).To(ContainSubstring("npm|" + filepath.Join(target, ".opencode") + "|install"))
 		Expect(text).To(ContainSubstring("sync|" + target + "|"))
 		Expect(text).To(ContainSubstring("selftest|" + target + "|"))
-		Expect(text).To(ContainSubstring("review|" + target + "|enable"))
+		if which == "review" {
+			Expect(out.stdout).To(ContainSubstring("could not enable the review lane"))
+		} else {
+			workflow, readErr := os.ReadFile(filepath.Join(target, ".github/workflows/adversarial-review.yml"))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(string(workflow)).To(HavePrefix("# Managed by: factory review-lane."))
+		}
 		if which == "selftest" {
 			Expect(out.stdout + out.stderr).To(ContainSubstring("NOT VERIFIED"))
 			Expect(out.stdout).NotTo(ContainSubstring("gates proven"))
@@ -711,15 +721,12 @@ var _ = Describe("Native Go init child environment confinement", func() {
 			environment = append(environment, "GIT_DIR="+filepath.Join(parent, ".git"), "GIT_WORK_TREE="+parent)
 		}
 		writeFixture(filepath.Join(parent, "bin/gh"), []byte("#!/bin/sh\nexit 1\n"), 0700)
-		command := exec.Command("git", "show", "ef5a06ae080c074241a783eb151ba8bb179ff6bd:scripts/factory-review-lane.sh")
-		command.Dir = ".."
-		data, err := command.Output()
-		Expect(err).NotTo(HaveOccurred())
-		writeFixture(filepath.Join(source, "scripts/factory-review-lane.sh"), data, 0700)
+		writeFixture(filepath.Join(source, "scripts/factory-review-lane.sh"), []byte("#!/bin/sh\necho LEGACY_LANE_CALLED >&2\nexit 99\n"), 0700)
 		fields := []string{"Native Project", "native-project", "@example", "native-user", "", "", "", "openai", "standard", "y"}
 		actual := nativeInitRun(source, target, nativeInitInput(fields, nil, "y"), environment, []string{"--pack", "none"})
 		Expect(actual.status).To(BeZero(), "%+v", actual)
-		data, err = os.ReadFile(outside)
+		Expect(actual.stdout + actual.stderr).NotTo(ContainSubstring("LEGACY_LANE_CALLED"))
+		data, err := os.ReadFile(outside)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(data).To(Equal(sentinel))
 		_, err = os.Stat(filepath.Join(parent, ".github/workflows/adversarial-review.yml"))
@@ -938,10 +945,10 @@ sys.exit(status)
 
 var _ = Describe("Native Go init interactive review choice", func() {
 	// per docs/adr/0085-go-native-init.md:52
-	It("records the explicitly selected review model after installation confirmation", func() {
+	DescribeTable("records the review model once after installation confirmation", func(model string) {
 		source, target, environment := nativeInitFixture()
 		fields := []string{"Native Project", "native-project", "@example", "native-user", "", "", "", "openai", "standard", "y"}
-		input := nativeInitInput(fields, nil, "y") + "explicit-review-model\n"
+		input := nativeInitInput(fields, nil, "y") + model + "\n"
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		command := exec.CommandContext(ctx, "python3", "-B", "-c", nativeInitPTYDriver, filepath.Join(source, "factory-go"), target, input, "terminal", filepath.Join(filepath.Dir(source), "unused-output")) // #nosec G204 -- fixed test-only PTY driver, literal fixture args.
@@ -952,8 +959,8 @@ var _ = Describe("Native Go init interactive review choice", func() {
 		Expect(err).NotTo(HaveOccurred(), "%s", output)
 		data, err := os.ReadFile(filepath.Join(target, "factory.yaml"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(data)).To(ContainSubstring(`review_model: "explicit-review-model"`))
-	})
+		Expect(string(data)).To(ContainSubstring(`review_model: "` + model + `"`))
+	}, Entry("explicit model", "explicit-review-model"), Entry("frontier default", ""))
 })
 
 var _ = Describe("Native Go init review secret representation", func() {

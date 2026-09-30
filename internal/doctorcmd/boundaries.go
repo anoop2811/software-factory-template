@@ -14,6 +14,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/config"
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
 	"golang.org/x/sys/unix"
 )
 
@@ -107,53 +108,28 @@ func removeScratch(root string, owned *os.Root, identity os.FileInfo) error {
 	return errors.Join(err, os.RemoveAll(root))
 }
 
-func (r *report) review(ctx context.Context, path string, data []byte) (returned error) {
-	if !executable(r.path("scripts/factory-review-lane.sh")) {
-		return nil
-	}
-	scratch, cleanup, err := configurationSnapshot(ctx, path, data)
-	if err != nil {
+func (r *report) review(ctx context.Context, path string, data []byte) error {
+	legacy, err := readFile(ctx, config.LegacyPath(path))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		r.line("[warn]", "review lane status unverified: "+err.Error())
 		return ctx.Err()
 	}
-	defer func() { returned = errors.Join(returned, cleanup()) }()
-	var preserved []string
-	for key := range r.environment {
-		if config.KnownExportKey(key) {
-			preserved = append(preserved, key)
-		}
-	}
-	actions, err := config.ExportPlan(ctx, filepath.Join(scratch, "factory.yaml"), preserved)
+	settings, err := reviewlanecmd.SettingsFromBytes(ctx, data, legacy, r.environment)
 	if err != nil {
 		return err
 	}
-	effective := maps.Clone(r.environment)
-	for _, action := range actions {
-		if !action.ExportOnly {
-			effective[action.Key] = action.Value
-		}
-	}
-	if effective["REVIEW_LANE"] != "on" {
+	if !settings.Enabled() {
 		r.line("[inert]", "review lane            off (opt-in; ./factory review-lane enable)")
 		return r.err
 	}
-	secret, secretErr := native.ExecuteCommand(ctx, r.root, []string{"./scripts/factory-review-lane.sh", "secret-name"}, r.environment, time.Minute)
-	if unsafeResult(secret) || ctx.Err() != nil {
-		return errors.New("review lane secret-name did not complete safely")
+	status, err := reviewlanecmd.SecretStatus(ctx, r.root, settings)
+	if err != nil {
+		return err
 	}
-	pending, pendingErr := native.ExecuteCommand(ctx, r.root, []string{"./scripts/factory-review-lane.sh", "pending"}, r.environment, time.Minute)
-	if unsafeResult(pending) || ctx.Err() != nil {
-		return errors.New("review lane pending did not complete safely")
-	}
-	first, _, _ := strings.Cut(string(pending.Stdout), "\n")
-	if secretErr == nil && pendingErr == nil && succeeded(secret) && succeeded(pending) && first == "" {
+	if status == "set" {
 		r.line("[ARMED]", "review lane            advisory PR review, secret present")
 	} else {
-		name := strings.TrimRight(string(secret.Stdout), "\n")
-		if name == "" {
-			name = "see factory.yaml"
-		}
-		r.line("[warn]", "review lane is ON but its secret ("+name+") is missing or unverified")
+		r.line("[warn]", "review lane is ON but its secret ("+settings.Secret()+") is missing or unverified")
 		r.line("", "  add it: GitHub -> Settings -> Secrets and variables -> Actions")
 	}
 	return r.err

@@ -16,6 +16,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
+	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
 	"golang.org/x/sys/unix"
 )
 
@@ -289,16 +290,20 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 		}
 	}
 	if v["REVIEW_LANE"] == "on" {
-		ok, err := stage(target, []string{"./scripts/factory-review-lane.sh", "enable"}, false)
-		if err != nil {
-			return err
+		err := reviewlanecmd.ExecuteNonInteractive(ctx, []string{"enable"}, target, target, environment, stdout, stderr)
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		if !ok {
+		if err != nil {
+			if writeErr := output.WriteEvent(ctx, stderr, []byte(err.Error()+"\n")); writeErr != nil {
+				return writeErr
+			}
 			if err := output.WriteEvent(ctx, stdout, []byte("  warning: could not enable the review lane — run './factory review-lane enable'\n")); err != nil {
 				return err
 			}
 		}
 	}
+
 	if err := output.WriteEvent(ctx, stdout, []byte("\n=== Post-install attestation: break/fix self-test of installed gates ===\n")); err != nil {
 		return err
 	}
@@ -316,6 +321,6 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	if err := output.WriteEvent(ctx, stdout, []byte(message+"\n=== Setup complete ===\n\nNext steps:\n  1. Run prereq-check:    ./scripts/prereq-check.sh\n  2. Sync adapters:       make sync-harnesses\n  3. Start opencode:      opencode\n  4. Review AGENTS.md and edit the Project section for your project\n  5. Add your protected code to "+v["PROTECTED_PATH"]+"/\n  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push\n  7. Check health anytime: ./factory doctor\n\nfactory.yaml saved — one config file, parsed and never executed.\n")); err != nil {
 		return err
 	}
-	_, err = stage(target, []string{"./scripts/factory-review-lane.sh", "pending"}, true)
+	err = reviewlanecmd.ExecuteNonInteractive(ctx, []string{"pending"}, target, target, environment, stdout, stderr)
 	return err
 }

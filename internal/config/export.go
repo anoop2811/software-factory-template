@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -58,8 +59,26 @@ func ExportPlan(ctx context.Context, path string, preserved []string) ([]Action,
 			return nil, err
 		}
 	}
+	return overlayPlan(ctx, actions, preserved, func(ctx context.Context, key string) (string, error) {
+		return Get(ctx, path, key, "")
+	})
+}
+
+// ExportPlanBytes applies the same parser and precedence to bounded snapshots.
+// docs/adr/0087-go-native-report.md:18.
+func ExportPlanBytes(ctx context.Context, yaml, legacy []byte, preserved []string) ([]Action, error) {
+	actions, err := legacyPlan(ctx, bytes.NewReader(legacy), "snapshot", preserved)
+	if err != nil {
+		return nil, err
+	}
+	return overlayPlan(ctx, actions, preserved, func(ctx context.Context, key string) (string, error) {
+		return GetBytes(ctx, yaml, key, "")
+	})
+}
+
+func overlayPlan(ctx context.Context, actions []Action, preserved []string, get func(context.Context, string) (string, error)) ([]Action, error) {
 	for _, key := range exportKeys {
-		value, err := Get(ctx, path, strings.ToLower(key), "")
+		value, err := get(ctx, strings.ToLower(key))
 		if err != nil {
 			return nil, err
 		}
@@ -100,8 +119,12 @@ func LegacyPlan(ctx context.Context, path string, preserved []string) ([]Action,
 		return nil, fmt.Errorf("read legacy configuration: %w", err)
 	}
 	defer file.Close()
+	return legacyPlan(ctx, file, path, preserved)
+}
+
+func legacyPlan(ctx context.Context, source io.Reader, path string, preserved []string) ([]Action, error) {
 	var actions []Action
-	reader := bufio.NewReader(file)
+	reader := bufio.NewReader(source)
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err

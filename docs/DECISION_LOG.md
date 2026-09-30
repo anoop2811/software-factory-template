@@ -2505,3 +2505,16 @@ Implementation inspection corrected the documented inherited capture bound: the
 shared supervisor limits each output stream to 16 MiB (internal/native/prepare.go).
 ADR-0085's earlier 32 MiB statement was inaccurate; align it and ADR-0086 with
 the unchanged implementation rather than increasing resource limits during a port.
+
+## Decision 86 (2026-09-29 UTC): implement native Go cost reporting
+
+After merged doctor PR #113, implement ADR-0087. Preserve the ordinary cost
+report and configuration/event contracts without invoking the old report script.
+Reuse configuration grammar and bounded process supervision. Keep clearing a
+best-effort unlink that never removes directories or follows a final symlink.
+Explicitly correct empty-log double-zero output and shell octal/wrapping
+arithmetic: use decimal uint64 estimates with checked multiplication and a
+nonzero diagnostic on overflow. Count newline-bearing hook names once instead
+of counting their printed lines, and reject binary NUL event data whose shell
+interpretation differs by Bash version. Qualify boundaries independently before merge;
+do not award installed activation or legacy-retirement credit for this command.

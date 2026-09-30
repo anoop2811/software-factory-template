@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/anoop2811/software-factory-template/internal/fileinput"
 )
 
 const fileLimit = 16 << 20
@@ -16,43 +18,10 @@ const treeLimit = 4096
 const snapshotLimit = 64 << 20
 
 func readFile(ctx context.Context, path string) ([]byte, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
-	if err != nil {
-		return nil, err
-	}
-	f := os.NewFile(uintptr(fd), path)
-	defer func() { _ = f.Close() }()
-	return readRegular(ctx, f)
+	return fileinput.Read(ctx, path, fileLimit)
 }
 func readRegular(ctx context.Context, f *os.File) ([]byte, error) {
-	before, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !before.Mode().IsRegular() || before.Size() > fileLimit {
-		return nil, errors.New("unsafe file or input limit exceeded")
-	}
-	data, err := io.ReadAll(io.LimitReader(f, fileLimit+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > fileLimit {
-		return nil, errors.New("input limit exceeded")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	after, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if before.Size() != after.Size() || before.ModTime() != after.ModTime() || before.Mode() != after.Mode() {
-		return nil, errors.New("input changed during inspection")
-	}
-	return data, nil
+	return fileinput.ReadFile(ctx, f, fileLimit)
 }
 
 type entry struct {

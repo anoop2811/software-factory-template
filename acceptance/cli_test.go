@@ -24,7 +24,6 @@ var commandRoutes = []struct{ command, script string }{
 	{"upgrade", "scripts/factory-upgrade.sh"},
 	{"check", "scripts/pre-push-check.sh"},
 	{"selftest", "scripts/selftest/run.sh"},
-	{"report", "scripts/factory-report.sh"},
 	{"metrics", "scripts/factory-metrics.sh"},
 	{"review-lane", "scripts/factory-review-lane.sh"},
 	{"migrate-config", "scripts/factory-migrate-config.sh"},
@@ -143,8 +142,8 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			if executable == "factory" {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				// per docs/adr/0086-go-native-doctor.md:79
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
+				// per docs/adr/0087-go-native-report.md:17
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {
 					if line == "              touches your factory.yaml, content, or customized files\n" {
@@ -233,18 +232,18 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:297
 	It("leaves successful piped JSON stdout free of CLI banners", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/factory-report.sh"), []byte("#!/bin/sh\ncat\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/factory-metrics.sh"), []byte("#!/bin/sh\ncat\n"), 0755)
 		input := "{\"budget\":null,\"runs\":[]}\n"
 		expected := cliResult{input, "", 0}
-		Expect(invoke(root, cwd, "legacy-factory", input, "report", "--json")).To(Equal(expected))
-		Expect(invoke(root, cwd, "factory", input, "report", "--json")).To(Equal(expected))
+		Expect(invoke(root, cwd, "legacy-factory", input, "metrics", "--json")).To(Equal(expected))
+		Expect(invoke(root, cwd, "factory", input, "metrics", "--json")).To(Equal(expected))
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
 	It("retains Bash exec fallback for an executable script without a shebang", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/factory-report.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
-		args := []string{"report", "$(touch never-created)", "two words", ""}
+		writeFixture(filepath.Join(root, "scripts/factory-metrics.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
+		args := []string{"metrics", "$(touch never-created)", "two words", ""}
 		expected := cliResult{"legacy script fallback\n$(touch never-created)\x00two words\x00\x00", "", 29}
 		Expect(invoke(root, cwd, "legacy-factory", "", args...)).To(Equal(expected))
 		Expect(invoke(root, cwd, "factory", "", args...)).To(Equal(expected))
@@ -255,13 +254,13 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("retains OS execution-failure status with a useful script diagnostic", func(kind string) {
 		root, cwd := fixture()
-		path := filepath.Join(root, "scripts/factory-report.sh")
+		path := filepath.Join(root, "scripts/factory-metrics.sh")
 		if kind == "directory" {
 			Expect(os.MkdirAll(path, 0755)).To(Succeed())
 		} else {
 			writeFixture(path, []byte("#!/factory-acceptance-nonexistent-interpreter\n"), 0755)
 		}
-		baseline := invoke(root, cwd, "legacy-factory", "", "report")
+		baseline := invoke(root, cwd, "legacy-factory", "", "metrics")
 		if kind == "directory" {
 			Expect(baseline.status).To(Equal(126))
 		} else {
@@ -270,10 +269,10 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			Expect(baseline.status).To(BeElementOf(1, 126, 127))
 		}
 		for _, executable := range []string{"legacy-factory", "factory"} {
-			result := invoke(root, cwd, executable, "", "report")
+			result := invoke(root, cwd, executable, "", "metrics")
 			Expect(result.status).To(Equal(baseline.status), executable)
 			Expect(result.stdout).To(BeEmpty(), executable)
-			Expect(result.stderr).To(ContainSubstring("factory-report.sh"), executable)
+			Expect(result.stderr).To(ContainSubstring("factory-metrics.sh"), executable)
 			Expect(result.stderr).NotTo(ContainSubstring("Usage:"), executable)
 			baselineDiagnostic, err := normalizeBashDiagnostic(baseline.stderr, filepath.Join(root, "legacy-factory"))
 			Expect(err).NotTo(HaveOccurred())
@@ -295,17 +294,17 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			Expect(os.Symlink(filepath.Join(root, executable), filepath.Join(aliasRoot, executable))).To(Succeed())
 		}
-		writeFixture(filepath.Join(root, "scripts/factory-report.sh"), []byte("#!/bin/sh\necho wrong-executable-target\nexit 99\n"), 0755)
-		writeFixture(filepath.Join(aliasRoot, "scripts/factory-report.sh"), []byte("#!/bin/sh\nprintf 'invocation root\\n'\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/factory-metrics.sh"), []byte("#!/bin/sh\necho wrong-executable-target\nexit 99\n"), 0755)
+		writeFixture(filepath.Join(aliasRoot, "scripts/factory-metrics.sh"), []byte("#!/bin/sh\nprintf 'invocation root\\n'\n"), 0755)
 		expected := cliResult{"invocation root\n", "", 0}
-		Expect(invoke(aliasRoot, cwd, "legacy-factory", "", "report")).To(Equal(expected))
-		Expect(invoke(aliasRoot, cwd, "factory", "", "report")).To(Equal(expected))
+		Expect(invoke(aliasRoot, cwd, "legacy-factory", "", "metrics")).To(Equal(expected))
+		Expect(invoke(aliasRoot, cwd, "factory", "", "metrics")).To(Equal(expected))
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("locates co-located scripts after PATH invocation", func(relative bool) {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/factory-report.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/factory-metrics.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
 		lookupRoot := root
 		if relative {
 			var err error
@@ -315,7 +314,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, "/usr/bin/env", "PATH="+lookupRoot+":/bin:/usr/bin", executable, "report") // #nosec G204 -- isolated fixture PATH; direct argv intentionally exercises caller lookup.
+			cmd := exec.CommandContext(ctx, "/usr/bin/env", "PATH="+lookupRoot+":/bin:/usr/bin", executable, "metrics") // #nosec G204 -- isolated fixture PATH; direct argv intentionally exercises caller lookup.
 			cmd.Dir = cwd
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -328,11 +327,11 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	It("preserves signal termination instead of converting it into a normal error exit", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/factory-report.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/factory-metrics.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "report") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
+			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "metrics") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
 			cmd.Dir = cwd
 			err := cmd.Run()
 			Expect(ctx.Err()).NotTo(HaveOccurred())

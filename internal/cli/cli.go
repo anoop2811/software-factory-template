@@ -16,6 +16,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
+	"github.com/anoop2811/software-factory-template/internal/metricscmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
@@ -43,7 +44,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -103,6 +104,16 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Native metrics use only the invocation's HTML template asset.
+				// docs/adr/0088-go-native-metrics.md:29.
+				if name == "metrics" {
+					directory, err := dispatcherDirectory()
+					if err != nil {
+						return err
+					}
+					status = metricscmd.Run(cmd.Context(), forwarded, directory, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					return nil
+				}
 				// Reporting selects assets beside the invoked dispatcher.
 				// docs/adr/0087-go-native-report.md:22.
 				if name == "report" {

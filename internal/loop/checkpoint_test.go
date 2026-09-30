@@ -236,7 +236,7 @@ except BlockingIOError: print('locked')`
 		path := filepath.Join(root, ".factory/loops.lock")
 		Expect(os.WriteFile(path, nil, 0600)).To(Succeed())
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		DeferCleanup(cancel)
 		command := exec.CommandContext(ctx, "python3", "-B", "-c", `import fcntl,sys
 f=open(sys.argv[1],'r+')
 fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)

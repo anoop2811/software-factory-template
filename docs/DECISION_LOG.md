@@ -2577,3 +2577,9 @@ that quadratic work with a selected-key index and accumulated physical edits,
 then render once. Preserve frozen duplicate and unterminated-tail semantics and
 every intermediate size bound. Qualify representative large valid inputs with
 an observed admission handshake and a finite deadline before merging.
+
+Final CI qualification observed the preceding macOS run 36813827308 exceed the
+15-minute whole-package allowance while progressing through existing command
+environment fixtures, without an assertion failure. Use the existing make
+override to allow 20 minutes for the CI suite and 25 minutes for the enclosing
+job. Keep local defaults and every operation/performance deadline unchanged.

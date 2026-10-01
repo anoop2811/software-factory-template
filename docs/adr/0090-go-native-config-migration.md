@@ -142,3 +142,10 @@ outside the pinned root so absolute and symlink-sensitive aliases can identify
 the same existing YAML inode. It reads no override content and publishes no
 override path. All input reads and publication remain against the pinned project,
 with replacement guards; do not normalize away meaningful pathname components.
+
+CI suite allowance: macOS run 36813827308 reached the existing 15-minute package
+timeout while progressing through command-environment fixtures, without an
+assertion failure. Set the CI-only GO_RUNTIME_TEST_TIMEOUT override to 20m and
+the enclosing job limit to 25 minutes, leaving the 15m local default and all
+per-operation/performance deadlines unchanged. This permits full qualification;
+it does not relax cancellation, safety assertions or the bounded-work tests.

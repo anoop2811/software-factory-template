@@ -2563,3 +2563,10 @@ mutation; preserve recovery artifacts and report partial publication honestly.
 Reuse the configuration writer without changing its existing single-key
 contract. Qualify this last requested native command before declaring the
 six-command source implementation complete; installed cutover remains separate.
+
+2026-10-01 UTC qualification refinement: hosted review identified preparatory
+operations between the caller's final legacy guard and its rename syscall.
+Revalidate the captured snapshot inside the pinned rename operation after those
+operations, with a failing replacement regression first. Preserve the trusted,
+quiescent directory contract rather than claiming a concurrent-writer atomic
+compare-and-swap that a pathname rename does not provide.

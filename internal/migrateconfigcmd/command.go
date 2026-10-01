@@ -31,6 +31,8 @@ func (e *commandError) Error() string { return e.message }
 func Run(parent context.Context, args []string, environment map[string]string, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// Keep SIGPIPE from terminating checked writes to stdout/stderr. The channel
+	// is intentionally unread: WriteEvent reports the write failure synchronously.
 	broken := make(chan os.Signal, 1)
 	signal.Notify(broken, syscall.SIGPIPE)
 	defer signal.Stop(broken)
@@ -166,7 +168,7 @@ func Execute(ctx context.Context, args []string, root string, environment map[st
 	if err := guard(ctx); err != nil {
 		return partial(err)
 	}
-	if err := project.renameLegacy(ctx); err != nil {
+	if err := project.renameLegacy(ctx, legacy); err != nil {
 		return partial(err)
 	}
 	return output.WriteEvent(ctx, stdout, change.output)

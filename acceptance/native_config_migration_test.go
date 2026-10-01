@@ -141,6 +141,15 @@ var _ = Describe("Native Go config migration frozen parity", func() {
 			legacy = "EXTRA=tail"
 		case "empty":
 			legacy = ""
+		case "unmatched single quote":
+			legacy = "SINGLE='value   # retained comment   \n"
+		case "unmatched double quote":
+			legacy = "DOUBLE=\"value   # retained comment   \n"
+		case "YAML migration marker":
+			yaml += "config_migrated: mine\n"
+			legacy += "CONFIG_MIGRATED=legacy\n"
+		case "legacy migration marker":
+			legacy += "CONFIG_MIGRATED=legacy\n"
 		}
 		for _, dir := range []string{cwd, oracleCWD} {
 			writeFixture(filepath.Join(dir, "factory.yaml"), []byte(yaml), 0600)
@@ -164,5 +173,5 @@ var _ = Describe("Native Go config migration frozen parity", func() {
 			Expect(again.stdout).To(ContainSubstring("nothing to migrate"))
 			Expect(nativeInitArtifacts(cwd)).To(Equal(before))
 		}
-	}, Entry("normal apply", "normal", false), Entry("normal dry-run repeated flag", "normal", true), Entry("grammar apply", "grammar", false), Entry("grammar dry-run", "grammar", true), Entry("evolving duplicate apply", "duplicates", false), Entry("unchanged duplicate dry-run", "duplicates", true), Entry("unterminated apply", "unterminated", false), Entry("unterminated dry-run", "unterminated", true), Entry("empty legacy applies marker", "empty", false))
+	}, Entry("normal apply", "normal", false), Entry("normal dry-run repeated flag", "normal", true), Entry("grammar apply", "grammar", false), Entry("grammar dry-run", "grammar", true), Entry("evolving duplicate apply", "duplicates", false), Entry("unchanged duplicate dry-run", "duplicates", true), Entry("unterminated apply", "unterminated", false), Entry("unterminated dry-run", "unterminated", true), Entry("empty legacy applies marker", "empty", false), Entry("unmatched single quote apply", "unmatched single quote", false), Entry("unmatched single quote preview", "unmatched single quote", true), Entry("unmatched double quote apply", "unmatched double quote", false), Entry("unmatched double quote preview", "unmatched double quote", true), Entry("preset YAML migration marker apply", "YAML migration marker", false), Entry("preset YAML migration marker preview", "YAML migration marker", true), Entry("preset legacy migration marker apply", "legacy migration marker", false), Entry("preset legacy migration marker preview", "legacy migration marker", true))
 })

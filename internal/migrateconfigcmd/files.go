@@ -134,7 +134,7 @@ func (p *project) noBackup() error {
 
 // Use the pinned directory descriptor for the platform's atomic no-replace.
 // docs/adr/0090-go-native-config-migration.md:71.
-func (p *project) renameLegacy(ctx context.Context) (returned error) {
+func (p *project) renameLegacy(ctx context.Context, expected snapshot) (returned error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -155,6 +155,17 @@ func (p *project) renameLegacy(ctx context.Context) (returned error) {
 		return err
 	}
 	var renameErr error
-	err = connection.Control(func(fd uintptr) { renameErr = renameNoReplace(int(fd), "factory.config", "factory.config.migrated") })
+	err = connection.Control(func(fd uintptr) {
+		// Admission checks belong after descriptor setup and cancellation checks.
+		// This rejects observed replacements, not concurrent-writer CAS races.
+		// docs/adr/0090-go-native-config-migration.md:71.
+		if renameErr = p.check(ctx); renameErr != nil {
+			return
+		}
+		if renameErr = p.unchanged(ctx, "factory.config", expected); renameErr != nil {
+			return
+		}
+		renameErr = renameNoReplace(int(fd), "factory.config", "factory.config.migrated")
+	})
 	return errors.Join(err, renameErr)
 }

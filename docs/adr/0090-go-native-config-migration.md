@@ -102,3 +102,20 @@ read-only project remains a successful no-op; defer apply writability checks
 until migration work exists. A post-publication input replacement can invalidate
 the original pathname, so partial-state diagnostics must request inspection
 without claiming that `factory.config` still names the original recovery bytes.
+
+Hosted-review refinement: the final rename helper receives the captured legacy
+snapshot and revalidates it after descriptor preparation and cancellation checks,
+inside the pinned-descriptor operation before the no-replace syscall. This
+rejects observed replacements in the helper's preparation interval. It does not
+turn a pathname rename into an atomic compare-and-swap against concurrent writers;
+the trusted, quiescent directory requirement still applies.
+
+Compatibility qualifications preserve two baseline quirks: an unmatched opening
+quote retains the remainder verbatim, and the final factory-owned
+`config_migrated` marker is written as yes even if it was previously nonempty.
+Ordinary migration counts and output remain the frozen script's contract.
+Run deliberately registers SIGPIPE only for its command lifetime so checked
+writes can report errors instead of terminating at fd 1/2. Notifications do not
+need consumption because write errors are handled synchronously; Execute adds
+no process-global signal registration. Reference fetched 2026-10-01 UTC:
+[Go signal documentation](https://pkg.go.dev/os/signal#hdr-SIGPIPE).

@@ -55,6 +55,44 @@ func noPublicationStages(root string) {
 }
 
 var _ = Describe("Native config migration publication boundaries", func() {
+	// per docs/adr/0090-go-native-config-migration.md:71
+	DescribeTable("rechecks the original legacy snapshot at rename-helper admission", func(replace bool) {
+		root, yaml, legacy := publicationFixture()
+		project, err := openProject(context.Background(), root)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(project.directory.Close)
+		original, err := project.read(context.Background(), "factory.config")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(original.data).To(Equal(legacy))
+		changed := false
+		unknown := []byte("ADDED=changed\n")
+		ctx := migrationBoundaryContext{Context: context.Background(), boundary: func() {
+			if changed {
+				return
+			}
+			changed = true
+			if replace {
+				Expect(os.Rename(filepath.Join(root, "factory.config"), filepath.Join(root, "legacy.held"))).To(Succeed())
+			}
+			Expect(os.WriteFile(filepath.Join(root, "factory.config"), unknown, 0600)).To(Succeed())
+			if !replace {
+				// Keep inode, size and mtime equal so the original bytes must be checked.
+				Expect(len(unknown)).To(Equal(len(original.data)))
+				Expect(os.Chtimes(filepath.Join(root, "factory.config"), original.info.ModTime(), original.info.ModTime())).To(Succeed())
+			}
+		}}
+		err = project.renameLegacy(ctx, original)
+		Expect(changed).To(BeTrue(), "replacement must occur on the helper's own first admission check")
+		Expect(err).To(HaveOccurred(), "the rename helper must not move bytes absent from its original snapshot")
+		Expect(publicationBytes(root, "factory.config")).To(Equal(unknown))
+		Expect(publicationBytes(root, "factory.yaml")).To(Equal(yaml))
+		if replace {
+			Expect(publicationBytes(root, "legacy.held")).To(Equal(legacy))
+		}
+		_, err = os.Lstat(filepath.Join(root, "factory.config.migrated"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+	}, Entry("replacement inode", true), Entry("same inode changed bytes", false))
+
 	// per docs/adr/0090-go-native-config-migration.md:67
 	DescribeTable("refuses observed legacy replacement after YAML staging and cleans its stage", func(replace bool) {
 		root, yaml, legacy := publicationFixture()

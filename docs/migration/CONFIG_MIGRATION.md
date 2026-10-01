@@ -4,6 +4,8 @@ Decision 89 and [ADR-0090](../adr/0090-go-native-config-migration.md) define the
 native `migrate-config` command. It reads `factory.config` as data, keeps existing
 nonempty YAML values, fills blank or missing values, and records
 `config_migrated: "yes"`. It does not run shell expressions or call a model.
+That final marker is factory completion metadata; it becomes yes even when
+previously configured. The ordinary setting counts retain the legacy report.
 
 `factory migrate-config --dry-run` shows the proposed settings without changing
 files. Repeated `--dry-run` flags are accepted. Unsupported operands return the
@@ -68,3 +70,12 @@ govulncheck reported `No vulnerabilities found.`, and the shell selftest reporte
 `217 passed, 0 failed, 0 skipped`. Independent review found no remaining
 actionable issues. Exact-head Linux/macOS CI is required before merge; its final
 results and execution commands belong in the PR evidence.
+
+Hosted review exposed a second preparatory interval before the final legacy
+rename. Two helper-admission replacement cases failed before the captured
+snapshot was rechecked inside that operation. The expanded ten-case internal
+race suite then passed (`1.450s`). Eight additional frozen parity cases cover
+unmatched quotes and preexisting completion markers; they passed with the
+compiled CLI and outer race detector (`6.050s`).
+The final complete native migration selection passed 62 cases with the compiled
+CLI and outer race detector (`26.148s`) after the rename correction.

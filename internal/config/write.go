@@ -18,8 +18,22 @@ const configWriteLimit = 16 << 20
 // Set publishes literal configuration bytes in a trusted, quiescent directory.
 // This is not a concurrent-writer CAS: docs/adr/0063-go-configuration-writes.md:59.
 func Set(ctx context.Context, path, key, value string) error {
+	return Transform(ctx, path, func(ctx context.Context, original []byte) ([]byte, error) {
+		return rewriteConfig(ctx, original, key, value)
+	}, nil)
+}
+
+// Transform validates and atomically publishes one complete configuration edit.
+// The callback receives a private copy; publication still checks the original.
+// A non-nil beforePublish guard runs after staging and rechecking the input,
+// immediately before the final cancellation check and atomic publication.
+// docs/adr/0090-go-native-config-migration.md:65.
+func Transform(ctx context.Context, path string, transform func(context.Context, []byte) ([]byte, error), beforePublish func(context.Context) error) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("factory config: %w", err)
+	}
+	if transform == nil {
+		return errors.New("factory config: missing transform")
 	}
 	// The legacy setter captures its resolved path through command substitution.
 	// docs/adr/0063-go-configuration-writes.md:24.
@@ -59,14 +73,23 @@ func Set(ctx context.Context, path, key, value string) error {
 	if err != nil {
 		return fmt.Errorf("factory config: read input: %w", err)
 	}
-	replacement, err := rewriteConfig(ctx, original, key, value)
+	replacement, err := transform(ctx, bytes.Clone(original))
 	if err != nil {
 		return fmt.Errorf("factory config: %w", err)
 	}
-	if err := publishConfig(ctx, root, name, original, replacement, info); err != nil {
+	if len(replacement) > configWriteLimit {
+		return errors.New("factory config: resulting configuration exceeds 16 MiB")
+	}
+	if err := publishConfig(ctx, root, name, original, replacement, info, beforePublish); err != nil {
 		return fmt.Errorf("factory config: publish: %w", err)
 	}
 	return nil
+}
+
+// RewriteBytes preserves Set's physical-line replacement and append grammar.
+// docs/adr/0090-go-native-config-migration.md:42.
+func RewriteBytes(ctx context.Context, data []byte, key, value string) ([]byte, error) {
+	return rewriteConfig(ctx, data, key, value)
 }
 
 func writeMetadata(info os.FileInfo) (*syscall.Stat_t, error) {
@@ -146,7 +169,7 @@ func rewriteConfig(ctx context.Context, data []byte, key, value string) ([]byte,
 		return err
 	}
 	prefix := []byte(key + ":")
-	replacement := []byte(key + ": \"" + strings.ReplaceAll(value, "\n", " ") + "\"")
+	replacement := []byte(configurationLine(key, strings.ReplaceAll(value, "\n", " ")))
 	found := false
 	for len(data) > 0 {
 		if err := ctx.Err(); err != nil {
@@ -168,16 +191,20 @@ func rewriteConfig(ctx context.Context, data []byte, key, value string) ([]byte,
 		data = rest
 	}
 	if !found {
-		if err := appendBytes([]byte(key + ": \"" + value + "\"\n")); err != nil {
+		if err := appendBytes([]byte(configurationLine(key, value) + "\n")); err != nil {
 			return nil, err
 		}
 	}
 	return output.Bytes(), ctx.Err()
 }
 
+func configurationLine(key, value string) string {
+	return key + ": \"" + value + "\""
+}
+
 // Fully prepare and close the exclusive sibling before rechecking and renaming.
 // Publication and cleanup boundaries: docs/adr/0063-go-configuration-writes.md:48.
-func publishConfig(ctx context.Context, root *os.Root, name string, original, replacement []byte, info os.FileInfo) (result error) {
+func publishConfig(ctx context.Context, root *os.Root, name string, original, replacement []byte, info os.FileInfo, beforePublish func(context.Context) error) (result error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -252,6 +279,11 @@ func publishConfig(ctx context.Context, root *os.Root, name string, original, re
 	}
 	if !sameWriteInput(prepared, currentTemporary) {
 		return errors.New("temporary configuration changed before publication")
+	}
+	if beforePublish != nil {
+		if err := beforePublish(ctx); err != nil {
+			return err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return err

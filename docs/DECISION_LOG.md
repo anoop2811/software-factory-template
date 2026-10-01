@@ -2552,3 +2552,34 @@ components where their contracts match, and route init/doctor lane operations
 through the native service without changing process-global cwd. Keep hosted
 review/model/provider behavior and installed legacy activation unchanged.
 Qualify and merge this command before starting config migration.
+
+## Decision 89 (2026-09-30 UTC): implement native Go config migration
+
+After merged review-lane PR #116, implement ADR-0090. Preserve migration-specific
+parsing, YAML precedence and the single legacy recovery name. Prepare and publish
+one bounded YAML transformation, then perform a no-replace legacy rename.
+Reject unsupported values and mismatched explicit config overrides before
+mutation; preserve recovery artifacts and report partial publication honestly.
+Reuse the configuration writer without changing its existing single-key
+contract. Qualify this last requested native command before declaring the
+six-command source implementation complete; installed cutover remains separate.
+
+2026-10-01 UTC qualification refinement: hosted review identified preparatory
+operations between the caller's final legacy guard and its rename syscall.
+Revalidate the captured snapshot inside the pinned rename operation after those
+operations, with a failing replacement regression first. Preserve the trusted,
+quiescent directory contract rather than claiming a concurrent-writer atomic
+compare-and-swap that a pathname rename does not provide.
+
+Copilot's subsequent performance review found a separate bounded-input weakness:
+planning repeatedly scanned/copied YAML for each of up to 4096 settings. Replace
+that quadratic work with a selected-key index and accumulated physical edits,
+then render once. Preserve frozen duplicate and unterminated-tail semantics and
+every intermediate size bound. Qualify representative large valid inputs with
+an observed admission handshake and a finite deadline before merging.
+
+Final CI qualification observed the preceding macOS run 36813827308 exceed the
+15-minute whole-package allowance while progressing through existing command
+environment fixtures, without an assertion failure. Use the existing make
+override to allow 20 minutes for the CI suite and 25 minutes for the enclosing
+job. Keep local defaults and every operation/performance deadline unchanged.

@@ -1,0 +1,156 @@
+# ADR-0090: Native Go legacy configuration migration
+
+Status: accepted; native source implementation; installed cutover separate.
+
+Decision: 89
+
+## Context
+
+Review-lane is merged in PR #116. Complete the requested six-command source
+conversion with `migrate-config`, using frozen commit
+`c10739fa95ff2123946a43388153ae931b593804` for ordinary compatibility.
+Decision 41 remains authoritative: parse legacy data, preserve configured YAML
+values, retain the old file as `factory.config.migrated`, and leave an
+uncommitted diff for the adopter to review. No automatic commit or deletion.
+
+## Command and parsing contract
+
+Native `migrate-config` accepts only repeated `--dry-run`; other operands return
+status 2 with the existing diagnostic. Discover Git root through the shared
+supervisor with a ten-second deadline, falling back to cwd for an ordinary Git
+failure. Cancellation, output overflow or uncertain cleanup returns nonzero.
+Use the selected project's `factory.yaml` and `factory.config`, without the old
+migration script or sourced libraries. Require YAML first; absent legacy input
+is a successful no-op. Status and ordinary stdout remain compatible.
+
+The old script checked root YAML but let FACTORY_CONFIG redirect its setter to
+another file. Correct that mismatch: when migration work exists, a nonempty
+override must identify the same existing YAML inode as the root target, resolving
+relative overrides from root. Otherwise refuse before mutation, including dry
+run. Always publish the root YAML. Do not clean symlink-sensitive interior
+components while deciding whether the override identifies that file.
+
+Parse physical legacy lines, including an unterminated final line. Ignore empty
+lines, first-column comments, lines without equals and keys outside nonempty
+ASCII letters/digits/underscore. Preserve the baseline's leading-digit keys;
+do not accept export prefixes or whitespace around keys. Lowercase ASCII keys.
+An immediately quoted value ends at its first matching quote; ignore the tail.
+Unquoted values strip a whitespace-before-hash comment and trailing ASCII
+whitespace, preserving leading whitespace. Treat values as inert data.
+This grammar intentionally differs from the runtime export parser.
+
+An existing nonempty value from the shared flat YAML reader wins. Missing or
+blank values receive the legacy value through the shared rewrite algorithm.
+Preserve duplicate-key behavior: apply checks the evolving YAML after each
+planned rewrite, while dry-run checks the unchanged original for every line.
+Reuse exact setter physical-line behavior, including unterminated append rules.
+Dry-run preserves all files and reports would-add/keep counts. Apply records
+config_migrated yes and reports moved/kept counts before the recovery guidance.
+
+Reject NUL inputs and candidate values containing CR, LF or double quotes that
+cannot round-trip through the existing setter. Validate the entire plan before
+mutating; a rejected later setting must not leave earlier settings applied.
+Bound each input and generated YAML/output at 16 MiB and parsed settings at 4096.
+Use checked output and cancellation throughout; never invoke a shell or model.
+
+## Mutation and recovery contract
+
+Operate in a trusted, quiescent project directory, pinned and checked for
+observed replacement. Require caller-owned ordinary single-link input files;
+refuse symlinks, hardlinks and special files. Apply requires writable YAML and
+safe directory permissions; dry-run can inspect read-only ordinary YAML.
+Refuse any existing `.migrated` destination, including directories and dangling
+symlinks, before publishing YAML. Preserve existing recovery bytes and metadata.
+
+Prepare the whole YAML result first. Reuse guarded configuration publication
+through a narrow shared transform/rewrite API, keeping config.Set behavior
+unchanged. Recheck original bytes/metadata and legacy identity before atomic
+YAML publication; preserve YAML permissions/ownership and clean identified
+temporary files. Do not publish each migrated key separately.
+
+After YAML publication, recheck the project and legacy snapshot and rename the
+legacy file to `.migrated` with an atomic no-replace primitive on Linux/macOS.
+Do not fall back to a clobbering rename when no-replace is unsupported. An
+unexpected destination must survive even if it appears after preflight.
+Retain the original legacy inode and permissions under the recovery name.
+This is not a two-file atomic transaction: if interruption or rename failure
+occurs after YAML publication, retain the original legacy file, report the
+partial state, and return nonzero. Do not erase the complete new YAML or an
+unknown destination to disguise failure. Output failure after success also
+returns nonzero without undoing the completed migration.
+
+The one established `.migrated` artifact is retained for manual recovery, not
+duplicated on reruns. A repeated successful migration is a no-op. This command
+does not introduce numbered backups or implement runtime-recovery retention.
+
+## Qualification and rollout
+
+Independent Ginkgo/Gomega core RED precedes production. Compare ordinary apply,
+dry-run, no-op, arguments, quotes/comments, duplicates, existing/blank values
+and file bytes with the frozen script. Qualify override confinement, unsafe
+files, bounds, literal values, output failure, signals, changed input and a
+destination introduced at the publication boundary. Run existing config-set,
+review-lane and CLI regressions after extracting the transform API. Complete
+independent review and exact-head Linux/macOS CI before merge.
+
+Keep the installed legacy script route. This closes source implementation of
+the requested command list, not installed Go activation, script retirement or
+the separately specified ignored runtime-recovery lifecycle.
+
+Qualification clarifications: when legacy input is absent, an otherwise safe
+read-only project remains a successful no-op; defer apply writability checks
+until migration work exists. A post-publication input replacement can invalidate
+the original pathname, so partial-state diagnostics must request inspection
+without claiming that `factory.config` still names the original recovery bytes.
+
+Hosted-review refinement: the final rename helper receives the captured legacy
+snapshot and revalidates it after descriptor preparation and cancellation checks,
+inside the pinned-descriptor operation before the no-replace syscall. This
+rejects observed replacements in the helper's preparation interval. It does not
+turn a pathname rename into an atomic compare-and-swap against concurrent writers;
+the trusted, quiescent directory requirement still applies.
+
+Compatibility qualifications preserve two baseline quirks: an unmatched opening
+quote retains the remainder verbatim, and the final factory-owned
+`config_migrated` marker is written as yes even if it was previously nonempty.
+Ordinary migration counts and output remain the frozen script's contract.
+Run deliberately registers SIGPIPE only for its command lifetime so checked
+writes can report errors instead of terminating at fd 1/2. Notifications do not
+need consumption because write errors are handled synchronously; Execute adds
+no process-global signal registration. Reference fetched 2026-10-01 UTC:
+[Go signal documentation](https://pkg.go.dev/os/signal#hdr-SIGPIPE).
+
+Performance qualification: migration planning must not rescan/copy the entire
+YAML for every legacy setting. Index only selected keys and completion metadata,
+accumulate physical-line edits, and render once; metadata must not grow with
+millions of irrelevant YAML lines. Preserve evolving first-value/all-matching
+rewrite behavior, unterminated-tail concatenation and the size bound after each
+conceptual edit, including edits later replaced by completion metadata.
+Representative 8 MiB YAML with 4096 settings near its end must complete within
+five seconds after observed process admission, for both normal and race-built
+CLIs. This qualification deadline excludes compilation and catches valid-input
+quadratic work; it is not a promise about arbitrary storage or machine speed.
+
+Frozen differential acceptance requires the repository's full Git history;
+the source gate refuses an absent compatibility baseline, and CI checks out
+with fetch-depth zero. This is qualification infrastructure, not an installed
+runtime dependency. Keep run counts and timing evidence in the PR rather than
+the user migration guide.
+
+The explicit FACTORY_CONFIG identity probe deliberately uses read-only Stat
+outside the pinned root so absolute and symlink-sensitive aliases can identify
+the same existing YAML inode. It reads no override content and publishes no
+override path. All input reads and publication remain against the pinned project,
+with replacement guards; do not normalize away meaningful pathname components.
+
+CI suite allowance: macOS run 36813827308 reached the existing 15-minute package
+timeout while progressing through command-environment fixtures, without an
+assertion failure. Set the CI-only GO_RUNTIME_TEST_TIMEOUT override to 20m and
+the enclosing job limit to 25 minutes, leaving the 15m local default and all
+per-operation/performance deadlines unchanged. This permits full qualification;
+it does not relax cancellation, safety assertions or the bounded-work tests.
+
+Public help contract: replace the legacy script-only usage footer with
+`Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.`
+This describes the source-built Cobra command boundary. It does not advertise
+installed activation or retirement before those separate rollout steps qualify.

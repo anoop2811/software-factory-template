@@ -2583,3 +2583,16 @@ Final CI qualification observed the preceding macOS run 36813827308 exceed the
 environment fixtures, without an assertion failure. Use the existing make
 override to allow 20 minutes for the CI suite and 25 minutes for the enclosing
 job. Keep local defaults and every operation/performance deadline unchanged.
+
+## Decision 90 (2026-10-01 UTC): create durable locally ignored recovery sets
+
+After merged PR #117, implement ADR-0091 as the next approved conversion slice.
+Create private inert copies only for explicitly adopted unchanged reference
+assets, establish effective local Git ignoring before payload writes, and require
+durable sync and integrity readback before reporting completion. Reuse the
+existing confined observer and strict recovery format. Preserve interrupted or
+conflicting sets and every active original; repeated creation must not overwrite
+evidence or advance retention. Expose a strictly reserved source-built creation
+mode while preserving previews and installed legacy dispatch. This closes only
+the durable creation milestone after qualification; restoration, complete
+installation coverage, activation, retirement and release cutover remain pending.

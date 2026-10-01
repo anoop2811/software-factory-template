@@ -149,3 +149,8 @@ assertion failure. Set the CI-only GO_RUNTIME_TEST_TIMEOUT override to 20m and
 the enclosing job limit to 25 minutes, leaving the 15m local default and all
 per-operation/performance deadlines unchanged. This permits full qualification;
 it does not relax cancellation, safety assertions or the bounded-work tests.
+
+Public help contract: replace the legacy script-only usage footer with
+`Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.`
+This describes the source-built Cobra command boundary. It does not advertise
+installed activation or retirement before those separate rollout steps qualify.

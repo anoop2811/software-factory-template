@@ -139,7 +139,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			if executable == "factory" {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				// per docs/adr/0090-go-native-config-migration.md:22
+				// per docs/adr/0090-go-native-config-migration.md:154
 				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {

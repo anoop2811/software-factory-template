@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,94 @@ func migrationNoTemporaryFiles(cwd string) {
 		Expect(entry.Name()).NotTo(HavePrefix(".factory-config-"))
 	}
 }
+
+var _ = Describe("Native Go config migration bounded planning performance", func() {
+	// per docs/adr/0090-go-native-config-migration.md:129
+	DescribeTable("finishes a large valid migration after observed process admission", func(blank bool) {
+		root, cwd, environment := configMigrationFixture()
+		padding := strings.Repeat("#\n", 4<<20)
+		var yamlTail, expectedTail, legacy strings.Builder
+		for index := range 4096 {
+			key := "key_" + strconv.Itoa(index)
+			legacy.WriteString(strings.ToUpper(key) + "=legacy_" + strconv.Itoa(index) + "\n")
+			if blank {
+				yamlTail.WriteString(key + ":\n")
+				expectedTail.WriteString(key + ": \"legacy_" + strconv.Itoa(index) + "\"\n")
+			} else {
+				yamlTail.WriteString(key + ": mine_" + strconv.Itoa(index) + "\n")
+				expectedTail.WriteString(key + ": mine_" + strconv.Itoa(index) + "\n")
+			}
+		}
+		yamlBefore := []byte(padding + yamlTail.String())
+		legacyBefore := []byte(legacy.String())
+		writeFixture(filepath.Join(cwd, "factory.yaml"), yamlBefore, 0600)
+		writeFixture(filepath.Join(cwd, "factory.config"), legacyBefore, 0600)
+		legacyInfo, err := os.Stat(filepath.Join(cwd, "factory.config"))
+		Expect(err).NotTo(HaveOccurred())
+		bin, marker := filepath.Join(root, "ready-git"), filepath.Join(root, "native-ready")
+		writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/sh\nprintf ready > \"$MIGRATION_READY\"\nexit 1\n"), 0700)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "migrate-config") // #nosec G204 -- BeforeSuite compiles this test-owned CLI before the performance deadline starts.
+		command.Dir, command.Env = cwd, append(environment, "PATH="+bin, "MIGRATION_READY="+marker)
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		var stdout, stderr bytes.Buffer
+		command.Stdout, command.Stderr = &stdout, &stderr
+		Expect(command.Start()).To(Succeed())
+		done := make(chan error, 1)
+		go func() { defer close(done); done <- command.Wait() }()
+		reaped := false
+		DeferCleanup(func() {
+			if !reaped {
+				_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+			}
+			cancel()
+			Eventually(done, 3*time.Second).Should(BeClosed())
+		})
+		Eventually(func() bool {
+			data, err := os.ReadFile(marker)
+			return err == nil && string(data) == "ready"
+		}, 3*time.Second).Should(BeTrue(), "compiled native command must reach supervised Git discovery before timing")
+		started := time.Now()
+		deadline := time.NewTimer(5 * time.Second)
+		DeferCleanup(deadline.Stop)
+		var waitErr error
+		select {
+		case waitErr = <-done:
+			reaped = true
+		case <-deadline.C:
+			_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+			Eventually(done, 3*time.Second).Should(Receive(&waitErr))
+			reaped = true
+			for name, want := range map[string][]byte{"factory.yaml": yamlBefore, "factory.config": legacyBefore} {
+				data, err := os.ReadFile(filepath.Join(cwd, name))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(bytes.Equal(data, want)).To(BeTrue(), "timed-out planner changed %s", name)
+			}
+			migrationNoTemporaryFiles(cwd)
+			Fail("compiled native migration exceeded five seconds after observed process admission; original files remained unchanged")
+		}
+		fmt.Fprintf(GinkgoWriter, "large migration blank=%t completed in %s after admission\n", blank, time.Since(started))
+		Expect(waitErr).NotTo(HaveOccurred(), "stderr=%s", stderr.String())
+		Expect(ctx.Err()).NotTo(HaveOccurred())
+		data, err := os.ReadFile(filepath.Join(cwd, "factory.yaml"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(bytes.Equal(data, []byte(padding+expectedTail.String()+"config_migrated: \"yes\"\n"))).To(BeTrue(), "large migration must preserve every original line and planned value")
+		backup, err := os.ReadFile(filepath.Join(cwd, "factory.config.migrated"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(bytes.Equal(backup, legacyBefore)).To(BeTrue())
+		after, err := os.Stat(filepath.Join(cwd, "factory.config.migrated"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(legacyInfo, after)).To(BeTrue())
+		_, err = os.Lstat(filepath.Join(cwd, "factory.config"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+		if blank {
+			Expect(stdout.String()).To(ContainSubstring("4096 key(s) moved, 0 kept"))
+		} else {
+			Expect(stdout.String()).To(ContainSubstring("0 key(s) moved, 4096 kept"))
+		}
+		migrationNoTemporaryFiles(cwd)
+	}, Entry("4096 nonempty values beyond millions of irrelevant lines", false), Entry("4096 blank values beyond millions of irrelevant lines", true))
+})
 
 var _ = Describe("Native Go config migration safety", func() {
 	// per docs/adr/0090-go-native-config-migration.md:23
@@ -213,6 +302,10 @@ var _ = Describe("Native Go config migration safety", func() {
 			// 4096 valid settings and input below 16 MiB; only rendered output exceeds it.
 			writeFixture(filepath.Join(cwd, "factory.config"), []byte(strings.Repeat("A="+strings.Repeat("v", 4092)+"\n", 4096)), 0600)
 			args = []string{"--dry-run"}
+		case "intermediate":
+			prefix := "config_migrated: "
+			writeFixture(filepath.Join(cwd, "factory.yaml"), []byte(prefix+strings.Repeat("x", (16<<20)-len(prefix)-1)+"\n"), 0600)
+			writeFixture(filepath.Join(cwd, "factory.config"), []byte("NEW=value\n"), 0600)
 		}
 		yaml, err := os.ReadFile(filepath.Join(cwd, "factory.yaml"))
 		Expect(err).NotTo(HaveOccurred())
@@ -231,7 +324,7 @@ var _ = Describe("Native Go config migration safety", func() {
 		_, err = os.Lstat(filepath.Join(cwd, "factory.config.migrated"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 		migrationNoTemporaryFiles(cwd)
-	}, Entry("legacy input", "legacy input"), Entry("YAML input", "YAML input"), Entry("parsed settings", "settings"), Entry("resulting YAML", "result"), Entry("rendered preview output", "output"))
+	}, Entry("legacy input", "legacy input"), Entry("YAML input", "YAML input"), Entry("parsed settings", "settings"), Entry("resulting YAML", "result"), Entry("rendered preview output", "output"), Entry("intermediate edit before marker shrinks YAML", "intermediate"))
 
 	// per docs/adr/0090-go-native-config-migration.md:79
 	DescribeTable("reports a closed stdout without undoing a completed migration", func(dry bool) {

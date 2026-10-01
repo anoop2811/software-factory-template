@@ -169,7 +169,7 @@ func rewriteConfig(ctx context.Context, data []byte, key, value string) ([]byte,
 		return err
 	}
 	prefix := []byte(key + ":")
-	replacement := []byte(key + ": \"" + strings.ReplaceAll(value, "\n", " ") + "\"")
+	replacement := []byte(configurationLine(key, strings.ReplaceAll(value, "\n", " ")))
 	found := false
 	for len(data) > 0 {
 		if err := ctx.Err(); err != nil {
@@ -191,11 +191,15 @@ func rewriteConfig(ctx context.Context, data []byte, key, value string) ([]byte,
 		data = rest
 	}
 	if !found {
-		if err := appendBytes([]byte(key + ": \"" + value + "\"\n")); err != nil {
+		if err := appendBytes([]byte(configurationLine(key, value) + "\n")); err != nil {
 			return nil, err
 		}
 	}
 	return output.Bytes(), ctx.Err()
+}
+
+func configurationLine(key, value string) string {
+	return key + ": \"" + value + "\""
 }
 
 // Fully prepare and close the exclusive sibling before rechecking and renaming.

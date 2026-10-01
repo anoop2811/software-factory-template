@@ -119,3 +119,26 @@ writes can report errors instead of terminating at fd 1/2. Notifications do not
 need consumption because write errors are handled synchronously; Execute adds
 no process-global signal registration. Reference fetched 2026-10-01 UTC:
 [Go signal documentation](https://pkg.go.dev/os/signal#hdr-SIGPIPE).
+
+Performance qualification: migration planning must not rescan/copy the entire
+YAML for every legacy setting. Index only selected keys and completion metadata,
+accumulate physical-line edits, and render once; metadata must not grow with
+millions of irrelevant YAML lines. Preserve evolving first-value/all-matching
+rewrite behavior, unterminated-tail concatenation and the size bound after each
+conceptual edit, including edits later replaced by completion metadata.
+Representative 8 MiB YAML with 4096 settings near its end must complete within
+five seconds after observed process admission, for both normal and race-built
+CLIs. This qualification deadline excludes compilation and catches valid-input
+quadratic work; it is not a promise about arbitrary storage or machine speed.
+
+Frozen differential acceptance requires the repository's full Git history;
+the source gate refuses an absent compatibility baseline, and CI checks out
+with fetch-depth zero. This is qualification infrastructure, not an installed
+runtime dependency. Keep run counts and timing evidence in the PR rather than
+the user migration guide.
+
+The explicit FACTORY_CONFIG identity probe deliberately uses read-only Stat
+outside the pinned root so absolute and symlink-sensitive aliases can identify
+the same existing YAML inode. It reads no override content and publishes no
+override path. All input reads and publication remain against the pinned project,
+with replacement guards; do not normalize away meaningful pathname components.

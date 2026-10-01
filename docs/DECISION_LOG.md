@@ -2570,3 +2570,10 @@ Revalidate the captured snapshot inside the pinned rename operation after those
 operations, with a failing replacement regression first. Preserve the trusted,
 quiescent directory contract rather than claiming a concurrent-writer atomic
 compare-and-swap that a pathname rename does not provide.
+
+Copilot's subsequent performance review found a separate bounded-input weakness:
+planning repeatedly scanned/copied YAML for each of up to 4096 settings. Replace
+that quadratic work with a selected-key index and accumulated physical edits,
+then render once. Preserve frozen duplicate and unterminated-tail semantics and
+every intermediate size bound. Qualify representative large valid inputs with
+an observed admission handshake and a finite deadline before merging.

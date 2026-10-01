@@ -75,6 +75,29 @@ var _ = Describe("Native Go config migration core", func() {
 })
 
 var _ = Describe("Native Go config migration frozen parity", func() {
+	// per docs/adr/0090-go-native-config-migration.md:62
+	DescribeTable("matches the full frozen recovery-refusal diagnostic in the same project", func(kind string) {
+		root, cwd, environment := configMigrationFixture()
+		path := filepath.Join(cwd, "factory.config.migrated")
+		switch kind {
+		case "file":
+			writeFixture(path, []byte("RECOVERY KEEP"), 0600)
+		case "directory":
+			Expect(os.Mkdir(path, 0700)).To(Succeed())
+			writeFixture(filepath.Join(path, "keep"), []byte("RECOVERY KEEP"), 0600)
+		case "dangling symlink":
+			Expect(os.Symlink("missing-recovery", path)).To(Succeed())
+		}
+		before := nativeInitArtifacts(cwd)
+		expected := configMigrationLegacy(root, cwd, environment)
+		Expect(expected.status).To(Equal(1), "%+v", expected)
+		Expect(nativeInitArtifacts(cwd)).To(Equal(before))
+		Expect(os.Remove(filepath.Join(root, "scripts/factory-migrate-config.sh"))).To(Succeed())
+		actual := configMigrationRun(root, cwd, environment)
+		Expect(actual).To(Equal(expected), "compare every diagnostic byte, including the leading newline and project path")
+		Expect(nativeInitArtifacts(cwd)).To(Equal(before))
+	}, Entry("file", "file"), Entry("directory", "directory"), Entry("dangling symlink", "dangling symlink"))
+
 	// per docs/adr/0090-go-native-config-migration.md:26
 	DescribeTable("accepts same-inode overrides from a nested Git cwd and publishes root YAML", func(kind string) {
 		root, cwd, environment := configMigrationFixture()
@@ -150,6 +173,24 @@ var _ = Describe("Native Go config migration frozen parity", func() {
 			legacy += "CONFIG_MIGRATED=legacy\n"
 		case "legacy migration marker":
 			legacy += "CONFIG_MIGRATED=legacy\n"
+		case "unquoted blank tail then append":
+			yaml = "blank:"
+			legacy = "OTHER=appended\nBLANK=later\n"
+		case "quoted blank tail then append":
+			yaml = "blank: \"\""
+			legacy = "OTHER=appended\nBLANK=later\n"
+		case "tail prefix creates later key":
+			yaml = "n"
+			legacy = "EW=joined\nNEW=later\n"
+		case "tail rewrite before append":
+			yaml = "blank:"
+			legacy = "BLANK=filled\nOTHER=appended\n"
+		case "completion replaces merged tail":
+			yaml = "config_migrated: old"
+			legacy = "B=appended\n"
+		case "empty legacy marker tail":
+			yaml = "config_migrated:"
+			legacy = ""
 		}
 		for _, dir := range []string{cwd, oracleCWD} {
 			writeFixture(filepath.Join(dir, "factory.yaml"), []byte(yaml), 0600)
@@ -173,5 +214,5 @@ var _ = Describe("Native Go config migration frozen parity", func() {
 			Expect(again.stdout).To(ContainSubstring("nothing to migrate"))
 			Expect(nativeInitArtifacts(cwd)).To(Equal(before))
 		}
-	}, Entry("normal apply", "normal", false), Entry("normal dry-run repeated flag", "normal", true), Entry("grammar apply", "grammar", false), Entry("grammar dry-run", "grammar", true), Entry("evolving duplicate apply", "duplicates", false), Entry("unchanged duplicate dry-run", "duplicates", true), Entry("unterminated apply", "unterminated", false), Entry("unterminated dry-run", "unterminated", true), Entry("empty legacy applies marker", "empty", false), Entry("unmatched single quote apply", "unmatched single quote", false), Entry("unmatched single quote preview", "unmatched single quote", true), Entry("unmatched double quote apply", "unmatched double quote", false), Entry("unmatched double quote preview", "unmatched double quote", true), Entry("preset YAML migration marker apply", "YAML migration marker", false), Entry("preset YAML migration marker preview", "YAML migration marker", true), Entry("preset legacy migration marker apply", "legacy migration marker", false), Entry("preset legacy migration marker preview", "legacy migration marker", true))
+	}, Entry("normal apply", "normal", false), Entry("normal dry-run repeated flag", "normal", true), Entry("grammar apply", "grammar", false), Entry("grammar dry-run", "grammar", true), Entry("evolving duplicate apply", "duplicates", false), Entry("unchanged duplicate dry-run", "duplicates", true), Entry("unterminated apply", "unterminated", false), Entry("unterminated dry-run", "unterminated", true), Entry("empty legacy applies marker", "empty", false), Entry("unmatched single quote apply", "unmatched single quote", false), Entry("unmatched single quote preview", "unmatched single quote", true), Entry("unmatched double quote apply", "unmatched double quote", false), Entry("unmatched double quote preview", "unmatched double quote", true), Entry("preset YAML migration marker apply", "YAML migration marker", false), Entry("preset YAML migration marker preview", "YAML migration marker", true), Entry("preset legacy migration marker apply", "legacy migration marker", false), Entry("preset legacy migration marker preview", "legacy migration marker", true), Entry("unquoted blank tail append apply", "unquoted blank tail then append", false), Entry("unquoted blank tail append preview", "unquoted blank tail then append", true), Entry("quoted blank tail append apply", "quoted blank tail then append", false), Entry("quoted blank tail append preview", "quoted blank tail then append", true), Entry("tail prefix creates key apply", "tail prefix creates later key", false), Entry("tail prefix creates key preview", "tail prefix creates later key", true), Entry("tail rewrite before append apply", "tail rewrite before append", false), Entry("tail rewrite before append preview", "tail rewrite before append", true), Entry("completion replaces merged tail apply", "completion replaces merged tail", false), Entry("completion replaces merged tail preview", "completion replaces merged tail", true), Entry("empty legacy marker tail apply", "empty legacy marker tail", false), Entry("empty legacy marker tail preview", "empty legacy marker tail", true))
 })

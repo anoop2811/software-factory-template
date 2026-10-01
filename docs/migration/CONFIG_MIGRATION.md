@@ -52,30 +52,3 @@ Installed script entry points remain routed as before. Go activation, retiring
 redundant scripts, and the ignored runtime backup/retention lifecycle are separate
 conversion work. The single established `.migrated` configuration recovery file
 is retained under the existing compatibility contract.
-
-## Qualification
-
-Independent core acceptance first reported `0 Passed | 3 Failed`. Subsequent
-review regressions exposed read-only no-op rejection and unsupported recovery
-claims after observed legacy replacement/removal. Both failed before correction.
-Omitting the final staging guard produced `0 Passed | 2 Failed`; restoring it
-passed, establishing that the boundary tests detect its absence.
-
-The final independent safety selection passed 34 cases with both the compiled
-CLI and outer race detector (`17.366s`). Eight internal publication cases passed
-under race detection (`1.436s`). The combined migration, configuration writes,
-precedence, review-lane and Cobra regression selection passed (`178.917s`).
-Pack lint reported `0 issues.`, vet exited zero, gosec reported `Issues : 0`,
-govulncheck reported `No vulnerabilities found.`, and the shell selftest reported
-`217 passed, 0 failed, 0 skipped`. Independent review found no remaining
-actionable issues. Exact-head Linux/macOS CI is required before merge; its final
-results and execution commands belong in the PR evidence.
-
-Hosted review exposed a second preparatory interval before the final legacy
-rename. Two helper-admission replacement cases failed before the captured
-snapshot was rechecked inside that operation. The expanded ten-case internal
-race suite then passed (`1.450s`). Eight additional frozen parity cases cover
-unmatched quotes and preexisting completion markers; they passed with the
-compiled CLI and outer race detector (`6.050s`).
-The final complete native migration selection passed 62 cases with the compiled
-CLI and outer race detector (`26.148s`) after the rename correction.

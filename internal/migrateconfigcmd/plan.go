@@ -15,6 +15,8 @@ const whitespace = " \t\r\n\v\f"
 
 type plan struct{ yaml, output []byte }
 
+type legacySetting struct{ key, yamlKey, value string }
+
 func setting(line string) (string, string, bool) {
 	key, value, ok := strings.Cut(line, "=")
 	if !ok || key == "" {
@@ -50,19 +52,8 @@ func buildPlan(ctx context.Context, yaml, legacy []byte, dry bool) (plan, error)
 	if bytes.IndexByte(yaml, 0) >= 0 || bytes.IndexByte(legacy, 0) >= 0 {
 		return plan{}, errors.New("factory migrate-config: NUL input is not supported")
 	}
-	var output bytes.Buffer
-	write := func(text string) error {
-		if len(text) > fileLimit-output.Len() {
-			return errors.New("factory migrate-config: output exceeds 16 MiB")
-		}
-		_, err := output.WriteString(text)
-		return err
-	}
-	if err := write("Migrating factory.config into factory.yaml...\n"); err != nil {
-		return plan{}, err
-	}
-	current := yaml
-	moved, skipped, parsed := 0, 0, 0
+	var settings []legacySetting
+	selected := []string{"config_migrated"}
 	remaining := string(legacy)
 	for remaining != "" {
 		if err := ctx.Err(); err != nil {
@@ -74,12 +65,35 @@ func buildPlan(ctx context.Context, yaml, legacy []byte, dry bool) (plan, error)
 		if !ok {
 			continue
 		}
-		parsed++
-		if parsed > 4096 {
+		if len(settings) == 4096 {
 			return plan{}, errors.New("factory migrate-config: more than 4096 settings")
 		}
 		yamlKey := strings.ToLower(key)
-		existing, err := config.GetBytes(ctx, current, yamlKey, "")
+		settings = append(settings, legacySetting{key: key, yamlKey: yamlKey, value: value})
+		selected = append(selected, yamlKey)
+	}
+	edits, err := config.NewEditPlan(ctx, yaml, selected)
+	if err != nil {
+		return plan{}, err
+	}
+	var output bytes.Buffer
+	write := func(text string) error {
+		if len(text) > fileLimit-output.Len() {
+			return errors.New("factory migrate-config: output exceeds 16 MiB")
+		}
+		_, err := output.WriteString(text)
+		return err
+	}
+	if err := write("Migrating factory.config into factory.yaml...\n"); err != nil {
+		return plan{}, err
+	}
+	moved, skipped := 0, 0
+	for _, setting := range settings {
+		if err := ctx.Err(); err != nil {
+			return plan{}, err
+		}
+		key, yamlKey, value := setting.key, setting.yamlKey, setting.value
+		existing, err := edits.Get(ctx, yamlKey, "")
 		if err != nil {
 			return plan{}, err
 		}
@@ -98,8 +112,7 @@ func buildPlan(ctx context.Context, yaml, legacy []byte, dry bool) (plan, error)
 				return plan{}, err
 			}
 		} else {
-			current, err = config.RewriteBytes(ctx, current, yamlKey, value)
-			if err != nil {
+			if err := edits.Set(ctx, yamlKey, value); err != nil {
 				return plan{}, err
 			}
 			if err := write("  moved: " + key + " -> " + yamlKey + "\n"); err != nil {
@@ -109,11 +122,14 @@ func buildPlan(ctx context.Context, yaml, legacy []byte, dry bool) (plan, error)
 		moved++
 	}
 	var summary string
+	current := yaml
 	if dry {
 		summary = fmt.Sprintf("\nfactory migrate-config: dry run — %d key(s) would move, %d already set.\n  Nothing was changed. Re-run without --dry-run to apply.\n", moved, skipped)
 	} else {
-		var err error
-		current, err = config.RewriteBytes(ctx, current, "config_migrated", "yes")
+		if err := edits.Set(ctx, "config_migrated", "yes"); err != nil {
+			return plan{}, err
+		}
+		current, err = edits.Bytes(ctx)
 		if err != nil {
 			return plan{}, err
 		}

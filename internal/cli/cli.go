@@ -17,6 +17,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
+	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
@@ -45,7 +46,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -105,6 +106,10 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				if name == "migrate-config" {
+					status = migrateconfigcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					return nil
+				}
 				if name == "review-lane" {
 					directory, err := dispatcherDirectory()
 					if err != nil {

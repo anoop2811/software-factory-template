@@ -24,7 +24,6 @@ var commandRoutes = []struct{ command, script string }{
 	{"upgrade", "scripts/factory-upgrade.sh"},
 	{"check", "scripts/pre-push-check.sh"},
 	{"selftest", "scripts/selftest/run.sh"},
-	{"migrate-config", "scripts/factory-migrate-config.sh"},
 }
 
 type cliResult struct {
@@ -140,8 +139,8 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			if executable == "factory" {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				// per docs/adr/0089-go-native-review-lane.md:17
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
+				// per docs/adr/0090-go-native-config-migration.md:22
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {
 					if line == "              touches your factory.yaml, content, or customized files\n" {

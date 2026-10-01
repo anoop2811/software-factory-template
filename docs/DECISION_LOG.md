@@ -2552,3 +2552,14 @@ components where their contracts match, and route init/doctor lane operations
 through the native service without changing process-global cwd. Keep hosted
 review/model/provider behavior and installed legacy activation unchanged.
 Qualify and merge this command before starting config migration.
+
+## Decision 89 (2026-09-30 UTC): implement native Go config migration
+
+After merged review-lane PR #116, implement ADR-0090. Preserve migration-specific
+parsing, YAML precedence and the single legacy recovery name. Prepare and publish
+one bounded YAML transformation, then perform a no-replace legacy rename.
+Reject unsupported values and mismatched explicit config overrides before
+mutation; preserve recovery artifacts and report partial publication honestly.
+Reuse the configuration writer without changing its existing single-key
+contract. Qualify this last requested native command before declaring the
+six-command source implementation complete; installed cutover remains separate.

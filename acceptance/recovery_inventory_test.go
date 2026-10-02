@@ -311,8 +311,18 @@ var _ = Describe("G4 recovery inventory inert filesystem", func() {
 			Expect(os.Chmod(leaf, 0640)).To(Succeed())
 		case "copy setuid":
 			Expect(os.Chmod(leaf, 0600|os.ModeSetuid)).To(Succeed())
+			info, err := os.Lstat(leaf)
+			Expect(err).NotTo(HaveOccurred())
+			if info.Mode()&os.ModeSetuid == 0 {
+				Skip("this sandbox/filesystem does not retain the requested native setuid fixture bit")
+			}
 		case "copy setgid":
 			Expect(os.Chmod(leaf, 0600|os.ModeSetgid)).To(Succeed())
+			info, err := os.Lstat(leaf)
+			Expect(err).NotTo(HaveOccurred())
+			if info.Mode()&os.ModeSetgid == 0 {
+				Skip("this sandbox/filesystem does not retain the requested native setgid fixture bit")
+			}
 		case "copy sticky":
 			Expect(os.Chmod(leaf, 0600|os.ModeSticky)).To(Succeed())
 		case "manifest mode":
@@ -563,8 +573,14 @@ var _ = Describe("G4 recovery inventory raw-name identity", func() {
 		Expect(os.MkdirAll(backups, 0700)).To(Succeed())
 		for _, name := range []string{string([]byte{0xff}), string([]byte{0xfe}), "%FF"} {
 			err := os.Mkdir(filepath.Join(backups, name), 0700)
-			if errors.Is(err, syscall.EILSEQ) || errors.Is(err, syscall.EINVAL) {
-				Skip("raw-name identity requires a filesystem accepting these bytes")
+			if name != "%FF" && (errors.Is(err, syscall.EILSEQ) || errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES)) {
+				info, statErr := os.Lstat(backups)
+				Expect(statErr).NotTo(HaveOccurred())
+				Expect(info.Mode().IsDir()).To(BeTrue())
+				Expect(info.Mode().Perm()).To(Equal(os.FileMode(0700)))
+				control := filepath.Join(backups, "ascii-name-qualification")
+				Expect(os.Mkdir(control, 0700)).To(Succeed(), "the fixture parent must accept a safe ASCII name before a raw-byte restriction can be skipped")
+				Skip("this sandbox/filesystem rejects invalid UTF8 names in a writable fixture parent")
 			}
 			Expect(err).NotTo(HaveOccurred())
 		}

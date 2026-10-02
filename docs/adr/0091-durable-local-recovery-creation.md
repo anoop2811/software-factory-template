@@ -148,3 +148,27 @@ this second of three backup/rollback milestones earns 1/3 of one package:
 (17 + 2/3 + 1/3)/30 = 60.0%. Before qualification/merge, earned progress stays
 58.9%. Complete installed coverage, controlled restore, transactional activation,
 legacy retirement, retention and adopter/platform qualification remain pending.
+
+## Git query side effects
+
+Fixed Git queries disable configured fsmonitor with core.fsmonitor=false and
+discard inherited Git redirection/configuration overrides. Qualify a repository
+with an executable monitor sentinel: a local metadata query must not implicitly
+launch a configured helper. This is a query boundary, not permission to run hooks.
+
+## Preserve ignore scope through incomplete writes
+
+2026-10-02 qualification observed a short append of `/.factory/backups/` leave
+`/.factory` at EOF; real Git then ignored non-backup `.factory/events.log`.
+Failure preservation must never broaden ignoring beyond the reserved subtree.
+Stage the new line as an inert `#.factory/backups/` comment. Sync and read back
+its complete bytes before activating only its newly appended leading byte from
+`#` to `/`, then sync and read back the exact complete rule. Every partial stage
+is a comment; a zero-byte activation leaves it inert; a completed single-byte
+activation exposes only the full narrow rule. Preserve all preceding bytes.
+Use a confined positional write without O_APPEND's platform-specific interaction
+with pwrite. Incomplete inert comments may remain as reported local evidence;
+creation never treats them as an effective rule. Tests must use real Git to prove
+that unrelated paths retain their prior ignoring state after an injected short
+append or pre-activation sync failure. No rollback/truncate success is assumed
+after an I/O error.

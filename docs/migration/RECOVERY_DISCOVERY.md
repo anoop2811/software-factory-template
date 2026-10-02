@@ -9,7 +9,8 @@ citation source scanning and citation-target resolution, Java/TypeScript test
 dialect scans, and Go tracked-test discovery. Active files elsewhere remain
 subject to the same checks, including `.factory/backups-other` and a nested
 application's ordinary `.factory/backups` directory. No file is removed from
-Git's index. A future writer must independently refuse tracked backup paths.
+Git's index. The separate [local writer](RECOVERY_CREATION.md) independently
+refuses tracked backup paths before saving copies.
 
 Citation docs_root cannot resolve into recovery storage: archived documentation
 must not become the source of truth for active citations. Other document roots

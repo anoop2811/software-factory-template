@@ -18,6 +18,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
+	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
@@ -163,6 +164,12 @@ func Run(ctx context.Context, args []string) int {
 					if err != nil {
 						return fmt.Errorf("factory: %w", err)
 					}
+					return nil
+				}
+				// Creation is reserved before preview and ordinary legacy dispatch.
+				// docs/adr/0091-durable-local-recovery-creation.md:25.
+				if name == "upgrade" && recoverycmd.Claimed(forwarded) {
+					status = recoverycmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
 				}
 				// A preview marker owns the route even when its arguments are invalid.

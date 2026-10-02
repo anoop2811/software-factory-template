@@ -1,8 +1,9 @@
 # Read-only recovery inventory
 
 [ADR-0083](../adr/0083-go-recovery-set-inspection.md) defines the opt-in source
-preview inspection. Installed migration, backup creation, rollback and pruning
-are not implemented by this feature.
+preview inspection. This inspection does not create backups, apply installed
+migration, restore files or prune sets. The separate [local creation operation](RECOVERY_CREATION.md)
+provides the partial source-built writer.
 
 Run from the installation root with a locally built Go binary:
 
@@ -21,8 +22,9 @@ not inspected. The upgrade remains blocked: inspection never makes it applicable
 match the compiled six-path legacy reference, with no unexpected entries. It does
 not establish a completed migration, historical ownership, current compatibility
 or authority to restore or delete. Do not hand-write manifests to grant authority.
-There is no recovery-set writer yet. The format is a contract for future recovery
-creation and current read-only validation, not an import mechanism.
+The [local creation operation](RECOVERY_CREATION.md) uses this format for selected
+unchanged references. Neither imported records nor successfully written sets
+grant restoration, installation-transaction or deletion authority.
 
 An absent recovery directory produces an empty inventory. Invalid, incomplete,
 unsafe, oversized or unreadable entries remain untouched and visible. Inspection
@@ -42,10 +44,12 @@ them; JSON preserves structured fields. No saved file contents or absolute insta
 
 ## What follows
 
-Durable recovery creation must first establish effective Git ignoring, discovery
-exclusions, transaction ownership and verified backups. Controlled restoration
-must preserve subsequent edits and runtime history. Transactional activation and
-successful-later-release retention remain separate prerequisites. The canonical
+The partial [local creation operation](RECOVERY_CREATION.md) establishes effective
+Git ignoring and verified inert copies for an explicitly confirmed selection.
+Complete installation coverage and transaction ownership remain prerequisites.
+Controlled restoration must preserve subsequent edits and runtime history.
+Transactional activation and successful-later-release retention remain separate
+prerequisites. The canonical
 [conversion specification](../../specs/001-go-runtime-conversion.md) requires
 eligible older sets to be pruned after a successful later forward release, with
 holds, edits and incomplete cleanup explicitly reported. Inspection alone does
@@ -86,4 +90,5 @@ activation, backup creation, restoration or retention/pruning.
 [Recovery discovery exclusions](RECOVERY_DISCOVERY.md) keep factory-owned gates
 from consuming obsolete saved scripts, tests and documentation. This prerequisite
 does not create recovery sets or establish universal exclusions for arbitrary
-user commands and external scanners. Durable creation remains pending.
+user commands and external scanners. The partial local writer is documented in
+[recovery creation](RECOVERY_CREATION.md); installed rollout remains pending.

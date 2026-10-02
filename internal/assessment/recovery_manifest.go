@@ -11,6 +11,7 @@ import (
 
 type recoveryManifest struct {
 	held   bool
+	target string
 	assets []referenceAsset
 }
 
@@ -70,7 +71,7 @@ func parseRecoveryManifest(ctx context.Context, data []byte, name string) (recov
 	if !ok || len(assets) < 1 || len(assets) > len(catalog) {
 		return recoveryManifest{}, false
 	}
-	result := recoveryManifest{held: held, assets: make([]referenceAsset, 0, len(assets))}
+	result := recoveryManifest{held: held, target: target, assets: make([]referenceAsset, 0, len(assets))}
 	previous := ""
 	for _, value := range assets {
 		if ctx.Err() != nil {

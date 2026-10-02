@@ -2,7 +2,9 @@
 
 [ADR-0081](../adr/0081-explicit-legacy-asset-adoption.md) records the approved
 ownership boundary. This document describes the source qualification flow;
-installed upgrade activation, backup and pruning remain pending.
+installed upgrade activation, whole-factory backup and pruning remain pending.
+The separate [local recovery writer](RECOVERY_CREATION.md) can preserve an
+explicitly confirmed selection from the reviewed reference catalog.
 
 ## What an adopter should see
 

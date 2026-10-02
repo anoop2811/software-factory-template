@@ -2596,3 +2596,15 @@ evidence or advance retention. Expose a strictly reserved source-built creation
 mode while preserving previews and installed legacy dispatch. This closes only
 the durable creation milestone after qualification; restoration, complete
 installation coverage, activation, retirement and release cutover remain pending.
+
+Disable repository-configured fsmonitor on the fixed Git metadata queries and
+qualify a configured executable sentinel, so exclusion checks cannot implicitly
+run a user helper. Sanitizing inherited Git variables alone does not override
+repository-local configuration.
+
+2026-10-02 UTC qualification refinement: a partial local-exclude append can turn
+the intended backup-only pattern into `/.factory`, silently hiding unrelated
+runtime files. Preserve narrow ignore semantics even on failure: stage an inert
+comment, sync and read back the complete line, then activate its first byte and
+sync/read back again. Require a real Git negative control before correction;
+incomplete inert evidence may remain, but a broader active rule may not.

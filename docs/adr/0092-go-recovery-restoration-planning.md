@@ -146,3 +146,8 @@ ancestry still refuse with status 2. Preserve the historical unpinned observer's
 unsafe classification for changed ancestry; this refinement is planning-only.
 Require a real installed-read/inode-replacement regression and an unpinned
 compatibility control before changing the shared observer.
+
+Planning command fault specifications must exercise the production Run dispatch,
+which already owns signal handling and the planning context. Remove the new
+test-only exported RunPlanning wrapper rather than maintaining a second entry
+point used only by same-package tests. Preserve all command failure expectations.

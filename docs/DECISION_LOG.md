@@ -2651,3 +2651,7 @@ failure and ancestor replacement. The planner must discard the report with
 status 1; successful changed observations remain status 2. Keep the unpinned
 historical observer's unsafe classification unchanged. Require a failing
 same-observation regression and an explicit historical compatibility control.
+
+Use the production recovery Run entry in planning fault specifications and
+remove the new test-only exported wrapper. Shared dispatch already owns the
+signal context; do not maintain a second exported entry solely for tests.

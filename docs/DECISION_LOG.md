@@ -2623,3 +2623,35 @@ claims creation mode. Exercise explicit wrong confirmation with a correct
 environment digest. Qualify the intended private Git fixture modes explicitly
 instead of weakening the writer to accommodate inherited creation permissions.
 The existing milestone and source-progress denominator remain unchanged.
+
+## Decision 91 (2026-10-03 UTC): plan controlled recovery restoration safely
+
+After merged durable-creation PR #118, implement ADR-0092 as a read-only
+restoration prerequisite. Compare only one strict set's selected six-catalog
+references against current installed paths, preserve later edits and distinguish
+missing candidates from conflicts. Retain metadata/identity validation through
+the whole observation and report deterministic ownership, quiescence,
+compatibility and activation blockers. Existing recovery manifests are integrity
+evidence, not reverse migration ownership; current locks cannot exclude an old
+process paused before admission. Therefore active restoration remains gated.
+No writes, probes, history mutation, Git changes or legacy execution are allowed.
+Preserve creation/preview dispatch and literal legacy option operands. The source
+progress denominator remains 30; merged PR #118 earns 60.0%, and this prerequisite
+earns no additional controlled-restoration milestone credit.
+
+2026-10-03 UTC review refinement: a changed installed observation must not mark
+an otherwise intact backup unsafe. Discard the transient restoration plan and
+report one fixed changed-observations diagnostic; preserve assessment/close
+failure status-1 precedence. Static recovery exceptions retain their existing
+bounded report. Require RED attribution regressions before source correction.
+
+PR #119 review refinement: preserve an already observed assessment error during
+the retained installed observer's own ancestry recheck, including a same-read
+failure and ancestor replacement. The planner must discard the report with
+status 1; successful changed observations remain status 2. Keep the unpinned
+historical observer's unsafe classification unchanged. Require a failing
+same-observation regression and an explicit historical compatibility control.
+
+Use the production recovery Run entry in planning fault specifications and
+remove the new test-only exported wrapper. Shared dispatch already owns the
+signal context; do not maintain a second exported entry solely for tests.

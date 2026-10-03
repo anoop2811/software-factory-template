@@ -35,6 +35,7 @@ Usage: factory <command> [args]
   upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
               touches your factory.yaml, content, or customized files
               Preview locally with --dry-run --source PATH (run at installation root)
+              Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
@@ -47,7 +48,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -166,8 +167,9 @@ func Run(ctx context.Context, args []string) int {
 					}
 					return nil
 				}
-				// Creation is reserved before preview and ordinary legacy dispatch.
+				// Recovery markers reserve handling before preview and legacy dispatch.
 				// docs/adr/0091-durable-local-recovery-creation.md:25.
+				// docs/adr/0092-go-recovery-restoration-planning.md:25.
 				if name == "upgrade" && recoverycmd.Claimed(forwarded) {
 					status = recoverycmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil

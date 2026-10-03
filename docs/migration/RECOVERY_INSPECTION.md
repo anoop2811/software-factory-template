@@ -42,6 +42,13 @@ than calling the inventory empty. Both formats percent-escape unusual directory-
 these identifiers are not literal paths to paste into commands. Text also quotes
 them; JSON preserves structured fields. No saved file contents or absolute installation roots are printed.
 
+## Plan one set against the installation
+
+The separate [restoration planner](RECOVERY_RESTORATION_PLAN.md) compares the
+requested set's selected destinations without requiring a target source. It
+reports matching references, missing candidates, preserved edits and conflicts,
+with every application/rollback authority still false.
+
 ## What follows
 
 The partial [local creation operation](RECOVERY_CREATION.md) establishes effective

@@ -172,3 +172,35 @@ creation never treats them as an effective rule. Tests must use real Git to prov
 that unrelated paths retain their prior ignoring state after an injected short
 append or pre-activation sync failure. No rollback/truncate success is assumed
 after an I/O error.
+
+## Retry exclusion durability and legacy operand ownership
+
+2026-10-02 PR #118 review reproduced a visibility/durability distinction:
+activation-file or `.git/info` sync failure can leave the complete local rule
+visible. A subsequent attempt must not interpret `git check-ignore` success as
+evidence that those earlier writes were synced. Require the exact canonical
+`/.factory/backups/` local rule even when a broader local or project rule already
+ignores the paths. Preserve all existing patterns and project files; add the
+narrow local fallback through the existing inert staging protocol only when
+that exact rule is absent. Validate and read back the complete local exclusion,
+sync its file and `.git/info` on every successful creation or reuse path, and
+recheck effective precedence and tracked paths before writing backup storage.
+An unsuccessful re-sync remains an operational error; no completed set is
+published and no occupied set is discarded. Do not infer crash durability from
+path visibility or from an imported completion manifest.
+
+Existing legacy `--source` and `--ref` options consume their next detached
+operand before creation dispatch considers another token a marker. A source
+directory or local-source revision label literally named `--create-backup`
+remains a legacy operand. A separate bare or attached creation marker still
+claims creation mode and receives its strict parsing and refusal behavior.
+Explicit confirmation remains authoritative: a correct environment digest never
+overrides an incorrect supplied confirmation.
+
+Positive Git fixtures must explicitly establish and read back their intended
+control-directory and exclude-file modes before invoking creation. Writing an
+existing file with a requested creation mode does not change its existing mode.
+Linux CI failed at that unsafe-file boundary before exercising the intended
+recovery/output behavior; keep the production ownership, link and permission
+checks unchanged. Require independent RED retry failures and compiled legacy
+operand regressions before production corrections, then requalify both platforms.

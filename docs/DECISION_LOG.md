@@ -2608,3 +2608,18 @@ runtime files. Preserve narrow ignore semantics even on failure: stage an inert
 comment, sync and read back the complete line, then activate its first byte and
 sync/read back again. Require a real Git negative control before correction;
 incomplete inert evidence may remain, but a broader active rule may not.
+
+PR #118 review refinement, 2026-10-02 UTC: an active local rule surviving a sync
+failure is visible evidence, not evidence of durable exclusion. Every creation
+and exact reuse must establish the canonical narrow local rule, sync/read back
+its validated file and sync `.git/info` before writing backup storage, including
+retries and installations already ignored by broader or project rules. Preserve
+all existing patterns, incomplete sets and active originals. Add fault regressions
+for activation-file and parent-directory sync failures and repeated retry errors.
+
+Preserve legacy operand ownership during dispatch: detached `--source` and
+`--ref` values may literally equal the new marker. Only an independent marker
+claims creation mode. Exercise explicit wrong confirmation with a correct
+environment digest. Qualify the intended private Git fixture modes explicitly
+instead of weakening the writer to accommodate inherited creation permissions.
+The existing milestone and source-progress denominator remain unchanged.

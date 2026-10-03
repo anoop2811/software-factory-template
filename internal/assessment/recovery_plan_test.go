@@ -364,6 +364,69 @@ var _ = Describe("Read-only restoration planning observation lifetime", func() {
 		recoveryClosed(handles.files)
 	}, Entry("root mode changed after an installed read failure", false), Entry("root inode replaced after an installed read failure", true))
 
+	// per docs/adr/0092-go-recovery-restoration-planning.md:50
+	// per docs/adr/0092-go-recovery-restoration-planning.md:133
+	// per docs/adr/0092-go-recovery-restoration-planning.md:135
+	// per docs/adr/0092-go-recovery-restoration-planning.md:143
+	// per docs/adr/0092-go-recovery-restoration-planning.md:146
+	// per docs/adr/0092-go-recovery-restoration-planning.md:148
+	DescribeTable("qualifies same-asset parent replacement inside one installed observation", func(failRead, planning bool) {
+		root, set, paths := recoveryPlanningFixture()
+		handles, controls := recoveryPlanningControls(root, set, paths)
+		changed, readFailed := false, false
+		controls.read = func(file *os.File, buffer []byte) (int, error) {
+			n, err := file.Read(buffer)
+			if !changed && handles.labels[file] == "installed/"+paths[0] {
+				Expect(n).To(BeNumerically(">", 0), "control must read the actual installed descriptor before replacing its parent")
+				Expect(err).NotTo(HaveOccurred())
+				parent := filepath.Dir(filepath.Join(root, paths[0]))
+				before, statErr := os.Lstat(parent)
+				Expect(statErr).NotTo(HaveOccurred())
+				Expect(os.Rename(parent, parent+".held")).To(Succeed())
+				Expect(os.Mkdir(parent, 0700)).To(Succeed())
+				after, statErr := os.Lstat(parent)
+				Expect(statErr).NotTo(HaveOccurred())
+				Expect(os.SameFile(before, after)).To(BeFalse(), "control must replace the currently observed asset's ancestor inode")
+				changed = true
+				if failRead {
+					readFailed = true
+					return n, unix.EIO
+				}
+			}
+			return n, err
+		}
+		if !planning {
+			references, err := selectedReferences(paths[:1])
+			Expect(err).NotTo(HaveOccurred())
+			rootFile, err := os.Open(root)
+			Expect(err).NotTo(HaveOccurred())
+			handles.capture(rootFile)
+			result, err := observe(context.Background(), rootFile, references[0], controls)
+			Expect(rootFile.Close()).To(Succeed())
+			Expect(changed).To(BeTrue())
+			Expect(readFailed).To(BeTrue())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Classification).To(Equal("unsafe"), "historical unpinned observation keeps ancestry-change refusal")
+			Expect(result.Observed).To(BeNil())
+			recoveryClosed(handles.files)
+			return
+		}
+
+		result, err := planRecovery(context.Background(), root, "set-1", controls)
+		Expect(changed).To(BeTrue())
+		Expect(readFailed).To(Equal(failRead))
+		Expect(err).To(HaveOccurred())
+		Expect(result).To(Equal(RecoveryPlan{}), "changed observations must discard the entire transient plan")
+		Expect(err.Error()).To(BeElementOf("recovery planning observations changed", "unsafe or changed recovery planning root"))
+		Expect(err.Error()).NotTo(ContainSubstring(root))
+		recoveryClosed(handles.files)
+		status := 2
+		if failRead {
+			status = 1
+		}
+		recoveryPlanningError(result, err, status)
+	}, Entry("EIO and same-asset parent replacement retains operational precedence", true, true), Entry("same-asset parent replacement without EIO remains a refusal", false, true), Entry("unpinned EIO and parent replacement preserves historical unsafe classification", true, false))
+
 	// per docs/adr/0092-go-recovery-restoration-planning.md:57
 	It("never opens unrelated recovery sets or runtime history while planning one intact selection", func() {
 		root, set, paths := recoveryPlanningFixture()

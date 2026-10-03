@@ -88,7 +88,7 @@ attribution of late installed changes and a status-priority regression. The
 spec-writer observed nine and two additional failing lifetime controls before
 the corresponding corrections; neither finding remains open.
 
-Final compiled-command qualification on 2026-10-03 selected 73 acceptance
+Pre-publication compiled-command qualification on 2026-10-03 selected 73 acceptance
 specs, including 66 public planning cases and seven existing help cases. The
 outer test process and compiled child both used the race detector:
 
@@ -117,7 +117,7 @@ FACTORY_AGENT_ROLE=reviewer FACTORY_CLI_TEST_RACE=1 GOCACHE=/private/tmp/factory
 ok github.com/anoop2811/software-factory-template/acceptance 117.159s
 ```
 
-Final whole-source quality checks used the existing qualified tools and caches:
+Pre-publication whole-source quality checks used the existing qualified tools and caches:
 
 ```text
 GOCACHE=/private/tmp/factory-durable-recovery-go-cache GOLANGCI_LINT_CACHE=/private/tmp/factory-durable-recovery-lint-cache /private/tmp/factory-quality-tools/golangci-lint run --config packs/go/.golangci.yml ./...
@@ -136,8 +136,60 @@ GOCACHE=/private/tmp/factory-durable-recovery-go-cache go build -o /private/tmp/
 exit status 0; no output
 ```
 
-The security summary above condenses the tool's four summary lines. Independent
+The gosec entry in the output block condenses its four summary lines. Independent
 correctness/test-quality and security reviewers rechecked both corrections
 under the race detector and reported no surviving findings. Latest-head hosted
 Linux/macOS CI and the advisory model review are separate publication checks;
 these focused local acceptance runs do not claim the entire acceptance suite ran.
+
+### Hosted review follow-up
+
+Copilot identified a same-observation failure boundary: replacing the currently
+read asset's ancestor inside a read returning EIO could downgrade the assessment
+failure to status 2. The independent spec-writer reproduced it before correction,
+alongside successful-read and historical unpinned-observer controls:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -v ./internal/assessment -ginkgo.focus='same-asset parent replacement inside one installed observation' -ginkgo.no-color -ginkgo.succinct
+Ran 3 of 142 Specs in 0.072 seconds
+FAIL! -- 2 Passed | 1 Failed | 0 Pending | 139 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 0.644s
+```
+
+After the planning-only correction, the same three controls passed with the
+race detector. The whole assessment and recovery-command suites also passed:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -ginkgo.focus='same-asset parent replacement inside one installed observation' -ginkgo.no-color -ginkgo.succinct
+3/142 selected specs: SUCCESS! 73.596666ms
+ok github.com/anoop2811/software-factory-template/internal/assessment 1.416s
+
+FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment ./internal/recoverycmd -ginkgo.no-color -ginkgo.succinct
+142/142 assessment specs: SUCCESS! 10.639766625s
+26/26 recovery-command specs: SUCCESS! 5.50227575s
+```
+
+The successful-read control still refuses with status 2, and the unpinned
+observer still classifies changed ancestry as unsafe. The separate GLM advisory
+completed and its filesystem, identifier and citation concerns were checked
+against the complete helpers; those definitions refuted its conditional claims.
+Command fault specifications additionally use the production recovery dispatch
+instead of a test-only exported wrapper. Publication qualification records the
+latest source checks and hosted results separately from the earlier runs above.
+
+After the wrapper removal, the independent spec-writer reran the command suite:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/recoverycmd -ginkgo.no-color -ginkgo.succinct
+26/26 specs: SUCCESS! 4.6978745s
+ok github.com/anoop2811/software-factory-template/internal/recoverycmd 6.250s
+```
+
+The compiled acceptance and whole-source quality commands above were also rerun
+on the corrected source. Acceptance passed all 73 selected cases, package
+`ok` in 59.455s; lint reported `0 issues.`; gosec reported 131 files, 20887 lines,
+17 Nosec and 0 issues; govulncheck reported `No vulnerabilities found.`; vet and
+build exited 0. Independent final correctness/test-quality race qualification
+passed 20 observation-lifetime and all 26 command cases; security qualification
+passed all three same-observation controls. Both reviewers reported zero
+surviving findings. Hosted checks must still be read at the published commit.

@@ -12,14 +12,6 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
-// Planning shares recovery dispatch, signal handling and checked diagnostics.
-// docs/adr/0092-go-recovery-restoration-planning.md:25.
-func RunPlanning(parent context.Context, args []string, stdout, stderr io.Writer) int {
-	ctx, stop := recoveryContext(parent)
-	defer stop()
-	return runPlanning(ctx, args, stdout, stderr)
-}
-
 func runPlanning(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	id, jsonOutput, ok := parsePlanning(args)
 	if !ok {

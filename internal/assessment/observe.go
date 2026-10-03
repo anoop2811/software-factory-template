@@ -38,7 +38,10 @@ func observePinned(ctx context.Context, root *os.File, reference referenceAsset,
 	}
 	chain := directories{{file: root, identity: rootInfo}}
 	defer func() {
-		if !chain.valid() {
+		// Retained planning preserves I/O failure precedence; its final pins
+		// still invalidate the plan. Historical unpinned behavior is unchanged.
+		// docs/adr/0092-go-recovery-restoration-planning.md:143.
+		if !chain.valid() && (retained == nil || result.Classification != "assessment_error") {
 			result = row(reference, "unsafe", nil)
 		}
 		if retained == nil {

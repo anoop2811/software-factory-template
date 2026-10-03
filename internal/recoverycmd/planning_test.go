@@ -67,7 +67,7 @@ var _ = Describe("Read-only restoration planning command output", func() {
 		before := recoveryPlanSnapshot(root)
 		writer := &recoverySink{kind: kind}
 		var stderr bytes.Buffer
-		Expect(RunPlanning(context.Background(), args, writer, &stderr)).To(Equal(1))
+		Expect(Run(context.Background(), args, nil, writer, &stderr)).To(Equal(1))
 		Expect(stderr.String()).To(Equal("factory upgrade: cannot write recovery plan\n"))
 		Expect(writer.String()).NotTo(ContainSubstring("PRIVATE_"))
 		Expect(writer.String()).NotTo(ContainSubstring(root))
@@ -84,7 +84,7 @@ var _ = Describe("Read-only restoration planning command output", func() {
 	DescribeTable("uses operational status when a refused request's diagnostic cannot complete", func(kind string) {
 		var stdout bytes.Buffer
 		stderr := &recoverySink{kind: kind}
-		Expect(RunPlanning(context.Background(), []string{"--plan-restore"}, &stdout, stderr)).To(Equal(1))
+		Expect(Run(context.Background(), []string{"--plan-restore"}, nil, &stdout, stderr)).To(Equal(1))
 		Expect(stdout.Len()).To(BeZero())
 		Expect(stderr.String()).NotTo(ContainSubstring("PRIVATE_"))
 	}, Entry("diagnostic write error", "write"), Entry("diagnostic short write", "short"), Entry("diagnostic flush error", "flush"))
@@ -97,7 +97,7 @@ var _ = Describe("Read-only restoration planning command output", func() {
 		defer cancel()
 		writer := &recoverySink{cancel: cancel}
 		var stderr bytes.Buffer
-		Expect(RunPlanning(ctx, append(args, "--json"), writer, &stderr)).To(Equal(1))
+		Expect(Run(ctx, append(args, "--json"), nil, writer, &stderr)).To(Equal(1))
 		Expect(stderr.String()).To(Equal("factory upgrade: cannot write recovery plan\n"))
 		Expect(recoveryPlanSnapshot(root)).To(Equal(before))
 	})
@@ -120,7 +120,7 @@ var _ = Describe("Read-only restoration planning command output", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 		status := make(chan int, 1)
-		go func() { status <- RunPlanning(ctx, []string{"--plan-restore"}, &bytes.Buffer{}, writer) }()
+		go func() { status <- Run(ctx, []string{"--plan-restore"}, nil, &bytes.Buffer{}, writer) }()
 		Eventually(status, 2*time.Second).Should(Receive(Equal(1)))
 	})
 })
@@ -141,7 +141,7 @@ var _ = Describe("Read-only restoration planning command cancellation", func() {
 		}
 		defer cancel()
 		var stdout, stderr bytes.Buffer
-		Expect(RunPlanning(ctx, args, &stdout, &stderr)).To(Equal(1))
+		Expect(Run(ctx, args, nil, &stdout, &stderr)).To(Equal(1))
 		Expect(stdout.Len()).To(BeZero())
 		Expect(stderr.String()).To(Equal(message))
 		Expect(recoveryPlanSnapshot(root)).To(Equal(before))

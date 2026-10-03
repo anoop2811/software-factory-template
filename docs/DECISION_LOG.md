@@ -2583,3 +2583,43 @@ Final CI qualification observed the preceding macOS run 36813827308 exceed the
 environment fixtures, without an assertion failure. Use the existing make
 override to allow 20 minutes for the CI suite and 25 minutes for the enclosing
 job. Keep local defaults and every operation/performance deadline unchanged.
+
+## Decision 90 (2026-10-01 UTC): create durable locally ignored recovery sets
+
+After merged PR #117, implement ADR-0091 as the next approved conversion slice.
+Create private inert copies only for explicitly adopted unchanged reference
+assets, establish effective local Git ignoring before payload writes, and require
+durable sync and integrity readback before reporting completion. Reuse the
+existing confined observer and strict recovery format. Preserve interrupted or
+conflicting sets and every active original; repeated creation must not overwrite
+evidence or advance retention. Expose a strictly reserved source-built creation
+mode while preserving previews and installed legacy dispatch. This closes only
+the durable creation milestone after qualification; restoration, complete
+installation coverage, activation, retirement and release cutover remain pending.
+
+Disable repository-configured fsmonitor on the fixed Git metadata queries and
+qualify a configured executable sentinel, so exclusion checks cannot implicitly
+run a user helper. Sanitizing inherited Git variables alone does not override
+repository-local configuration.
+
+2026-10-02 UTC qualification refinement: a partial local-exclude append can turn
+the intended backup-only pattern into `/.factory`, silently hiding unrelated
+runtime files. Preserve narrow ignore semantics even on failure: stage an inert
+comment, sync and read back the complete line, then activate its first byte and
+sync/read back again. Require a real Git negative control before correction;
+incomplete inert evidence may remain, but a broader active rule may not.
+
+PR #118 review refinement, 2026-10-03 UTC: an active local rule surviving a sync
+failure is visible evidence, not evidence of durable exclusion. Every creation
+and exact reuse must establish the canonical narrow local rule, sync/read back
+its validated file and sync `.git/info` before writing backup storage, including
+retries and installations already ignored by broader or project rules. Preserve
+all existing patterns, incomplete sets and active originals. Add fault regressions
+for activation-file and parent-directory sync failures and repeated retry errors.
+
+Preserve legacy operand ownership during dispatch: detached `--source` and
+`--ref` values may literally equal the new marker. Only an independent marker
+claims creation mode. Exercise explicit wrong confirmation with a correct
+environment digest. Qualify the intended private Git fixture modes explicitly
+instead of weakening the writer to accommodate inherited creation permissions.
+The existing milestone and source-progress denominator remain unchanged.

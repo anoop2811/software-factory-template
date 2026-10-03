@@ -33,12 +33,20 @@ environment variables. Contention refuses before probes or checks start.
 
 Validate descriptor and pathname identity, ownership, regular type, link count,
 empty content and exact private mode. Pin the project and state directories;
-reject links, unsafe ancestors and replacement rather than following or fixing
+reject links in controlled checkout ancestry and replacement rather than following or fixing
 them. Create absent private infrastructure exclusively and read it back. Do not
 change permissions on pre-existing unsafe control files or directories.
 The activity directory itself must be 0700. A pre-existing owned `.factory`
 parent without group/other write permission is compatible, including 0755;
 the guard preserves its mode rather than repairing it.
+Existing accounting/checkpoint stores may still tighten their parent to 0700
+under their established privacy contract. Guard revalidation accepts that safe
+change without accepting a different inode or group/other write permission.
+The selected project root must itself be a physical directory, pinned by its
+descriptor and original pathname; reject a final-root symlink and traversal.
+Stable system path aliases above that boundary, such as macOS `/var`, remain
+compatible. All controlled children are opened relative to pinned parents with
+no link following, and original project pathname identity is rechecked.
 
 ### Durable activity
 

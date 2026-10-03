@@ -86,8 +86,9 @@ Existing output schemas, identifiers, accounting and loop evidence remain
 unchanged. Guard refusals use existing safe command error channels.
 
 The Python protocol shim is temporary coexistence machinery, shared by its
-budget and loop controllers. Ship it in the legacy upgrade and runtime bundle
-asset manifests; it is not an active recovery fallback. Go owns its controller
+budget and loop controllers. Ship it in legacy init/upgrade and the Go init
+source-asset inventory; it is not an active recovery fallback. The authenticated
+three-file binary bundle and its restricted stager remain unchanged. Go owns its controller
 implementation. Historical v0.1.6 processes do not magically participate after
 files change; default installation activation remains deferred.
 
@@ -101,7 +102,7 @@ controls must cover disabled/read-only calls, unsafe storage and lock identity
 replacement. Independent collaborator specs exercise retained uncertainty and
 durability faults. Real Go/Python participants must agree on the inode and
 shared/exclusive semantics on Linux and macOS. Existing budgets and loop suites
-and packaging/upgrade asset checks remain required.
+and source-installation/upgrade asset checks remain required.
 
 Source progress stays within the existing fixed conversion plan. This component
 does not earn controlled restoration, installed activation, script retirement,

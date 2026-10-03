@@ -2664,7 +2664,8 @@ markers survive parent death and remain when child ownership or publication is
 uncertain; future exclusive acquisition must refuse rather than infer exit.
 
 Read-only and initially blocked commands remain read-only. Ship the temporary
-Python protocol shim through both installation manifests. This prerequisite
+Python protocol shim through legacy init/upgrade and Go init source inventories;
+keep the restricted authenticated binary bundle unchanged. This prerequisite
 does not authorize activation, restoration, pruning or unbridged legacy cleanup.
 See [ADR 0093](adr/0093-runtime-transition-guard.md) and
 specs/001-go-runtime-conversion.md:132.

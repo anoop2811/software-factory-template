@@ -140,11 +140,14 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
 				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
 				// per docs/adr/0090-go-native-config-migration.md:154
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop and read-only upgrade preview use the Go runtime. Other commands use auditable scripts.", 1)
+				// per docs/adr/0092-go-recovery-restoration-planning.md:106
+				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.", 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {
 					if line == "              touches your factory.yaml, content, or customized files\n" {
 						lines[index] += "              Preview locally with --dry-run --source PATH (run at installation root)\n"
+						// per docs/adr/0092-go-recovery-restoration-planning.md:106
+						lines[index] += "              Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)\n"
 					}
 				}
 				expected.stdout = strings.Join(lines, "")

@@ -7,6 +7,10 @@ Installed activation, complete historical-factory coverage, controlled restorati
 script retirement and later-release pruning remain pending. The installed shell
 dispatcher does not invoke this operation.
 
+The [read-only restoration plan](RECOVERY_RESTORATION_PLAN.md) compares one
+checked set with its current installed paths; it does not grant restoration
+authority.
+
 ## Create a checked local set
 
 Build the candidate beside the template assets, then invoke it from the physical

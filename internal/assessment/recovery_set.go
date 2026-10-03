@@ -13,56 +13,64 @@ import (
 )
 
 func inspectRecoverySet(ctx context.Context, parent *os.File, name string, operations ops) (result RecoverySet, returned error) {
-	result = recoveryRow(name, "unrecognized", nil)
-	pin, class := openRecoveryDirectory(ctx, parent, name, false, operations)
-	if err := ctx.Err(); err != nil {
-		if pin.file != nil {
-			_ = pin.file.Close()
-		}
-		return RecoverySet{}, err
-	}
-	if class != "" {
-		if class == "missing" {
-			class = "unsafe"
-		}
-		return recoveryRow(name, class, nil), nil
-	}
-	pins := recoveryPins{pin}
+	var pins recoveryPins
 	defer func() {
 		if !pins.valid() {
 			result = recoveryRow(name, "unsafe", result.Held)
 		}
 		pins.close()
 	}()
+	result, _, returned = inspectRecoverySetPinned(ctx, parent, name, operations, &pins)
+	return result, returned
+}
+
+// Caller-owned pins keep saved identities valid across later installed observations.
+// docs/adr/0092-go-recovery-restoration-planning.md:44.
+func inspectRecoverySetPinned(ctx context.Context, parent *os.File, name string, operations ops, pins *recoveryPins) (result RecoverySet, manifest recoveryManifest, returned error) {
+	result = recoveryRow(name, "unrecognized", nil)
+	pin, class := openRecoveryDirectory(ctx, parent, name, false, operations)
+	if err := ctx.Err(); err != nil {
+		if pin.file != nil {
+			_ = pin.file.Close()
+		}
+		return RecoverySet{}, recoveryManifest{}, err
+	}
+	if class != "" {
+		if class == "missing" {
+			class = "unsafe"
+		}
+		return recoveryRow(name, class, nil), recoveryManifest{}, nil
+	}
+	*pins = append(*pins, pin)
 	if !recoveryID(name) {
-		return result, nil
+		return result, recoveryManifest{}, nil
 	}
 	entries, class := recoveryEntries(ctx, pin.file, 32)
 	if err := ctx.Err(); err != nil {
-		return RecoverySet{}, err
+		return RecoverySet{}, recoveryManifest{}, err
 	}
 	if class != "" {
-		return recoveryRow(name, class, nil), nil
+		return recoveryRow(name, class, nil), recoveryManifest{}, nil
 	}
 	data, filePin, class := readRecoveryFile(ctx, pin.file, "manifest.json", 16<<10, operations)
 	if filePin.file != nil {
-		pins = append(pins, filePin)
+		*pins = append(*pins, filePin)
 	}
 	if err := ctx.Err(); err != nil {
-		return RecoverySet{}, err
+		return RecoverySet{}, recoveryManifest{}, err
 	}
 	if class != "" {
 		if class == "missing" {
 			class = "unrecognized"
 		}
-		return recoveryRow(name, class, nil), nil
+		return recoveryRow(name, class, nil), recoveryManifest{}, nil
 	}
 	manifest, valid := parseRecoveryManifest(ctx, data, name)
 	if err := ctx.Err(); err != nil {
-		return RecoverySet{}, err
+		return RecoverySet{}, recoveryManifest{}, err
 	}
 	if !valid {
-		return result, nil
+		return result, recoveryManifest{}, nil
 	}
 	held := manifest.held
 	result = recoveryRow(name, "integrity_checked", &held)
@@ -82,18 +90,18 @@ func inspectRecoverySet(ctx context.Context, parent *os.File, name string, opera
 		node.reference = &observation
 	}
 	total := len(entries)
-	class = walkRecovery(ctx, pin.file, tree, entries, 0, &total, &pins, operations)
+	class = walkRecovery(ctx, pin.file, tree, entries, 0, &total, pins, operations)
 	if err := ctx.Err(); err != nil {
-		return RecoverySet{}, err
+		return RecoverySet{}, recoveryManifest{}, err
 	}
 	if class != "" {
-		return recoveryRow(name, class, &held), nil
+		return recoveryRow(name, class, &held), recoveryManifest{}, nil
 	}
 	result.FileCount = len(manifest.assets)
 	for _, asset := range manifest.assets {
 		result.Bytes += asset.Reference.Bytes
 	}
-	return result, nil
+	return result, manifest, nil
 }
 
 type recoveryNode struct {

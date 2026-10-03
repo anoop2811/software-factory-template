@@ -24,6 +24,13 @@ func unchanged(before, after unix.Stat_t) bool {
 // Hash only bounded ordinary descriptors and recheck their named identity and
 // ancestry afterward. docs/adr/0079-go-installation-reference-assessment.md:90.
 func observe(ctx context.Context, root *os.File, reference referenceAsset, operations ops) (result Asset, returned error) {
+	return observePinned(ctx, root, reference, operations, nil)
+}
+
+// Restoration planning retains the full observation and applies current-owner,
+// ordinary-mode and safe-ancestry checks without changing other assessments.
+// docs/adr/0092-go-recovery-restoration-planning.md:44.
+func observePinned(ctx context.Context, root *os.File, reference referenceAsset, operations ops, retained *recoveryPins) (result Asset, returned error) {
 	result = row(reference, "assessment_error", nil)
 	rootInfo, err := descriptor(root)
 	if err != nil {
@@ -34,21 +41,46 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 		if !chain.valid() {
 			result = row(reference, "unsafe", nil)
 		}
-		chain[1:].close()
+		if retained == nil {
+			chain[1:].close()
+		}
 	}()
+	lookup := named
+	if retained != nil && operations.named != nil {
+		lookup = operations.named
+	}
+	remember := func(parent *os.File, name string, stat unix.Stat_t, missing bool) int {
+		if retained == nil {
+			return -1
+		}
+		index := len(*retained)
+		*retained = append(*retained, recoveryPin{parent: parent, name: name, stat: stat, missing: missing})
+		return index
+	}
 	components := strings.Split(reference.Path, "/")
 	for _, name := range components[:len(components)-1] {
 		if err := ctx.Err(); err != nil {
 			return Asset{}, err
 		}
-		before, err := named(chain.last(), name)
+		before, err := lookup(chain.last(), name)
 		if err != nil {
+			if errors.Is(err, unix.ENOENT) {
+				remember(chain.last(), name, unix.Stat_t{}, true)
+			}
 			return row(reference, classification(err), nil), nil
 		}
-		if before.Mode&unix.S_IFMT != unix.S_IFDIR {
+		index := remember(chain.last(), name, before, false)
+		if before.Mode&unix.S_IFMT != unix.S_IFDIR || retained != nil && !trustedDirectory(before, false) {
 			return row(reference, "unsafe", nil), nil
 		}
-		child, err := openAt(chain.last(), name, unix.O_RDONLY|unix.O_DIRECTORY)
+		open := openAt
+		if retained != nil && operations.open != nil {
+			open = operations.open
+		}
+		child, err := open(chain.last(), name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC)
+		if retained != nil {
+			(*retained)[index].file = child
+		}
 		if err != nil {
 			class := classification(err)
 			if class == "missing" {
@@ -58,22 +90,30 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 		}
 		after, err := descriptor(child)
 		if err != nil {
-			_ = child.Close()
+			if retained == nil {
+				_ = child.Close()
+			}
 			return result, nil
 		}
-		if !sameIdentity(before, after) {
-			_ = child.Close()
+		if !sameIdentity(before, after) || retained != nil && !recoveryUnchanged(before, after) {
+			if retained == nil {
+				_ = child.Close()
+			}
 			return row(reference, "unsafe", nil), nil
 		}
 		chain = append(chain, directory{file: child, name: name, identity: after})
 	}
 	name := components[len(components)-1]
 	parent := chain.last()
-	before, err := named(parent, name)
+	before, err := lookup(parent, name)
 	if err != nil {
+		if errors.Is(err, unix.ENOENT) {
+			remember(parent, name, unix.Stat_t{}, true)
+		}
 		return row(reference, classification(err), nil), nil
 	}
-	if !ordinary(before) {
+	index := remember(parent, name, before, false)
+	if !ordinary(before) || retained != nil && (!ownedFile(before, assetLimit) || before.Mode&07000 != 0) {
 		return row(reference, "unsafe", nil), nil
 	}
 	open := operations.open
@@ -81,6 +121,9 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 		open = openAt
 	}
 	file, err := open(parent, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC)
+	if retained != nil {
+		(*retained)[index].file = file
+	}
 	if err != nil {
 		class := classification(err)
 		if class == "missing" {
@@ -88,7 +131,9 @@ func observe(ctx context.Context, root *os.File, reference referenceAsset, opera
 		}
 		return row(reference, class, nil), nil
 	}
-	defer file.Close()
+	if retained == nil {
+		defer file.Close()
+	}
 	opened, err := descriptor(file)
 	if err != nil {
 		return result, nil

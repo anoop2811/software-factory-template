@@ -23,18 +23,23 @@ type options struct {
 	json    bool
 }
 
-// Claimed reserves bare and attached creation markers before legacy dispatch.
+// Claimed reserves bare and attached recovery markers before legacy dispatch.
 // docs/adr/0091-durable-local-recovery-creation.md:25.
+// docs/adr/0092-go-recovery-restoration-planning.md:25.
 // Legacy source and revision options retain their detached operands.
 // docs/adr/0091-durable-local-recovery-creation.md:192.
 func Claimed(args []string) bool {
+	return claimed(args, "--create-backup") || claimed(args, "--plan-restore")
+}
+
+func claimed(args []string, marker string) bool {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--source" || arg == "--ref" {
 			i++
 			continue
 		}
-		if arg == "--create-backup" || strings.HasPrefix(arg, "--create-backup=") {
+		if arg == marker || strings.HasPrefix(arg, marker+"=") {
 			return true
 		}
 	}
@@ -44,20 +49,20 @@ func Claimed(args []string) bool {
 // Run owns the strict creation grammar, bounded reporting and safe diagnostics.
 // docs/adr/0091-durable-local-recovery-creation.md:50.
 func Run(parent context.Context, args []string, environment map[string]string, stdout, stderr io.Writer) int {
-	brokenPipe := make(chan os.Signal, 1)
-	signal.Notify(brokenPipe, syscall.SIGPIPE)
-	defer signal.Stop(brokenPipe)
-	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	ctx, stop := recoveryContext(parent)
 	defer stop()
+	if claimed(args, "--plan-restore") {
+		return runPlanning(ctx, args, stdout, stderr)
+	}
 	option, ok := parse(args)
 	if !ok {
 		return diagnostic(ctx, stderr, "invalid recovery creation arguments", 2)
 	}
-	root, err := os.Getwd()
-	if err == nil {
-		root, err = filepath.EvalSymlinks(root)
-	}
+	root, err := currentInstallation(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			return diagnostic(ctx, stderr, creationMessage(ctx.Err()), 1)
+		}
 		return diagnostic(ctx, stderr, "cannot resolve current installation", 1)
 	}
 	report, err := assessment.CreateRecovery(ctx, root, option.request, environment)
@@ -78,6 +83,30 @@ func Run(parent context.Context, args []string, environment map[string]string, s
 		return diagnostic(ctx, stderr, "cannot write recovery report; local recovery state may remain and needs inspection", 1)
 	}
 	return 0
+}
+
+func recoveryContext(parent context.Context) (context.Context, func()) {
+	brokenPipe := make(chan os.Signal, 1)
+	signal.Notify(brokenPipe, syscall.SIGPIPE)
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	return ctx, func() {
+		stop()
+		signal.Stop(brokenPipe)
+	}
+}
+
+func currentInstallation(ctx context.Context) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	root, err := os.Getwd()
+	if err == nil {
+		root, err = filepath.EvalSymlinks(root)
+	}
+	if err != nil {
+		return "", err
+	}
+	return root, ctx.Err()
 }
 
 // Use the shared checked output path for diagnostics too. An ended operation

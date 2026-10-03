@@ -138,6 +138,7 @@ type recoveryPin struct {
 	parent, file *os.File
 	name         string
 	stat         unix.Stat_t
+	missing      bool
 }
 type recoveryPins []recoveryPin
 
@@ -150,6 +151,12 @@ func (p recoveryPins) close() {
 }
 func (p recoveryPins) valid() bool {
 	for _, pin := range p {
+		if pin.missing {
+			if _, err := named(pin.parent, pin.name); !errors.Is(err, unix.ENOENT) {
+				return false
+			}
+			continue
+		}
 		if pin.file != nil {
 			current, err := descriptor(pin.file)
 			if err != nil || !recoveryUnchanged(pin.stat, current) {
@@ -231,6 +238,9 @@ func recoveryEntries(ctx context.Context, file *os.File, limit int) ([]os.DirEnt
 func recoveryRow(name, class string, held *bool) RecoverySet {
 	row := RecoverySet{Path: ".factory/backups/" + recoveryDisplayName(name), Classification: class, Held: held}
 	switch class {
+	case "missing":
+		row.Reason = "recovery_path_absent"
+		row.NextAction = "inspect_preserved_installation"
 	case "integrity_checked":
 		row.Reason = "transaction_authority_not_established"
 		row.NextAction = "review_transaction_evidence"

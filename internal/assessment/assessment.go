@@ -85,6 +85,7 @@ type ops struct {
 	named func(parent *os.File, name string) (unix.Stat_t, error)
 	open  func(parent *os.File, name string, flags int) (*os.File, error)
 	read  func(file *os.File, buffer []byte) (int, error)
+	close func(file *os.File) error
 }
 
 func assess(ctx context.Context, root string, operations ops) (Result, error) {

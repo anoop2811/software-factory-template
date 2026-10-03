@@ -2655,3 +2655,16 @@ same-observation regression and an explicit historical compatibility control.
 Use the production recovery Run entry in planning fault specifications and
 remove the new test-only exported wrapper. Shared dispatch already owns the
 signal context; do not maintain a second exported entry solely for tests.
+## Decision 92 (2026-10-03 UTC): guard cooperating runtime transitions
+
+Adopt ADR-0093 before implementation. Budget preflight precedes ledger locking,
+so a shared permanent runtime transition flock must cover preflight through
+terminal publication in both Go and legacy controllers. Durable activity
+markers survive parent death and remain when child ownership or publication is
+uncertain; future exclusive acquisition must refuse rather than infer exit.
+
+Read-only and initially blocked commands remain read-only. Ship the temporary
+Python protocol shim through both installation manifests. This prerequisite
+does not authorize activation, restoration, pruning or unbridged legacy cleanup.
+See [ADR 0093](adr/0093-runtime-transition-guard.md) and
+specs/001-go-runtime-conversion.md:132.

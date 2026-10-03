@@ -2623,3 +2623,18 @@ claims creation mode. Exercise explicit wrong confirmation with a correct
 environment digest. Qualify the intended private Git fixture modes explicitly
 instead of weakening the writer to accommodate inherited creation permissions.
 The existing milestone and source-progress denominator remain unchanged.
+
+## Decision 91 (2026-10-03 UTC): plan controlled recovery restoration safely
+
+After merged durable-creation PR #118, implement ADR-0092 as a read-only
+restoration prerequisite. Compare only one strict set's selected six-catalog
+references against current installed paths, preserve later edits and distinguish
+missing candidates from conflicts. Retain metadata/identity validation through
+the whole observation and report deterministic ownership, quiescence,
+compatibility and activation blockers. Existing recovery manifests are integrity
+evidence, not reverse migration ownership; current locks cannot exclude an old
+process paused before admission. Therefore active restoration remains gated.
+No writes, probes, history mutation, Git changes or legacy execution are allowed.
+Preserve creation/preview dispatch and literal legacy option operands. The source
+progress denominator remains 30; merged PR #118 earns 60.0%, and this prerequisite
+earns no additional controlled-restoration milestone credit.

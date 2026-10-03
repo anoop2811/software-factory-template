@@ -41,6 +41,21 @@ func durableRecoveryFixture() (string, string, []assessedBytes) {
 	durableGit(root, "init", "-q")
 	durableGit(root, "add", "--", "scripts")
 	writeFixture(filepath.Join(root, ".git/info/exclude"), []byte("# existing local exclusions\nkeep-local\n"), 0600)
+	// Git creates these paths before WriteFile; qualify their actual modes so
+	// the happy path does not inherit writable template/umask control metadata.
+	// per docs/adr/0091-durable-local-recovery-creation.md:76
+	// per docs/adr/0091-durable-local-recovery-creation.md:200
+	for _, relative := range []string{".git", ".git/info", ".git/info/exclude", ".git/config", ".git/HEAD", ".git/index"} {
+		mode := os.FileMode(0600)
+		if relative == ".git" || relative == ".git/info" {
+			mode = 0700
+		}
+		path := filepath.Join(root, relative)
+		Expect(os.Chmod(path, mode)).To(Succeed())
+		info, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(mode), "positive fixture must retain trusted Git metadata")
+	}
 	writeFixture(filepath.Join(root, ".gitignore"), []byte("# project rules preserved\n"), 0600)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("PRIVATE_CONFIGURATION: keep\n"), 0600)
 	writeFixture(filepath.Join(root, ".factory/events.log"), []byte("PRIVATE_RUNTIME_HISTORY\n"), 0600)

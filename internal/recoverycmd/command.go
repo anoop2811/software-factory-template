@@ -25,8 +25,15 @@ type options struct {
 
 // Claimed reserves bare and attached creation markers before legacy dispatch.
 // docs/adr/0091-durable-local-recovery-creation.md:25.
+// Legacy source and revision options retain their detached operands.
+// docs/adr/0091-durable-local-recovery-creation.md:192.
 func Claimed(args []string) bool {
-	for _, arg := range args {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--source" || arg == "--ref" {
+			i++
+			continue
+		}
 		if arg == "--create-backup" || strings.HasPrefix(arg, "--create-backup=") {
 			return true
 		}

@@ -46,6 +46,32 @@ func durableNoManifest(root, id string) {
 }
 
 var _ = Describe("Durable local recovery creation admission", func() {
+	// per docs/adr/0091-durable-local-recovery-creation.md:43
+	// per docs/adr/0091-durable-local-recovery-creation.md:197
+	It("refuses an explicit digest conflict even when the environment supplies the current confirmation", func() {
+		binary, root, _ := durableRecoveryFixture()
+		args := durableRecoveryArgs(binary, root, durableRecoveryID, strings.Repeat("a", 40), assessmentPaths[:1])
+		var digest string
+		for i, arg := range args {
+			if arg == "--confirm-adoption" {
+				digest = args[i+1]
+			}
+		}
+		Expect(digest).NotTo(BeEmpty())
+		wrong := strings.Repeat("0", 64)
+		if wrong == digest {
+			wrong = strings.Repeat("1", 64)
+		}
+		args = durableReplaceOption(args, "--confirm-adoption", wrong, false)
+		marker := previewPoison(binary)
+		before := assessmentTree(root)
+		out := durableRecoveryRun(binary, root, args, "FACTORY_ADOPTION_DIGEST="+digest)
+		durableRefusal(out, root)
+		Expect(out.stderr).To(Equal("factory upgrade: adoption confirmation does not match current observations\n"))
+		Expect(assessmentTree(root)).To(Equal(before))
+		publicNoPoison(marker)
+	})
+
 	// per docs/adr/0091-durable-local-recovery-creation.md:57
 	It("uses operational status when the compiled diagnostic pipe is already closed", func() {
 		binary, root, _ := durableRecoveryFixture()
@@ -147,6 +173,20 @@ var _ = Describe("Durable local recovery creation admission", func() {
 		out := durableRecoveryRun(binary, root, []string{arg})
 		Expect(out).To(Equal(cliResult{arg + "\n", "", 37}))
 	}, Entry("similar switch", "--create-backups"), Entry("literal operand", "--source=--create-backup"))
+
+	// per docs/adr/0091-durable-local-recovery-creation.md:192
+	DescribeTable("preserves detached legacy option values that spell the recovery marker", func(ref bool) {
+		binary, root, _ := durableRecoveryFixture()
+		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
+		args := []string{"--source", "--create-backup"}
+		if ref {
+			args = []string{"--ref", "--create-backup", "--source", filepath.Join(root, "source")}
+		}
+		before := assessmentTree(root)
+		out := durableRecoveryRun(binary, root, args)
+		Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		Expect(assessmentTree(root)).To(Equal(before))
+	}, Entry("detached source value", false), Entry("detached ref value", true))
 })
 
 var _ = Describe("Durable local recovery creation confinement", func() {
@@ -248,6 +288,12 @@ var _ = Describe("Durable local recovery creation confinement", func() {
 			Expect(syscall.Mkfifo(path, 0600)).To(Succeed())
 		case "exclude public writing":
 			Expect(os.Chmod(path, 0666)).To(Succeed())
+		case "exclude group writing survives overwrite":
+			Expect(os.Chmod(path, 0664)).To(Succeed())
+			writeFixture(path, []byte("# PRIVATE_TEMPLATE_EXCLUDE\n"), 0600)
+			info, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0664)), "WriteFile creation mode must not conceal the unsafe template fixture")
 		case "exclude special mode":
 			Expect(os.Chmod(path, 0600|os.ModeSticky)).To(Succeed())
 			info, err := os.Lstat(path)
@@ -289,7 +335,7 @@ var _ = Describe("Durable local recovery creation confinement", func() {
 				Expect(durableBytes(root, strings.TrimPrefix(path, root+string(os.PathSeparator)))).To(Equal(protected))
 			}
 		}
-	}, Entry("missing Git", "missing Git"), Entry("Git file", "Git file"), Entry("bare Git", "bare Git"), Entry("missing info", "missing info"), Entry("Git symlink", "Git symlink"), Entry("info symlink", "info symlink"), Entry("info public writing", "info public writing"), Entry("exclude symlink", "exclude symlink"), Entry("exclude hardlink", "exclude hardlink"), Entry("exclude FIFO", "exclude FIFO"), Entry("exclude public writing", "exclude public writing"), Entry("exclude special mode", "exclude special mode"), Entry("exclude oversized", "exclude oversized"), Entry("recovery symlink", "recovery symlink"), Entry("recovery public directory", "recovery public directory"), Entry("factory symlink", "factory symlink"), Entry("factory public writing", "factory public writing"))
+	}, Entry("missing Git", "missing Git"), Entry("Git file", "Git file"), Entry("bare Git", "bare Git"), Entry("missing info", "missing info"), Entry("Git symlink", "Git symlink"), Entry("info symlink", "info symlink"), Entry("info public writing", "info public writing"), Entry("exclude symlink", "exclude symlink"), Entry("exclude hardlink", "exclude hardlink"), Entry("exclude FIFO", "exclude FIFO"), Entry("exclude public writing", "exclude public writing"), Entry("exclude group writing survives overwrite", "exclude group writing survives overwrite"), Entry("exclude special mode", "exclude special mode"), Entry("exclude oversized", "exclude oversized"), Entry("recovery symlink", "recovery symlink"), Entry("recovery public directory", "recovery public directory"), Entry("factory symlink", "factory symlink"), Entry("factory public writing", "factory public writing"))
 })
 
 var _ = Describe("Durable local recovery creation Git exclusion", func() {
@@ -367,14 +413,30 @@ var _ = Describe("Durable local recovery creation Git exclusion", func() {
 	})
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:73
-	It("uses existing effective project ignoring without appending unnecessary local rules", func() {
+	// per docs/adr/0091-durable-local-recovery-creation.md:181
+	DescribeTable("establishes the canonical local exclusion even when other rules already ignore backups", func(kind string) {
 		binary, root, references := durableRecoveryFixture()
-		writeFixture(filepath.Join(root, ".gitignore"), []byte("/.factory/backups/\n"), 0600)
+		prefix := "# existing local exclusions\nkeep-local\n"
+		switch kind {
+		case "project with local file":
+			writeFixture(filepath.Join(root, ".gitignore"), []byte("/.factory/backups/\n"), 0600)
+		case "project without local file":
+			writeFixture(filepath.Join(root, ".gitignore"), []byte("/.factory/backups/\n"), 0600)
+			Expect(os.Remove(filepath.Join(root, ".git/info/exclude"))).To(Succeed())
+			prefix = ""
+		case "broader local rule":
+			prefix += "/.factory/\n"
+			writeFixture(filepath.Join(root, ".git/info/exclude"), []byte(prefix), 0600)
+		}
 		args := durableRecoveryArgs(binary, root, durableRecoveryID, strings.Repeat("a", 40), assessmentPaths[:1])
-		exclude := durableBytes(root, ".git/info/exclude")
+		project := durableBytes(root, ".gitignore")
 		durableRecoveryObject(durableRecoveryRun(binary, root, args), root, durableRecoveryID, strings.Repeat("a", 40), "created", 1, references[0].Bytes)
-		Expect(durableBytes(root, ".git/info/exclude")).To(Equal(exclude))
-	})
+		Expect(string(durableBytes(root, ".git/info/exclude"))).To(Equal(prefix + "/.factory/backups/\n"))
+		Expect(durableBytes(root, ".gitignore")).To(Equal(project))
+		durableRecoveryObject(durableRecoveryRun(binary, root, args), root, durableRecoveryID, strings.Repeat("a", 40), "already_present", 1, references[0].Bytes)
+		Expect(string(durableBytes(root, ".git/info/exclude"))).To(Equal(prefix + "/.factory/backups/\n"))
+		Expect(durableBytes(root, ".gitignore")).To(Equal(project))
+	}, Entry("project rules with existing local prefix", "project with local file"), Entry("project rules with absent local exclude", "project without local file"), Entry("broader existing local rule", "broader local rule"))
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:67
 	It("ignores inherited Git routing and configuration injection", func() {

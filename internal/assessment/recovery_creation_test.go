@@ -47,6 +47,21 @@ func creationFixture() (string, string, RecoveryRequest, map[string]string) {
 	creationGit(root, "init", "-q")
 	creationGit(root, "add", "--", "scripts")
 	Expect(os.WriteFile(filepath.Join(root, ".git/info/exclude"), []byte("# PRIVATE_EXISTING_EXCLUDE\n"), 0600)).To(Succeed())
+	// Git templates and umask can leave existing control paths writable by a
+	// group; WriteFile's creation mode does not change an existing inode mode.
+	// per docs/adr/0091-durable-local-recovery-creation.md:76
+	// per docs/adr/0091-durable-local-recovery-creation.md:200
+	for _, relative := range []string{".git", ".git/info", ".git/info/exclude", ".git/config", ".git/HEAD", ".git/index"} {
+		mode := os.FileMode(0600)
+		if relative == ".git" || relative == ".git/info" {
+			mode = 0700
+		}
+		path := filepath.Join(root, relative)
+		Expect(os.Chmod(path, mode)).To(Succeed())
+		info, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(mode), "positive fixture must retain trusted Git metadata")
+	}
 	proposal, err := ProposeAdoption(context.Background(), root, []string{"scripts/factory-budget.sh"})
 	Expect(err).NotTo(HaveOccurred())
 	request := RecoveryRequest{MigrationID: "fault-set-1", TargetRevision: strings.Repeat("a", 40), Paths: []string{"scripts/factory-budget.sh"}, Confirmation: proposal.ProposalDigest}
@@ -497,6 +512,176 @@ var _ = Describe("Durable recovery creation cancellation and identity", func() {
 })
 
 var _ = Describe("Durable recovery creation reservation and reuse", func() {
+	// per docs/adr/0091-durable-local-recovery-creation.md:185
+	// per docs/adr/0091-durable-local-recovery-creation.md:186
+	// per docs/adr/0091-durable-local-recovery-creation.md:120
+	DescribeTable("re-establishes unchanged local exclusion durability on retry after activation failure", func(initial, retry string) {
+		root, _, request, environment := creationFixture()
+		excludePath := filepath.Join(root, ".git/info/exclude")
+		before, err := os.ReadFile(excludePath)
+		Expect(err).NotTo(HaveOccurred())
+		initialDescriptors, initialControls := creationControls()
+		activated, initialFailed := false, false
+		initialControls.writeAt = func(_ context.Context, file *os.File, data []byte, offset int64) (int, error) {
+			n, err := file.WriteAt(data, offset)
+			if initialDescriptors.names[file] == "exclude" && n == len(data) && err == nil {
+				activated = true
+			}
+			return n, err
+		}
+		initialControls.syncFile = func(_ context.Context, file *os.File) error {
+			if initial == "exclude" && activated && initialDescriptors.names[file] == "exclude" {
+				initialFailed = true
+				return syscall.EIO
+			}
+			return file.Sync()
+		}
+		initialControls.syncDirectory = func(_ context.Context, file *os.File) error {
+			if initial == "info" && activated && initialDescriptors.names[file] == "info" {
+				initialFailed = true
+				return syscall.EIO
+			}
+			return file.Sync()
+		}
+		result, err := createRecovery(context.Background(), root, request, environment, initialControls)
+		Expect(activated).To(BeTrue())
+		Expect(initialFailed).To(BeTrue(), "initial durability fault must leave a genuinely active rule")
+		creationFailure(result, err, 1)
+		creationNoCompletion(root, request.MigrationID)
+		Expect(creationIgnored(root, ".factory/backups/")).To(BeTrue())
+		active, err := os.ReadFile(excludePath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(active)).To(Equal(string(before) + "/.factory/backups/\n"))
+		recoveryClosed(initialDescriptors.files)
+
+		descriptors, controls := creationControls()
+		fileSyncs, directorySyncs, excludeWrites := 0, 0, 0
+		failed, published := false, false
+		controls.write = func(_ context.Context, file *os.File, data []byte) (int, error) {
+			if descriptors.names[file] == "exclude" {
+				excludeWrites++
+			}
+			if descriptors.names[file] == "manifest.json" {
+				published = true
+				Expect(fileSyncs).To(BeNumerically(">", 0), "sync the active local rule before completion")
+				Expect(directorySyncs).To(BeNumerically(">", 0), "sync the Git info parent before completion")
+			}
+			return file.Write(data)
+		}
+		controls.writeAt = func(_ context.Context, file *os.File, data []byte, offset int64) (int, error) {
+			if descriptors.names[file] == "exclude" {
+				excludeWrites++
+			}
+			return file.WriteAt(data, offset)
+		}
+		controls.syncFile = func(_ context.Context, file *os.File) error {
+			if descriptors.names[file] == "exclude" {
+				fileSyncs++
+				if retry == "exclude" {
+					failed = true
+					return syscall.EIO
+				}
+			}
+			return file.Sync()
+		}
+		controls.syncDirectory = func(_ context.Context, file *os.File) error {
+			if descriptors.names[file] == "info" {
+				directorySyncs++
+				if retry == "info" {
+					failed = true
+					return syscall.EIO
+				}
+			}
+			return file.Sync()
+		}
+		result, err = createRecovery(context.Background(), root, request, environment, controls)
+		if retry == "success" {
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Result).To(Equal("created"))
+			Expect(published).To(BeTrue())
+			Expect(fileSyncs).To(BeNumerically(">", 0))
+			Expect(directorySyncs).To(BeNumerically(">", 0))
+		} else {
+			Expect(failed).To(BeTrue(), "retry must exercise the unchanged rule's durability boundary")
+			creationFailure(result, err, 1)
+			Expect(published).To(BeFalse())
+			creationNoCompletion(root, request.MigrationID)
+		}
+		Expect(excludeWrites).To(BeZero(), "retry must not duplicate or rewrite the active canonical rule")
+		after, readErr := os.ReadFile(excludePath)
+		Expect(readErr).NotTo(HaveOccurred())
+		Expect(after).To(Equal(active))
+		recoveryClosed(descriptors.files)
+	}, Entry("activation file failure followed by durable retry", "exclude", "success"), Entry("activation file failure followed by another file sync failure", "exclude", "exclude"), Entry("activation file failure followed by parent sync failure", "exclude", "info"), Entry("Git parent failure followed by durable retry", "info", "success"), Entry("Git parent failure followed by file sync failure", "info", "exclude"), Entry("Git parent failure followed by another parent sync failure", "info", "info"))
+
+	// per docs/adr/0091-durable-local-recovery-creation.md:186
+	// per docs/adr/0091-durable-local-recovery-creation.md:127
+	DescribeTable("re-establishes unchanged local exclusion durability before completed-set reuse", func(boundary string) {
+		root, _, request, environment := creationFixture()
+		created, err := CreateRecovery(context.Background(), root, request, environment)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(created.Result).To(Equal("created"))
+		excludePath := filepath.Join(root, ".git/info/exclude")
+		manifestPath := filepath.Join(root, ".factory/backups", request.MigrationID, "manifest.json")
+		exclude, err := os.ReadFile(excludePath)
+		Expect(err).NotTo(HaveOccurred())
+		manifest, err := os.ReadFile(manifestPath)
+		Expect(err).NotTo(HaveOccurred())
+		descriptors, controls := creationControls()
+		fileSyncs, directorySyncs, excludeWrites := 0, 0, 0
+		failed := false
+		controls.write = func(_ context.Context, file *os.File, data []byte) (int, error) {
+			if descriptors.names[file] == "exclude" {
+				excludeWrites++
+			}
+			return file.Write(data)
+		}
+		controls.writeAt = func(_ context.Context, file *os.File, data []byte, offset int64) (int, error) {
+			if descriptors.names[file] == "exclude" {
+				excludeWrites++
+			}
+			return file.WriteAt(data, offset)
+		}
+		controls.syncFile = func(_ context.Context, file *os.File) error {
+			if descriptors.names[file] == "exclude" {
+				fileSyncs++
+				if boundary == "exclude" {
+					failed = true
+					return syscall.EIO
+				}
+			}
+			return file.Sync()
+		}
+		controls.syncDirectory = func(_ context.Context, file *os.File) error {
+			if descriptors.names[file] == "info" {
+				directorySyncs++
+				if boundary == "info" {
+					failed = true
+					return syscall.EIO
+				}
+			}
+			return file.Sync()
+		}
+		result, err := createRecovery(context.Background(), root, request, environment, controls)
+		if boundary == "success" {
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Result).To(Equal("already_present"))
+			Expect(fileSyncs).To(BeNumerically(">", 0))
+			Expect(directorySyncs).To(BeNumerically(">", 0))
+		} else {
+			Expect(failed).To(BeTrue(), "reuse must exercise the unchanged rule's durability boundary")
+			creationFailure(result, err, 1)
+		}
+		Expect(excludeWrites).To(BeZero())
+		after, readErr := os.ReadFile(excludePath)
+		Expect(readErr).NotTo(HaveOccurred())
+		Expect(after).To(Equal(exclude))
+		after, readErr = os.ReadFile(manifestPath)
+		Expect(readErr).NotTo(HaveOccurred())
+		Expect(after).To(Equal(manifest))
+		recoveryClosed(descriptors.files)
+	}, Entry("intact reuse re-syncs exclusion and parent", "success"), Entry("reuse file sync failure", "exclude"), Entry("reuse parent sync failure", "info"))
+
 	// per docs/adr/0091-durable-local-recovery-creation.md:105
 	// per docs/adr/0091-durable-local-recovery-creation.md:107
 	DescribeTable("serializes concurrent creators without overwriting reservations or exceeding capacity", func(capacity bool) {

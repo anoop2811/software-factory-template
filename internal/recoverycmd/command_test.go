@@ -74,6 +74,19 @@ func recoveryCommandFixture() (string, []string, map[string]string) {
 		output, commandErr := command.CombinedOutput()
 		Expect(commandErr).NotTo(HaveOccurred(), "%s", output)
 	}
+	// per docs/adr/0091-durable-local-recovery-creation.md:76
+	// per docs/adr/0091-durable-local-recovery-creation.md:200
+	for _, relative := range []string{".git", ".git/info", ".git/info/exclude", ".git/config", ".git/HEAD", ".git/index"} {
+		mode := os.FileMode(0600)
+		if relative == ".git" || relative == ".git/info" {
+			mode = 0700
+		}
+		path := filepath.Join(root, relative)
+		Expect(os.Chmod(path, mode)).To(Succeed())
+		info, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(mode), "positive fixture must retain trusted Git metadata")
+	}
 	proposal, err := assessment.ProposeAdoption(context.Background(), root, []string{"scripts/factory-budget.sh"})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(os.Chdir(root)).To(Succeed())

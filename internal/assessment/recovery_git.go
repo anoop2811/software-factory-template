@@ -171,75 +171,74 @@ func (g *recoveryGit) ensureIgnored(ctx context.Context, paths []string) error {
 	if err != nil {
 		return err
 	}
-	ignored, err := g.ignored(ctx, paths)
+	rule := []byte("/.factory/backups/")
+	present := false
+	for _, line := range bytes.Split(original, []byte{'\n'}) {
+		if bytes.Equal(line, rule) {
+			present = true
+			break
+		}
+	}
+	expected := original
+	if !present {
+		addition := append(bytes.Clone(rule), '\n')
+		if len(original) > 0 && original[len(original)-1] != '\n' {
+			addition = append([]byte{'\n'}, addition...)
+		}
+		if len(original)+len(addition) > 64<<10 {
+			return failure(2, "local Git exclude file exceeds 64 KiB")
+		}
+		if g.exclude == nil {
+			g.exclude, err = g.writer.createFile(ctx, g.info, "exclude")
+			if err != nil {
+				return err
+			}
+		}
+		// Every partial append is inert. Only a fully synced and read-back
+		// comment can become the full narrow rule through one positional byte.
+		// docs/adr/0091-durable-local-recovery-creation.md:164.
+		stage := bytes.Clone(addition)
+		leading := len(stage) - len(rule) - 1
+		stage[leading] = '#'
+		if _, err := g.exclude.file.Seek(int64(len(original)), io.SeekStart); err != nil {
+			return failure(1, "cannot position local Git exclusion")
+		}
+		g.writer.changed = true
+		if err := g.writer.write(ctx, g.exclude, stage); err != nil {
+			return err
+		}
+		if err := g.writer.sync(ctx, g.exclude); err != nil {
+			return err
+		}
+		readback, err := g.writer.read(ctx, g.exclude, 64<<10)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(readback, append(bytes.Clone(original), stage...)) {
+			return failure(1, "local Git exclusion readback did not match")
+		}
+		if err := g.writer.writeAt(ctx, g.exclude, []byte{'/'}, int64(len(original)+leading)); err != nil {
+			return err
+		}
+		expected = append(bytes.Clone(original), addition...)
+	}
+	// A visible rule is not evidence of durability after an earlier sync failure.
+	// Re-sync and read back existing rules before fresh creation or exact reuse.
+	// docs/adr/0091-durable-local-recovery-creation.md:185.
+	if err := g.writer.sync(ctx, g.exclude); err != nil {
+		return err
+	}
+	readback, err := g.writer.read(ctx, g.exclude, 64<<10)
 	if err != nil {
 		return err
 	}
-	if !ignored {
-		rule := []byte("/.factory/backups/")
-		present := false
-		for _, line := range bytes.Split(original, []byte{'\n'}) {
-			if bytes.Equal(line, rule) {
-				present = true
-				break
-			}
-		}
-		if !present {
-			addition := append(bytes.Clone(rule), '\n')
-			if len(original) > 0 && original[len(original)-1] != '\n' {
-				addition = append([]byte{'\n'}, addition...)
-			}
-			if len(original)+len(addition) > 64<<10 {
-				return failure(2, "local Git exclude file exceeds 64 KiB")
-			}
-			if g.exclude == nil {
-				g.exclude, err = g.writer.createFile(ctx, g.info, "exclude")
-				if err != nil {
-					return err
-				}
-			}
-			// Every partial append is inert. Only a fully synced and read-back
-			// comment can become the full narrow rule through one positional byte.
-			// docs/adr/0091-durable-local-recovery-creation.md:164.
-			stage := bytes.Clone(addition)
-			leading := len(stage) - len(rule) - 1
-			stage[leading] = '#'
-			if _, err := g.exclude.file.Seek(int64(len(original)), io.SeekStart); err != nil {
-				return failure(1, "cannot position local Git exclusion")
-			}
-			g.writer.changed = true
-			if err := g.writer.write(ctx, g.exclude, stage); err != nil {
-				return err
-			}
-			if err := g.writer.sync(ctx, g.exclude); err != nil {
-				return err
-			}
-			readback, err := g.writer.read(ctx, g.exclude, 64<<10)
-			if err != nil {
-				return err
-			}
-			if !bytes.Equal(readback, append(bytes.Clone(original), stage...)) {
-				return failure(1, "local Git exclusion readback did not match")
-			}
-			if err := g.writer.writeAt(ctx, g.exclude, []byte{'/'}, int64(len(original)+leading)); err != nil {
-				return err
-			}
-			if err := g.writer.sync(ctx, g.exclude); err != nil {
-				return err
-			}
-			readback, err = g.writer.read(ctx, g.exclude, 64<<10)
-			if err != nil {
-				return err
-			}
-			if !bytes.Equal(readback, append(bytes.Clone(original), addition...)) {
-				return failure(1, "local Git exclusion activation readback did not match")
-			}
-			if err := g.writer.sync(ctx, g.info); err != nil {
-				return err
-			}
-		}
+	if !bytes.Equal(readback, expected) {
+		return failure(1, "local Git exclusion activation readback did not match")
 	}
-	ignored, err = g.ignored(ctx, paths)
+	if err := g.writer.sync(ctx, g.info); err != nil {
+		return err
+	}
+	ignored, err := g.ignored(ctx, paths)
 	if err != nil {
 		return err
 	}

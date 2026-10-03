@@ -47,14 +47,18 @@ its scope to the entire old factory. Older releases may not contain this catalog
 ## What it writes and preserves
 
 Before saving payloads, the writer checks the Git index and effective ignoring.
-It narrowly adds `/.factory/backups/` to local `.git/info/exclude` when needed,
-preserving project ignore files and existing local patterns. Already tracked
+It establishes the exact `/.factory/backups/` rule in local `.git/info/exclude`,
+preserving project ignore files and existing local patterns. A broader local or
+project ignore rule does not replace this durable local fallback. Already tracked
 recovery paths block creation; nothing is untracked. Higher-precedence rules that
 expose recovery entries block the operation rather than being rewritten.
 The added line is staged as an inert comment, synced and checked, then activated
 with a single-byte change. Interrupted staging cannot turn a partial pattern into
 an exclusion of unrelated files. Incomplete comments may remain as reported local
 evidence; they do not authorize copying or count as an effective ignore rule.
+Every successful creation or reuse syncs and reads back the validated local
+exclude file and syncs `.git/info`, including retries after activation or parent
+sync failures. A visible rule is not evidence that a previous sync completed.
 
 This initial implementation requires a normal non-bare Git repository rooted at
 the invocation directory, with physical `.git` and `.git/info` directories.
@@ -98,9 +102,9 @@ specification.
 
 ## Local qualification
 
-Independent compiled core RED preceded production: 0 passed, 3 failed. Separate
-RED cases reproduced missing text metadata, failed diagnostic output and broad
-ignoring after an incomplete exclusion append before their corrections.
+The following focused runs record local creation qualification. PR #118's later
+review corrections have their own independent RED evidence and platform checks,
+recorded separately below.
 
 RAN 2026-10-02:
 
@@ -168,6 +172,78 @@ rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-r
 govulncheck: fetching vulnerabilities: Get "https://vuln.go.dev/index/modules.json.gz": dial tcp: lookup vuln.go.dev: no such host
 ```
 
-The fresh vulnerability scan is incomplete. A restricted module-cache write also
+That earlier fresh vulnerability scan was incomplete. A restricted module-cache write also
 produced a Go stat-cache warning; the observed build still exited 0. Neither a
 cached scan nor focused acceptance results substitute for the pending checks.
+
+## PR #118 review qualification
+
+The initial hosted macOS source gate passed for head
+`1cf266f1029966a00a55dc821f7d03f9c36319ad` in workflow run `37049997627`:
+its acceptance package reported `ok` at 962.155s, pack lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported `No vulnerabilities found.`
+The same run's Linux source gate failed with eight acceptance, 40 assessment and
+seven command failures, including `unsafe local Git exclude file` before the
+intended recovery/output behavior. These are recorded results, not a claim that
+the initial head passed both platforms.
+
+The positive fixture helpers now explicitly chmod and read back their intended
+Git control directory and file modes. `os.WriteFile` with a creation mode does
+not change a pre-existing Git-created file's mode. The Linux log does not identify
+the precise rejected bits; local controlled-umask reproduction separately
+established that inherited group writing can invalidate the fixture. Production
+ownership, link and writable-by-others checks remain strict.
+
+RAN before production correction, 2026-10-02:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -v ./internal/assessment -ginkgo.focus='re-establishes unchanged local exclusion durability' -ginkgo.no-color -ginkgo.succinct
+Ran 9 of 107 Specs
+0 Passed | 9 Failed
+```
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -v ./acceptance -ginkgo.focus='preserves detached legacy option values|establishes the canonical local exclusion|explicit digest conflict|exclude group writing survives overwrite' -ginkgo.no-color -ginkgo.succinct
+7 selected: 2 Passed | 5 Failed
+```
+
+The second run reproduced three missing canonical-local-rule cases and two
+detached legacy operand dispatch cases. Its explicit-confirmation/environment
+conflict and group-writable existing-template refusal were already passing
+coverage additions. The fixture qualification separately passed under inherited
+umask `0002`: two existing assessment cases and all 13 command cases.
+
+After network access was restored, the fresh vulnerability operation was RAN:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache /private/tmp/factory-quality-tools/govulncheck ./...
+No vulnerabilities found.
+```
+
+The corrected source was RAN with child-CLI and outer race instrumentation:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer FACTORY_CLI_TEST_RACE=1 GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./acceptance -ginkgo.focus='Durable local recovery creation' -ginkgo.no-color -ginkgo.succinct > /private/tmp/factory-pr118-recovery-acceptance.log 2>&1
+Go factory command acceptance - 85/2245 specs
+SUCCESS! 59.689387417s
+--- PASS: TestAcceptance (59.83s)
+ok github.com/anoop2811/software-factory-template/acceptance 61.772s
+```
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment ./internal/recoverycmd -ginkgo.focus='Durable recovery creation|Recovery creation public' -ginkgo.no-color -ginkgo.succinct > /private/tmp/factory-pr118-recovery-internal.log 2>&1
+Installation assessment collaborators - 52/107 specs
+SUCCESS! 9.164341625s
+ok github.com/anoop2811/software-factory-template/internal/assessment 10.496s
+Durable recovery command boundaries - 13/13 specs
+SUCCESS! 3.36753275s
+ok github.com/anoop2811/software-factory-template/internal/recoverycmd 4.964s
+```
+
+All 150 selected cases passed. Independent final correctness/test-quality and
+security/durability reviews reported no surviving findings. Full pack lint
+reported `0 issues.`; build and vet exited 0; gosec reported 129 files, 20482
+lines, 17 suppressions and `Issues : 0`; the fresh vulnerability scan again
+reported `No vulnerabilities found.` on the corrected source. Hosted Linux/macOS
+qualification remains separate and required before merge. The full installed
+migration lifecycle remains pending.

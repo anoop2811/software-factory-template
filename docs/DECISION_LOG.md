@@ -2644,3 +2644,10 @@ an otherwise intact backup unsafe. Discard the transient restoration plan and
 report one fixed changed-observations diagnostic; preserve assessment/close
 failure status-1 precedence. Static recovery exceptions retain their existing
 bounded report. Require RED attribution regressions before source correction.
+
+PR #119 review refinement: preserve an already observed assessment error during
+the retained installed observer's own ancestry recheck, including a same-read
+failure and ancestor replacement. The planner must discard the report with
+status 1; successful changed observations remain status 2. Keep the unpinned
+historical observer's unsafe classification unchanged. Require a failing
+same-observation regression and an explicit historical compatibility control.

@@ -136,3 +136,13 @@ changes, or status 1 when an already observed assessment failure takes precedenc
 Static absent, incomplete or unsafe recovery sets still have their bounded blocked
 reports. Preserve checked cleanup and status-1 precedence for close errors.
 Observe a regression fail on the incorrect attribution before correcting source.
+
+PR #119 review refinement: apply assessment-failure precedence inside retained
+installed observation as well as after it. If a failed installed read and an
+ancestor replacement occur within the same observation, its ancestry recheck
+must retain the already observed assessment error. Final retained-pin validation
+then discards the plan with status 1. Successful observations with changed
+ancestry still refuse with status 2. Preserve the historical unpinned observer's
+unsafe classification for changed ancestry; this refinement is planning-only.
+Require a real installed-read/inode-replacement regression and an unpinned
+compatibility control before changing the shared observer.

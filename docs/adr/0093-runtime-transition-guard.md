@@ -36,6 +36,9 @@ empty content and exact private mode. Pin the project and state directories;
 reject links, unsafe ancestors and replacement rather than following or fixing
 them. Create absent private infrastructure exclusively and read it back. Do not
 change permissions on pre-existing unsafe control files or directories.
+The activity directory itself must be 0700. A pre-existing owned `.factory`
+parent without group/other write permission is compatible, including 0755;
+the guard preserves its mode rather than repairing it.
 
 ### Durable activity
 
@@ -60,6 +63,10 @@ Removal checks the exact originally created descriptor/path identity, unlinks
 only that marker and syncs the activity directory. Identity, close and sync
 failures are reported; neither successful work nor cleanup permits removing
 someone else's evidence. Abrupt process termination leaves the marker in place.
+If syncing the directory fails after a qualified marker unlink, report the
+failure without claiming durable removal or creating replacement evidence.
+Owned work has already ended before that unlink; crash recovery may retain the
+original marker. An incomplete or uncertain invocation never reaches unlink.
 
 An exclusive guard must inspect the bounded activity directory while holding
 the permanent lock and refuse on any entry, malformed evidence, unavailable

@@ -53,6 +53,9 @@ no link following, and original project pathname identity is rechecked.
 After acquiring shared exclusion, exclusively create an unpredictable empty
 0600 regular marker in `.factory/runtime-activity/` (0700). Sync the marker and
 its directory and the newly created infrastructure before executing any child.
+Here, execution children mean native preflight/invocation, execution snapshots
+and deterministic checks. Existing read-only configuration validation, including
+regex validation, remains before initial admission and does not create a guard.
 The marker is deliberately not a PID lease: timeouts, parent death, an empty
 ledger, reused PIDs and an unlocked inode cannot establish descendant exit.
 

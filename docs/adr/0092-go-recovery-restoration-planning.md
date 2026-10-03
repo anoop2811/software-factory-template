@@ -124,3 +124,15 @@ progress denominator stays fixed. PR #118 earns 18/30=60.0% after its merge.
 This read-only prerequisite earns no extra controlled-restoration credit;
 active restoration, reverse transaction evidence and transition exclusion still
 have to be implemented and qualified before the final backup/rollback milestone.
+
+## Qualification refinement: attribute changed observations accurately
+
+Independent review on 2026-10-03 found that a changed installed path could clear
+candidates by replacing the saved-set classification with unsafe. That falsely
+attributed an installed-only change to the intact backup and suggested repairing
+recovery storage. Discard the entire transient plan instead and return one fixed
+changed-observations diagnostic. Use status 2 for dynamic identity/metadata/absence
+changes, or status 1 when an already observed assessment failure takes precedence.
+Static absent, incomplete or unsafe recovery sets still have their bounded blocked
+reports. Preserve checked cleanup and status-1 precedence for close errors.
+Observe a regression fail on the incorrect attribution before correcting source.

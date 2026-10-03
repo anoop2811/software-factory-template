@@ -2638,3 +2638,9 @@ No writes, probes, history mutation, Git changes or legacy execution are allowed
 Preserve creation/preview dispatch and literal legacy option operands. The source
 progress denominator remains 30; merged PR #118 earns 60.0%, and this prerequisite
 earns no additional controlled-restoration milestone credit.
+
+2026-10-03 UTC review refinement: a changed installed observation must not mark
+an otherwise intact backup unsafe. Discard the transient restoration plan and
+report one fixed changed-observations diagnostic; preserve assessment/close
+failure status-1 precedence. Static recovery exceptions retain their existing
+bounded report. Require RED attribution regressions before source correction.

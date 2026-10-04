@@ -58,6 +58,9 @@ failure preserves pending even before target mutation, so releasing its lock
 cannot admit cooperating work while that group may survive. A known occupied
 record may be refused through inert filesystem preflight before pending creation;
 that preflight launches no process. No forced cleanup follows a failed query.
+If query process-group exit is unconfirmed, preserve its actual PID through the
+existing typed native OwnershipError in the returned error, including cancellation
+and other joined failures. A generic diagnostic must not erase owned uncertainty.
 
 ## Reserved inert storage and containment
 

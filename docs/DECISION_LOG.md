@@ -2832,3 +2832,9 @@ read back and sync the existing rule-bearing exclude file and `.git/info`, then
 confirm effective ignoring and untracked journal paths before any record write.
 Refuse a missing canonical rule even if a broader project ignore currently hides
 the path. Query visibility alone cannot establish durable recovery exclusion.
+
+Before implementation, query ownership refinement: the new constructor must
+preserve the supervisor's actual PID and typed native ownership uncertainty in
+its returned error, including cancellation. A generic local-Git diagnostic may
+not erase that owned state. The pending barrier remains independent evidence
+blocking admission; it does not imply that the query group has exited.

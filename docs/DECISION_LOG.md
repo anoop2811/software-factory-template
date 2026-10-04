@@ -2856,3 +2856,12 @@ including nullable identity keys; only phase-eligible identity values may be
 null. Reject missing fields and null required scalars without changing v1 sets,
 inspection authority, live ownership or pending rules. This is source-test
 evidence, not a released incident.
+
+Before record-count admission correction, 2026-10-04 UTC: independent correctness
+and security controls both observed 63 valid records admit record 64, but 64
+valid records incorrectly admit record 65. Namespace validation had exhausted
+the retained directory cursor before the admission read. ADR 0095 now explicitly
+requires complete bounded counting independent of cursor state, preserving pins
+and revalidation rather than weakening the separate 64-record bound. A persistent
+independent paired regression must precede correction. Active originals and prior
+records remained preserved; this is source-test evidence, not a released incident.

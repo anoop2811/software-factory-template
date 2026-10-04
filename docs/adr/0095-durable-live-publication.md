@@ -206,3 +206,19 @@ their keys still must exist. Required scalar values cannot be null. Enforce
 presence and type alongside duplicate/unknown-key, phase and bound validation.
 Keep inspection inert and preserve malformed evidence without changing v1
 saved-set formats or reconstructing a live capability.
+
+## Record-count admission refinement
+
+Before correction, two independent paired actual-record controls admitted record
+64 from a 63-record baseline, but also admitted record 65 from a complete checked
+64-record baseline. The first namespace validation consumed the directory cursor;
+later admission reused that retained descriptor and treated its exhausted cursor
+as an empty directory. Prior records and the active original remained preserved.
+This is injected source-test evidence, not a released incident.
+
+Admission must use a complete bounded enumeration independently of a retained
+directory's cursor position. Preserve validated metadata pins and ordinary
+revalidation; use the already-checked count or a separately qualified fresh
+enumeration. Exactly 64 existing records refuse a new slot; 63 may admit record
+64. Retaining a descriptor is not evidence that a later directory read starts at
+the beginning. Keep the saved-set and record bounds separate.

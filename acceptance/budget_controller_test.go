@@ -98,6 +98,19 @@ func controllerInvoke(root, cwd string, c map[string]any, extra ...string) map[s
 	return budgetDecode(stdout.Bytes()).(map[string]any)
 }
 
+// per docs/adr/0093-runtime-transition-guard.md:64
+func controllerPreflightOnly(cwd string) {
+	GinkgoHelper()
+	raw, err := os.ReadFile(filepath.Join(cwd, "native-calls.jsonl"))
+	Expect(err).NotTo(HaveOccurred())
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	Expect(lines).To(HaveLen(1), "local help refusal must not invoke a model")
+	call := budgetDecode([]byte(lines[0])).(map[string]any)
+	Expect(call).To(HaveKeyWithValue("help", true))
+	Expect(call).NotTo(HaveKey("stdin"))
+	Expect(call).NotTo(HaveKey("pid"))
+}
+
 var _ = Describe("G2 composed budget controller", func() {
 	BeforeEach(controllerBuild)
 	// per docs/adr/0070-go-budget-execution-controller.md:41
@@ -117,16 +130,16 @@ var _ = Describe("G2 composed budget controller", func() {
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 	// per docs/adr/0070-go-budget-execution-controller.md:57
+	// per docs/adr/0093-runtime-transition-guard.md:64
 	It("does not reserve an attempt after local preflight refusal", func() {
 		root, cwd := controllerFixture()
 		out := controllerInvoke(root, cwd, controllerCommand(root, "claude"), "CONTROLLER_FIXTURE_MODE=bad-help")
 		Expect(out).To(HaveKey("error"))
 		Expect(out["result"].(map[string]any)["ExitCode"]).To(Equal(json.Number("2")))
-		_, err := os.Stat(filepath.Join(root, ".factory"))
-		Expect(os.IsNotExist(err)).To(BeTrue())
-		raw, err := os.ReadFile(filepath.Join(cwd, "native-calls.jsonl"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(strings.Split(strings.TrimSpace(string(raw)), "\n")).To(HaveLen(1))
+		Expect(out["result"].(map[string]any)["Record"]).To(BeNil())
+		Expect(out["response"]).To(BeEmpty())
+		transitionHarmlessRefusal(root)
+		controllerPreflightOnly(cwd)
 	})
 	// per docs/adr/0070-go-budget-execution-controller.md:68
 	DescribeTable("reserves and publishes PID before sending task bytes", func(h string) {

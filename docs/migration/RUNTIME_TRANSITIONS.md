@@ -126,7 +126,35 @@ ok github.com/anoop2811/software-factory-template/internal/transition 1.597s
 All 41 selected controls passed. Injected sync, read, open, close and unlink
 failures exercise real descriptors and storage. Identity replacement preserves
 foreign evidence; incomplete ownership retains its marker; failed post-unlink
-directory sync reports failure without recreating a marker. The repository source
-gate and hosted Linux/macOS check records provide the broader qualification.
+directory sync reports failure without recreating a marker. These are focused
+results. Complete repository qualification remains pending until the full source
+gate and hosted Linux/macOS runs have completed green. Consult the PR's check
+records for their results.
 These observations qualify this source component, not installation activation,
 unbridged-process quiescence or a complete v0.1.6 release migration.
+
+Hosted review also identified two Go cleanup defects. Independent real-process
+controls distinguished a reaped leader and acknowledged signal from actual group
+absence; a separate real checkpoint publication followed by guard-release
+failure exposed loss of `PublicationError` and `MayHaveCommitted`. Both pairs
+failed before their respective corrections. The shared supervisor now requires
+explicit group absence within its original cleanup deadline, and loop cleanup
+preserves the primary error chain alongside a safe release diagnostic. See
+docs/adr/0093-runtime-transition-guard.md:195 and
+docs/adr/0093-runtime-transition-guard.md:205.
+
+Observed on the corrected source, 2026-10-04 UTC, using the qualified Python PATH
+and task Go cache:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer go test -race -v ./internal/native ./internal/loop -ginkgo.focus="Native process group completion proof|Loop transition compound publication evidence" -ginkgo.no-color -ginkgo.succinct
+native: 2/6 selected; SUCCESS! 5.152255209s; package 6.399s
+loop: 2/82 selected; SUCCESS! 242.837459ms; package 1.704s
+FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race -v ./acceptance -ginkgo.focus="Runtime transition" -ginkgo.no-color -ginkgo.succinct
+71/2382 selected; SUCCESS! 36.067746s; package 37.679s
+```
+
+Inspection errors remain unconfirmed while bounded polling continues. Only an
+explicit `ESRCH` before expiry qualifies absence; neither signal acknowledgement
+nor `EPERM` grants cleanup authority. These focused observations do not replace
+the full repository and hosted qualification required above.

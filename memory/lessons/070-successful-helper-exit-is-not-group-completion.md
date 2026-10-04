@@ -18,3 +18,12 @@ leader-only wait. The controlling requirements and qualification remain in
 [ADR 0093](../../docs/adr/0093-runtime-transition-guard.md) and
 [runtime transition evidence](../../docs/migration/RUNTIME_TRANSITIONS.md).
 This lesson grants no migration, recovery or pruning authority.
+
+Observed again 2026-10-04 UTC via the real Go group-completion pair in
+internal/native/group_completion_test.go:32: an acknowledged signal, reaped
+leader and drained capture still left a ready same-group child alive. The
+negative control failed before correction; both corrected controls passed with
+race detection (`/private/tmp/factory-transition-final-pairs-race.log`). Require
+explicit group absence within the existing cleanup deadline. The controlling
+refinement is docs/adr/0093-runtime-transition-guard.md:195; temporary inspection
+errors are not absence evidence.

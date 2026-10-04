@@ -305,7 +305,7 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if len(result.Stdout) > options.limit {
 		result.Outcome = "output_limit"
 	}
-	if signalErr != nil || !result.ExitConfirmed || !drained {
+	if signalErr != nil || !result.ExitConfirmed || !drained || !groupStopped(cleanupCtx, result.ProcessPID) {
 		result.OwnershipUnconfirmed = true
 		if result.Outcome == "completed" {
 			result.Outcome = "failed"
@@ -317,6 +317,26 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	}
 	return result, returned
 }
+
+// Acknowledged termination and leader reap do not prove descendant exit.
+// Share the existing cleanup deadline: docs/adr/0093-runtime-transition-guard.md:195.
+func groupStopped(ctx context.Context, pid int) bool {
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for ctx.Err() == nil {
+		err := syscall.Kill(-pid, 0)
+		if errors.Is(err, syscall.ESRCH) {
+			return ctx.Err() == nil
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
+	}
+	return false
+}
+
 func contextOutcome(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "timeout"

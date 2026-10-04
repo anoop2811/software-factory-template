@@ -2697,3 +2697,8 @@ and a real ready-descendant RED before correction. Preserve typed ownership/PID
 on remaining or uninspectable groups. A compound Go loop guard-close failure
 must also preserve checkpoint PublicationError/MayHaveCommitted in an error chain;
 qualify through an independent compound regression. See ADR 0093's Go refinement.
+
+Qualification clarification, 2026-10-04 UTC: bounded group inspection may retry
+non-absence observations within the existing cleanup deadline. Success requires
+a later explicit ESRCH before expiry; no permission or inspection error is
+absence evidence. Persistent errors and remaining groups retain typed ownership.

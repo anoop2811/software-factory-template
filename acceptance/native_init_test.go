@@ -57,6 +57,14 @@ func nativeInitFixture() (string, string, []string) {
 		Expect(readErr).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(source, header.Name), data, os.FileMode(header.Mode&0777)) // #nosec G305 -- trusted local Git archive, no external archive or traversal names.
 	}
+	// per docs/adr/0093-runtime-transition-guard.md:146
+	// The candidate's declared source inventory adds this dependency; the archived
+	// initializer and its existing assets remain the immutable compatibility oracle.
+	repo, err := filepath.Abs("..")
+	Expect(err).NotTo(HaveOccurred())
+	shim, err := os.ReadFile(filepath.Join(repo, "scripts/lib/runtime_transition.py"))
+	Expect(err).NotTo(HaveOccurred())
+	writeFixture(filepath.Join(source, "scripts/lib/runtime_transition.py"), shim, 0600)
 	writeFixture(filepath.Join(source, "factory-go"), candidateBinary, 0700)
 	original, err := os.ReadFile(filepath.Join(source, "scripts/factory-init.sh"))
 	Expect(err).NotTo(HaveOccurred())
@@ -200,6 +208,20 @@ func nativeInitArtifacts(root string) map[string]string {
 	return result
 }
 
+// per docs/adr/0093-runtime-transition-guard.md:146
+func nativeInitLegacyComparableArtifacts(source, target string) map[string]string {
+	GinkgoHelper()
+	actual := nativeInitArtifacts(target)
+	const path = "scripts/lib/runtime_transition.py"
+	data, err := os.ReadFile(filepath.Join(source, path))
+	Expect(err).NotTo(HaveOccurred())
+	info, err := os.Lstat(filepath.Join(source, path))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(actual).To(HaveKeyWithValue(path, fmt.Sprintf("%o:%s", info.Mode().Perm(), hex.EncodeToString(data))), "candidate must install exactly its added source dependency")
+	delete(actual, path) // Only the explicitly declared new Go asset differs from the archived initializer.
+	return actual
+}
+
 var _ = Describe("Native Go init artifact compatibility", func() {
 	// per docs/adr/0085-go-native-init.md:17
 	DescribeTable("matches immutable generated artifacts for packs and model profiles", func(packs, build, hints, provider, profile string) {
@@ -233,7 +255,7 @@ var _ = Describe("Native Go init artifact compatibility", func() {
 		Expect(baseline.status).To(BeZero(), "%+v", baseline)
 		actual := nativeInitRun(source, target, input, environment, args)
 		Expect(actual.status).To(BeZero(), "%+v", actual)
-		Expect(nativeInitArtifacts(target)).To(Equal(nativeInitArtifacts(oracle)))
+		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitArtifacts(oracle)))
 	}, Entry("plain inherit", "none", "", "", "inherit", "standard"), Entry("Go", "go", "", "", "inherit", "standard"), Entry("TypeScript", "typescript", "", "", "inherit", "standard"), Entry("Java default Gradle", "java", "", "", "inherit", "standard"), Entry("Maven POM detection", "java", "", "pom", "inherit", "standard"), Entry("Maven wrapper", "java", "", "pom mvnw", "inherit", "standard"), Entry("Gradle wrapper wins", "java", "", "pom mvnw gradlew", "inherit", "standard"), Entry("explicit Maven wins", "java", "maven", "pom mvnw gradlew", "inherit", "standard"), Entry("polyglot dedupe", "go,typescript,java,go", "", "pom", "inherit", "standard"), Entry("OpenRouter economy", "none", "", "", "openrouter", "Economy"), Entry("Anthropic standard", "none", "", "", "anthropic", "standard"), Entry("OpenAI economy", "none", "", "", "openai", "economy"), Entry("other provider", "none", "", "", "other", "standard"), Entry("invalid profile defaults", "none", "", "", "inherit", "UNRECOGNIZED"))
 	// per docs/adr/0085-go-native-init.md:17
 	It("does not require a colocated legacy init script", func() {
@@ -511,7 +533,7 @@ var _ = Describe("Native Go init shared synchronization", func() {
 		Expect(expected.status).To(BeZero(), "oracle %+v", expected)
 		actual := nativeInitRun(source, target, input, environment, []string{"--pack", "none"})
 		Expect(actual.status).To(BeZero(), "candidate %+v", actual)
-		Expect(nativeInitArtifacts(target)).To(Equal(nativeInitArtifacts(oracle)))
+		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitArtifacts(oracle)))
 	}, Entry("inherit", "inherit", "standard"), Entry("economy", "openai", "economy"), Entry("standard", "anthropic", "standard"))
 })
 
@@ -996,7 +1018,7 @@ var _ = Describe("Native Go init exported prompt compatibility", func() {
 		Expect(expected.status).To(BeZero(), "%+v", expected)
 		actual := nativeInitRun(source, target, input, environment, args)
 		Expect(actual.status).To(BeZero(), "%+v", actual)
-		before, after := nativeInitArtifacts(oracle), nativeInitArtifacts(target)
+		before, after := nativeInitArtifacts(oracle), nativeInitLegacyComparableArtifacts(source, target)
 		Expect(after).To(Equal(before), "changed artifact paths: %v", initArtifactChanges(before, after))
 	})
 })

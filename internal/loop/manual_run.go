@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math"
 	"os"
 	"strconv"
@@ -77,7 +78,10 @@ func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (res
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err := guard.Close(cleanup, clean); err != nil {
-			result, returned = ManualResult{}, manualError()
+			// Preserve potentially committed publication evidence when release fails.
+			// docs/adr/0093-runtime-transition-guard.md:205.
+			result = ManualResult{}
+			returned = errors.Join(returned, errors.New("runtime transition cleanup failed"))
 		}
 	}()
 	transaction, err := c.store.Lock(ctx)

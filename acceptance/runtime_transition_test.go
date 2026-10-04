@@ -249,6 +249,41 @@ func transitionMarkers(checkout string) []os.DirEntry {
 	}
 	return entries
 }
+
+// per docs/adr/0093-runtime-transition-guard.md:64
+// per docs/adr/0093-runtime-transition-guard.md:171
+func transitionHarmlessRefusal(root string) {
+	GinkgoHelper()
+	state := filepath.Join(root, ".factory")
+	entries, err := os.ReadDir(state)
+	Expect(err).NotTo(HaveOccurred())
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	Expect(names).To(ConsistOf("runtime-transition.lock", "runtime-activity"), "known harmless preflight refusal must not admit attempts, histories, PID evidence or unrelated storage")
+	Expect(transitionMarkers(root)).To(BeEmpty())
+	for path, mode := range map[string]os.FileMode{state: 0700, filepath.Join(state, "runtime-activity"): 0700, filepath.Join(state, "runtime-transition.lock"): 0600} {
+		info, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(mode))
+		if path == filepath.Join(state, "runtime-transition.lock") {
+			Expect(info.Mode().IsRegular()).To(BeTrue())
+			Expect(info.Size()).To(BeZero())
+			var metadata unix.Stat_t
+			Expect(unix.Lstat(path, &metadata)).To(Succeed())
+			Expect(metadata.Nlink).To(BeNumerically("==", 1))
+			Expect(metadata.Uid).To(BeNumerically("==", os.Geteuid()))
+		} else {
+			Expect(info.IsDir()).To(BeTrue())
+		}
+	}
+	lock, err := os.OpenFile(filepath.Join(state, "runtime-transition.lock"), os.O_RDWR, 0)
+	Expect(err).NotTo(HaveOccurred())
+	defer func() { Expect(lock.Close()).To(Succeed()) }()
+	Expect(unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB)).To(Succeed(), "preflight ownership has ended before the refusal returns")
+	Expect(unix.Flock(int(lock.Fd()), unix.LOCK_UN)).To(Succeed())
+}
 func transitionLockBlocked(checkout string) {
 	GinkgoHelper()
 	file, err := os.OpenFile(filepath.Join(checkout, ".factory/runtime-transition.lock"), os.O_RDWR, 0)

@@ -207,3 +207,9 @@ When Go loop guard release also fails, preserve the primary checkpoint
 alongside a safe cleanup diagnostic. Retain activity and checkpoint evidence;
 ordinary success with cleanup failure still fails. Require an independent
 compound publication/release regression before this correction.
+
+Qualification clarification, 2026-10-04 UTC: a non-absence observation may be
+superseded by a later explicit `ESRCH` within the same cleanup deadline. Poll
+boundedly while any other observation leaves ownership unconfirmed; never treat
+`EPERM` or another inspection error as proof of absence. Persistent errors,
+remaining members and deadline expiry still retain typed ownership evidence.

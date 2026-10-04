@@ -221,6 +221,20 @@ error classification for assessment to reuse its existing errno policy; do not
 change ordinary guard error contracts or duplicate a second errno policy.
 Private fixed diagnostics expose no sensitive bytes or filesystem roots.
 
+Failed Begin cleanup must distinguish borrowed pre-existing pending evidence from
+an incomplete returned capability. Before grant, release every owned resource
+without manufacturing an incomplete-publication error solely from that borrowed
+marker. Preserve the primary refusal, real cleanup errors, cancellation and typed
+query-ownership uncertainty. After a returned grant, ordinary incomplete Close
+diagnostics and typed publication uncertainty still apply.
+
+The confined active/record directory qualification must classify actual Stat
+observation errors before considering identity mismatch, with checked closure
+and cleanup precedence. Private per-operation collaborators may wrap the real
+os.Root.Stat and retained-file Stat calls for deterministic actual-operation-then-
+reported-error qualification; defaults remain native and no test-only export is
+introduced. Interface-only wiring precedes independent property RED and fixes.
+
 ## Outside-in qualification and limits
 
 Independent Ginkgo/Gomega authors own only new behavioral test files. Observe

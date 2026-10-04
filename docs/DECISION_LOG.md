@@ -3010,3 +3010,26 @@ This is an actual mutation scheduled by a source-test collaborator, not evidence
 of a released incident. A separate missing-errno hypothesis was refuted: the safe
 typed guard cause is classified by assessment's existing errno policy, so an
 explicit Conflict=false does not itself imply operational status 1.
+
+Two persistent Git-refusal controls then isolated a constructor cleanup defect.
+Each first granted against valid Git, later reached real supervised Git with an
+eligible fresh proposal, preserved existing pending/journal/current/index/ignore
+bytes and closed nonempty captured descriptors plus the actual flock. Missing
+exact local exclusion and a force-tracked selected record both ended with status
+1 rather than the required refusal 2. Root read the independent tests and log.
+ADR 0096 now distinguishes failed-constructor borrowed evidence from incomplete
+returned-capability reporting before correction.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -v ./internal/assessment -ginkgo.focus='Interrupted recovery qualified Git refusal status' -ginkgo.no-color
+Ran 2 of 273 Specs in 1.012 seconds
+FAIL! -- 0 Passed | 2 Failed
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 1.547s
+```
+
+Raw output: /private/tmp/factory-r22-git-refusal-red.log. Independent late-activity
+controls also persisted: three selected, one passed and two failed (package
+0.508s), including actual marker creation after grant before Check. A separate
+directory-Stat taxonomy concern remains unqualified. Its private native-default
+observation seam is specified before wiring; no kernel error or correction is
+claimed until independently scheduled native operations reach property RED.

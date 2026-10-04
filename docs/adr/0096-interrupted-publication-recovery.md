@@ -94,7 +94,11 @@ namespace, selected saved-set/manifest/hold/payload observations and actual
 budget/checkpoint identities/bytes or their checked absence. Revalidate the whole
 observation before checked descriptor closure; return a digest only when both
 validation and closure succeed. No stale or partial proposal
-can grant authority.
+can grant authority. Identity metadata means device, inode, type, complete mode,
+owner/group, link count, size and modification/change timestamps; omit access
+timestamps changed by these same reads. Above the selected physical root, retain
+the existing stable ancestry identity/mode/ownership boundary rather than binding
+unrelated system-directory listing timestamps.
 
 ## Existing exclusion and pending evidence
 

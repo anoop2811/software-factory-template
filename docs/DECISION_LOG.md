@@ -2769,3 +2769,12 @@ changed inputs remain preserved conflicts. Keep private observation boundaries
 per operation with actual defaults, not global fault state or imported authority.
 See ADR 0094's post-rename observation refinement. This is injected source-test
 evidence, not a released incident or spontaneous OS error.
+
+Before the observation-status correction: expanded actual controls passed their
+preservation and exact resource/flock release assertions before finding four
+status mismatches. Forward/reverse repeated parent EIO returned refusal 2 instead
+of operational 1; forward/reverse actual deletion returned operational 1 instead
+of conflict 2. Reuse existing assessment classification for observation errors
+while retaining refusal for changed metadata. Keep candidate ownership, retry,
+typed uncertainty, pending preservation and safe diagnostics unchanged. The
+existing status contract remains ADR 0091:56; this grants no new recovery action.

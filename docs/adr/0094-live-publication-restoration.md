@@ -233,3 +233,15 @@ defaults, reusing existing boundaries where appropriate. Qualify both directions
 and target/parent observations with real rename and descriptor handshakes, plus
 conflict controls after the observation failure. A successful synthetic callback
 or merely setting the expected phase is not evidence of publication ownership.
+
+Before the observation-status correction, expanded independent controls completed
+all actual preservation, retry, descriptor-close and flock-release checks but
+found four classification mismatches. Repeated parent-observation EIO reported
+refusal status 2 instead of operational status 1 in both directions. Actual target
+deletion reported operational status 1 instead of conflict status 2 in both
+directions. Keep the existing status contract in
+docs/adr/0091-durable-local-recovery-creation.md:56: ordinary observation I/O
+failures are operational; missing or unsafe target observations and changed
+identity, mode or ownership are conflicts. Reuse the existing assessment error
+classification rather than duplicating errno policy. Preserve the same typed
+uncertainty, private diagnostics, candidate, pending evidence and mutation limits.

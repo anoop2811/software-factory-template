@@ -116,6 +116,7 @@ scripts/lib/color.sh
 scripts/lib/timing.sh
 scripts/lib/budget.py
 scripts/lib/budget_adapters.py
+scripts/lib/runtime_transition.py
 scripts/lib/budget-config.sh
 scripts/lib/loop.py
 docs/BUDGETS.md

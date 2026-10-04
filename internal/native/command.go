@@ -27,18 +27,37 @@ func ExecuteCommandCombined(ctx context.Context, root string, argv []string, env
 }
 
 func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, combined bool) (CommandResult, error) {
+	plan, variables, err := prepareCommand(root, argv, environment)
+	if err != nil {
+		return CommandResult{}, err
+	}
+	child, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stderr := &commandCapture{cancel: cancel}
+	execution, err := supervise(child, plan, allowance,
+		func(context.Context, int) error { return nil }, defaultProcessOps(),
+		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
+	data, overflow := stderr.snapshot()
+	if overflow {
+		err = errors.Join(err, errors.New("tool output limit exceeded"))
+		execution.Outcome = "output_limit"
+	}
+	return CommandResult{Execution: execution, Stderr: data}, err
+}
+
+func prepareCommand(root string, argv []string, environment map[string]string) (Plan, []string, error) {
 	if root == "" || len(argv) == 0 || argv[0] == "" {
-		return CommandResult{}, errors.New("invalid tool command")
+		return Plan{}, nil, errors.New("invalid tool command")
 	}
 	for _, value := range append([]string{root}, argv...) {
 		if strings.ContainsRune(value, 0) {
-			return CommandResult{}, errors.New("invalid tool command")
+			return Plan{}, nil, errors.New("invalid tool command")
 		}
 	}
 	variables := make([]string, 0, len(environment))
 	for key, value := range environment {
 		if key == "" || strings.ContainsAny(key, "=\x00") || strings.ContainsRune(value, 0) {
-			return CommandResult{}, errors.New("invalid tool environment")
+			return Plan{}, nil, errors.New("invalid tool environment")
 		}
 		variables = append(variables, key+"="+value)
 	}
@@ -51,22 +70,11 @@ func executeCommand(ctx context.Context, root string, argv []string, environment
 		var err error
 		binary, err = findExecutableOnPath(binary, root, path)
 		if err != nil {
-			return CommandResult{}, errors.New("cannot resolve tool")
+			return Plan{}, nil, errors.New("cannot resolve tool")
 		}
 	}
-	child, cancel := context.WithCancel(ctx)
-	defer cancel()
-	stderr := &commandCapture{cancel: cancel}
 	arguments := append([]string{binary}, argv[1:]...)
-	execution, err := supervise(child, Plan{Root: root, Argv: arguments}, allowance,
-		func(context.Context, int) error { return nil }, defaultProcessOps(),
-		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
-	data, overflow := stderr.snapshot()
-	if overflow {
-		err = errors.Join(err, errors.New("tool output limit exceeded"))
-		execution.Outcome = "output_limit"
-	}
-	return CommandResult{Execution: execution, Stderr: data}, err
+	return Plan{Root: root, Argv: arguments}, variables, nil
 }
 
 type commandCapture struct {

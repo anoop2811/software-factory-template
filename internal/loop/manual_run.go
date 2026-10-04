@@ -12,6 +12,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/budget"
 	"github.com/anoop2811/software-factory-template/internal/jsonvalue"
+	"github.com/anoop2811/software-factory-template/internal/transition"
 )
 
 const manualNextAction = "Inspect changes and evidence; hand off to a human. Use a new task only after resolving the stop reason."
@@ -32,7 +33,7 @@ func duration(seconds float64) time.Duration {
 
 // Run holds checkpoint ownership through check execution and terminal publication.
 // docs/adr/0075-go-manual-loop-controller.md:47.
-func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (ManualResult, error) {
+func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (result ManualResult, returned error) {
 	if c == nil || c.store == nil || !validManual(r) {
 		return ManualResult{}, manualError()
 	}
@@ -65,6 +66,20 @@ func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (Man
 			return ManualResult{}, err
 		}
 	}
+	// The outer shared participant covers snapshots and nested budget work.
+	// docs/adr/0093-runtime-transition-guard.md:67.
+	guard, err := transition.Shared(ctx, c.root)
+	if err != nil {
+		return ManualResult{}, manualError()
+	}
+	clean := true
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if err := guard.Close(cleanup, clean); err != nil {
+			result, returned = ManualResult{}, manualError()
+		}
+	}()
 	transaction, err := c.store.Lock(ctx)
 	if err != nil {
 		return ManualResult{}, err
@@ -85,6 +100,7 @@ func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (Man
 	if len(plan.Blockers) > 0 {
 		return ManualResult{Plan: &plan, ExitCode: 2}, nil
 	}
+	clean = false
 	current, err := c.ops.snapshot(ctx, c.root, cfg, r.Environment)
 	if err != nil {
 		return ManualResult{}, err
@@ -124,7 +140,16 @@ func (c *Controller) Run(ctx context.Context, r ManualRequest, resume bool) (Man
 	}
 	consumed, _ := row["elapsed_seconds"].(json.Number).Float64()
 	invocation := manualInvocation{controller: c, request: r, config: cfg, budget: bc, history: h, row: row, transaction: transaction, started: time.Now(), consumed: consumed, prompt: promptText}
-	return invocation.run(ctx)
+	result, err = invocation.run(ctx)
+	if err == nil && result.Record != nil && result.Record.data["status"] != "active" && result.Record.data["uncertain"] == false && result.Record.data["process_pid"] == nil {
+		// Handoff can hide a child/snapshot error converted to a terminal row.
+		// docs/adr/0093-runtime-transition-guard.md:72.
+		switch result.Record.data["outcome"] {
+		case "manual_passed", "manual_failed", "approved", "attempt_limit", "no_progress", "repeated_failure":
+			clean = true
+		}
+	}
+	return result, err
 }
 
 type manualInvocation struct {

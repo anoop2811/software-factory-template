@@ -13,7 +13,7 @@ import (
 )
 
 var requiredFiles = []string{
-	"scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/events.sh", "scripts/lib/hookspath.sh", "scripts/lib/color.sh", "scripts/lib/timing.sh", "scripts/lib/budget.py", "scripts/lib/budget_adapters.py", "scripts/lib/budget-config.sh", "scripts/lib/loop.py",
+	"scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/events.sh", "scripts/lib/hookspath.sh", "scripts/lib/color.sh", "scripts/lib/timing.sh", "scripts/lib/budget.py", "scripts/lib/budget_adapters.py", "scripts/lib/runtime_transition.py", "scripts/lib/budget-config.sh", "scripts/lib/loop.py",
 	"scripts/selftest/run.sh", "scripts/pre-push-check.sh", "scripts/factory-doctor.sh", "scripts/factory-upgrade.sh", "scripts/factory-report.sh", "scripts/factory-budget.sh", "scripts/factory-loop.sh", "scripts/factory-metrics.sh", "templates/metrics.html", "scripts/factory-review-lane.sh", "scripts/factory-migrate-config.sh", "scripts/adversarial-review.sh", "packs/review-lane/review-pr.yml", ".githooks/pre-push", "scripts/prereq-check.sh",
 	".opencode/plugin/factory-hooks.ts", ".opencode/package.json", ".opencode/.gitignore", ".codex/config.toml", "opencode.json", "AGENTS.md", "Makefile", "factory", ".gitignore", ".github/CODEOWNERS", ".github/workflows/ci.yml", "docs/FACTORY_RULES.md", "docs/BUDGETS.md", "docs/LOOPS.md", "memory/lessons/001-verification-contract.md",
 }

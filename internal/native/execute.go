@@ -39,6 +39,7 @@ func defaultProcessOps() processOps {
 }
 
 type runOptions struct {
+	argv0       string
 	errorOutput io.Writer
 	environment []string
 	limit       int
@@ -183,6 +184,9 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		return result, errors.New("cannot resolve native harness")
 	}
 	command := exec.Command(binary, plan.Argv[1:]...) // #nosec G204 -- admitted argv is literal; only ExecuteCheck intentionally selects the user-configured shell.
+	if options.argv0 != "" {
+		command.Args[0] = options.argv0
+	}
 	command.Dir = plan.Root
 	command.Env = mergedEnvironment(plan.Environment)
 	if options.environment != nil {

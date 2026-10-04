@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/transition"
 	"github.com/anoop2811/software-factory-template/internal/usage"
 )
 
@@ -43,8 +44,8 @@ func NewRunner(root string) *Runner { return &Runner{ledger: NewLedger(root)} }
 
 // Run preserves read-only admission before probes and locked admission before
 // execution: docs/adr/0070-go-budget-execution-controller.md:41.
-func (runner *Runner) Run(ctx context.Context, request Request, config Config, input RunInput) (RunResult, error) {
-	result := RunResult{ExitCode: 2}
+func (runner *Runner) Run(ctx context.Context, request Request, config Config, input RunInput) (result RunResult, returned error) {
+	result = RunResult{ExitCode: 2}
 	config, err := validateConfig(config)
 	if err != nil {
 		return result, controllerError("invalid budget execution configuration", err)
@@ -80,6 +81,26 @@ func (runner *Runner) Run(ctx context.Context, request Request, config Config, i
 	if err != nil {
 		return result, controllerError("cannot prepare native budget execution", err)
 	}
+	// Shared exclusion precedes native probes and lasts through publication.
+	// docs/adr/0093-runtime-transition-guard.md:62.
+	guard, err := transition.Shared(ctx, runner.ledger.root)
+	if err != nil {
+		return result, controllerError("cannot establish runtime transition participation", err)
+	}
+	clean := true
+	defer func() {
+		var ownership *native.OwnershipError
+		var publication *PublicationError
+		if errors.As(returned, &ownership) || errors.As(returned, &publication) && publication.MayHaveCommitted {
+			clean = false
+		}
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if err := guard.Close(cleanup, clean); err != nil {
+			result.ExitCode, result.Response = 1, ""
+			returned = controllerError("runtime transition cleanup failed", returned, err)
+		}
+	}()
 	if err := runner.preflight(ctx, prepared); err != nil {
 		return result, controllerError("native budget preflight failed", err)
 	}
@@ -95,7 +116,12 @@ func (runner *Runner) Run(ctx context.Context, request Request, config Config, i
 	if admission.Record == nil {
 		return result, nil
 	}
-	return runner.executeAdmitted(ctx, request, prepared, *admission.Record, result, input.WantResponse)
+	clean = false
+	result, err = runner.executeAdmitted(ctx, request, prepared, *admission.Record, result, input.WantResponse)
+	if result.Record != nil && result.Record.data["status"] == "completed" {
+		clean = true
+	}
+	return result, err
 }
 func (runner *Runner) preflight(ctx context.Context, plan native.Plan) error {
 	if err := ctx.Err(); err != nil {

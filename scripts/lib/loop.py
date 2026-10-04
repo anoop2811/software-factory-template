@@ -15,6 +15,7 @@ import time
 import uuid
 
 import budget
+import runtime_transition
 
 
 class LoopError(budget.BudgetError):
@@ -50,10 +51,12 @@ def configuration():
 
 
 def git(root, *args):
+    # Successful snapshot leaders still require group cleanup.
+    # docs/adr/0093-runtime-transition-guard.md:119.
     try:
-        result = subprocess.run(["git", "-C", str(root)] + list(args),
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        result = budget.budget_adapters._command_probe(["git", "-C", str(root)] + list(args),
+                    os.getcwd(), 10, 32 * 1024 * 1024, label="Loop snapshot probe")
+    except (OSError, ValueError) as exc:
         raise LoopError("cannot establish git snapshot") from exc
     if result.returncode:
         raise LoopError("cannot establish git snapshot; a committed repository is required")
@@ -90,8 +93,9 @@ def test_names(names, patterns):
     argv = ["grep", "-E"]
     for pattern in patterns:
         argv.extend(["-e", pattern])
-    result = subprocess.run(argv, input=("\n".join(names) + "\n").encode("utf-8", "surrogateescape"),
-                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5)
+    result = budget.budget_adapters._command_probe(argv, os.getcwd(), 5, 32 * 1024 * 1024,
+                    input_bytes=("\n".join(names) + "\n").encode("utf-8", "surrogateescape"),
+                    label="Loop snapshot probe")
     if result.returncode not in (0, 1):
         raise LoopError("invalid POSIX ERE in test_file_patterns")
     return set(result.stdout.decode("utf-8", "surrogateescape").splitlines())
@@ -591,6 +595,16 @@ def main():
         prompt = Path(args.prompt_file).read_text(encoding="utf-8")
         if len(prompt.encode()) > 1024 * 1024:
             raise LoopError("prompt exceeds 1 MiB")
+    # The outer participant covers snapshots and nested budget invocations.
+    # docs/adr/0093-runtime-transition-guard.md:67.
+    guard = runtime_transition.shared(root)
+    try:
+        return _run_guarded(args, config, budget_config, root, store, ledger, prompt, guard)
+    finally:
+        runtime_transition.release(guard, sys.exc_info()[1])
+
+
+def _run_guarded(args, config, budget_config, root, store, ledger, prompt, guard):
     current = stable_snapshot(root, config)
     policy_hash = policy(config, budget_config)
     with store.locked():
@@ -626,6 +640,9 @@ def main():
         store.write(history)
         controller = Controller(args, config, budget_config, root, store, history, record, prompt)
         code = controller.execute()
+        guard.clean = (record["status"] != "active" and not record["uncertain"]
+                       and record["process_pid"] is None and record["outcome"] in (
+                           "manual_passed", "manual_failed", "approved", "attempt_limit", "no_progress", "repeated_failure"))
         emit(record, args.json)
         return code
 

@@ -262,3 +262,9 @@ func (h History) MarshalJSON() ([]byte, error) { return encodeHistory(context.Ba
 
 // MarshalJSON emits bounded checkpoint JSON.
 func (r Record) MarshalJSON() ([]byte, error) { return encodeHistory(context.Background(), r.data) }
+
+// HasUnresolved is unsupported until component runtime qualification.
+// docs/adr/0096-interrupted-publication-recovery.md:132.
+func (h History) HasUnresolved(ctx context.Context) (bool, error) {
+	return false, errors.New("unresolved loop history assessment is not implemented")
+}

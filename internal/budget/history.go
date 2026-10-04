@@ -270,3 +270,9 @@ func (h History) HasActive(ctx context.Context) (bool, error) {
 	}
 	return false, nil
 }
+
+// HasUnresolved is unsupported until component runtime qualification.
+// docs/adr/0096-interrupted-publication-recovery.md:132.
+func (h History) HasUnresolved(ctx context.Context) (bool, error) {
+	return false, errors.New("unresolved budget history assessment is not implemented")
+}

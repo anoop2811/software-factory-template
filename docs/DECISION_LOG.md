@@ -3021,7 +3021,7 @@ ADR 0096 now distinguishes failed-constructor borrowed evidence from incomplete
 returned-capability reporting before correction.
 
 ```text
-rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -v ./internal/assessment -ginkgo.focus='Interrupted recovery qualified Git refusal status' -ginkgo.no-color
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery qualified Git refusal status' -ginkgo.no-color -count=1
 Ran 2 of 273 Specs in 1.012 seconds
 FAIL! -- 0 Passed | 2 Failed
 FAIL github.com/anoop2811/software-factory-template/internal/assessment 1.547s
@@ -3033,3 +3033,21 @@ controls also persisted: three selected, one passed and two failed (package
 directory-Stat taxonomy concern remains unqualified. Its private native-default
 observation seam is specified before wiring; no kernel error or correction is
 claimed until independently scheduled native operations reach property RED.
+
+The private native-default Stat seam then isolated four operational-status
+regressions. Each active/record-directory root.Stat or retained file.Stat actually
+succeeded before one reported EIO. Paired eligible grants, nonempty descriptor
+closure, actual os.Root closure, unchanged tree/pending and real flock release
+passed before the final status assertion received 2 instead of 1. Root read the
+tests and raw log before authorizing the classification correction already
+specified in ADR 0096.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery qualified metadata error status' -ginkgo.no-color -count=1
+Ran 4 of 277 Specs in 1.673 seconds
+FAIL! -- 0 Passed | 4 Failed
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 2.174s
+```
+
+Raw output: /private/tmp/factory-r22-stat-error-red.log. This is real native
+observation followed by an injected report, not kernel EIO or a released incident.

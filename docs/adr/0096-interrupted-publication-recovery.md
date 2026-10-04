@@ -116,6 +116,12 @@ The guard grants only exclusion. Assessment separately retains the exact pending
 pin and owns its qualified resolution; pending is not a permanently required
 guard pin that would make legitimate removal invalidate guard closure. Guard
 lifetime checks preserve root/control/activity identity and the same lock inode.
+Recovery-only acquisition and later Check must also preserve its observed empty
+activity directory across pending qualification and other fallible boundaries.
+An actual late activity entry cannot be admitted merely because its directory
+keeps the same inode and ordinary metadata remains safe. Retain and revalidate
+meaningful unchanged directory metadata or freshly confined enumeration; never
+reuse an exhausted directory-read offset as proof of emptiness.
 Normal Go/Python shared and fresh exclusive work still refuses every pending entry.
 
 Begin recomputes the full proposal under that guard and requires the exact fresh

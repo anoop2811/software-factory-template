@@ -235,3 +235,31 @@ passed without selected skips; scoped canonical pack lint reported `0 issues.`.
 Whole repository qualification and the current committed head's hosted checks
 remain separate publication gates. No unsupported concurrent standalone guard
 use or special-mode input support is claimed.
+
+A later advisory found the same status inconsistency in the named pending
+recheck after its descriptor closes. Independent actual sync/close/stat controls
+and the persisted spec-writer control observed RED before the single-branch
+correction. The durable original, exact pending ownership, explicit retry without
+another rename and complete resource release passed before the status assertion
+failed. Canon precedes code in
+docs/adr/0094-live-publication-restoration.md:267.
+
+The PR now adds 147 cases across the same six files. Final independent qualification:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=120s -v ./internal/assessment -ginkgo.focus='Live publication closed pending observation classification' -ginkgo.no-color
+Ran 1 of 190 Specs in 0.080 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 189 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 1.429s
+
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=180s -v ./internal/assessment ./internal/filepublish ./internal/transition -ginkgo.no-color
+assessment: 190/190 SUCCESS! 11.558s; package ok 12.904s
+filepublish: 11/11 SUCCESS! 0.068s; package ok 1.742s
+transition: 47/47 SUCCESS! 0.362s; package ok 2.375s
+```
+
+Commands ran through `rtk proxy` with the task Go cache. All 248 affected cases
+passed without selected skips; scoped canonical pack lint reported `0 issues.`.
+The read helper already wraps I/O in private operational errors; completed
+restoration intentionally clears the recovered error after durability. Full
+repository and current-head hosted qualification remain separate PR gates.

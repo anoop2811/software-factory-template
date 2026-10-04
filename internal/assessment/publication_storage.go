@@ -190,7 +190,10 @@ func (p *publicationState) checkState(ctx context.Context, writer *recoveryWrite
 	}
 	if p.pending != nil && p.pendingClosed && !p.pendingRemoved {
 		current, err := writer.named(p.factory.file, publicationPending)
-		if err != nil || !writeUnchanged(p.pending.stat, current) {
+		if err != nil {
+			return observationError(err, "cannot observe publication pending evidence")
+		}
+		if !writeUnchanged(p.pending.stat, current) {
 			return failure(2, "publication pending ownership changed")
 		}
 	}

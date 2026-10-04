@@ -45,3 +45,11 @@ Provenance: observed 2026-10-04 UTC via the two actual named-stat-then-EIO
 controls in internal/assessment/publication_test.go:808. The unchanged controls
 failed before correction and passed afterward; preservation and exact resource
 release assertions preceded the status assertion in each control.
+
+The same classifier must also cover a named recheck after a retained descriptor
+has been deliberately closed. Canon:
+docs/adr/0094-live-publication-restoration.md:267.
+Provenance: observed 2026-10-04 UTC via the actual sync/close/stat regression in
+internal/assessment/publication_test.go:888, RED before the single-branch
+correction and GREEN afterward. The explicit retry and exact resource-release
+checks completed before the status assertion.

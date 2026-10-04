@@ -884,3 +884,82 @@ var _ = Describe("Live publication retained writer observation classification", 
 		Expect(ErrorStatus(failed)).To(Equal(1), "ordinary EIO is operational; all preservation and exact resource-release checks precede this status assertion")
 	}, Entry("ordinary check after real candidate promotion", true), Entry("ordinary explicit restore after successful apply", false))
 })
+
+var _ = Describe("Live publication closed pending observation classification", func() {
+	// per docs/adr/0094-live-publication-restoration.md:269
+	// per docs/adr/0094-live-publication-restoration.md:276
+	// per docs/adr/0094-live-publication-restoration.md:279
+	It("reports actual closed-pending named EIO after durable restoration without losing checked retry", func() {
+		root, _, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		originalInfo, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		controls, files := publicationFaultControls()
+		var operation *Publication
+		var pending os.FileInfo
+		renames, faulted := 0, false
+		originalFileSynced, originalParentSynced := false, false
+		controls.rename = func(ctx context.Context, stage *filepublish.Stage, name string) error {
+			renameErr := stage.Publish(ctx, name)
+			if renameErr == nil {
+				renames++
+			}
+			return renameErr
+		}
+		controls.storage.syncFile = func(_ context.Context, file *os.File) error {
+			syncErr := file.Sync()
+			if syncErr == nil && renames == 2 && publicationSame(file, filepath.Join(root, request.Path)) {
+				Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+				originalFileSynced = true
+			}
+			return syncErr
+		}
+		controls.storage.syncDirectory = func(_ context.Context, file *os.File) error {
+			syncErr := file.Sync()
+			if syncErr == nil && renames == 2 && originalFileSynced && publicationSame(file, filepath.Join(root, filepath.Dir(request.Path))) {
+				originalParentSynced = true
+			}
+			return syncErr
+		}
+		controls.storage.named = func(parent *os.File, name string) (unix.Stat_t, error) {
+			actual, namedErr := named(parent, name)
+			if operation == nil || faulted || !operation.state.pendingClosed || operation.state.pendingRemoved || name != publicationPending || !publicationSame(parent, filepath.Join(root, ".factory")) {
+				return actual, namedErr
+			}
+			Expect(namedErr).NotTo(HaveOccurred(), "actual pending Fstatat succeeds before reporting the one-time EIO")
+			Expect(writeUnchanged(operation.state.pending.stat, actual)).To(BeTrue(), "the actual named entry retains this operation's complete pending metadata")
+			publicationFaultPreserved(root, pending)
+			_, closedErr := operation.state.pending.file.Stat()
+			Expect(errors.Is(closedErr, os.ErrClosed)).To(BeTrue(), "the actual pending descriptor is closed, independently of its lifecycle flag")
+			Expect(originalFileSynced).To(BeTrue())
+			Expect(originalParentSynced).To(BeTrue(), "actual parent sync follows actual original-file sync before this inspection failure")
+			Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+			faulted = true
+			return actual, unix.EIO
+		}
+		operation = publicationFaultBegin(root, request, controls)
+		pending = publicationFaultPending(root)
+		Expect(operation.Apply(context.Background())).To(Succeed())
+		failed := operation.Restore(context.Background())
+		Expect(faulted).To(BeTrue())
+		publicationFaultTyped(root, failed)
+		Expect(renames).To(Equal(2))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		publicationFaultPreserved(root, pending)
+		restored, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(restored.Mode()).To(Equal(originalInfo.Mode()))
+		Expect(operation.Restore(context.Background())).To(Succeed())
+		Expect(renames).To(Equal(2), "retry only completes checked durability and pending removal; it never performs a third rename")
+		after, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(restored, after)).To(BeTrue())
+		Expect(after.Mode()).To(Equal(restored.Mode()))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		_, err = os.Lstat(filepath.Join(root, ".factory/runtime-publication.pending"))
+		Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+		Expect(operation.Close(context.Background())).To(Succeed())
+		publicationObservationReleased(root, *files)
+		Expect(ErrorStatus(failed)).To(Equal(1), "ordinary pending observation EIO is operational; all durability, preservation, retry and resource-release checks precede this assertion")
+	})
+})

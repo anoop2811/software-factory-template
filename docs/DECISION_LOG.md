@@ -2873,3 +2873,12 @@ metadata-only refusal controls passed. Refine ADR 0095: discard invalid rows and
 keep authority false while preserving previously observed I/O priority in the
 operation and report Status. Metadata-only conflicts remain refusal 2. This
 changes no mutation, restoration or cleanup authority.
+
+Before terminal-direction admission correction, 2026-10-04 UTC: independent
+security and verifier controls observed unapplied durable Restore select reverse,
+perform a real original-file sync and report EIO, then Apply incorrectly publish
+forward. The completed-abort no-mutation control passed. Refine ADR 0095's live
+direction invariant explicitly for Apply: refuse new forward work after any
+valid terminal direction is latched, preserving explicit chosen-direction retry,
+non-latching invalid Finish and legacy journal-free behavior. A persistent
+independent regression must precede correction.

@@ -236,3 +236,18 @@ Late revalidation must discard unsafe observations without erasing an already
 observed operational failure. The returned operation and report Status retain
 status 1 precedence when I/O occurred; ordinary metadata-only conflicts retain
 status 2. Keep completeness false, unsafe rows discarded and all authority false.
+
+## Terminal-direction admission refinement
+
+Before correction, independent security and verifier controls performed a real
+original-file sync during an unapplied durable Restore, then reported EIO. With
+reverse completion already selected and no target rename, a subsequent Apply
+incorrectly published the replacement. The completed-abort control refused
+Apply without mutation; explicit final restoration and resource release passed.
+This is injected source-test evidence, not a released incident.
+
+Once a valid durable terminal direction is selected, Apply must also refuse
+new forward publication. Only explicit retry of that chosen completion may
+proceed. Apply must check the live direction before preparing or publishing any
+candidate. Preserve invalid/unapplied Finish's non-latching behavior and legacy
+handles without a durable journal.

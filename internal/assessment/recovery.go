@@ -96,7 +96,7 @@ func inspectRecovery(ctx context.Context, root string, operations ops) (Recovery
 		}
 		parent = pin.file
 	}
-	entries, class := recoveryEntries(ctx, parent, 64)
+	entries, class := recoveryStorageEntries(ctx, parent, operations, &pins)
 	if err := ctx.Err(); err != nil {
 		return RecoveryInventory{}, err
 	}

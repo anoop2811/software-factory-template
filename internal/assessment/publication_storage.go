@@ -15,6 +15,10 @@ import (
 const publicationPending = "runtime-publication.pending"
 
 func beginPublication(ctx context.Context, root string, request PublicationRequest, operations publicationOps) (result *Publication, returned error) {
+	return constructPublication(ctx, root, request, operations, nil)
+}
+
+func constructPublication(ctx context.Context, root string, request PublicationRequest, operations publicationOps, durable *durableSetup) (result *Publication, returned error) {
 	selected, err := selectedReferences([]string{request.Path})
 	if err != nil {
 		return nil, err
@@ -87,6 +91,11 @@ func beginPublication(ctx context.Context, root string, request PublicationReque
 	if err := p.check(ctx); err != nil {
 		return nil, err
 	}
+	if durable != nil {
+		if err := p.preflightJournal(ctx, request); err != nil {
+			return nil, err
+		}
+	}
 	// Reserve pending only after qualification; every failure preserves its entry.
 	// docs/adr/0094-live-publication-restoration.md:54.
 	p.pending, err = p.w.createFile(ctx, p.factory, publicationPending)
@@ -101,6 +110,11 @@ func beginPublication(ctx context.Context, root string, request PublicationReque
 	}
 	if err := p.check(ctx); err != nil {
 		return nil, err
+	}
+	if durable != nil {
+		if err := p.beginJournal(ctx, root, request, durable.environment); err != nil {
+			return nil, err
+		}
 	}
 	return &Publication{state: p}, nil
 }
@@ -173,6 +187,11 @@ func (p *publicationState) checkedBackup(ctx context.Context, id string, referen
 }
 
 func (p *publicationState) check(ctx context.Context) error {
+	if p.journal != nil && p.journal.candidate != nil {
+		if _, err := p.reconcileJournal(ctx); err != nil {
+			return err
+		}
+	}
 	if p.candidate != nil {
 		if _, err := p.reconcile(ctx); err != nil {
 			return err
@@ -182,6 +201,15 @@ func (p *publicationState) check(ctx context.Context) error {
 }
 
 func (p *publicationState) checkState(ctx context.Context, writer *recoveryWriter, selected *writePin, expected []byte) error {
+	var record *writePin
+	var recordBytes []byte
+	if p.journal != nil {
+		record, recordBytes = p.journal.current, p.journal.expected
+	}
+	return p.checkImages(ctx, writer, selected, expected, record, recordBytes)
+}
+
+func (p *publicationState) checkImages(ctx context.Context, writer *recoveryWriter, selected *writePin, expected []byte, record *writePin, recordBytes []byte) error {
 	if err := p.guard.Check(ctx); err != nil {
 		return errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
@@ -198,13 +226,14 @@ func (p *publicationState) checkState(ctx context.Context, writer *recoveryWrite
 		}
 	}
 	for _, value := range []struct {
-		pin  *writePin
-		data []byte
-	}{{selected, expected}, {p.saved, p.original}} {
+		pin   *writePin
+		data  []byte
+		limit int64
+	}{{selected, expected, assetLimit}, {p.saved, p.original, assetLimit}, {record, recordBytes, publicationRecordLimit}} {
 		if value.pin == nil {
 			continue
 		}
-		data, err := writer.read(ctx, value.pin, assetLimit)
+		data, err := writer.read(ctx, value.pin, value.limit)
 		if err != nil {
 			return err
 		}
@@ -224,20 +253,20 @@ func (p *publicationState) forget(pin *writePin) {
 	}
 }
 
-func (p *publicationState) publish(ctx context.Context, data []byte, restoring bool) error {
+func (p *publicationState) prepareImage(ctx context.Context, directory *os.Root, parent *writePin, data []byte, mode os.FileMode, limit int64) (*filepublish.Stage, *writePin, error) {
 	prepare := p.operations.prepare
 	if prepare == nil {
 		prepare = filepublish.Prepare
 	}
-	stage, err := prepare(ctx, p.directory, ".factory-publication-", data, p.mode)
+	stage, err := prepare(ctx, directory, ".factory-publication-", data, mode)
 	if stage != nil {
 		p.stages = append(p.stages, stage)
 	}
-	if refreshErr := p.w.refresh(p.parent); refreshErr != nil {
-		return refreshErr
+	if refreshErr := p.w.refresh(parent); refreshErr != nil {
+		return nil, nil, refreshErr
 	}
 	if err != nil || stage == nil {
-		return errors.Join(failure(1, "cannot prepare publication sibling"), ctx.Err())
+		return nil, nil, errors.Join(failure(1, "cannot prepare publication sibling"), ctx.Err())
 	}
 	openPrepared := p.operations.openPrepared
 	if openPrepared == nil {
@@ -245,26 +274,47 @@ func (p *publicationState) publish(ctx context.Context, data []byte, restoring b
 	}
 	file, err := openPrepared(ctx, stage)
 	if err != nil {
-		return errors.Join(failure(1, "cannot retain publication sibling"), ctx.Err())
+		return nil, nil, errors.Join(failure(1, "cannot retain publication sibling"), ctx.Err())
 	}
 	stat, err := descriptor(file)
-	if err != nil || !ownedFile(stat, assetLimit) || uint32(stat.Mode)&07777 != uint32(p.mode) {
+	if err != nil || !ownedFile(stat, limit) || uint32(stat.Mode)&07777 != uint32(mode) {
 		if p.w.closeFile(file) != nil {
-			return errors.Join(failure(1, "cannot close unsafe publication sibling"), failure(2, "unsafe prepared publication sibling"))
+			return nil, nil, errors.Join(failure(1, "cannot close unsafe publication sibling"), failure(2, "unsafe prepared publication sibling"))
 		}
-		return failure(2, "unsafe prepared publication sibling")
+		return nil, nil, failure(2, "unsafe prepared publication sibling")
 	}
-	pin := &writePin{parent: p.parent.file, file: file, name: stage.Name(), stat: stat}
+	pin := &writePin{parent: parent.file, file: file, name: stage.Name(), stat: stat}
 	p.w.pins = append(p.w.pins, pin)
-	readback, err := p.w.read(ctx, pin, assetLimit)
+	readback, err := p.w.read(ctx, pin, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !bytes.Equal(data, readback) {
+		return nil, nil, failure(2, "prepared publication bytes changed")
+	}
+	return stage, pin, nil
+}
+
+func (p *publicationState) publish(ctx context.Context, data []byte, restoring bool) error {
+	stage, pin, err := p.prepareImage(ctx, p.directory, p.parent, data, p.mode, assetLimit)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(data, readback) {
-		return failure(2, "prepared publication bytes changed")
-	}
 	if err := p.check(ctx); err != nil {
 		return err
+	}
+	if p.journal != nil {
+		record := p.journal.record
+		identity := assetIdentity(pin.stat)
+		record.CandidateIdentity = &identity
+		if restoring {
+			record.Direction, record.Phase = "reverse", "reverse_prepared"
+		} else {
+			record.Phase, record.ForwardIdentity = "forward_prepared", &identity
+		}
+		if err := p.writeRecord(ctx, record); err != nil {
+			return err
+		}
 	}
 	rename := p.operations.rename
 	if rename == nil {
@@ -285,19 +335,43 @@ func (p *publicationState) publish(ctx context.Context, data []byte, restoring b
 	if err := p.check(ctx); err != nil {
 		return err
 	}
-	return p.w.sync(ctx, p.parent)
+	if err := p.w.sync(ctx, p.parent); err != nil {
+		return err
+	}
+	if p.journal != nil && !restoring {
+		record := p.journal.record
+		identity := assetIdentity(p.current.stat)
+		record.Phase, record.ForwardIdentity, record.CandidateIdentity = "forward_published", &identity, nil
+		return p.writeRecord(ctx, record)
+	}
+	return nil
 }
 
 // A retained candidate is qualified through a read-only view before promotion.
 // Only its own parent metadata may be refreshed; every other pin stays intact.
 // docs/adr/0094-live-publication-restoration.md:214.
 func (p *publicationState) reconcile(ctx context.Context) (bool, error) {
+	candidate := p.candidate
+	published, err := p.reconcileImage(ctx, candidate, p.parent, p.current, p.name, false)
+	if err != nil {
+		return false, err
+	}
+	if published {
+		p.current, p.expected = candidate.pin, candidate.data
+		p.afterPublished, p.undoPublished = true, candidate.restoring
+	}
+	p.candidate = nil
+	return published, nil
+}
+
+// Active files and inert records share actual retained-inode reconciliation.
+// docs/adr/0095-durable-live-publication.md:120.
+func (p *publicationState) reconcileImage(ctx context.Context, candidate *publicationCandidate, parentPin, prior *writePin, name string, journal bool) (bool, error) {
 	if err := p.guard.Check(ctx); err != nil {
 		return false, errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
-	candidate := p.candidate
 	current, err := descriptor(candidate.pin.file)
-	location, locationErr := p.w.named(p.parent.file, p.name)
+	location, locationErr := p.w.named(parentPin.file, name)
 	if err != nil {
 		return false, errors.Join(observationError(err, "cannot observe publication candidate"), ctx.Err())
 	}
@@ -312,34 +386,37 @@ func (p *publicationState) reconcile(ctx context.Context) (bool, error) {
 	if !writeUnchanged(current, location) {
 		// An unrenamed attempt may abort only with both old and staging pins intact.
 		// docs/adr/0094-live-publication-restoration.md:224.
-		if !writeUnchanged(p.current.stat, location) {
+		if !writeUnchanged(prior.stat, location) {
 			return false, failure(2, "published inode ownership changed")
 		}
 		if err := p.checkState(ctx, p.w, p.current, p.expected); err != nil {
 			return false, err
 		}
-		data, err := p.w.read(ctx, candidate.pin, assetLimit)
+		limit := int64(assetLimit)
+		if journal {
+			limit = publicationRecordLimit
+		}
+		data, err := p.w.read(ctx, candidate.pin, limit)
 		if err != nil {
 			return false, err
 		}
 		if !bytes.Equal(data, candidate.data) {
 			return false, failure(2, "prepared publication bytes changed")
 		}
-		p.candidate = nil
 		return false, nil
 	}
 
-	parent, published := *p.parent, *candidate.pin
-	published.name, published.stat = p.name, current
+	parent, published := *parentPin, *candidate.pin
+	published.name, published.stat = name, current
 	view := *p.w
 	view.pins = make([]*writePin, 0, len(p.w.pins))
 	for _, pin := range p.w.pins {
 		switch pin {
 		case candidate.pin:
 			view.pins = append(view.pins, &published)
-		case p.current:
+		case prior:
 			// The exact prior target became detached through this attempted rename.
-		case p.parent:
+		case parentPin:
 			view.pins = append(view.pins, &parent)
 		default:
 			view.pins = append(view.pins, pin)
@@ -348,21 +425,28 @@ func (p *publicationState) reconcile(ctx context.Context) (bool, error) {
 	if err := view.refresh(&parent); err != nil {
 		return false, err
 	}
-	if err := p.checkState(ctx, &view, &published, candidate.data); err != nil {
+	active, activeBytes := p.current, p.expected
+	var record *writePin
+	var recordBytes []byte
+	if p.journal != nil {
+		record, recordBytes = p.journal.current, p.journal.expected
+	}
+	if journal {
+		record, recordBytes = &published, candidate.data
+	} else {
+		active, activeBytes = &published, candidate.data
+	}
+	if err := p.checkImages(ctx, &view, active, activeBytes, record, recordBytes); err != nil {
 		return false, err
 	}
 	// Promotion happens under the shared lifecycle mutex after complete validation.
 	// docs/adr/0094-live-publication-restoration.md:218.
-	if p.current != candidate.pin {
-		p.forget(p.current)
-		p.detached = append(p.detached, p.current.file)
+	if prior != candidate.pin {
+		p.forget(prior)
+		p.detached = append(p.detached, prior.file)
 	}
-	p.parent.stat = parent.stat
+	parentPin.stat = parent.stat
 	*candidate.pin = published
-	p.current, p.expected = candidate.pin, candidate.data
-	p.afterPublished = true
-	p.undoPublished = candidate.restoring
-	p.candidate = nil
 	return true, nil
 }
 

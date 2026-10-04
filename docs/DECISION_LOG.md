@@ -2963,3 +2963,26 @@ controls failed, preventing a vacuous qualification claim. An initial missing-Go
 PATH invocation and a new-test Ginkgo import collision were evaluator issues,
 corrected before these runs without changing production behavior or assertions.
 This is RED evidence, not completed implementation or release qualification.
+
+The independent assessment evaluator was tightened before qualification: displaced
+record/pending inodes are retained outside the inspected namespace, and fresh
+eligible proposals precede stale-consent refusal controls. This isolates changed
+consent from an unrelated unknown-name blocker. A terminal crash witness also
+now permits the constructor's initial publication-directory sync before its JSON
+slot exists; it still requires the actual terminal record and real directory sync
+before acknowledging the target kill boundary. These are evaluator corrections,
+not product defects or relaxed assertions. Broadened crash/fault cases do not
+count as isolated production RED while an earlier unsupported API blocks them.
+
+Root independently reran the helper/guard race qualification on 2026-10-04 UTC
+and read back /private/tmp/factory-r22-component-green.log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/budget ./internal/loop ./internal/transition -ginkgo.no-color -ginkgo.succinct
+Budget: 58/58 SUCCESS! 6.330724583s; package 8.445s
+Loop: 90/90 SUCCESS! 10.172179334s; package 11.754s
+Transition: 61/61 SUCCESS! 349.934083ms; package 2.175s
+```
+
+These include the original 51/82/47 and new 7/8/14 cases. This qualifies only
+the helper/guard stage; the recovery engine and crash/fault checks remain pending.

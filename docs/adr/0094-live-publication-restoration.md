@@ -11,7 +11,7 @@ v1 recovery sets contain checked reference bytes, not an applied forward action.
 An absent path or imported receipt must not manufacture restoration authority.
 This component derives reverse ownership from its own live publication and keeps
 that evidence private. It refines specs/001-go-runtime-conversion.md:168 and
-specs/001-go-runtime-conversion.md:195 without enabling the blocked public
+specs/001-go-runtime-conversion.md:321 without enabling the blocked public
 restoration planner described by ADR 0092.
 
 ## Source boundary and caller obligations
@@ -145,3 +145,17 @@ Complete v0.1.6 inventory/backup, transactional activation, legacy retirement,
 later-release retention, packaged target qualification and the adopter pilot
 remain separate required work. Existing public plans retain every false authority
 field. The installed shell dispatcher remains unchanged.
+
+## Pre-implementation qualification clarification
+
+The component inherits the trusted, quiescent filesystem namespace boundary in
+docs/adr/0091-durable-local-recovery-creation.md:96. Pinned identities, byte checks
+and immediate pre-rename revalidation are not atomic compare-and-swap against a
+hostile same-user writer. A caller must not present ordinary namespace checks as
+global quiescence or protection against an adversary restoring every observation.
+
+The missing new API may first produce a compile-time RED. An interface-only
+unsupported stub may then make the independent fixture executable, so actual
+replacement/restoration controls must also fail at runtime before behavioral
+implementation. Record those phases separately; a missing symbol does not prove
+an observed filesystem rollback defect.

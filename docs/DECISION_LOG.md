@@ -2724,3 +2724,8 @@ source deliverables: live restoration core, durable forward/reverse lifecycle,
 and public compatibility integration. The fixed denominator remains 30; only
 the first can earn 1/9 package after qualification and merge, moving 60.0% to
 60.4%. This does not close installed rollback or release acceptance.
+
+Pre-implementation clarification: preserve the trusted quiescent namespace
+boundary of ADR 0091. Rechecks do not provide atomic compare-and-swap against
+hostile same-user writes. Distinguish missing-API compile RED from subsequent
+independent runtime RED on interface-only unsupported stubs before behavior.

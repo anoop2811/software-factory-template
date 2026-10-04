@@ -22,7 +22,7 @@ type durableReviewFile struct {
 func durableReviewSnapshot(root string) map[string]durableReviewFile {
 	GinkgoHelper()
 	result := map[string]durableReviewFile{}
-	Expect(filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	Expect(filepath.WalkDir(root, func(path string, _ os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

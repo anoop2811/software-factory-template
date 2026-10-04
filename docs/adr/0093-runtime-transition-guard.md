@@ -69,6 +69,12 @@ before snapshot subprocesses and checkpoint admission through terminal publicati
 remove their marker only after a known refusal before any owned work or a
 durably terminal checkpoint with no uncertain ownership. Errors after loop work
 starts conservatively retain the marker.
+Some loop errors are converted to a terminal handoff checkpoint without retaining
+their original typed cause. Consequently only ordinary safe outcomes
+(`manual_passed`, `manual_failed`, `approved`, `attempt_limit`, `no_progress`,
+`repeated_failure`) may qualify cleanup after work starts, with terminal status
+and no uncertain/process ownership. Handoff or interrupted outcomes retain the
+marker; a terminal status by itself is not proof of harmless completion.
 
 Removal checks the exact originally created descriptor/path identity, unlinks
 only that marker and syncs the activity directory. Identity, close and sync

@@ -245,3 +245,21 @@ failures are operational; missing or unsafe target observations and changed
 identity, mode or ownership are conflicts. Reuse the existing assessment error
 classification rather than duplicating errno policy. Preserve the same typed
 uncertainty, private diagnostics, candidate, pending evidence and mutation limits.
+
+## Pre-correction retained storage observation refinement
+
+The latest advisory review identified the same classification inconsistency in
+the retained writer's ordinary checks. Two independent controls performed a
+successful actual named stat and then reported one-time EIO: immediately after
+candidate promotion and during explicit restore after successful apply. Both
+preserved the actual named inode, bytes and pending entry; later restoration and
+exact descriptor/flock release succeeded before status assertions failed with
+refusal 2 instead of operational 1.
+
+Separate descriptor and named-observation errors from metadata mismatches in
+every retained writer check, including root and ancestor observations. Reuse
+the existing assessment error classification: ordinary I/O is operational 1,
+while missing or unsafe names and actual identity, mode or ownership changes
+remain refusal 2. Keep validation order, cancellation, safe diagnostics and all
+ownership, mutation, durability and retry requirements unchanged. This corrects
+the existing status contract; it grants no new publication or recovery authority.

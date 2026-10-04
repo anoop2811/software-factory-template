@@ -2778,3 +2778,14 @@ of conflict 2. Reuse existing assessment classification for observation errors
 while retaining refusal for changed metadata. Keep candidate ownership, retry,
 typed uncertainty, pending preservation and safe diagnostics unchanged. The
 existing status contract remains ADR 0091:56; this grants no new recovery action.
+
+Before the retained storage observation correction, 2026-10-04 UTC: the latest
+advisory review identified ordinary writer checks reporting observation EIO as
+refusal 2. Two independent actual named-stat-then-EIO controls confirmed this
+after candidate promotion and during explicit restoration; preservation, later
+checked restoration and exact resource/flock release passed before the status
+assertions failed. Split observation errors from metadata mismatches in all
+retained writer checks and reuse existing assessment classification. Ordinary
+I/O remains operational 1; missing/unsafe names and actual metadata conflicts
+remain refusal 2. Keep ownership, cancellation, mutation and retry rules intact.
+See ADR 0094's retained storage observation refinement; no new authority is added.

@@ -146,14 +146,14 @@ def cleanup(process, child=None):
 @contextmanager
 def runtime_modules(f):
     """Load the fixture's runtime for deterministic OS-failure injection."""
-    modules = []
-    for name in ("budget_adapters", "budget"):
+    modules = {}
+    for name in ("runtime_transition", "budget_adapters", "budget"):
         spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
         module = importlib.util.module_from_spec(spec)
-        with mock.patch.dict(sys.modules, {"budget_adapters": modules[0]} if modules else {}):
+        with mock.patch.dict(sys.modules, modules):
             spec.loader.exec_module(module)
-        modules.append(module)
-    yield modules[1], modules[0]
+        modules[name] = module
+    yield modules["budget"], modules["budget_adapters"]
 
 
 @contextmanager
@@ -732,7 +732,7 @@ def delivery(f):
                 (target / "scripts/selftest/budget.sh").is_file(),
                 "installed CI invokes missing template-only budget.sh: " + workflow.name)
     assets = ("scripts/factory-budget.sh", "scripts/lib/budget.py", "scripts/lib/budget_adapters.py",
-              "docs/BUDGETS.md")
+              "scripts/lib/runtime_transition.py", "docs/BUDGETS.md")
     for relative in assets:
         require((target / relative).read_bytes() == (template / relative).read_bytes(),
                 "installer omitted/changed budget asset: " + relative)

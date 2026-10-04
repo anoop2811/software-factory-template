@@ -23,6 +23,7 @@ import time
 import uuid
 
 import budget_adapters
+import runtime_transition
 
 
 SCHEMA = 1
@@ -481,7 +482,23 @@ def run(args, config, ledger, root, prompt_text=None, response_callback=None, qu
         prompt = prompt_text if prompt_text is not None else Path(args.prompt_file).read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise BudgetError("cannot read --prompt-file: {}".format(exc)) from exc
-    budget_adapters.preflight(args.harness, args.role, root)
+    # Durable evidence covers preflight through terminal publication.
+    # docs/adr/0093-runtime-transition-guard.md:62.
+    guard = runtime_transition.shared(root)
+    try:
+        return _run_guarded(args, config, ledger, root, prompt, response_callback, quiet, deadline, initial, output, guard)
+    finally:
+        runtime_transition.release(guard, sys.exc_info()[1])
+
+
+def _run_guarded(args, config, ledger, root, prompt, response_callback, quiet, deadline, initial, output, guard):
+    # Only the actual supervised boundary can qualify a harmless refusal.
+    try:
+        budget_adapters.preflight(args.harness, args.role, root)
+    except budget_adapters.HarmlessPreflightError:
+        guard.clean = True
+        raise
+    guard.clean = True
     overrides = budget_adapters.environment(args.harness, args.role)
     argv, stdin_text = budget_adapters.build_command(
         args.harness, args.role, initial["model"], root, prompt)
@@ -513,6 +530,7 @@ def run(args, config, ledger, root, prompt_text=None, response_callback=None, qu
             "source": "not yet reported", "warnings": list(plan["warnings"]),
         }
         history["runs"].append(record)
+        guard.clean = False
         ledger.write(history)
 
     def on_spawn(pid):
@@ -582,6 +600,7 @@ def run(args, config, ledger, root, prompt_text=None, response_callback=None, qu
                     if "cost" in warning or "USD" in warning:
                         record["warnings"].append(warning)
             ledger.write(history)
+    guard.clean = record["status"] == "completed"
     output(record, args.json)
     if response_callback is not None:
         response_callback(dict(record), response)

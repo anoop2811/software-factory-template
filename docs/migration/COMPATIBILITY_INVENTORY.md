@@ -60,6 +60,14 @@ eval output/comparison (`scripts/golden-task-eval.sh:230`), prerequisites
 an explicit test-only rationale and exclusion from installed fallback/runtime
 discovery. Final shipped self-checks must not silently retain a Python dependency.
 
+Decision 92 adds `scripts/lib/runtime_transition.py` as a temporary G2
+coexistence shim, copied by legacy init/upgrade and Go init. Its only purpose
+is the shared [runtime transition guard](RUNTIME_TRANSITIONS.md); it adds no
+model, accounting or policy implementation. Retire this internal Python shim
+with the legacy controllers after qualified installation cutover. It does not
+expand the authenticated three-file binary bundle or historical baseline
+inventory, and its filename alone supplies no adopter deletion authority.
+
 ## Public surfaces requiring independent characterization
 
 This is the surface inventory and acceptance checklist, not evidence that every

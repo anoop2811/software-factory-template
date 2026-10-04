@@ -31,6 +31,145 @@ class UnconfirmedProcessError(ValueError):
         self.process_pid = process_pid
 
 
+class HarmlessPreflightError(ValueError):
+    """The actual preflight boundary establishes no remaining owned process."""
+
+
+def _group_stopped(process):
+    deadline = time.monotonic() + 1
+    while True:
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return True
+        except OSError:
+            return False
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.02)
+
+
+def _cleanup_probe(process, label, probe_error=None, cleanup_failed=False):
+    """Bounded cleanup shared by owned help and Codex capability probes."""
+    if process is not None:
+        kill_confirmed = exit_confirmed = False
+        try:
+            for signum in (signal.SIGTERM, signal.SIGKILL):
+                # Attempt final kill/reap after earlier errors and leader exit.
+                kill_confirmed = True
+                try:
+                    os.killpg(process.pid, signum)
+                except ProcessLookupError:
+                    pass
+                except OSError:
+                    kill_confirmed = False
+                    cleanup_failed = True
+                exit_confirmed = False
+                try:
+                    process.wait(timeout=1)
+                    exit_confirmed = True
+                except subprocess.TimeoutExpired:
+                    pass
+                except OSError:
+                    cleanup_failed = True
+        finally:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except OSError:
+                        cleanup_failed = True
+        if not kill_confirmed or not exit_confirmed or not _group_stopped(process):
+            message = (label + " exit is unconfirmed; confirm process group {} "
+                       "has stopped before retrying".format(process.pid))
+            if probe_error is not None:
+                message += "; " + str(probe_error)
+            raise UnconfirmedProcessError(process.pid, message) from probe_error
+    if cleanup_failed:
+        message = label + " cleanup failed; repair the local installation"
+        if probe_error is not None:
+            message += "; " + str(probe_error)
+        raise ValueError(message) from probe_error
+
+
+def _command_probe(argv, root, allowance, limit, input_bytes=None, combined=False, label="Local command probe"):
+    """Own a literal local tool, bounded channels and its entire process group."""
+    process = None
+    poller = selectors.DefaultSelector()
+    output = bytearray()
+    total = 0
+    probe_error = None
+    deadline = time.monotonic() + allowance
+    try:
+        process = subprocess.Popen(argv, cwd=root,
+                                   stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT if combined else subprocess.PIPE,
+                                   start_new_session=True)
+        for stream in (process.stdout, process.stderr):
+            if stream is not None:
+                os.set_blocking(stream.fileno(), False)
+                poller.register(stream, selectors.EVENT_READ)
+        pending = memoryview(input_bytes or b"")
+        if process.stdin is not None:
+            if pending:
+                os.set_blocking(process.stdin.fileno(), False)
+                poller.register(process.stdin, selectors.EVENT_WRITE)
+            else:
+                process.stdin.close()
+        while poller.get_map() or process.poll() is None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ValueError("local probe deadline expired")
+            for key, _mask in poller.select(min(remaining, 0.05)):
+                stream = key.fileobj
+                if stream is process.stdin:
+                    try:
+                        written = os.write(stream.fileno(), pending[:65536])
+                        pending = pending[written:]
+                    except BrokenPipeError:
+                        pending = memoryview(b"")
+                    if not pending:
+                        poller.unregister(stream)
+                        stream.close()
+                else:
+                    chunk = os.read(stream.fileno(), 65536)
+                    if not chunk:
+                        poller.unregister(stream)
+                    else:
+                        total += len(chunk)
+                        if total > limit:
+                            raise ValueError("local probe output exceeds its limit")
+                        if stream is process.stdout:
+                            output.extend(chunk)
+    except (OSError, ValueError):
+        probe_error = ValueError("local command probe failed")
+        raise probe_error from None
+    finally:
+        cleanup_failed = False
+        try:
+            poller.close()
+        except OSError:
+            cleanup_failed = True
+        _cleanup_probe(process, label, probe_error, cleanup_failed)
+    return subprocess.CompletedProcess(argv, process.returncode, bytes(output))
+
+
+def _help_probe(binary, args, root, harness):
+    # Waiting for the leader does not establish descendant exit.
+    # docs/adr/0093-runtime-transition-guard.md:100.
+    try:
+        result = _command_probe([binary] + args, root, 10, 2 * 1024 * 1024,
+                                combined=True, label="Native CLI help probe")
+    except UnconfirmedProcessError:
+        raise
+    except (OSError, ValueError):
+        raise ValueError(harness + " CLI help failed; repair the local installation") from None
+    if result.returncode != 0:
+        raise ValueError(harness + " CLI help failed; repair the local installation")
+    return result.stdout.decode("utf-8", errors="replace")
+
+
 def _role_edit_permission(root, role):
     try:
         config = json.loads((pathlib.Path(root) / "opencode.json").read_text(encoding="utf-8"))
@@ -101,53 +240,10 @@ def _codex_hook_preflight(binary, root, flags):
     finally:
         cleanup_failed = False
         try:
-            try:
-                poller.close()
-            except OSError:
-                cleanup_failed = True
-        finally:
-            if process is not None:
-                kill_confirmed = exit_confirmed = False
-                try:
-                    for signum in (signal.SIGTERM, signal.SIGKILL):
-                        # Still attempt the final kill/reap after an earlier OS
-                        # error, and terminate descendants after server exit.
-                        kill_confirmed = True
-                        try:
-                            os.killpg(process.pid, signum)
-                        except ProcessLookupError:
-                            pass
-                        except OSError:
-                            kill_confirmed = False
-                            cleanup_failed = True
-                        exit_confirmed = False
-                        try:
-                            process.wait(timeout=1)
-                            exit_confirmed = True
-                        except subprocess.TimeoutExpired:
-                            pass
-                        except OSError:
-                            cleanup_failed = True
-                finally:
-                    for stream in (process.stdin, process.stdout):
-                        try:
-                            stream.close()
-                        except OSError:
-                            cleanup_failed = True
-                if not kill_confirmed or not exit_confirmed:
-                    # docs/DECISION_LOG.md:1746 — neither a parsing failure nor
-                    # cleanup OS errors may hide unconfirmed process ownership.
-                    message = ("Codex hook capability probe exit is unconfirmed; "
-                               "confirm process group {} has stopped before retrying".format(process.pid))
-                    if probe_error is not None:
-                        message += "; " + str(probe_error)
-                    raise UnconfirmedProcessError(process.pid, message) from probe_error
-        if cleanup_failed:
-            # Keep OS details out of the persisted loop stop reason.
-            message = "Codex hook capability probe cleanup failed; repair the local installation"
-            if probe_error is not None:
-                message += "; " + str(probe_error)
-            raise ValueError(message) from probe_error
+            poller.close()
+        except OSError:
+            cleanup_failed = True
+        _cleanup_probe(process, "Codex hook capability probe", probe_error, cleanup_failed)
     try:
         effective = responses[2]["result"]["config"]
         features = effective.get("features", {}) or {}
@@ -192,6 +288,17 @@ def _role_text(root, role, directory=".opencode/agent"):
 
 
 def preflight(harness, role, root):
+    try:
+        return _preflight(harness, role, root)
+    except UnconfirmedProcessError:
+        raise
+    except ValueError as error:
+        # Unknown injected exceptions never receive this proof at the controller.
+        # docs/adr/0093-runtime-transition-guard.md:113.
+        raise HarmlessPreflightError(str(error)) from error
+
+
+def _preflight(harness, role, root):
     """Read local roles and CLI help only; no provider or agent invocation."""
     if harness not in HELP:
         raise ValueError("unsupported harness")
@@ -204,17 +311,8 @@ def preflight(harness, role, root):
     if not binary:
         raise ValueError(harness + " CLI is missing; install it before budget run")
     args, flags = HELP[harness]
-    try:
-        result = subprocess.run(
-            [binary] + args, cwd=root, stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            timeout=10, check=False, encoding="utf-8", errors="replace",
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        raise ValueError(harness + " CLI help failed; repair the local installation") from None
-    if result.returncode != 0:
-        raise ValueError(harness + " CLI help failed; repair the local installation")
-    missing = [flag for flag in flags if not re.search(re.escape(flag) + r"\b", result.stdout)]
+    help_text = _help_probe(binary, args, root, harness)
+    missing = [flag for flag in flags if not re.search(re.escape(flag) + r"\b", help_text)]
     if missing:
         raise ValueError(harness + " CLI lacks required flags: " + ", ".join(missing))
     if harness == "codex":

@@ -277,14 +277,15 @@ var _ = Describe("G2 budget command native output", func() {
 		Expect(strings.Count(out.stdout, "\n")).To(Equal(2))
 	})
 	// per docs/adr/0071-go-budget-command-candidate.md:68
+	// per docs/adr/0093-runtime-transition-guard.md:64
 	It("emits no plan after native preflight refusal", func() {
 		root, cwd := budgetCLIFixture()
 		out := budgetCLILive(root, cwd, []string{"run", "--session=s", "--task=t", "--harness=claude", "--role=reviewer", "--prompt-file=prompt.txt"}, "CONTROLLER_FIXTURE_MODE=bad-help")
 		Expect(out.status).To(Equal(2))
 		Expect(out.stdout).To(BeEmpty())
 		Expect(out.stderr).To(HavePrefix("factory budget: "))
-		_, err := os.Stat(filepath.Join(root, ".factory"))
-		Expect(os.IsNotExist(err)).To(BeTrue())
+		transitionHarmlessRefusal(root)
+		controllerPreflightOnly(cwd)
 	})
 	// per docs/adr/0071-go-budget-command-candidate.md:38
 	It("returns a failed native status with two JSON metadata events", func() {

@@ -39,6 +39,7 @@ func defaultProcessOps() processOps {
 }
 
 type runOptions struct {
+	argv0       string
 	errorOutput io.Writer
 	environment []string
 	limit       int
@@ -183,6 +184,9 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		return result, errors.New("cannot resolve native harness")
 	}
 	command := exec.Command(binary, plan.Argv[1:]...) // #nosec G204 -- admitted argv is literal; only ExecuteCheck intentionally selects the user-configured shell.
+	if options.argv0 != "" {
+		command.Args[0] = options.argv0
+	}
 	command.Dir = plan.Root
 	command.Env = mergedEnvironment(plan.Environment)
 	if options.environment != nil {
@@ -301,7 +305,7 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if len(result.Stdout) > options.limit {
 		result.Outcome = "output_limit"
 	}
-	if signalErr != nil || !result.ExitConfirmed || !drained {
+	if signalErr != nil || !result.ExitConfirmed || !drained || !groupStopped(cleanupCtx, result.ProcessPID) {
 		result.OwnershipUnconfirmed = true
 		if result.Outcome == "completed" {
 			result.Outcome = "failed"
@@ -313,6 +317,26 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	}
 	return result, returned
 }
+
+// Acknowledged termination and leader reap do not prove descendant exit.
+// Share the existing cleanup deadline: docs/adr/0093-runtime-transition-guard.md:195.
+func groupStopped(ctx context.Context, pid int) bool {
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for ctx.Err() == nil {
+		err := syscall.Kill(-pid, 0)
+		if errors.Is(err, syscall.ESRCH) {
+			return ctx.Err() == nil
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
+	}
+	return false
+}
+
 func contextOutcome(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "timeout"

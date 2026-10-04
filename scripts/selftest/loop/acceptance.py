@@ -167,7 +167,7 @@ def prepared_controller(f, harness="codex"):
     (f.root / "product.txt").write_text("good\n")
     f.run(mode="manual")
     modules = {}
-    for name in ("budget_adapters", "budget", "loop"):
+    for name in ("runtime_transition", "budget_adapters", "budget", "loop"):
         spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
         module = importlib.util.module_from_spec(spec)
         with mock.patch.dict(sys.modules, modules):
@@ -198,7 +198,7 @@ def prepared_controller(f, harness="codex"):
 @contextmanager
 def stuck_probe(adapters, root, malformed=False, cleanup_failure=None):
     """No real orphan: OS pipes/select/read and failed reaping are deterministic."""
-    process = SimpleNamespace(pid=424242, poll=lambda: None)
+    process = SimpleNamespace(pid=424242, poll=lambda: None, stderr=None)
     process.stdin, process.stdout = [tempfile.TemporaryFile() for _ in range(2)]
     waits = []
 
@@ -511,7 +511,7 @@ def pack_patterns(f):
 @test("budget admission deadline is checked after waiting for ledger lock before native spawn")
 def admission_deadline(f):
     modules = {}
-    for name in ("budget_adapters", "budget"):
+    for name in ("runtime_transition", "budget_adapters", "budget"):
         spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
         module = importlib.util.module_from_spec(spec)
         with mock.patch.dict(sys.modules, modules):
@@ -554,7 +554,7 @@ def uncertain_completion(f):
     # failure and unconfirmed subprocess result, without creating an orphan.
     f.run(fixture="implement_fail", expected=None)
     modules = {}
-    for name in ("budget_adapters", "budget", "loop"):
+    for name in ("runtime_transition", "budget_adapters", "budget", "loop"):
         spec = importlib.util.spec_from_file_location(name, f.root / "scripts/lib" / (name + ".py"))
         module = importlib.util.module_from_spec(spec)
         with mock.patch.dict(sys.modules, modules):
@@ -699,7 +699,25 @@ def unmerged(f):
                             capture_output=True, text=True, timeout=10)
     require(result.returncode == 0, "cannot construct unmerged fixture: " + result.stderr)
     f.run(expected=None)
-    require(not f.invoked() and not (f.root / ".factory").exists(), "unmerged index performed work")
+    require(not f.invoked(), "unmerged index invoked a check or model")
+    directory = f.root / ".factory"
+    require(not (directory / "budget.json").exists() and not (directory / "loops.json").exists(),
+            "unmerged index published budget or checkpoint history")
+    require({entry.name for entry in directory.iterdir()} == {"runtime-transition.lock", "runtime-activity"},
+            "unmerged index created unrelated state")
+    lock = directory / "runtime-transition.lock"
+    require(lock.is_file() and not lock.is_symlink() and lock.stat().st_nlink == 1
+            and stat.S_IMODE(lock.stat().st_mode) == 0o600 and lock.read_bytes() == b"",
+            "unmerged index left unsafe transition exclusion")
+    activity = directory / "runtime-activity"
+    require(activity.is_dir() and not activity.is_symlink() and stat.S_IMODE(activity.stat().st_mode) == 0o700,
+            "unmerged index left unsafe transition activity")
+    entries = list(activity.iterdir())
+    require(len(entries) == 1, "unmerged execution snapshot lost conservative activity evidence")
+    marker = entries[0]
+    require(marker.is_file() and not marker.is_symlink() and marker.stat().st_nlink == 1
+            and stat.S_IMODE(marker.stat().st_mode) == 0o600 and marker.read_bytes() == b"",
+            "unmerged execution snapshot left unsafe activity evidence")
 
 
 @test("private checkpoints omit prompt, agent answers, raw logs and secrets")
@@ -835,7 +853,8 @@ def delivery(f):
     result = subprocess.run(["bash", str(template / "scripts/factory-init.sh"), str(target), "--pack", "none"],
                             cwd=f.root, env=environment, input=answers, capture_output=True, text=True, timeout=60)
     require(result.returncode == 0, "installer failed: " + result.stdout + result.stderr)
-    assets = ("scripts/factory-loop.sh", "scripts/lib/loop.py", "scripts/lib/budget-config.sh", "docs/LOOPS.md")
+    assets = ("scripts/factory-loop.sh", "scripts/lib/loop.py", "scripts/lib/budget-config.sh",
+              "scripts/lib/runtime_transition.py", "docs/LOOPS.md")
     for relative in assets:
         require((target / relative).is_file(), "installer missing delivery asset " + relative)
         require((target / relative).read_bytes() == (template / relative).read_bytes(), "changed delivery asset " + relative)

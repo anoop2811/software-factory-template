@@ -2846,3 +2846,13 @@ specs/001-go-runtime-conversion.md:482. Correct the older compatibility inventor
 wording; actual platform/authentication qualification remains pending, while
 specs/001-go-runtime-conversion.md:484 still leaves detailed Q5 pilot criteria
 open. Existing approvals are not additional unfinished approval tasks.
+
+Before required-record parser correction, 2026-10-04 UTC: two independent
+actual empty-replacement records passed their valid baseline, then inspection
+incorrectly accepted an omitted required `after.bytes` field or JSON null.
+Preservation and false-authority checks passed before status assertions failed.
+Clarify ADR 0095's closed shape: all declared top-level/nested keys are required,
+including nullable identity keys; only phase-eligible identity values may be
+null. Reject missing fields and null required scalars without changing v1 sets,
+inspection authority, live ownership or pending rules. This is source-test
+evidence, not a released incident.

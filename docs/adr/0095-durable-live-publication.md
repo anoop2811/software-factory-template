@@ -190,3 +190,19 @@ Only qualified and merged R2.1 earns 1/18 of the existing package:
 `(18 + 1/9 + 1/18) / 30 = 60.5556%`, reported 60.6%. R2 stays partial until
 R2.2 qualifies; public R3 and all activation/retirement/retention/release gates
 remain open. Work packages, PRs and effort are separate measures.
+
+## Required record shape refinement
+
+Before parser hardening, two independent actual-record controls observed an
+empty replacement's required `after.bytes` field being omitted or replaced by
+JSON null while inspection still classified the record as checked. Both valid
+record baselines passed; preservation and inert-authority checks passed before
+the malformed-record status assertions failed. This is injected source-test
+evidence, not a released incident.
+
+The closed record format requires every declared top-level and nested field.
+Nullable identity fields may contain null only where their phase permits it;
+their keys still must exist. Required scalar values cannot be null. Enforce
+presence and type alongside duplicate/unknown-key, phase and bound validation.
+Keep inspection inert and preserve malformed evidence without changing v1
+saved-set formats or reconstructing a live capability.

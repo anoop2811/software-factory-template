@@ -2702,3 +2702,25 @@ Qualification clarification, 2026-10-04 UTC: bounded group inspection may retry
 non-absence observations within the existing cleanup deadline. Success requires
 a later explicit ESRCH before expiry; no permission or inspection error is
 absence evidence. Persistent errors and remaining groups retain typed ownership.
+
+## Decision 93 (2026-10-04 UTC): derive restoration from live publication ownership
+
+Adopt ADR 0094 before source changes. An imported v1 reference set cannot prove
+that the factory changed a destination. Build a replacement-only live component
+whose opaque ownership handle comes from an actual qualified publication. Fresh
+exact consent and an inert checked original remain separate inputs; the handle
+may restore only its own unchanged after-inode/content/mode under the same
+exclusive guard. No new public rollback or activation command is enabled.
+
+Durable fixed pending evidence precedes active mutation. Cooperating Go/Python
+guards refuse any such evidence; unfinished close or crash preserves it. Only a
+checked durable reversal can clear the exact owned pending entry. Join cleanup
+errors without losing primary publication uncertainty. Future consumers retain
+target/state/activation and unbridged-quiescence obligations. See
+[ADR 0094](adr/0094-live-publication-restoration.md).
+
+Define the remaining backup/rollback third before implementation as three equal
+source deliverables: live restoration core, durable forward/reverse lifecycle,
+and public compatibility integration. The fixed denominator remains 30; only
+the first can earn 1/9 package after qualification and merge, moving 60.0% to
+60.4%. This does not close installed rollback or release acceptance.

@@ -20,3 +20,20 @@ ok github.com/anoop2811/software-factory-template/acceptance 41.092s
 
 The command ran through `rtk proxy` with the task Go cache and qualified Python
 3.12.14 PATH. Unselected specs account for the focus skips; no selected case skipped.
+
+Retaining the actual file also has to survive a failed observation after rename.
+An explicit retry must qualify that candidate before accepting its state; the
+canonical requirement is docs/adr/0094-live-publication-restoration.md:214.
+Provenance: observed 2026-10-04 UTC via four actual-rename, actual-stat-then-EIO
+Ginkgo controls before correction, followed by this independent corrected run:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=120s -v ./internal/assessment -ginkgo.focus='Live publication retained candidate' -ginkgo.no-color
+Ran 26 of 187 Specs in 1.335 seconds
+SUCCESS! -- 26 Passed | 0 Failed | 0 Pending | 161 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 2.692s
+```
+
+This command ran through `rtk proxy` with the task Go cache. The four original
+regressions were independently RED; the remaining controls include conflicts
+that already refused. This is injected source-test evidence, not an incident.

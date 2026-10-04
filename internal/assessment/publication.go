@@ -45,6 +45,7 @@ type publicationState struct {
 	mode           os.FileMode
 	stages         []*filepublish.Stage
 	detached       []*os.File
+	candidate      *publicationCandidate
 	applyUsed      bool
 	changed        bool
 	afterPublished bool
@@ -54,6 +55,12 @@ type publicationState struct {
 	finished       bool
 	closed         bool
 	lastError      error
+}
+
+type publicationCandidate struct {
+	pin       *writePin
+	data      []byte
+	restoring bool
 }
 
 // PublicationError preserves uncertainty after an attempted active rename.

@@ -17,6 +17,7 @@ type recoveryWriteOps struct {
 	write         func(context.Context, *os.File, []byte) (int, error)
 	writeAt       func(context.Context, *os.File, []byte, int64) (int, error)
 	read          func(context.Context, *os.File, []byte) (int, error)
+	named         func(*os.File, string) (unix.Stat_t, error)
 	syncFile      func(context.Context, *os.File) error
 	syncDirectory func(context.Context, *os.File) error
 	close         func(*os.File) error
@@ -72,6 +73,13 @@ func (w *recoveryWriter) closeFile(file *os.File) error {
 	return file.Close()
 }
 
+func (w *recoveryWriter) named(parent *os.File, name string) (unix.Stat_t, error) {
+	if w.ops.named != nil {
+		return w.ops.named(parent, name)
+	}
+	return named(parent, name)
+}
+
 // All named identities and immutable metadata stay pinned. A successful owned
 // mutation refreshes only its exact file/parent, never an unexplained ancestor.
 // docs/adr/0091-durable-local-recovery-creation.md:98.
@@ -88,7 +96,7 @@ func (w *recoveryWriter) check(ctx context.Context) error {
 		if i == 0 {
 			err = unix.Fstatat(unix.AT_FDCWD, entry.name, &location, unix.AT_SYMLINK_NOFOLLOW)
 		} else {
-			location, err = named(w.chain[i-1].file, entry.name)
+			location, err = w.named(w.chain[i-1].file, entry.name)
 		}
 		if err != nil || !sameIdentity(location, entry.identity) || location.Mode != entry.identity.Mode || location.Uid != entry.identity.Uid || location.Gid != entry.identity.Gid {
 			return failure(2, "recovery installation ancestry changed")
@@ -100,7 +108,7 @@ func (w *recoveryWriter) check(ctx context.Context) error {
 			return failure(2, "recovery storage or selected input changed")
 		}
 		if pin.parent != nil {
-			location, err := named(pin.parent, pin.name)
+			location, err := w.named(pin.parent, pin.name)
 			if err != nil || !writeUnchanged(pin.stat, location) {
 				return failure(2, "recovery storage or selected input changed")
 			}
@@ -111,17 +119,32 @@ func (w *recoveryWriter) check(ctx context.Context) error {
 
 func (w *recoveryWriter) refresh(pin *writePin) error {
 	current, err := descriptor(pin.file)
-	if err != nil || !sameIdentity(pin.stat, current) || current.Mode != pin.stat.Mode || current.Uid != pin.stat.Uid || current.Gid != pin.stat.Gid {
+	if err != nil {
+		return observationError(err, "cannot observe recovery mutation identity")
+	}
+	if !sameIdentity(pin.stat, current) || current.Mode != pin.stat.Mode || current.Uid != pin.stat.Uid || current.Gid != pin.stat.Gid {
 		return failure(2, "recovery mutation identity changed")
 	}
 	if pin.parent != nil {
-		location, err := named(pin.parent, pin.name)
-		if err != nil || !writeUnchanged(current, location) {
+		location, err := w.named(pin.parent, pin.name)
+		if err != nil {
+			return observationError(err, "cannot observe recovery mutation identity")
+		}
+		if !writeUnchanged(current, location) {
 			return failure(2, "recovery mutation identity changed")
 		}
 	}
 	pin.stat = current
 	return nil
+}
+
+// Observation I/O is operational; missing or unsafe names are preserved conflicts.
+// docs/adr/0094-live-publication-restoration.md:244.
+func observationError(err error, message string) error {
+	if classification(err) == "assessment_error" {
+		return failure(1, message)
+	}
+	return failure(2, message)
 }
 
 func (w *recoveryWriter) open(ctx context.Context, parent *os.File, name string, flags int, mode uint32) (*os.File, error) {
@@ -150,7 +173,7 @@ func (w *recoveryWriter) directory(ctx context.Context, parent *writePin, name s
 			return pin, nil
 		}
 	}
-	before, err := named(parent.file, name)
+	before, err := w.named(parent.file, name)
 	if errors.Is(err, unix.ENOENT) && create {
 		if err := unix.Mkdirat(int(parent.file.Fd()), name, 0700); err != nil {
 			return nil, creationError(err, "cannot exclusively create recovery directory")
@@ -159,7 +182,7 @@ func (w *recoveryWriter) directory(ctx context.Context, parent *writePin, name s
 		if err := w.refresh(parent); err != nil {
 			return nil, err
 		}
-		before, err = named(parent.file, name)
+		before, err = w.named(parent.file, name)
 	}
 	if err != nil || !trustedDirectory(before, private) {
 		return nil, failure(2, "unsafe or unavailable recovery directory")
@@ -182,7 +205,7 @@ func (w *recoveryWriter) existingFile(ctx context.Context, parent *writePin, nam
 	if err := w.check(ctx); err != nil {
 		return nil, err
 	}
-	before, err := named(parent.file, name)
+	before, err := w.named(parent.file, name)
 	if err != nil || !ownedFile(before, limit) || private && before.Mode&07777 != 0600 {
 		return nil, failure(2, "unsafe or unavailable recovery file")
 	}

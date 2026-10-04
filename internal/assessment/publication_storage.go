@@ -173,14 +173,23 @@ func (p *publicationState) checkedBackup(ctx context.Context, id string, referen
 }
 
 func (p *publicationState) check(ctx context.Context) error {
+	if p.candidate != nil {
+		if _, err := p.reconcile(ctx); err != nil {
+			return err
+		}
+	}
+	return p.checkState(ctx, p.w, p.current, p.expected)
+}
+
+func (p *publicationState) checkState(ctx context.Context, writer *recoveryWriter, selected *writePin, expected []byte) error {
 	if err := p.guard.Check(ctx); err != nil {
 		return errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
-	if err := p.w.check(ctx); err != nil {
+	if err := writer.check(ctx); err != nil {
 		return err
 	}
 	if p.pending != nil && p.pendingClosed && !p.pendingRemoved {
-		current, err := named(p.factory.file, publicationPending)
+		current, err := writer.named(p.factory.file, publicationPending)
 		if err != nil || !writeUnchanged(p.pending.stat, current) {
 			return failure(2, "publication pending ownership changed")
 		}
@@ -188,11 +197,11 @@ func (p *publicationState) check(ctx context.Context) error {
 	for _, value := range []struct {
 		pin  *writePin
 		data []byte
-	}{{p.current, p.expected}, {p.saved, p.original}} {
+	}{{selected, expected}, {p.saved, p.original}} {
 		if value.pin == nil {
 			continue
 		}
-		data, err := p.w.read(ctx, value.pin, assetLimit)
+		data, err := writer.read(ctx, value.pin, assetLimit)
 		if err != nil {
 			return err
 		}
@@ -264,9 +273,10 @@ func (p *publicationState) publish(ctx context.Context, data []byte, restoring b
 	// Arbitrary named metadata can never supply reverse ownership.
 	// docs/adr/0094-live-publication-restoration.md:78.
 	p.changed = true
+	p.candidate = &publicationCandidate{pin: pin, data: data, restoring: restoring}
 	err = rename(ctx, stage, p.name)
-	adoptErr := p.adoptPublished(pin, data, restoring)
-	if err != nil || adoptErr != nil {
+	published, adoptErr := p.reconcile(ctx)
+	if err != nil || adoptErr != nil || !published {
 		return errors.Join(failure(1, "cannot confirm publication rename"), adoptErr, ctx.Err())
 	}
 	if err := p.check(ctx); err != nil {
@@ -275,20 +285,82 @@ func (p *publicationState) publish(ctx context.Context, data []byte, restoring b
 	return p.w.sync(ctx, p.parent)
 }
 
-func (p *publicationState) adoptPublished(pin *writePin, data []byte, restoring bool) error {
-	current, err := descriptor(pin.file)
-	location, locationErr := named(p.parent.file, p.name)
-	if err != nil || locationErr != nil || !sameIdentity(pin.stat, current) || !writeUnchanged(current, location) ||
-		current.Mode != pin.stat.Mode || current.Uid != pin.stat.Uid || current.Gid != pin.stat.Gid || current.Nlink != 1 || current.Size != pin.stat.Size || current.Mtim != pin.stat.Mtim {
-		return failure(2, "published inode ownership changed")
+// A retained candidate is qualified through a read-only view before promotion.
+// Only its own parent metadata may be refreshed; every other pin stays intact.
+// docs/adr/0094-live-publication-restoration.md:214.
+func (p *publicationState) reconcile(ctx context.Context) (bool, error) {
+	if err := p.guard.Check(ctx); err != nil {
+		return false, errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
-	p.forget(p.current)
-	p.detached = append(p.detached, p.current.file)
-	pin.name, pin.stat = p.name, current
-	p.current, p.expected = pin, data
+	candidate := p.candidate
+	current, err := descriptor(candidate.pin.file)
+	location, locationErr := p.w.named(p.parent.file, p.name)
+	if err != nil {
+		return false, errors.Join(observationError(err, "cannot observe publication candidate"), ctx.Err())
+	}
+	if locationErr != nil {
+		return false, errors.Join(observationError(locationErr, "cannot observe publication candidate"), ctx.Err())
+	}
+	prepared := candidate.pin.stat
+	if !sameIdentity(prepared, current) || current.Mode != prepared.Mode || current.Uid != prepared.Uid || current.Gid != prepared.Gid ||
+		current.Nlink != 1 || current.Size != prepared.Size || current.Mtim != prepared.Mtim {
+		return false, failure(2, "published inode ownership changed")
+	}
+	if !writeUnchanged(current, location) {
+		// An unrenamed attempt may abort only with both old and staging pins intact.
+		// docs/adr/0094-live-publication-restoration.md:224.
+		if !writeUnchanged(p.current.stat, location) {
+			return false, failure(2, "published inode ownership changed")
+		}
+		if err := p.checkState(ctx, p.w, p.current, p.expected); err != nil {
+			return false, err
+		}
+		data, err := p.w.read(ctx, candidate.pin, assetLimit)
+		if err != nil {
+			return false, err
+		}
+		if !bytes.Equal(data, candidate.data) {
+			return false, failure(2, "prepared publication bytes changed")
+		}
+		p.candidate = nil
+		return false, nil
+	}
+
+	parent, published := *p.parent, *candidate.pin
+	published.name, published.stat = p.name, current
+	view := *p.w
+	view.pins = make([]*writePin, 0, len(p.w.pins))
+	for _, pin := range p.w.pins {
+		switch pin {
+		case candidate.pin:
+			view.pins = append(view.pins, &published)
+		case p.current:
+			// The exact prior target became detached through this attempted rename.
+		case p.parent:
+			view.pins = append(view.pins, &parent)
+		default:
+			view.pins = append(view.pins, pin)
+		}
+	}
+	if err := view.refresh(&parent); err != nil {
+		return false, err
+	}
+	if err := p.checkState(ctx, &view, &published, candidate.data); err != nil {
+		return false, err
+	}
+	// Promotion happens under the shared lifecycle mutex after complete validation.
+	// docs/adr/0094-live-publication-restoration.md:218.
+	if p.current != candidate.pin {
+		p.forget(p.current)
+		p.detached = append(p.detached, p.current.file)
+	}
+	p.parent.stat = parent.stat
+	*candidate.pin = published
+	p.current, p.expected = candidate.pin, candidate.data
 	p.afterPublished = true
-	p.undoPublished = restoring
-	return p.w.refresh(p.parent)
+	p.undoPublished = candidate.restoring
+	p.candidate = nil
+	return true, nil
 }
 
 func (p *publicationState) removePending(ctx context.Context) error {

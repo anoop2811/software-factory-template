@@ -30,6 +30,13 @@ set, pins the current file and creates durable empty 0600 evidence at
 preparer. After replacement, the handle retains the actual published inode,
 bytes and complete mode. It does not accept an imported ownership receipt.
 
+A rename attempt retains that actual prepared candidate and its direction before
+fallible observations. If an observation fails, an explicit retry checks the
+candidate's named identity, complete mode and bytes, the saved original, pending
+evidence and ancestry before accepting its state. A failed check preserves the
+candidate without adopting foreign edits. When a reverse rename already restored
+the original, retry completes durability without another rename.
+
 Restore checks that the owned after-image remains unchanged before preparing
 and publishing the original. A later edit, chmod, replacement, deletion, link,
 unsafe ancestor or changed backup is a preserved conflict. Identical bytes in
@@ -123,7 +130,8 @@ behind one private shared state made the same control restore the actual origina
 and made every alias observe the same closed state. Six additional nil/zero-state
 controls were written after that correction; they are not independent RED claims.
 
-The final independent spec-writer race qualification on frozen source used:
+The initial independent spec-writer race qualification, before the later
+post-rename observation correction, used:
 
 ```text
 FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race -timeout=120s -v ./acceptance -ginkgo.focus='Live publication' -ginkgo.no-color
@@ -140,7 +148,8 @@ transition: 47/47 SUCCESS! 0.310s; package ok 1.930s
 These commands ran through `rtk proxy` with the task Go cache; the external
 command also used the existing qualified Python 3.12.14 PATH. The internal
 lines condense suite/package output. No selected external or internal case
-skipped. This change adds 118 cases across six files: 85 external and 33 internal.
+skipped. That initial change added 118 cases across six files: 85 external and
+33 internal.
 Real SIGKILL controls cover both prepared and applied handles, confirm that the
 OS flock became available, and still observe Go/Python refusal before help/check
 execution. The engine's no-subprocess test starts after production backup creation.
@@ -149,3 +158,50 @@ Scoped canonical Go-pack lint over assessment, filepublish, transition and
 acceptance reported `0 issues.`; `git diff --check` exited 0. Complete repository
 qualification, final independent review and current-head hosted Linux/macOS
 checks are separate publication requirements recorded in the pull request.
+
+Subsequent independent real-rename controls reproduced stale ownership after
+one-time target or parent observation EIO in both publication directions. Those
+four controls failed before correction. An expanded run then passed preservation
+and exact resource-release checks before four status assertions failed: repeated
+parent EIO reported refusal instead of an operational error, and actual target
+deletion reported an operational error instead of conflict. A separate no-fault
+fixture witness was corrected; that was not a product defect.
+
+The corrected source adds 26 controls: four original retry regressions, two
+no-fault controls, four repeated-EIO controls and sixteen conflict controls. The
+PR now adds 144 cases across the same six files: 85 external, 45 assessment,
+eight staging and six transition cases. Only the observed regression/status
+controls are independent RED claims; already-refusing conflicts are coverage.
+
+Final independent spec-writer qualification on the corrected frozen source:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=120s -v ./internal/assessment -ginkgo.focus='Live publication retained candidate' -ginkgo.no-color
+Ran 26 of 187 Specs in 1.335 seconds
+SUCCESS! -- 26 Passed | 0 Failed | 0 Pending | 161 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 2.692s
+
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=180s -v ./internal/assessment ./internal/filepublish ./internal/transition -ginkgo.no-color
+assessment: 187/187 SUCCESS! 11.520s; package ok 12.867s
+filepublish: 11/11 SUCCESS! 0.085s; package ok 1.671s
+transition: 47/47 SUCCESS! 0.430s; package ok 2.277s
+```
+
+Commands ran through `rtk proxy` with the task Go cache. The internal lines
+condense observed suite/package output. All 245 affected cases passed without
+selected skips. Canonical scoped pack lint reported `0 issues.` again.
+
+The parent reviewer also requalified the unchanged 85 external cases against
+the corrected source, with both compiled-child and outer race instrumentation:
+
+```text
+FACTORY_AGENT_ROLE=reviewer FACTORY_CLI_TEST_RACE=1 go test -race -count=1 -timeout=120s -v ./acceptance -ginkgo.focus='Live publication' -ginkgo.no-color
+Ran 85 of 2467 Specs in 37.092 seconds
+SUCCESS! -- 85 Passed | 0 Failed | 0 Pending | 2382 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 38.601s
+```
+
+This command ran through `rtk proxy` with the task Go cache and qualified Python
+3.12.14 PATH. No selected case skipped. Final independent correctness and security
+reviews found no surviving findings. Full repository and hosted qualification
+on the committed head remain separate publication gates recorded in the PR.

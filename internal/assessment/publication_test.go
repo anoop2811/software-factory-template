@@ -470,3 +470,337 @@ var _ = Describe("Live publication invalid prepared descriptor cleanup", func() 
 		recoveryClosed(*files)
 	}, Entry("safe metadata refusal with confirmed close", false), Entry("metadata refusal plus actual close then EIO", true))
 })
+
+// Per-operation observation controls retain descriptors obtained from the real
+// shared preparer. They report one EIO only after successful actual Fstatat.
+// per docs/adr/0094-live-publication-restoration.md:231
+// per docs/adr/0094-live-publication-restoration.md:234
+type publicationObservationWitness struct {
+	renames   int
+	faulted   bool
+	failures  int
+	allowance int
+	qualified bool
+	prepared  *os.File
+}
+
+func publicationObservationControls(root string, request PublicationRequest, original []byte, reverse bool, boundary string, inject bool) (publicationOps, *publicationObservationWitness, *[]*os.File) {
+	GinkgoHelper()
+	controls, files := publicationFaultControls()
+	witness := &publicationObservationWitness{}
+	if inject {
+		witness.allowance = 1
+	}
+	wanted := 1
+	if reverse {
+		wanted = 2
+	}
+	controls.openPrepared = func(ctx context.Context, stage *filepublish.Stage) (*os.File, error) {
+		file, err := stage.OpenPrepared(ctx)
+		if err == nil {
+			witness.prepared = file
+			*files = append(*files, file)
+		}
+		return file, err
+	}
+	controls.rename = func(ctx context.Context, stage *filepublish.Stage, name string) error {
+		err := stage.Publish(ctx, name)
+		if err == nil {
+			witness.renames++
+		}
+		return err
+	}
+	controls.storage.named = func(parent *os.File, name string) (unix.Stat_t, error) {
+		actual, err := named(parent, name)
+		if (!inject && witness.qualified) || (witness.faulted && witness.failures >= witness.allowance) || witness.renames != wanted {
+			return actual, err
+		}
+		selected := name == filepath.Base(request.Path) && publicationSame(parent, filepath.Join(root, filepath.Dir(request.Path)))
+		if boundary == "parent" {
+			selected = name == filepath.Dir(request.Path) && publicationSame(parent, root)
+		}
+		if !selected {
+			return actual, err
+		}
+		Expect(err).NotTo(HaveOccurred(), "the actual named Fstatat must succeed before reporting this observation failure")
+		Expect(witness.prepared).NotTo(BeNil())
+		prepared, preparedErr := witness.prepared.Stat()
+		location, namedErr := os.Lstat(filepath.Join(root, request.Path))
+		Expect(preparedErr).NotTo(HaveOccurred())
+		Expect(namedErr).NotTo(HaveOccurred())
+		Expect(os.SameFile(prepared, location)).To(BeTrue(), "the named target is still the actual descriptor obtained from Stage.OpenPrepared")
+		expected := request.Replacement
+		if reverse {
+			expected = original
+		}
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(expected))
+		Expect(location.Mode()).To(Equal(prepared.Mode()))
+		witness.qualified = true
+		if inject && witness.failures < witness.allowance {
+			witness.faulted = true
+			witness.failures++
+			return actual, unix.EIO
+		}
+		return actual, err
+	}
+	return controls, witness, files
+}
+
+var _ = Describe("Live publication retained candidate observation retry", func() {
+	// per docs/adr/0094-live-publication-restoration.md:214
+	// per docs/adr/0094-live-publication-restoration.md:217
+	// per docs/adr/0094-live-publication-restoration.md:223
+	// per docs/adr/0094-live-publication-restoration.md:231
+	DescribeTable("reconciles the actual candidate after a real forward or reverse rename and one observation EIO", func(reverse bool, boundary string) {
+		root, _, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		controls, witness, files := publicationObservationControls(root, request, original, reverse, boundary, true)
+		operation := publicationFaultBegin(root, request, controls)
+		pending := publicationFaultPending(root)
+		if reverse {
+			Expect(operation.Apply(context.Background())).To(Succeed())
+		}
+		var primary error
+		if reverse {
+			primary = operation.Restore(context.Background())
+		} else {
+			primary = operation.Apply(context.Background())
+		}
+		Expect(witness.faulted).To(BeTrue(), "the fault follows an actual successful rename and actual named stat")
+		Expect(witness.qualified).To(BeTrue())
+		wanted := 1
+		if reverse {
+			wanted = 2
+		}
+		Expect(witness.renames).To(Equal(wanted))
+		publicationFaultTyped(root, primary)
+		Expect(ErrorStatus(primary)).To(Equal(1))
+		publicationFaultPreserved(root, pending)
+		before, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		expected := request.Replacement
+		if reverse {
+			expected = original
+		}
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(expected))
+		_, err = witness.prepared.Stat()
+		Expect(err).NotTo(HaveOccurred(), "uncertain publication retains its actual candidate descriptor")
+		retry := operation.Restore(context.Background())
+		Expect(retry).To(Succeed(), "the one-shot observation failure has cleared; explicit restoration must qualify the retained actual candidate")
+		after, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		if reverse {
+			Expect(os.SameFile(before, after)).To(BeTrue(), "reverse retry completes durability of the actual restored inode")
+		}
+		Expect(witness.renames).To(Equal(2), "reverse retry never performs a third rename")
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		_, err = os.Lstat(filepath.Join(root, ".factory/runtime-publication.pending"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+		Expect(operation.Close(context.Background())).To(Succeed())
+		recoveryClosed(*files)
+	}, Entry("forward actual target stat then EIO", false, "target"), Entry("forward actual parent refresh stat then EIO", false, "parent"),
+		Entry("reverse actual target stat then EIO", true, "target"), Entry("reverse actual parent refresh stat then EIO", true, "parent"))
+})
+
+func publicationObservationReleased(root string, files []*os.File) {
+	GinkgoHelper()
+	recoveryClosed(files)
+	file, err := os.OpenFile(filepath.Join(root, ".factory/runtime-transition.lock"), os.O_RDWR, 0)
+	Expect(err).NotTo(HaveOccurred())
+	defer func() { Expect(file.Close()).To(Succeed()) }()
+	Expect(unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB)).To(Succeed(), "closure must release the actual OS guard even when pending evidence remains")
+	Expect(unix.Flock(int(file.Fd()), unix.LOCK_UN)).To(Succeed())
+}
+
+var _ = Describe("Live publication retained candidate qualification controls", func() {
+	// per docs/adr/0094-live-publication-restoration.md:231
+	// per docs/adr/0094-live-publication-restoration.md:234
+	DescribeTable("performs both observed publication directions without an injected observation failure", func(reverse bool) {
+		root, _, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		controls, witness, files := publicationObservationControls(root, request, original, reverse, "target", false)
+		operation := publicationFaultBegin(root, request, controls)
+		Expect(operation.Apply(context.Background())).To(Succeed())
+		Expect(operation.Restore(context.Background())).To(Succeed())
+		Expect(witness.qualified).To(BeTrue(), "the exact same actual descriptor/named observation boundary must be reachable without a fault")
+		Expect(witness.faulted).To(BeFalse())
+		Expect(witness.renames).To(Equal(2))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		Expect(operation.Close(context.Background())).To(Succeed())
+		publicationObservationReleased(root, *files)
+	}, Entry("forward boundary", false), Entry("reverse boundary", true))
+
+	// per docs/adr/0094-live-publication-restoration.md:214
+	// per docs/adr/0094-live-publication-restoration.md:223
+	// per docs/adr/0094-live-publication-restoration.md:228
+	// per docs/adr/0094-live-publication-restoration.md:244
+	DescribeTable("fails closed through another real observation EIO and completes only on a later explicit retry", func(reverse bool, boundary string) {
+		root, _, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		controls, witness, files := publicationObservationControls(root, request, original, reverse, boundary, true)
+		witness.allowance = 2
+		operation := publicationFaultBegin(root, request, controls)
+		pending := publicationFaultPending(root)
+		if reverse {
+			Expect(operation.Apply(context.Background())).To(Succeed())
+		}
+		var primary error
+		if reverse {
+			primary = operation.Restore(context.Background())
+		} else {
+			primary = operation.Apply(context.Background())
+		}
+		publicationFaultTyped(root, primary)
+		Expect(witness.failures).To(Equal(1), "one caller operation reports one real observation failure; it must not silently retry")
+		before, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		expected := request.Replacement
+		if reverse {
+			expected = original
+		}
+		retry := operation.Restore(context.Background())
+		publicationFaultTyped(root, retry)
+		Expect(witness.failures).To(Equal(2))
+		wanted := 1
+		if reverse {
+			wanted = 2
+		}
+		Expect(witness.renames).To(Equal(wanted), "another observation failure must not perform a new rename")
+		afterError, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, afterError)).To(BeTrue())
+		Expect(afterError.Mode()).To(Equal(before.Mode()))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(expected))
+		publicationFaultPreserved(root, pending)
+		_, descriptorErr := witness.prepared.Stat()
+		Expect(descriptorErr).NotTo(HaveOccurred(), "another failed observation retains the actual candidate descriptor")
+		Expect(operation.Restore(context.Background())).To(Succeed())
+		final, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		if reverse {
+			Expect(os.SameFile(before, final)).To(BeTrue())
+		}
+		Expect(witness.renames).To(Equal(2), "reverse retry must complete the same restored inode without a third rename")
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		Expect(operation.Close(context.Background())).To(Succeed())
+		publicationObservationReleased(root, *files)
+		Expect(ErrorStatus(retry)).To(Equal(1))
+	}, Entry("forward target repeats EIO", false, "target"), Entry("forward parent repeats EIO", false, "parent"),
+		Entry("reverse target repeats EIO", true, "target"), Entry("reverse parent repeats EIO", true, "parent"))
+
+	// per docs/adr/0094-live-publication-restoration.md:217
+	// per docs/adr/0094-live-publication-restoration.md:221
+	// per docs/adr/0094-live-publication-restoration.md:226
+	// per docs/adr/0094-live-publication-restoration.md:228
+	// per docs/adr/0094-live-publication-restoration.md:245
+	DescribeTable("preserves genuine conflicts introduced after a real rename and observation loss in either direction", func(reverse bool, change string) {
+		root, set, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		controls, witness, files := publicationObservationControls(root, request, original, reverse, "target", true)
+		operation := publicationFaultBegin(root, request, controls)
+		pending := publicationFaultPending(root)
+		if reverse {
+			Expect(operation.Apply(context.Background())).To(Succeed())
+		}
+		var primary error
+		if reverse {
+			primary = operation.Restore(context.Background())
+		} else {
+			primary = operation.Apply(context.Background())
+		}
+		publicationFaultTyped(root, primary)
+		Expect(witness.faulted).To(BeTrue())
+		Expect(witness.qualified).To(BeTrue())
+		path := filepath.Join(root, request.Path)
+		owned, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		captured := publicationFaultBytes(root, request.Path)
+		savedPath := filepath.Join(set, "files", request.Path)
+		switch change {
+		case "edit":
+			Expect(os.WriteFile(path, []byte("PRIVATE_EDIT_AFTER_OBSERVATION_LOSS"), 0600)).To(Succeed())
+		case "equal inode replacement":
+			Expect(os.Rename(path, path+".retained-owned")).To(Succeed())
+			Expect(os.WriteFile(path, captured, 0600)).To(Succeed())
+			Expect(os.Chmod(path, owned.Mode().Perm())).To(Succeed())
+			foreign, statErr := os.Lstat(path)
+			Expect(statErr).NotTo(HaveOccurred())
+			Expect(os.SameFile(owned, foreign)).To(BeFalse(), "equal bytes are in an actual different inode")
+		case "mode":
+			Expect(os.Chmod(path, 0700)).To(Succeed())
+		case "deleted":
+			Expect(os.Remove(path)).To(Succeed())
+		case "link":
+			Expect(os.Rename(path, path+".retained-owned")).To(Succeed())
+			Expect(os.Symlink(path+".retained-owned", path)).To(Succeed())
+		case "ancestry":
+			Expect(os.Rename(filepath.Join(root, "scripts"), filepath.Join(root, "retained-owned-scripts"))).To(Succeed())
+			Expect(os.Mkdir(filepath.Join(root, "scripts"), 0700)).To(Succeed())
+			Expect(os.WriteFile(path, []byte("PRIVATE_FOREIGN_ANCESTRY"), 0600)).To(Succeed())
+		case "saved":
+			Expect(os.WriteFile(savedPath, []byte("PRIVATE_CHANGED_SAVED_INPUT"), 0600)).To(Succeed())
+		case "pending":
+			marker := filepath.Join(root, ".factory/runtime-publication.pending")
+			Expect(os.Rename(marker, marker+".retained-owned")).To(Succeed())
+			file, createErr := os.OpenFile(marker, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+			Expect(createErr).NotTo(HaveOccurred())
+			Expect(file.Sync()).To(Succeed())
+			Expect(file.Close()).To(Succeed())
+			pending = publicationFaultPending(root)
+		}
+		before, beforeErr := os.Lstat(path)
+		var beforeBytes []byte
+		var beforeLink string
+		if beforeErr == nil {
+			if before.Mode().IsRegular() {
+				beforeBytes = publicationFaultBytes(root, request.Path)
+			}
+			if before.Mode()&os.ModeSymlink != 0 {
+				beforeLink, err = os.Readlink(path)
+				Expect(err).NotTo(HaveOccurred())
+			}
+		} else {
+			Expect(errors.Is(beforeErr, os.ErrNotExist)).To(BeTrue())
+		}
+		savedBefore, err := os.ReadFile(savedPath)
+		Expect(err).NotTo(HaveOccurred())
+		renameCount := witness.renames
+		retry := operation.Restore(context.Background())
+		publicationFaultTyped(root, retry)
+		Expect(witness.renames).To(Equal(renameCount), "conflict cannot authorize any compensation or extra reverse rename")
+		assertPreserved := func() {
+			after, afterErr := os.Lstat(path)
+			if errors.Is(beforeErr, os.ErrNotExist) {
+				Expect(errors.Is(afterErr, os.ErrNotExist)).To(BeTrue())
+			} else {
+				Expect(afterErr).NotTo(HaveOccurred())
+				Expect(os.SameFile(before, after)).To(BeTrue())
+				Expect(after.Mode()).To(Equal(before.Mode()))
+				if before.Mode().IsRegular() {
+					Expect(publicationFaultBytes(root, request.Path)).To(Equal(beforeBytes))
+				}
+				if before.Mode()&os.ModeSymlink != 0 {
+					target, linkErr := os.Readlink(path)
+					Expect(linkErr).NotTo(HaveOccurred())
+					Expect(target).To(Equal(beforeLink))
+				}
+			}
+			savedAfter, readErr := os.ReadFile(savedPath)
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(savedAfter).To(Equal(savedBefore))
+			publicationFaultPreserved(root, pending)
+		}
+		assertPreserved()
+		publicationFaultTyped(root, operation.Close(context.Background()))
+		assertPreserved()
+		publicationObservationReleased(root, *files)
+		Expect(ErrorStatus(retry)).To(Equal(2))
+	}, Entry("forward later edit", false, "edit"), Entry("reverse later edit", true, "edit"),
+		Entry("forward equal bytes in foreign inode", false, "equal inode replacement"), Entry("reverse equal bytes in foreign inode", true, "equal inode replacement"),
+		Entry("forward complete mode changed", false, "mode"), Entry("reverse complete mode changed", true, "mode"),
+		Entry("forward deletion", false, "deleted"), Entry("reverse deletion", true, "deleted"),
+		Entry("forward symlink", false, "link"), Entry("reverse symlink", true, "link"),
+		Entry("forward foreign installed parent", false, "ancestry"), Entry("reverse foreign installed parent", true, "ancestry"),
+		Entry("forward saved input changed", false, "saved"), Entry("reverse saved input changed", true, "saved"),
+		Entry("forward pending inode changed", false, "pending"), Entry("reverse pending inode changed", true, "pending"))
+})

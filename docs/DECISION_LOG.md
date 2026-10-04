@@ -2818,3 +2818,10 @@ installer/default cutover, legacy retirement, retention or release readiness.
 Use independent outside-in Ginkgo/Gomega RED before code, shared Go storage and
 staging primitives, and verified review-diamond findings. No new dependency or
 paid/background invocation is authorized.
+
+Before implementation, constructor ordering refinement: ADR 0095 requires the
+actual durable pending barrier before any read-only Git subprocess. Exclusive
+guard ownership alone has no durable activity entry, and the existing supervisor
+can report unconfirmed query-group ownership. A failed constructor preserves
+pending before releasing its guard, including before target mutation. Only inert
+filesystem occupancy preflight may precede pending; it launches no process.

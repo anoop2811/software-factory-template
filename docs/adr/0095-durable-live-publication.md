@@ -51,6 +51,14 @@ supervisor to establish effective exclusion and untracked storage before journal
 creation. Apply/Restore/Finish/Close remain filesystem-only. No command, check,
 model, network request, background work or new dependency is introduced.
 
+The constructor must establish its actual durable empty pending entry before any
+Git subprocess starts. The retained exclusive guard alone has no durable activity
+entry: a failed query can leave unconfirmed process-group ownership. Constructor
+failure preserves pending even before target mutation, so releasing its lock
+cannot admit cooperating work while that group may survive. A known occupied
+record may be refused through inert filesystem preflight before pending creation;
+that preflight launches no process. No forced cleanup follows a failed query.
+
 ## Reserved inert storage and containment
 
 Use `.factory/backups/.publications/MIGRATION_ID.json`: one bounded record slot

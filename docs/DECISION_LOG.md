@@ -2986,3 +2986,27 @@ Transition: 61/61 SUCCESS! 349.934083ms; package 2.175s
 
 These include the original 51/82/47 and new 7/8/14 cases. This qualifies only
 the helper/guard stage; the recovery engine and crash/fault checks remain pending.
+
+Independent correctness review isolated a recovery-only activity gap. Its real
+empty ReadDir ran under a proven held permanent exclusive flock; the evaluator
+then created one real retained activity file before acquisition returned. The
+guard returned, Check and Close succeeded, and the entry remained. The same
+pair without that creation passed. Root read the overlay, raw output and source
+and retained this finding against ADR 0096's acquisition contract; ordinary guard
+behavior is outside this correction. The intended stable-empty-directory
+refinement was committed before the independent author persists RED and before
+implementation changes.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -timeout=120s -overlay=/private/tmp/factory-r22-guard-verifier-_e0yilgk/overlay.json -v ./internal/transition -ginkgo.focus='Reviewer interrupted recovery late activity admission' -ginkgo.no-color -ginkgo.v
+actual empty_ReadDir_before_marker=true held_permanent_EX=true late_activity=true returned_guard=true Check=<nil> Close=<nil> preserved_entries=1 primary=<nil>
+Ran 2 of 63 Specs in 0.010 seconds
+FAIL! -- 1 Passed | 1 Failed
+FAIL github.com/anoop2811/software-factory-template/internal/transition 0.524s
+```
+
+Raw output: /private/tmp/factory-r22-guard-verifier-_e0yilgk/qualification.log.
+This is an actual mutation scheduled by a source-test collaborator, not evidence
+of a released incident. A separate missing-errno hypothesis was refuted: the safe
+typed guard cause is classified by assessment's existing errno policy, so an
+explicit Conflict=false does not itself imply operational status 1.

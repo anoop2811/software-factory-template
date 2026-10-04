@@ -119,11 +119,22 @@ native command supervision and Python's owned probe machinery where practical;
 keep literal argv, cwd, environment, capture limits and deadlines. A cleanup
 failure retains ownership evidence and the outer loop activity marker. Pure
 read-only validation still does not create transition infrastructure.
+The Go reuse may add a narrowly scoped `native.ExecuteProbe` entrypoint to the
+existing supervision engine. Preserve the loop probe's binary stdin, 32 MiB
+combined stdout/stderr allowance with stdout retained separately, one-second
+cleanup allowance, literal argument spelling and caller cwd/environment. Do not
+substitute the initializer command's different capture bounds or drop grep input.
 
 Read-only plans/status/reports and disabled or initially blocked runs remain
 read-only. No new model calls, retries, background services or network requests.
 Existing output schemas, identifiers, accounting and loop evidence remain
 unchanged. Guard refusals use existing safe command error channels.
+Here, initially blocked means the read-only admission/configuration decision.
+A conflict discovered later by an execution snapshot, such as an unmerged Git
+index, refuses checks/models/checkpoint publication but may leave only transition
+controls and conservative activity evidence. This intentional added safety state
+must be checked explicitly; it is not budget or checkpoint history and must not
+make read-only or disabled calls create storage.
 
 The Python protocol shim is temporary coexistence machinery, shared by its
 budget and loop controllers. Ship it in legacy init/upgrade and the Go init

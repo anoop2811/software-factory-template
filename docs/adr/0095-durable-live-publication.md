@@ -48,7 +48,7 @@ outcome does not establish that barrier removal or an installation completed.
 
 Only the new constructor may reuse the existing bounded read-only local Git
 supervisor to establish effective exclusion and untracked storage before journal
-creation. Apply/Restore/Finish/Close remain filesystem-only. No command, check,
+creation. Apply/Restore/Finish/Close remain filesystem-only. No public command, check,
 model, network request, background work or new dependency is introduced.
 
 The constructor must establish its actual durable empty pending entry before any
@@ -73,7 +73,11 @@ the index for the reserved root and intended slot. Reuse fixed Git configuration
 and environment sanitation. Preserve ignore files and the index; missing or
 negated exclusion is a refusal rather than an automatic rule change. The
 existing `/.factory/backups/` exclusion covers this namespace only when Git
-confirms it is effective. No matching manifest or caller boolean proves that.
+confirms it is effective. Require that exact rule in the safely pinned local
+exclude file; read back and sync the unchanged file and `.git/info` before any
+journal write, then recheck actual ignoring and tracked status. An absent rule
+is a refusal, even if a broad project rule currently hides the path. Visibility
+alone does not prove durability. No manifest or caller boolean proves either.
 
 The existing backup root already has explicit exclusion from snapshot/context,
 hook/test discovery and release packaging. Keep that boundary; add no separate

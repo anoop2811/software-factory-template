@@ -2825,3 +2825,10 @@ guard ownership alone has no durable activity entry, and the existing supervisor
 can report unconfirmed query-group ownership. A failed constructor preserves
 pending before releasing its guard, including before target mutation. Only inert
 filesystem occupancy preflight may precede pending; it launches no process.
+
+Before implementation, exclusion durability refinement: reuse ADR 0091's exact
+local `/.factory/backups/` rule invariant without changing ignore files. Pin,
+read back and sync the existing rule-bearing exclude file and `.git/info`, then
+confirm effective ignoring and untracked journal paths before any record write.
+Refuse a missing canonical rule even if a broader project ignore currently hides
+the path. Query visibility alone cannot establish durable recovery exclusion.

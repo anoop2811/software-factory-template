@@ -109,6 +109,12 @@ capability deadline; no provider/model invocation or new retry is allowed.
 An independent real descendant regression must fail before this correction.
 Generic legacy preflight failures without exit proof retain the marker rather
 than claiming harmlessness from an empty ledger.
+The actual preflight boundary may wrap proved pre-child refusals or failures
+after confirmed group cleanup in `HarmlessPreflightError`, a compatible
+`ValueError` subtype with the same diagnostic. The budget guard may clean on
+that type; generic/injected errors and typed unconfirmed ownership retain
+evidence. Missing CLI and unsupported flags must exercise this distinction
+through independent actual entrypoint controls before qualification.
 
 The same rule applies to execution snapshot helpers: a successful Git/grep
 leader can leave same-group descendants with detached output streams. Independent

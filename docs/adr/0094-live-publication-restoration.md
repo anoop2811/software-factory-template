@@ -263,3 +263,19 @@ while missing or unsafe names and actual identity, mode or ownership changes
 remain refusal 2. Keep validation order, cancellation, safe diagnostics and all
 ownership, mutation, durability and retry requirements unchanged. This corrects
 the existing status contract; it grants no new publication or recovery authority.
+
+## Pre-correction closed pending observation refinement
+
+An independent control qualified actual original-file and parent sync, proved
+the pending descriptor closed, and performed a successful named pending stat
+before reporting one-time EIO. The same pending entry and durable original were
+preserved; explicit retry removed the owned entry without another rename and
+released every descriptor and the flock before the status assertion failed
+with refusal 2 instead of operational 1.
+
+Apply the same observation classification when pending is checked by its name
+after its descriptor closes. Ordinary I/O remains operational 1; missing or
+unsafe names and actual pending identity or metadata changes remain refusal 2.
+Retain the original durability requirement, exact pending ownership check and
+explicit retry rules. No new cleanup, reconstruction or recovery authority is
+granted by this error-classification correction.

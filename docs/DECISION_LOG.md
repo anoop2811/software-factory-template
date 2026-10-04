@@ -2789,3 +2789,12 @@ retained writer checks and reuse existing assessment classification. Ordinary
 I/O remains operational 1; missing/unsafe names and actual metadata conflicts
 remain refusal 2. Keep ownership, cancellation, mutation and retry rules intact.
 See ADR 0094's retained storage observation refinement; no new authority is added.
+
+Before the closed pending observation correction, 2026-10-04 UTC: an independent
+actual-sync, actual-close and named-stat-then-EIO control completed preservation,
+explicit retry without another rename and exact resource/flock release before
+its status assertion failed with refusal 2 instead of operational 1. Apply the
+same observation classifier to the named pending recheck after its descriptor
+closes. Keep missing/unsafe names and actual ownership or metadata conflicts as
+refusals, with original durability and explicit retry unchanged. See ADR 0094's
+closed pending observation refinement; this grants no additional cleanup action.

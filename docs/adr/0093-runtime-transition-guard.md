@@ -91,6 +91,19 @@ remain separate requirements.
 
 ### Compatibility and packaging
 
+Legacy native help currently uses `subprocess.run` without process-group
+ownership. Waiting for the help leader alone does not establish descendant
+exit, even on a successful help result. Correct that unsafe baseline boundary
+under specs/001-go-runtime-conversion.md:333: run help in an owned session,
+capture bounded output, and perform bounded group cleanup/reap before declaring
+preflight harmless. Reuse the existing Codex probe cleanup mechanics where
+practical. Unconfirmed group cleanup must retain a typed ownership error and
+the activity marker. Preserve local help flags, channels and the ten-second
+capability deadline; no provider/model invocation or new retry is allowed.
+An independent real descendant regression must fail before this correction.
+Generic legacy preflight failures without exit proof retain the marker rather
+than claiming harmlessness from an empty ledger.
+
 Read-only plans/status/reports and disabled or initially blocked runs remain
 read-only. No new model calls, retries, background services or network requests.
 Existing output schemas, identifiers, accounting and loop evidence remain

@@ -2669,3 +2669,9 @@ keep the restricted authenticated binary bundle unchanged. This prerequisite
 does not authorize activation, restoration, pruning or unbridged legacy cleanup.
 See [ADR 0093](adr/0093-runtime-transition-guard.md) and
 specs/001-go-runtime-conversion.md:132.
+
+Implementation refinement, before the help-probe correction: legacy help waits
+for its leader through `subprocess.run` without owning a process group. Require
+independent descendant RED, then supervised bounded help cleanup before it can
+authorize harmless marker removal; typed unconfirmed ownership retains evidence.
+This is an explicit unsafe-baseline correction under FR-028, not a new model call.

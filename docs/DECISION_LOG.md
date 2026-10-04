@@ -2756,3 +2756,16 @@ Move lifecycle phase, mutex and owned resources behind one private shared state
 pointer so legitimate aliases cannot fork authority or cleanup. Refuse nil/zero
 handles and retain every actual after-image/durability check. Observe the direct
 value-copy regression GREEN; a no-copy prose convention is insufficient.
+
+Before the post-rename observation correction, 2026-10-04 UTC: four independent
+evaluator controls performed actual forward/reverse renames and successful
+named-stat calls, then reported one-time EIO for target or parent observations
+without changing the filesystem. Restore subsequently rejected the unchanged
+owned inode after the injected fault cleared. Retain the prepared candidate and
+direction before fallible adoption, then reconcile its actual named identity,
+complete mode and bytes under the retained guard before checking stale pins.
+Reverse retries finish durability without another rename; foreign edits and
+changed inputs remain preserved conflicts. Keep private observation boundaries
+per operation with actual defaults, not global fault state or imported authority.
+See ADR 0094's post-rename observation refinement. This is injected source-test
+evidence, not a released incident or spontaneous OS error.

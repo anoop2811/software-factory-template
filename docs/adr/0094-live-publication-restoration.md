@@ -201,3 +201,35 @@ actual after-inode; closing any alias closes that one operation. Nil and
 zero-state handles refuse. There is still no import/reconstruction authority.
 Retain all checked inode, byte, mode, ancestry and pending durability controls;
 documenting a no-copy convention is not the ownership enforcement.
+
+## Pre-correction post-rename observation refinement
+
+Independent evaluator controls performed real forward and reverse renames and
+successful named-stat calls, then reported a one-time EIO without changing the
+filesystem. A target-stat or parent-refresh observation failure left stale pins;
+once the fault cleared, explicit Restore still rejected the unchanged owned file.
+All four controls failed before correction. This is injected I/O evidence on the
+source component, not a released incident or an observed spontaneous OS error.
+
+Retain the actual prepared candidate, immutable image and publication direction
+before fallible post-rename observations. That candidate is not yet authority to
+restore. A retry must reconcile the named target against its retained actual
+descriptor, complete mode and bytes under the same exclusive guard, qualified
+ancestry, saved input and pending ownership before accepting publication state.
+Do not require stale old-target or vanished temporary-name observations to pass
+before that reconciliation can run. Refresh only the qualified parent of this
+operation's own mutation; never adopt an unexplained ancestor or foreign inode.
+
+If a reverse rename actually published the original, a later retry finishes only
+its checked durability and pending removal, without a third rename. If no active
+rename occurred, abort still requires the original and prepared ownership to
+remain unchanged. Edits, different equal-byte inodes, deletion, links, changed
+ancestry or saved inputs remain preserved conflicts. Observation errors retain
+typed uncertainty, resources and pending evidence; no automatic retry, imported
+receipt, force cleanup or reconstructed ownership is authorized.
+
+Use private per-operation observation collaborators with actual filesystem
+defaults, reusing existing boundaries where appropriate. Qualify both directions
+and target/parent observations with real rename and descriptor handshakes, plus
+conflict controls after the observation failure. A successful synthetic callback
+or merely setting the expected phase is not evidence of publication ownership.

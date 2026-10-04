@@ -69,6 +69,10 @@ later-release retention remain separate required work. This planner does not
 make upgrades from v0.1.6 release-ready and earns no additional credit toward
 the controlled-restoration milestone.
 
+The separate [live publication core](LIVE_RESTORATION.md) records ownership from
+an actual same-process replacement. Its qualification is tracked separately;
+it does not grant this planner restoration authority or enable a public command.
+
 ## Qualification
 
 Independent outside-in RED preceded production implementation. The spec-writer

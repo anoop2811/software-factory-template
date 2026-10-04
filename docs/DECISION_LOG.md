@@ -2702,3 +2702,99 @@ Qualification clarification, 2026-10-04 UTC: bounded group inspection may retry
 non-absence observations within the existing cleanup deadline. Success requires
 a later explicit ESRCH before expiry; no permission or inspection error is
 absence evidence. Persistent errors and remaining groups retain typed ownership.
+
+## Decision 93 (2026-10-04 UTC): derive restoration from live publication ownership
+
+Adopt ADR 0094 before source changes. An imported v1 reference set cannot prove
+that the factory changed a destination. Build a replacement-only live component
+whose opaque ownership handle comes from an actual qualified publication. Fresh
+exact consent and an inert checked original remain separate inputs; the handle
+may restore only its own unchanged after-inode/content/mode under the same
+exclusive guard. No new public rollback or activation command is enabled.
+
+Durable fixed pending evidence precedes active mutation. Cooperating Go/Python
+guards refuse any such evidence; unfinished close or crash preserves it. Only a
+checked durable reversal can clear the exact owned pending entry. Join cleanup
+errors without losing primary publication uncertainty. Future consumers retain
+target/state/activation and unbridged-quiescence obligations. See
+[ADR 0094](adr/0094-live-publication-restoration.md).
+
+Define the remaining backup/rollback third before implementation as three equal
+source deliverables: live restoration core, durable forward/reverse lifecycle,
+and public compatibility integration. The fixed denominator remains 30; only
+the first can earn 1/9 package after qualification and merge, moving 60.0% to
+60.4%. This does not close installed rollback or release acceptance.
+
+Pre-implementation clarification: preserve the trusted quiescent namespace
+boundary of ADR 0091. Rechecks do not provide atomic compare-and-swap against
+hostile same-user writes. Distinguish missing-API compile RED from subsequent
+independent runtime RED on interface-only unsupported stubs before behavior.
+
+Before source, explicitly make the live engine filesystem-only: no Git queries,
+native probes or subprocesses. Inspect and re-sync existing saved data; do not
+reuse creation's Git orchestration. Independent process sentinels start after
+fixture backup creation and cover the component's complete lifetime.
+
+Before the prepared-descriptor cleanup correction: the independent paired
+actual opened-stage control observed unsafe mode plus actual close/EIO lose
+the operational close failure and return refusal status 2. Report operational
+status 1 while preserving the safe refusal and pending evidence; keep the
+confirmed-close control at status 2. Reuse a private per-operation boundary,
+not a forged identity or exported test wrapper. See ADR 0094's refinement.
+
+Before the incomplete-close diagnostic correction: a distinct prepared-abort
+control observed actual pending unlink followed by parent-sync EIO, with the
+original durably unchanged. Close incorrectly claimed the absent evidence was
+retained. Require neutral incomplete-operation wording and local inspection;
+the applied-operation control masks the inner wording and was not a diagnostic
+RED. Keep all checked durability, ownership and retry requirements unchanged.
+
+Before the live-handle alias correction: an independent actual external API
+value copy before first lifecycle use let alias Restore report success and
+clear pending while the original handle's named replacement remained active.
+Move lifecycle phase, mutex and owned resources behind one private shared state
+pointer so legitimate aliases cannot fork authority or cleanup. Refuse nil/zero
+handles and retain every actual after-image/durability check. Observe the direct
+value-copy regression GREEN; a no-copy prose convention is insufficient.
+
+Before the post-rename observation correction, 2026-10-04 UTC: four independent
+evaluator controls performed actual forward/reverse renames and successful
+named-stat calls, then reported one-time EIO for target or parent observations
+without changing the filesystem. Restore subsequently rejected the unchanged
+owned inode after the injected fault cleared. Retain the prepared candidate and
+direction before fallible adoption, then reconcile its actual named identity,
+complete mode and bytes under the retained guard before checking stale pins.
+Reverse retries finish durability without another rename; foreign edits and
+changed inputs remain preserved conflicts. Keep private observation boundaries
+per operation with actual defaults, not global fault state or imported authority.
+See ADR 0094's post-rename observation refinement. This is injected source-test
+evidence, not a released incident or spontaneous OS error.
+
+Before the observation-status correction: expanded actual controls passed their
+preservation and exact resource/flock release assertions before finding four
+status mismatches. Forward/reverse repeated parent EIO returned refusal 2 instead
+of operational 1; forward/reverse actual deletion returned operational 1 instead
+of conflict 2. Reuse existing assessment classification for observation errors
+while retaining refusal for changed metadata. Keep candidate ownership, retry,
+typed uncertainty, pending preservation and safe diagnostics unchanged. The
+existing status contract remains ADR 0091:56; this grants no new recovery action.
+
+Before the retained storage observation correction, 2026-10-04 UTC: the latest
+advisory review identified ordinary writer checks reporting observation EIO as
+refusal 2. Two independent actual named-stat-then-EIO controls confirmed this
+after candidate promotion and during explicit restoration; preservation, later
+checked restoration and exact resource/flock release passed before the status
+assertions failed. Split observation errors from metadata mismatches in all
+retained writer checks and reuse existing assessment classification. Ordinary
+I/O remains operational 1; missing/unsafe names and actual metadata conflicts
+remain refusal 2. Keep ownership, cancellation, mutation and retry rules intact.
+See ADR 0094's retained storage observation refinement; no new authority is added.
+
+Before the closed pending observation correction, 2026-10-04 UTC: an independent
+actual-sync, actual-close and named-stat-then-EIO control completed preservation,
+explicit retry without another rename and exact resource/flock release before
+its status assertion failed with refusal 2 instead of operational 1. Apply the
+same observation classifier to the named pending recheck after its descriptor
+closes. Keep missing/unsafe names and actual ownership or metadata conflicts as
+refusals, with original durability and explicit retry unchanged. See ADR 0094's
+closed pending observation refinement; this grants no additional cleanup action.

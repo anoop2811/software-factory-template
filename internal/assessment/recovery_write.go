@@ -19,6 +19,7 @@ type recoveryWriteOps struct {
 	read          func(context.Context, *os.File, []byte) (int, error)
 	syncFile      func(context.Context, *os.File) error
 	syncDirectory func(context.Context, *os.File) error
+	close         func(*os.File) error
 }
 
 type writePin struct {
@@ -52,16 +53,23 @@ func (w *recoveryWriter) close() error {
 	var errs []error
 	for i := len(w.pins) - 1; i >= 0; i-- {
 		if w.pins[i] != w.root {
-			errs = append(errs, w.pins[i].file.Close())
+			errs = append(errs, w.closeFile(w.pins[i].file))
 		}
 	}
 	for i := len(w.chain) - 1; i >= 0; i-- {
-		errs = append(errs, w.chain[i].file.Close())
+		errs = append(errs, w.closeFile(w.chain[i].file))
 	}
 	if errors.Join(errs...) != nil {
 		return failure(1, "cannot close recovery storage")
 	}
 	return nil
+}
+
+func (w *recoveryWriter) closeFile(file *os.File) error {
+	if w.ops.close != nil {
+		return w.ops.close(file)
+	}
+	return file.Close()
 }
 
 // All named identities and immutable metadata stay pinned. A successful owned

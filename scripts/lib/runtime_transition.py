@@ -94,6 +94,17 @@ class Guard:
         os.fsync(descriptor)
         self.check()
 
+    # A retained live owner creates pending only after exclusive acquisition.
+    # docs/adr/0094-live-publication-restoration.md:59.
+    def pending_absent(self, state):
+        try:
+            self._named(state[2], "runtime-publication.pending")
+        except FileNotFoundError:
+            return
+        except OSError:
+            pass
+        raise TransitionError("runtime publication is pending or cannot be inspected")
+
     def _close_files(self):
         self.closed = True
         failed = False
@@ -166,6 +177,7 @@ def _acquire(root, exclusive):
         lock = guard.control(state, "runtime-transition.lock", True)
         fcntl.flock(lock[2], (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
         guard.check()
+        guard.pending_absent(state)
         guard.activity = guard.directory(state, "runtime-activity", True)
         if exclusive:
             with os.scandir(guard.activity[2]) as entries:
@@ -177,6 +189,7 @@ def _acquire(root, exclusive):
         for entry in (lock, guard.activity, state, project):
             guard.sync(entry[2])
         guard.check()
+        guard.pending_absent(state)
         success = True
         return guard
     except OSError:

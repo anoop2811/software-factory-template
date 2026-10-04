@@ -14,6 +14,7 @@ import (
 
 const lockName = "runtime-transition.lock"
 const activityName = "runtime-activity"
+const pendingName = "runtime-publication.pending"
 
 // Per-operation collaborators qualify actual storage and ownership failures.
 type ops struct {
@@ -60,6 +61,23 @@ func Shared(ctx context.Context, root string) (*Guard, error) {
 // docs/adr/0093-runtime-transition-guard.md:88.
 func Exclusive(ctx context.Context, root string) (*Guard, error) {
 	return acquire(ctx, root, true, ops{})
+}
+
+// Check revalidates the retained owner's existing guard, without acquiring anew.
+// docs/adr/0094-live-publication-restoration.md:63.
+func (g *Guard) Check(ctx context.Context) error {
+	if g == nil || g.closed {
+		return storageError()
+	}
+	return g.check(ctx)
+}
+
+func (g *Guard) pendingAbsent(ctx context.Context, state *pin) error {
+	_, err := g.named(ctx, state.file, pendingName)
+	if errors.Is(err, unix.ENOENT) {
+		return ctx.Err()
+	}
+	return errors.Join(errors.New("runtime publication is pending or cannot be inspected"), ctx.Err())
 }
 
 func acquire(ctx context.Context, root string, exclusive bool, operations ops) (result *Guard, returned error) {
@@ -114,6 +132,11 @@ func acquire(ctx context.Context, root string, exclusive bool, operations ops) (
 	if err := g.check(ctx); err != nil {
 		return nil, err
 	}
+	// Any pending entry blocks fresh work while the permanent flock is held.
+	// docs/adr/0094-live-publication-restoration.md:59.
+	if err := g.pendingAbsent(ctx, state); err != nil {
+		return nil, err
+	}
 	g.activity, err = g.directory(ctx, state, activityName, true)
 	if err != nil {
 		return nil, err
@@ -147,6 +170,9 @@ func acquire(ctx context.Context, root string, exclusive bool, operations ops) (
 		}
 	}
 	if err := g.check(ctx); err != nil {
+		return nil, err
+	}
+	if err := g.pendingAbsent(ctx, state); err != nil {
 		return nil, err
 	}
 	return g, nil

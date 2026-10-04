@@ -205,6 +205,10 @@ primary typed active-publication/process uncertainty with cleanup errors. It
 never completes, restores or removes pending implicitly. Ordinary observation,
 read/write/sync/close/cancellation errors are operational 1; missing/unsafe or
 changed evidence is refusal 2. Cleanup errors retain operational precedence.
+Recovery-only guard errors retain a safe typed distinction between explicit
+metadata/lock conflicts and observation/cancellation failures. Preserve underlying
+error classification for assessment to reuse its existing errno policy; do not
+change ordinary guard error contracts or duplicate a second errno policy.
 Private fixed diagnostics expose no sensitive bytes or filesystem roots.
 
 ## Outside-in qualification and limits

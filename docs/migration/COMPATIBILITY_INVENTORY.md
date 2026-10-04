@@ -113,9 +113,12 @@ remain the interoperability boundary; candidate source does not authorize cleanu
   remain unchanged; subsequent Go parity uses an explicitly identified correction.
 - Q1 is resolved: initial coverage is v0.1.6 and the merged Bash baseline above;
   unsupported older/customized installations receive no destructive migration.
-  Q2 (minimum platforms), Q3 (artifact trust), and detailed Q5 pilot evidence/exit
-  criteria remain open. A manual adopter pilot before default cutover is now
-  mandatory. Q4 retention follows the approved local gitignored backup policy.
+  Q2 platform scope and Q3 artifact trust were approved on 2026-09-07 in the
+  [conversion specification](../../specs/001-go-runtime-conversion.md); actual
+  native platform and authentication qualification remain required. Detailed Q5
+  pilot evidence/exit criteria remain open, and a manual adopter pilot before
+  default cutover is mandatory. Q4 retention follows the approved local
+  gitignored backup policy.
 - Native plugin behavior must be characterized as observed. For example,
   `.opencode/plugin/factory-hooks.ts:72` contains an existing fail-open error
   branch. A correction must follow FR-028's explicit review and regression path;

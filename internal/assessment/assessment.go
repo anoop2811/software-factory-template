@@ -82,10 +82,34 @@ func failure(code int, message string) error { return &Failure{Code: code, messa
 func Assess(ctx context.Context, root string) (Result, error) { return assess(ctx, root, ops{}) }
 
 type ops struct {
-	named func(parent *os.File, name string) (unix.Stat_t, error)
-	open  func(parent *os.File, name string, flags int) (*os.File, error)
-	read  func(file *os.File, buffer []byte) (int, error)
-	close func(file *os.File) error
+	descriptor func(file *os.File) (unix.Stat_t, error)
+	named      func(parent *os.File, name string) (unix.Stat_t, error)
+	open       func(parent *os.File, name string, flags int) (*os.File, error)
+	read       func(file *os.File, buffer []byte) (int, error)
+	close      func(file *os.File) error
+}
+
+// Scoped metadata callbacks preserve the native default for final observations.
+// docs/adr/0095-durable-live-publication.md:280.
+func (o ops) stat(file *os.File) (unix.Stat_t, error) {
+	if o.descriptor != nil {
+		return o.descriptor(file)
+	}
+	return descriptor(file)
+}
+
+func (o ops) lookup(parent *os.File, name string) (unix.Stat_t, error) {
+	if o.named != nil {
+		return o.named(parent, name)
+	}
+	return named(parent, name)
+}
+
+func metadataOperations(options []ops) ops {
+	if len(options) != 0 {
+		return options[0]
+	}
+	return ops{}
 }
 
 func assess(ctx context.Context, root string, operations ops) (Result, error) {

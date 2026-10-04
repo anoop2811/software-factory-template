@@ -19,6 +19,7 @@ type recoveryGit struct {
 	environment map[string]string
 	info        *writePin
 	exclude     *writePin
+	query       func(context.Context, string, []string, map[string]string, time.Duration) (native.CommandResult, error)
 }
 
 func (g *recoveryGit) command(ctx context.Context, arguments ...string) (native.CommandResult, error) {
@@ -26,7 +27,17 @@ func (g *recoveryGit) command(ctx context.Context, arguments ...string) (native.
 		return native.CommandResult{}, err
 	}
 	argv := append([]string{"git", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "core.excludesFile=/dev/null"}, arguments...)
-	result, err := native.ExecuteCommand(ctx, g.root, argv, g.environment, 10*time.Second)
+	query := g.query
+	if query == nil {
+		query = native.ExecuteCommand
+	}
+	result, err := query(ctx, g.root, argv, g.environment, 10*time.Second)
+	var ownership *native.OwnershipError
+	if errors.As(err, &ownership) {
+		// Preserve only structured ownership evidence, never raw command errors.
+		// docs/adr/0095-durable-live-publication.md:61.
+		return result, errors.Join(failure(1, "local Git query ownership is unconfirmed"), ownership, ctx.Err())
+	}
 	if ctx.Err() != nil {
 		return result, ctx.Err()
 	}
@@ -47,6 +58,11 @@ func (g *recoveryGit) command(ctx context.Context, arguments ...string) (native.
 // docs/adr/0091-durable-local-recovery-creation.md:63.
 // docs/adr/0091-durable-local-recovery-creation.md:154.
 func (w *recoveryWriter) localGit(ctx context.Context, root string, environment map[string]string) (*recoveryGit, error) {
+	return w.localGitWith(ctx, root, environment, nil)
+}
+
+func (w *recoveryWriter) localGitWith(ctx context.Context, root string, environment map[string]string,
+	query func(context.Context, string, []string, map[string]string, time.Duration) (native.CommandResult, error)) (*recoveryGit, error) {
 	git, err := w.directory(ctx, w.root, ".git", false, false)
 	if err != nil {
 		return nil, failure(2, "linked or external Git directories are not supported")
@@ -82,7 +98,7 @@ func (w *recoveryWriter) localGit(ctx context.Context, root string, environment 
 	effective["GIT_CONFIG_NOSYSTEM"] = "1"
 	effective["GIT_CONFIG_GLOBAL"] = "/dev/null"
 	effective["GIT_OPTIONAL_LOCKS"] = "0"
-	g := &recoveryGit{writer: w, root: root, environment: effective, info: info}
+	g := &recoveryGit{writer: w, root: root, environment: effective, info: info, query: query}
 	result, err := g.command(ctx, "rev-parse", "--show-toplevel", "--absolute-git-dir", "--is-bare-repository")
 	if err != nil {
 		return nil, err
@@ -244,6 +260,43 @@ func (g *recoveryGit) ensureIgnored(ctx context.Context, paths []string) error {
 	}
 	if !ignored {
 		return failure(2, "project ignore rules expose recovery paths")
+	}
+	return g.untracked(ctx)
+}
+
+// Durable publication consumes an existing exact rule without modifying it.
+// docs/adr/0095-durable-live-publication.md:74.
+func (g *recoveryGit) requireIgnored(ctx context.Context, paths []string) error {
+	original, err := g.excludeFile(ctx)
+	if err != nil {
+		return err
+	}
+	present := false
+	for _, line := range bytes.Split(original, []byte{'\n'}) {
+		present = present || bytes.Equal(line, []byte("/.factory/backups/"))
+	}
+	if !present || g.exclude == nil {
+		return failure(2, "exact local recovery exclusion is required")
+	}
+	if err := g.writer.sync(ctx, g.exclude); err != nil {
+		return err
+	}
+	readback, err := g.writer.read(ctx, g.exclude, 64<<10)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(original, readback) {
+		return failure(2, "local recovery exclusion changed")
+	}
+	if err := g.writer.sync(ctx, g.info); err != nil {
+		return err
+	}
+	ignored, err := g.ignored(ctx, paths)
+	if err != nil {
+		return err
+	}
+	if !ignored {
+		return failure(2, "project ignore rules expose publication records")
 	}
 	return g.untracked(ctx)
 }

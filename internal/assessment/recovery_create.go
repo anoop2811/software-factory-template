@@ -127,7 +127,13 @@ func createRecovery(ctx context.Context, root string, request RecoveryRequest, e
 	if err != nil {
 		return RecoveryCreation{}, err
 	}
-	entries, class := recoveryEntries(ctx, backups.file, 64)
+	var inventoryPins recoveryPins
+	entries, class := recoveryStorageEntries(ctx, backups.file, ops{}, &inventoryPins)
+	for _, pin := range inventoryPins {
+		if pin.file != nil {
+			w.pins = append(w.pins, &writePin{parent: pin.parent, file: pin.file, name: pin.name, stat: pin.stat})
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return RecoveryCreation{}, err
 	}

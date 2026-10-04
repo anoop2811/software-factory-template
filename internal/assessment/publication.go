@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/filepublish"
+	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/transition"
 )
 
@@ -46,6 +47,7 @@ type publicationState struct {
 	stages         []*filepublish.Stage
 	detached       []*os.File
 	candidate      *publicationCandidate
+	journal        *publicationJournal
 	applyUsed      bool
 	changed        bool
 	afterPublished bool
@@ -83,6 +85,7 @@ type publicationOps struct {
 	rename       func(context.Context, *filepublish.Stage, string) error
 	unlink       func(context.Context, *os.File, string) error
 	close        func(*os.File) error
+	query        func(context.Context, string, []string, map[string]string, time.Duration) (native.CommandResult, error)
 }
 
 // BeginPublication consumes an existing set; it never creates backups or probes.
@@ -114,7 +117,9 @@ func (p *Publication) Apply(ctx context.Context) error {
 func (p *publicationState) apply(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.closed || p.finished || p.applyUsed {
+	// A valid selected durable completion direction also bounds later Apply.
+	// docs/adr/0095-durable-live-publication.md:251.
+	if p.closed || p.finished || p.applyUsed || p.journal != nil && p.journal.direction != "" {
 		return failure(2, "publication cannot be applied again")
 	}
 	if err := p.check(ctx); err != nil {
@@ -139,8 +144,14 @@ func (p *publicationState) restore(ctx context.Context) error {
 	if p.closed || p.finished {
 		return failure(2, "publication cannot be restored again")
 	}
+	if p.journal != nil && p.journal.direction == "forward" {
+		return failure(2, "publication completion direction is forward")
+	}
 	if err := p.check(ctx); err != nil {
 		return p.failed(err)
+	}
+	if p.journal != nil {
+		p.journal.direction = "reverse"
 	}
 	if p.afterPublished && !p.undoPublished {
 		if err := p.publish(ctx, p.original, true); err != nil {
@@ -157,6 +168,17 @@ func (p *publicationState) restore(ctx context.Context) error {
 	}
 	if err := p.w.sync(ctx, p.parent); err != nil {
 		return p.failed(err)
+	}
+	if p.journal != nil {
+		record := p.journal.record
+		record.Direction, record.Phase, record.Outcome, record.CandidateIdentity = "reverse", "aborted", "aborted", nil
+		if p.undoPublished {
+			identity := assetIdentity(p.current.stat)
+			record.Phase, record.Outcome, record.RestoredIdentity = "restored", "restored", &identity
+		}
+		if err := p.writeRecord(ctx, record); err != nil {
+			return p.failed(err)
+		}
 	}
 	if err := p.removePending(ctx); err != nil {
 		return p.failed(err)
@@ -190,6 +212,9 @@ func (p *publicationState) close(ctx context.Context) error {
 	}
 	if p.directory != nil && p.directory.Close() != nil {
 		cleanupErrors = append(cleanupErrors, failure(1, "cannot close publication directory"))
+	}
+	if p.journal != nil && p.journal.directory != nil && p.journal.directory.Close() != nil {
+		cleanupErrors = append(cleanupErrors, failure(1, "cannot close publication record directory"))
 	}
 	if p.w != nil {
 		if p.operations.close != nil {

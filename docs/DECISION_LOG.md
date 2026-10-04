@@ -2798,3 +2798,115 @@ same observation classifier to the named pending recheck after its descriptor
 closes. Keep missing/unsafe names and actual ownership or metadata conflicts as
 refusals, with original durability and explicit retry unchanged. See ADR 0094's
 closed pending observation refinement; this grants no additional cleanup action.
+
+## Decision 94 (2026-10-04 UTC): durable live completion and inert records
+
+After merged PR #121, implement ADR 0095's R2.1 source slice. Add durable live
+forward Finish and journaled reverse completion while preserving opaque actual
+ownership, the permanent exclusive guard and the fixed pending barrier. Keep
+records outside immutable v1 sets in a reserved inert namespace under the
+already-excluded backup root; qualify its actual Git exclusion/index state before
+writing. Record retries use actual retained candidate ownership, not local JSON
+as permission. Restart inspection remains read-only with every authority false.
+
+Qualified recovery after interruption is R2.2, with a fresh capability and known
+after-image/compatible-state contract; it is not silently credited to journal
+inspection. Divide R2 into those two equal deliverables before implementation.
+The fixed 30-package denominator remains; merged PR #121 earns 60.4%, and only
+qualified/merged R2.1 can earn 60.6%. This source slice enables no public rollback,
+installer/default cutover, legacy retirement, retention or release readiness.
+Use independent outside-in Ginkgo/Gomega RED before code, shared Go storage and
+staging primitives, and verified review-diamond findings. No new dependency or
+paid/background invocation is authorized.
+
+Before implementation, constructor ordering refinement: ADR 0095 requires the
+actual durable pending barrier before any read-only Git subprocess. Exclusive
+guard ownership alone has no durable activity entry, and the existing supervisor
+can report unconfirmed query-group ownership. A failed constructor preserves
+pending before releasing its guard, including before target mutation. Only inert
+filesystem occupancy preflight may precede pending; it launches no process.
+
+Before implementation, exclusion durability refinement: reuse ADR 0091's exact
+local `/.factory/backups/` rule invariant without changing ignore files. Pin,
+read back and sync the existing rule-bearing exclude file and `.git/info`, then
+confirm effective ignoring and untracked journal paths before any record write.
+Refuse a missing canonical rule even if a broader project ignore currently hides
+the path. Query visibility alone cannot establish durable recovery exclusion.
+
+Before implementation, query ownership refinement: the new constructor must
+preserve the supervisor's actual PID and typed native ownership uncertainty in
+its returned error, including cancellation. A generic local-Git diagnostic may
+not erase that owned state. The pending barrier remains independent evidence
+blocking admission; it does not imply that the query group has exited.
+
+Documentation reconciliation, 2026-10-04 UTC: the current source specification
+already resolves Q2 platform scope and Q3 artifact trust at
+specs/001-go-runtime-conversion.md:481 and
+specs/001-go-runtime-conversion.md:482. Correct the older compatibility inventory
+wording; actual platform/authentication qualification remains pending, while
+specs/001-go-runtime-conversion.md:484 still leaves detailed Q5 pilot criteria
+open. Existing approvals are not additional unfinished approval tasks.
+
+Before required-record parser correction, 2026-10-04 UTC: two independent
+actual empty-replacement records passed their valid baseline, then inspection
+incorrectly accepted an omitted required `after.bytes` field or JSON null.
+Preservation and false-authority checks passed before status assertions failed.
+Clarify ADR 0095's closed shape: all declared top-level/nested keys are required,
+including nullable identity keys; only phase-eligible identity values may be
+null. Reject missing fields and null required scalars without changing v1 sets,
+inspection authority, live ownership or pending rules. This is source-test
+evidence, not a released incident.
+
+Before record-count admission correction, 2026-10-04 UTC: independent correctness
+and security controls both observed 63 valid records admit record 64, but 64
+valid records incorrectly admit record 65. Namespace validation had exhausted
+the retained directory cursor before the admission read. ADR 0095 now explicitly
+requires complete bounded counting independent of cursor state, preserving pins
+and revalidation rather than weakening the separate 64-record bound. A persistent
+independent paired regression must precede correction. Active originals and prior
+records remained preserved; this is source-test evidence, not a released incident.
+
+Before inspection-precedence correction, 2026-10-04 UTC: independent reviewer
+and persistent spec-writer controls observed real-read/EIO status 1 being reduced
+to status 2 after actual record-mode invalidation. The no-invalidation EIO and
+metadata-only refusal controls passed. Refine ADR 0095: discard invalid rows and
+keep authority false while preserving previously observed I/O priority in the
+operation and report Status. Metadata-only conflicts remain refusal 2. This
+changes no mutation, restoration or cleanup authority.
+
+Before terminal-direction admission correction, 2026-10-04 UTC: independent
+security and verifier controls observed unapplied durable Restore select reverse,
+perform a real original-file sync and report EIO, then Apply incorrectly publish
+forward. The completed-abort no-mutation control passed. Refine ADR 0095's live
+direction invariant explicitly for Apply: refuse new forward work after any
+valid terminal direction is latched, preserving explicit chosen-direction retry,
+non-latching invalid Finish and legacy journal-free behavior. A persistent
+independent regression must precede correction.
+
+Before late Copilot review corrections, 2026-10-04 UTC: review threads
+4179354651, 4179354694 and 4179354727 identify accepted root spelling being
+compared directly with Git's absolute output, operational errors first observed
+in final metadata checks being collapsed into boolean conflicts, and shared
+recovery inspection erasing earlier record-read I/O after invalidation. These
+claims are under independent runtime qualification; no correction is claimed yet.
+Refine ADR 0095 before regression and implementation: normalize only a qualified
+no-follow root, retain final metadata failure classification, and preserve I/O
+priority while discarding unsafe recovery/publication observations. Private fault
+collaborators retain real syscall execution and production defaults. Persistent
+independent runtime RED must precede behavior correction. This adds no restart,
+restoration, activation, retention or pruning authority.
+
+Independent late-review qualification, 2026-10-04 UTC, before behavioral
+correction: actual local Git controls accepted a canonical absolute root but
+refused both `.` and an absolute trailing separator after durable pending;
+the originals remained unchanged. A real record read followed by reported EIO
+returned status 1 alone, but an actual mode mutation reduced it to status 2.
+The root/read run selected five cases: two passed and three failed (package
+2.038s). Six separate final-only controls covered both inspectors and root
+Fstat, record Fstat and record Fstatat. Each performed a successful real syscall
+before reporting one injected EIO; preservation, discarded rows, closure and
+false authority passed before status 1 assertions failed (six failed, package
+2.498s). These are injected source-test observations, not kernel EIO or released
+incidents. Narrow private collaborator wiring precedes persistent author RED;
+ordinary default behavior and error classification are intentionally unchanged
+until those regressions fail.

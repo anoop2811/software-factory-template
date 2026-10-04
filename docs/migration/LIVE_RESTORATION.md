@@ -3,6 +3,8 @@
 Status: source component; not released or connected to an installation command.
 [ADR 0094](../adr/0094-live-publication-restoration.md)
 defines the component and its qualification requirements.
+The additive [durable completion contract](DURABLE_PUBLICATION.md) is defined
+separately in ADR 0095; its records do not reconstruct this live capability.
 
 The source component replaces one existing known reference file while retaining
 the ability to restore its original during the same operation. An existing
@@ -43,8 +45,8 @@ unsafe ancestor or changed backup is a preserved conflict. Identical bytes in
 another inode are still a conflict. The saved set, hold, unselected files and
 runtime history remain untouched.
 
-Only a checked, durable return to the original permits removal of the exact
-owned pending entry. Restore can also abort a prepared operation whose original
+For this legacy constructor, only a checked, durable return to the original
+permits removal of the exact owned pending entry. Restore can also abort a prepared operation whose original
 has remained unchanged. Close releases resources and the guard; it does not
 implicitly restore or remove unresolved evidence.
 
@@ -69,8 +71,8 @@ restored before that removal is attempted.
 
 ## Installation limits
 
-This is a filesystem-only source API. Its lifecycle launches no Git queries,
-native probes, scripts, subprocesses, model calls or background jobs. Fixture
+`BeginPublication` is a filesystem-only source API. Its lifecycle launches no
+Git queries, native probes, scripts, subprocesses, model calls or background jobs. Fixture
 setup can create a recovery set before the component begins; creation's Git
 orchestration is not part of the live engine.
 

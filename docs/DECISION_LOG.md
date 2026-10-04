@@ -2895,3 +2895,18 @@ priority while discarding unsafe recovery/publication observations. Private faul
 collaborators retain real syscall execution and production defaults. Persistent
 independent runtime RED must precede behavior correction. This adds no restart,
 restoration, activation, retention or pruning authority.
+
+Independent late-review qualification, 2026-10-04 UTC, before behavioral
+correction: actual local Git controls accepted a canonical absolute root but
+refused both `.` and an absolute trailing separator after durable pending;
+the originals remained unchanged. A real record read followed by reported EIO
+returned status 1 alone, but an actual mode mutation reduced it to status 2.
+The root/read run selected five cases: two passed and three failed (package
+2.038s). Six separate final-only controls covered both inspectors and root
+Fstat, record Fstat and record Fstatat. Each performed a successful real syscall
+before reporting one injected EIO; preservation, discarded rows, closure and
+false authority passed before status 1 assertions failed (six failed, package
+2.498s). These are injected source-test observations, not kernel EIO or released
+incidents. Narrow private collaborator wiring precedes persistent author RED;
+ordinary default behavior and error classification are intentionally unchanged
+until those regressions fail.

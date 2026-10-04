@@ -2729,3 +2729,8 @@ Pre-implementation clarification: preserve the trusted quiescent namespace
 boundary of ADR 0091. Rechecks do not provide atomic compare-and-swap against
 hostile same-user writes. Distinguish missing-API compile RED from subsequent
 independent runtime RED on interface-only unsupported stubs before behavior.
+
+Before source, explicitly make the live engine filesystem-only: no Git queries,
+native probes or subprocesses. Inspect and re-sync existing saved data; do not
+reuse creation's Git orchestration. Independent process sentinels start after
+fixture backup creation and cover the component's complete lifetime.

@@ -159,3 +159,10 @@ unsupported stub may then make the independent fixture executable, so actual
 replacement/restoration controls must also fail at runtime before behavioral
 implementation. Record those phases separately; a missing symbol does not prove
 an observed filesystem rollback defect.
+
+Begin, apply, restore and close are filesystem-only: no Git query, native probe,
+subprocess launch, script execution or model call occurs inside the component.
+Reuse pinned recovery inspection and filesystem sync/readback; do not call the
+Git-dependent recovery-creation orchestration. Acceptance fixture setup may use
+the existing creation API before the component begins; clear process sentinels
+after setup to independently prove the engine launches no process.

@@ -91,8 +91,9 @@ It also binds complete actual root/control/controlled-ancestor identities and
 metadata, selected current identity/bytes/mode, exact pending identity/empty
 content, selected record identity/bytes, the complete checked publication
 namespace, selected saved-set/manifest/hold/payload observations and actual
-budget/checkpoint identities/bytes or their checked absence. Close and revalidate
-the whole observation before returning a digest. No stale or partial proposal
+budget/checkpoint identities/bytes or their checked absence. Revalidate the whole
+observation before checked descriptor closure; return a digest only when both
+validation and closure succeed. No stale or partial proposal
 can grant authority.
 
 ## Existing exclusion and pending evidence
@@ -154,6 +155,9 @@ ctime may change in rename; it is descriptive, not historical continuity.
 Instead bind complete actual current metadata in the fresh proposal, grant and
 every later validation. Equal-byte foreign inodes, absent files, changed ancestry,
 different bytes/modes and post-proposal changes remain preserved conflicts.
+When freshly recovering a prepared after-image, describe its newly checked current
+ForwardIdentity before producing a subsequent reverse-prepared or published record;
+do not carry the old pre-rename ctime as if it were a post-publication observation.
 
 ## Supported resolution matrix
 

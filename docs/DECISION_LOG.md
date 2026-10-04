@@ -2910,3 +2910,24 @@ false authority passed before status 1 assertions failed (six failed, package
 incidents. Narrow private collaborator wiring precedes persistent author RED;
 ordinary default behavior and error classification are intentionally unchanged
 until those regressions fail.
+
+## Decision 95 (2026-10-04 UTC): grant fresh interrupted publication recovery
+
+After user-merged PR #122 (`0e3c1fce946a0f303743e52861bec7e530ffd44f`), implement
+R2.2 under [ADR 0096](adr/0096-interrupted-publication-recovery.md). Independent
+correctness/security source review refined the contract before code: existing
+exclusive recovery controls, explicit operator quiescence affirmation, independent
+known after-reference, actual compatible G2 state and fresh consent constrain a
+new capability. Local journals cannot recreate historical authority or authenticate
+self-consistent prior forgery. Preserve ordinary pending admission barriers.
+
+The bounded phase matrix finishes an already published image, restores its checked
+original or aborts a prepared operation. It does not replay a forward replacement
+from the original. Retained budget PIDs need recorded exit evidence; retained loop
+process PIDs block. Prepared candidate ctime is descriptive across rename, while
+complete current identity is bound by fresh consent and subsequent revalidation.
+
+Independent outside-in runtime RED precedes behavior. Public rollback, complete
+installer/cutover, cleanup/retention and release qualification remain pending.
+The fixed 30-package source plan reports 60.6% merged; only qualified and merged
+R2.2 earns 60.7%. This decision records intended work, not completed qualification.

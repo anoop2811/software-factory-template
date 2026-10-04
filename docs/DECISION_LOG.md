@@ -2682,3 +2682,10 @@ checkpoints with empty activity while a snapshot Git helper descendant survived.
 Require failing acceptance coverage and reuse supervised command/probe cleanup
 for execution snapshot helpers, including successful leaders, before removing
 their guard evidence.
+
+2026-10-04 UTC, before the compound-error correction: independent actual-module
+fault injection observed guard-close failure replace typed unconfirmed preflight
+ownership, dropping its PID and loop uncertainty. Preserve the original direct
+error type/PID and report cleanup failure through one shared legacy release
+helper; retain the activity marker. Ordinary success plus cleanup failure must
+still fail rather than hide the cleanup error.

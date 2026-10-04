@@ -97,7 +97,7 @@ remain separate requirements.
 
 ### Compatibility and packaging
 
-Legacy native help currently uses `subprocess.run` without process-group
+Legacy native help previously used `subprocess.run` without process-group
 ownership. Waiting for the help leader alone does not establish descendant
 exit, even on a successful help result. Correct that unsafe baseline boundary
 under specs/001-go-runtime-conversion.md:333: run help in an owned session,
@@ -174,3 +174,15 @@ markers for inspection; no age-based pruning silently discards ownership
 uncertainty. A later explicit recovery contract must reconcile these markers
 with process and accounting evidence before removal. Original budgets and
 checkpoint history are never rewritten by the guard.
+
+### Compound cleanup failures
+
+Refinement recorded 2026-10-04 UTC before correction: independent actual-module
+fault controls observed Python guard-close failure replacing an original typed
+unconfirmed preflight error, losing its PID and checkpoint uncertainty. Preserve
+the primary error's direct type/PID and safe diagnostic when guard release also
+fails, while also reporting the cleanup failure. Retain the marker and all owned
+evidence; do not make callers traverse arbitrary exception context to recover
+process attribution. Use a shared cleanup helper for the legacy controller
+boundaries rather than duplicating exception replacement rules. An ordinary
+successful operation followed by cleanup failure still reports that failure.

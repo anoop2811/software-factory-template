@@ -169,7 +169,7 @@ fixture witness was corrected; that was not a product defect.
 
 The corrected source adds 26 controls: four original retry regressions, two
 no-fault controls, four repeated-EIO controls and sixteen conflict controls. The
-PR now adds 144 cases across the same six files: 85 external, 45 assessment,
+PR at that correction added 144 cases across the same six files: 85 external, 45 assessment,
 eight staging and six transition cases. Only the observed regression/status
 controls are independent RED claims; already-refusing conflicts are coverage.
 
@@ -205,3 +205,33 @@ This command ran through `rtk proxy` with the task Go cache and qualified Python
 3.12.14 PATH. No selected case skipped. Final independent correctness and security
 reviews found no surviving findings. Full repository and hosted qualification
 on the committed head remain separate publication gates recorded in the PR.
+
+The subsequent advisory review exposed the same observation-error classification
+in the retained writer's ordinary checks, after candidate promotion and during
+explicit restore after successful apply. Two independent actual named-stat-then-
+EIO controls passed preservation, later checked restoration and exact resource
+release before their status assertions failed. The persisted spec-writer controls
+then independently reported two failures before the four observation-error
+branches were separated from actual metadata conflicts. Canon precedes that
+correction in docs/adr/0094-live-publication-restoration.md:249.
+
+This correction adds two assessment cases: 146 new cases across the same six
+files, including the unchanged 85 external cases. Independent final qualification:
+
+```text
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=120s -v ./internal/assessment -ginkgo.focus='Live publication retained writer observation classification' -ginkgo.no-color
+Ran 2 of 189 Specs in 0.161 seconds
+SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 187 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 1.621s
+
+FACTORY_AGENT_ROLE=spec-writer go test -race -timeout=180s -v ./internal/assessment ./internal/filepublish ./internal/transition -ginkgo.no-color
+assessment: 189/189 SUCCESS! 12.966s; package ok 14.398s
+filepublish: 11/11 SUCCESS! 0.049s; package ok 1.808s
+transition: 47/47 SUCCESS! 0.349s; package ok 2.467s
+```
+
+Commands ran through `rtk proxy` with the task Go cache. All 247 affected cases
+passed without selected skips; scoped canonical pack lint reported `0 issues.`.
+Whole repository qualification and the current committed head's hosted checks
+remain separate publication gates. No unsupported concurrent standalone guard
+use or special-mode input support is claimed.

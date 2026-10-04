@@ -804,3 +804,83 @@ var _ = Describe("Live publication retained candidate qualification controls", f
 		Entry("forward saved input changed", false, "saved"), Entry("reverse saved input changed", true, "saved"),
 		Entry("forward pending inode changed", false, "pending"), Entry("reverse pending inode changed", true, "pending"))
 })
+
+var _ = Describe("Live publication retained writer observation classification", func() {
+	// per docs/adr/0094-live-publication-restoration.md:253
+	// per docs/adr/0094-live-publication-restoration.md:259
+	// per docs/adr/0094-live-publication-restoration.md:261
+	DescribeTable("reports actual named observation EIO without changing the owned published file", func(afterPromotion bool) {
+		root, _, request := publicationFaultFixture()
+		original := publicationFaultBytes(root, request.Path)
+		originalInfo, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		controls, files := publicationFaultControls()
+		var operation *Publication
+		var prepared *os.File
+		renames, faulted, armed := 0, false, afterPromotion
+		controls.openPrepared = func(ctx context.Context, stage *filepublish.Stage) (*os.File, error) {
+			file, openErr := stage.OpenPrepared(ctx)
+			if openErr == nil {
+				prepared = file
+				*files = append(*files, file)
+			}
+			return file, openErr
+		}
+		controls.rename = func(ctx context.Context, stage *filepublish.Stage, name string) error {
+			renameErr := stage.Publish(ctx, name)
+			if renameErr == nil {
+				renames++
+			}
+			return renameErr
+		}
+		controls.storage.named = func(parent *os.File, name string) (unix.Stat_t, error) {
+			actual, namedErr := named(parent, name)
+			if operation == nil || !armed || faulted || renames != 1 || operation.state.candidate != nil || name != filepath.Base(request.Path) || !publicationSame(parent, filepath.Join(root, filepath.Dir(request.Path))) {
+				return actual, namedErr
+			}
+			Expect(namedErr).NotTo(HaveOccurred(), "actual named Fstatat succeeds before this one-time EIO")
+			Expect(prepared).NotTo(BeNil())
+			preparedInfo, descriptorErr := prepared.Stat()
+			location, locationErr := os.Lstat(filepath.Join(root, request.Path))
+			Expect(descriptorErr).NotTo(HaveOccurred())
+			Expect(locationErr).NotTo(HaveOccurred())
+			Expect(os.SameFile(preparedInfo, location)).To(BeTrue(), "the actual shared prepared descriptor is now the named published inode")
+			Expect(publicationSame(operation.state.current.file, filepath.Join(root, request.Path))).To(BeTrue(), "the retained writer observes that same actual published inode after candidate promotion")
+			Expect(location.Mode()).To(Equal(preparedInfo.Mode()))
+			Expect(publicationFaultBytes(root, request.Path)).To(Equal(request.Replacement))
+			faulted = true
+			return actual, unix.EIO
+		}
+		operation = publicationFaultBegin(root, request, controls)
+		pending := publicationFaultPending(root)
+		var failed error
+		if afterPromotion {
+			failed = operation.Apply(context.Background())
+		} else {
+			Expect(operation.Apply(context.Background())).To(Succeed())
+			armed = true
+			failed = operation.Restore(context.Background())
+		}
+		Expect(faulted).To(BeTrue(), "the ordinary writer check must reach the actual named observation after real publication")
+		publicationFaultTyped(root, failed)
+		Expect(renames).To(Equal(1), "failed observation cannot authorize another rename")
+		before, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(publicationSame(prepared, filepath.Join(root, request.Path))).To(BeTrue())
+		Expect(before.Mode()).To(Equal(originalInfo.Mode()))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(request.Replacement))
+		publicationFaultPreserved(root, pending)
+		Expect(operation.Restore(context.Background())).To(Succeed(), "after the one-time I/O failure clears, explicit restoration must qualify the unchanged actual published file")
+		Expect(renames).To(Equal(2))
+		Expect(publicationFaultBytes(root, request.Path)).To(Equal(original))
+		after, err := os.Lstat(filepath.Join(root, request.Path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, after)).To(BeFalse(), "checked reversal publishes its actual original sibling only after the fault clears")
+		Expect(after.Mode()).To(Equal(originalInfo.Mode()))
+		_, err = os.Lstat(filepath.Join(root, ".factory/runtime-publication.pending"))
+		Expect(errors.Is(err, os.ErrNotExist)).To(BeTrue())
+		Expect(operation.Close(context.Background())).To(Succeed())
+		publicationObservationReleased(root, *files)
+		Expect(ErrorStatus(failed)).To(Equal(1), "ordinary EIO is operational; all preservation and exact resource-release checks precede this status assertion")
+	}, Entry("ordinary check after real candidate promotion", true), Entry("ordinary explicit restore after successful apply", false))
+})

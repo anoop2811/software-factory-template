@@ -89,7 +89,10 @@ func (w *recoveryWriter) check(ctx context.Context) error {
 	}
 	for i, entry := range w.chain {
 		current, err := descriptor(entry.file)
-		if err != nil || !sameIdentity(current, entry.identity) || current.Mode != entry.identity.Mode || current.Uid != entry.identity.Uid || current.Gid != entry.identity.Gid {
+		if err != nil {
+			return observationError(err, "cannot observe recovery installation ancestry")
+		}
+		if !sameIdentity(current, entry.identity) || current.Mode != entry.identity.Mode || current.Uid != entry.identity.Uid || current.Gid != entry.identity.Gid {
 			return failure(2, "recovery installation ancestry changed")
 		}
 		var location unix.Stat_t
@@ -98,18 +101,27 @@ func (w *recoveryWriter) check(ctx context.Context) error {
 		} else {
 			location, err = w.named(w.chain[i-1].file, entry.name)
 		}
-		if err != nil || !sameIdentity(location, entry.identity) || location.Mode != entry.identity.Mode || location.Uid != entry.identity.Uid || location.Gid != entry.identity.Gid {
+		if err != nil {
+			return observationError(err, "cannot observe recovery installation ancestry")
+		}
+		if !sameIdentity(location, entry.identity) || location.Mode != entry.identity.Mode || location.Uid != entry.identity.Uid || location.Gid != entry.identity.Gid {
 			return failure(2, "recovery installation ancestry changed")
 		}
 	}
 	for _, pin := range w.pins {
 		current, err := descriptor(pin.file)
-		if err != nil || !writeUnchanged(pin.stat, current) {
+		if err != nil {
+			return observationError(err, "cannot observe recovery storage or selected input")
+		}
+		if !writeUnchanged(pin.stat, current) {
 			return failure(2, "recovery storage or selected input changed")
 		}
 		if pin.parent != nil {
 			location, err := w.named(pin.parent, pin.name)
-			if err != nil || !writeUnchanged(pin.stat, location) {
+			if err != nil {
+				return observationError(err, "cannot observe recovery storage or selected input")
+			}
+			if !writeUnchanged(pin.stat, location) {
 				return failure(2, "recovery storage or selected input changed")
 			}
 		}

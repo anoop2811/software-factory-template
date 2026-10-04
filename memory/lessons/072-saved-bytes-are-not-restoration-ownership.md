@@ -37,3 +37,11 @@ ok github.com/anoop2811/software-factory-template/internal/assessment 2.692s
 This command ran through `rtk proxy` with the task Go cache. The four original
 regressions were independently RED; the remaining controls include conflicts
 that already refused. This is injected source-test evidence, not an incident.
+
+Retained candidate checks and later ordinary storage checks must share the same
+observation-error classification. Canon:
+docs/adr/0094-live-publication-restoration.md:259.
+Provenance: observed 2026-10-04 UTC via the two actual named-stat-then-EIO
+controls in internal/assessment/publication_test.go:808. The unchanged controls
+failed before correction and passed afterward; preservation and exact resource
+release assertions preceded the status assertion in each control.

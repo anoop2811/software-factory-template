@@ -2931,3 +2931,35 @@ Independent outside-in runtime RED precedes behavior. Public rollback, complete
 installer/cutover, cleanup/retention and release qualification remain pending.
 The fixed 30-package source plan reports 60.6% merged; only qualified and merged
 R2.2 earns 60.7%. This decision records intended work, not completed qualification.
+
+R2.2 independent qualification sequence before behavior: the actual external client
+first failed compilation on the missing API (four cases, zero passed). After the
+interface-only unsupported source snapshot, it compiled and completed actual owner
+SIGKILL setup, then failed all four runtime recovery controls.
+
+```text
+go test -v ./acceptance -run '^TestAcceptance$' -ginkgo.focus 'Interrupted recovery compiled client core' -ginkgo.no-color -count=1
+Ran 4 of 2498 Specs in 4.904 seconds
+FAIL! -- 0 Passed | 4 Failed
+FAIL github.com/anoop2811/software-factory-template/acceptance 5.563s
+
+go test -v ./acceptance -run '^TestAcceptance$' -ginkgo.focus 'Interrupted recovery compiled client core' -ginkgo.no-color -count=1 -ginkgo.succinct
+Ran 4 of 2498 Specs in 5.821 seconds
+FAIL! -- 0 Passed | 4 Failed
+FAIL github.com/anoop2811/software-factory-template/acceptance 6.345s
+
+go test -v ./internal/budget ./internal/loop ./internal/transition -ginkgo.focus 'Interrupted recovery' -ginkgo.no-color -count=1
+Budget: 0 Passed | 7 Failed; package 0.777s
+Loop: 0 Passed | 8 Failed; package 0.445s
+Transition: 12 Passed | 2 Failed; package 1.044s
+```
+
+The independent spec-writer ran these with its explicit role, the qualified
+interpreter/tool PATH and temporary Go cache; external clients were race-built.
+The first two outputs were captured directly by the tool. The component output
+was logged to /private/tmp/factory-r22-component-red.log and read back. Twelve
+refusal-only guard controls passed unsupported stubs; the two real grant/close
+controls failed, preventing a vacuous qualification claim. An initial missing-Go
+PATH invocation and a new-test Ginkgo import collision were evaluator issues,
+corrected before these runs without changing production behavior or assertions.
+This is RED evidence, not completed implementation or release qualification.

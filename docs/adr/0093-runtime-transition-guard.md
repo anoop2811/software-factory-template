@@ -110,6 +110,16 @@ An independent real descendant regression must fail before this correction.
 Generic legacy preflight failures without exit proof retain the marker rather
 than claiming harmlessness from an empty ledger.
 
+The same rule applies to execution snapshot helpers: a successful Git/grep
+leader can leave same-group descendants with detached output streams. Independent
+actual public manual-loop diagnostics reproduced this in both runtimes before
+correction. Require outside-in RED, then shared supervised execution with
+confirmed group cleanup on success as well as failure. Reuse Go's existing
+native command supervision and Python's owned probe machinery where practical;
+keep literal argv, cwd, environment, capture limits and deadlines. A cleanup
+failure retains ownership evidence and the outer loop activity marker. Pure
+read-only validation still does not create transition infrastructure.
+
 Read-only plans/status/reports and disabled or initially blocked runs remain
 read-only. No new model calls, retries, background services or network requests.
 Existing output schemas, identifiers, accounting and loop evidence remain

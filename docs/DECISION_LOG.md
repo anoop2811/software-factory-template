@@ -2675,3 +2675,10 @@ for its leader through `subprocess.run` without owning a process group. Require
 independent descendant RED, then supervised bounded help cleanup before it can
 authorize harmless marker removal; typed unconfirmed ownership retains evidence.
 This is an explicit unsafe-baseline correction under FR-028, not a new model call.
+
+Further refinement before snapshot correction: independent real public manual
+loop diagnostics in both Go and legacy scripts returned successful terminal
+checkpoints with empty activity while a snapshot Git helper descendant survived.
+Require failing acceptance coverage and reuse supervised command/probe cleanup
+for execution snapshot helpers, including successful leaders, before removing
+their guard evidence.

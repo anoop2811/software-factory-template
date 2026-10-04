@@ -176,3 +176,12 @@ the checked close failure as operational status 1, without printing private
 paths or bytes. A confirmed close of the same unsafe descriptor remains a
 refusal. Qualify both through the actual shared preparer and real file handles;
 do not substitute an expected inode or export a test-only production wrapper.
+
+A separate paired regression observed prepared abort without active rename:
+the original remained durable and pending was actually unlinked, but a parent
+sync failure made Close claim that pending evidence was retained. Use a neutral
+incomplete-operation diagnostic requiring local inspection; do not assert
+marker existence from the handle's old fields. The applied-operation control
+already hid that wording through the typed publication error and did not
+reproduce the direct-message defect. Preserve the same durability and retry
+rules; this correction grants no cleanup or recovery authority.

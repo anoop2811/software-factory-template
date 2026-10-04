@@ -2741,3 +2741,10 @@ the operational close failure and return refusal status 2. Report operational
 status 1 while preserving the safe refusal and pending evidence; keep the
 confirmed-close control at status 2. Reuse a private per-operation boundary,
 not a forged identity or exported test wrapper. See ADR 0094's refinement.
+
+Before the incomplete-close diagnostic correction: a distinct prepared-abort
+control observed actual pending unlink followed by parent-sync EIO, with the
+original durably unchanged. Close incorrectly claimed the absent evidence was
+retained. Require neutral incomplete-operation wording and local inspection;
+the applied-operation control masks the inner wording and was not a diagnostic
+RED. Keep all checked durability, ownership and retry requirements unchanged.

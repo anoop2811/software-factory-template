@@ -88,6 +88,11 @@ partial sets automatically. A failure after writes may leave local evidence;
 inspect that evidence before retrying. A sync failure after manifest publication
 is still an error, not a successful migration.
 
+Valid private operation metadata in the separate
+[durable publication namespace](DURABLE_PUBLICATION.md) is rechecked and does
+not consume one of the 64 saved-set slots. This does not authorize record reuse,
+removal or pruning; unsafe metadata remains a preserved blocker.
+
 The output keeps `coverage=partial`, `target_authentication=operator_metadata`,
 `restorable=false`, `activation_ready=false` and `prune_authorized=false`.
 `created` establishes this operation's checked backup creation, not a completed

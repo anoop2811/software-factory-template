@@ -30,13 +30,19 @@ An absent recovery directory produces an empty inventory. Invalid, incomplete,
 unsafe, oversized or unreadable entries remain untouched and visible. Inspection
 stops at unsafe paths and does not recurse into unknown extra directories. File
 and byte totals count only declared saved files of integrity-checked sets, excluding
-manifests; they are not total disk usage. Set count includes every reported row.
+manifests; they are not total disk usage. Set count includes every reported saved-set row.
 `complete` describes root enumeration, not whether any set can be restored.
 A held marker is reported only from a fully recognized manifest and confers no
 pruning or restoration authority.
 
-Safety limits are explicit: 64 immediate entries, 32 visited entries per set,
+Safety limits are explicit: 64 saved-set entries, 32 visited entries per set,
 16 KiB manifests, the six known reference paths, and private inert stored copies.
+The exact private `.publications` namespace defined by the
+[durable publication component](DURABLE_PUBLICATION.md) is validated separately
+and does not consume a saved-set slot or enter saved-file totals. Its own bound
+is 64 records of at most 64 KiB each. Unknown or unsafe namespace contents make
+inspection incomplete; they are preserved rather than skipped. The source-only
+record inspector remains separate from this command and grants no authority.
 When inspection cannot finish safely, it reports that limit or failure rather
 than calling the inventory empty. Both formats percent-escape unusual directory-name bytes in display paths;
 these identifiers are not literal paths to paste into commands. Text also quotes

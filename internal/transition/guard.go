@@ -63,6 +63,16 @@ func Exclusive(ctx context.Context, root string) (*Guard, error) {
 	return acquire(ctx, root, true, ops{})
 }
 
+// ExclusiveRecovery is unsupported until component runtime qualification.
+// docs/adr/0096-interrupted-publication-recovery.md:100.
+func ExclusiveRecovery(ctx context.Context, root string) (*Guard, error) {
+	return acquireRecovery(ctx, root, ops{})
+}
+
+func acquireRecovery(ctx context.Context, root string, operations ops) (*Guard, error) {
+	return nil, errors.New("interrupted publication exclusion is not implemented")
+}
+
 // Check revalidates the retained owner's existing guard, without acquiring anew.
 // docs/adr/0094-live-publication-restoration.md:63.
 func (g *Guard) Check(ctx context.Context) error {

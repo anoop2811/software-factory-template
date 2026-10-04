@@ -104,14 +104,14 @@ func inspectPublications(ctx context.Context, root string, operations ops) (resu
 	}
 	var pins recoveryPins
 	defer func() {
-		if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
+		if class := recoveryValidationClass(ctx, chain, pins, operations); class != "" {
 			// Discard changed observations while retaining prior operational failure.
 			// docs/adr/0095-durable-live-publication.md:235.
 			status := result.Status()
-			result.RootStatus, result.Complete = "unsafe", false
-			if status == 1 || returned != nil && ErrorStatus(returned) == 1 {
-				result.RootStatus = "assessment_error"
+			if returned != nil && ErrorStatus(returned) == 1 {
+				status = 1
 			}
+			result.RootStatus, result.Complete = recoveryInvalidationClass(status, class), false
 			result.Records, result.RecordCount = []PublicationRecord{}, 0
 		}
 		if err := closeRecoveryPlan(operations, pins, chain); err != nil {

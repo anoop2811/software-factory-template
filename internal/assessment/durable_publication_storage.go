@@ -84,6 +84,10 @@ func (p *publicationState) preflightJournal(ctx context.Context, request Publica
 // Pending is already durable before this constructor-owned local Git boundary.
 // docs/adr/0095-durable-live-publication.md:54.
 func (p *publicationState) beginJournal(ctx context.Context, root string, request PublicationRequest, environment map[string]string) error {
+	root, err := p.qualifiedAbsoluteRoot(ctx, root)
+	if err != nil {
+		return err
+	}
 	git, err := p.w.localGitWith(ctx, root, environment, p.operations.query)
 	if err != nil {
 		return err
@@ -130,6 +134,39 @@ func (p *publicationState) beginJournal(ctx context.Context, root string, reques
 		RecoveryIdentity: RootIdentity{Device: setIdentity.Device, Inode: setIdentity.Inode}, Before: publicationObservation(p.original, mode), After: publicationObservation(p.replacement, mode),
 		OriginalIdentity: assetIdentity(p.current.stat), Direction: "forward", Phase: "prepared", Outcome: "pending"}
 	return p.writeRecord(ctx, record)
+}
+
+// Normalize only after raw no-follow qualification, then bind the held installation.
+// docs/adr/0095-durable-live-publication.md:257.
+func (p *publicationState) qualifiedAbsoluteRoot(ctx context.Context, root string) (result string, returned error) {
+	if err := p.w.check(ctx); err != nil {
+		return "", err
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", failure(1, "cannot resolve qualified publication root")
+	}
+	chain, err := openRoot(ctx, absolute)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := closeRecoveryPlan(p.operations.observe, nil, chain); err != nil {
+			returned = errors.Join(failure(1, "cannot close publication root qualification"), returned)
+			result = ""
+		}
+	}()
+	current, err := descriptor(chain.last())
+	if err != nil {
+		return "", observationError(err, "cannot observe qualified publication root")
+	}
+	if !writeUnchanged(p.w.root.stat, current) {
+		return "", failure(2, "qualified publication root changed")
+	}
+	if err := p.w.check(ctx); err != nil {
+		return "", err
+	}
+	return absolute, nil
 }
 
 func (p *publicationState) reconcileJournal(ctx context.Context) (bool, error) {

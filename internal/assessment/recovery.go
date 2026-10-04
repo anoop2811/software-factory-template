@@ -88,10 +88,7 @@ func inspectRecovery(ctx context.Context, root string, operations ops) (Recovery
 				result.RootStatus = class
 				result.Complete = false
 			}
-			if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
-				result.RootStatus = "unsafe"
-				result.Complete = false
-			}
+			result.invalidate(recoveryValidationClass(ctx, chain, pins, operations))
 			return result, nil
 		}
 		parent = pin.file
@@ -123,15 +120,42 @@ func inspectRecovery(ctx context.Context, root string, operations ops) (Recovery
 	if err := ctx.Err(); err != nil {
 		return RecoveryInventory{}, err
 	}
-	if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
-		result.RootStatus = "unsafe"
-		result.Complete = false
-		result.Sets = []RecoverySet{}
-		result.SetCount = 0
-		result.FileCount = 0
-		result.Bytes = 0
-	}
+	result.invalidate(recoveryValidationClass(ctx, chain, pins, operations))
 	return result, nil
+}
+
+// Invalid observations are discarded without losing an earlier I/O failure.
+// docs/adr/0095-durable-live-publication.md:273.
+func (r *RecoveryInventory) invalidate(class string) {
+	if class == "" {
+		return
+	}
+	r.RootStatus = recoveryInvalidationClass(r.Status(), class)
+	r.Complete = false
+	r.Sets, r.SetCount, r.FileCount, r.Bytes = []RecoverySet{}, 0, 0, 0
+}
+
+func recoveryInvalidationClass(status int, class string) string {
+	if status == 1 || class == "assessment_error" {
+		return "assessment_error"
+	}
+	return class
+}
+
+// Both retained metadata checks participate, with operational errors taking priority.
+// docs/adr/0095-durable-live-publication.md:265.
+func recoveryValidationClass(ctx context.Context, chain directories, pins recoveryPins, operations ops) string {
+	class := ""
+	for _, err := range []error{checkRecoveryRoot(ctx, chain, operations), pins.check(ctx, operations)} {
+		if err != nil {
+			next := "unsafe"
+			if ErrorStatus(err) == 1 {
+				next = "assessment_error"
+			}
+			class = mergeRecoveryClass(class, next)
+		}
+	}
+	return class
 }
 
 type recoveryPin struct {
@@ -150,26 +174,41 @@ func (p recoveryPins) close() {
 	}
 }
 func (p recoveryPins) valid(options ...ops) bool {
-	operations := metadataOperations(options)
+	return p.check(context.Background(), metadataOperations(options)) == nil
+}
+
+func (p recoveryPins) check(ctx context.Context, operations ops) error {
 	for _, pin := range p {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if pin.missing {
 			if _, err := operations.lookup(pin.parent, pin.name); !errors.Is(err, unix.ENOENT) {
-				return false
+				if err != nil {
+					return observationError(err, "cannot observe expected recovery absence")
+				}
+				return failure(2, "expected recovery absence changed")
 			}
 			continue
 		}
 		if pin.file != nil {
 			current, err := operations.stat(pin.file)
-			if err != nil || !recoveryUnchanged(pin.stat, current) {
-				return false
+			if err != nil {
+				return observationError(err, "cannot observe retained recovery metadata")
+			}
+			if !recoveryUnchanged(pin.stat, current) {
+				return failure(2, "retained recovery metadata changed")
 			}
 		}
 		current, err := operations.lookup(pin.parent, pin.name)
-		if err != nil || !recoveryUnchanged(pin.stat, current) {
-			return false
+		if err != nil {
+			return observationError(err, "cannot observe named recovery metadata")
+		}
+		if !recoveryUnchanged(pin.stat, current) {
+			return failure(2, "named recovery metadata changed")
 		}
 	}
-	return true
+	return nil
 }
 func recoveryUnchanged(a, b unix.Stat_t) bool { return unchanged(a, b) && a.Uid == b.Uid }
 func recoveryDirectory(stat unix.Stat_t, factory bool) bool {
@@ -286,8 +325,14 @@ func recoveryDisplayName(name string) string {
 // ancestor listing changes remain irrelevant to the inspected installation.
 // docs/adr/0083-go-recovery-set-inspection.md:161.
 func recoveryRootValid(chain directories, options ...ops) bool {
-	operations := metadataOperations(options)
+	return checkRecoveryRoot(context.Background(), chain, metadataOperations(options)) == nil
+}
+
+func checkRecoveryRoot(ctx context.Context, chain directories, operations ops) error {
 	for i, entry := range chain {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		matches := func(current unix.Stat_t) bool {
 			if i == len(chain)-1 {
 				return recoveryUnchanged(entry.identity, current)
@@ -295,23 +340,24 @@ func recoveryRootValid(chain directories, options ...ops) bool {
 			return sameIdentity(entry.identity, current) && entry.identity.Mode == current.Mode && entry.identity.Uid == current.Uid
 		}
 		current, err := operations.stat(entry.file)
-		if err != nil || !matches(current) {
-			return false
+		if err != nil {
+			return observationError(err, "cannot observe recovery root metadata")
+		}
+		if !matches(current) {
+			return failure(2, "recovery root metadata changed")
 		}
 		var location unix.Stat_t
 		if i == 0 {
-			if unix.Fstatat(unix.AT_FDCWD, entry.name, &location, unix.AT_SYMLINK_NOFOLLOW) != nil {
-				return false
-			}
+			err = unix.Fstatat(unix.AT_FDCWD, entry.name, &location, unix.AT_SYMLINK_NOFOLLOW)
 		} else {
 			location, err = operations.lookup(chain[i-1].file, entry.name)
-			if err != nil {
-				return false
-			}
+		}
+		if err != nil {
+			return observationError(err, "cannot observe named recovery root")
 		}
 		if !matches(location) {
-			return false
+			return failure(2, "named recovery root changed")
 		}
 	}
-	return true
+	return nil
 }

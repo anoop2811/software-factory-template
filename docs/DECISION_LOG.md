@@ -2865,3 +2865,11 @@ requires complete bounded counting independent of cursor state, preserving pins
 and revalidation rather than weakening the separate 64-record bound. A persistent
 independent paired regression must precede correction. Active originals and prior
 records remained preserved; this is source-test evidence, not a released incident.
+
+Before inspection-precedence correction, 2026-10-04 UTC: independent reviewer
+and persistent spec-writer controls observed real-read/EIO status 1 being reduced
+to status 2 after actual record-mode invalidation. The no-invalidation EIO and
+metadata-only refusal controls passed. Refine ADR 0095: discard invalid rows and
+keep authority false while preserving previously observed I/O priority in the
+operation and report Status. Metadata-only conflicts remain refusal 2. This
+changes no mutation, restoration or cleanup authority.

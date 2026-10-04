@@ -222,3 +222,17 @@ revalidation; use the already-checked count or a separately qualified fresh
 enumeration. Exactly 64 existing records refuse a new slot; 63 may admit record
 64. Retaining a descriptor is not evidence that a later directory read starts at
 the beginning. Keep the saved-set and record bounds separate.
+
+## Inspection error precedence refinement
+
+Before correction, an actual record read followed by reported EIO produced
+operational status 1. Adding an actual mode change at that boundary invalidated
+the retained observation and incorrectly reduced the result to refusal status
+2. Preserved bytes, unchanged inode, resource closure and false authority checks
+passed before the status assertion failed. A metadata-only invalidation still
+correctly refused with status 2. These are injected source-test controls.
+
+Late revalidation must discard unsafe observations without erasing an already
+observed operational failure. The returned operation and report Status retain
+status 1 precedence when I/O occurred; ordinary metadata-only conflicts retain
+status 2. Keep completeness false, unsafe rows discarded and all authority false.

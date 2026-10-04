@@ -186,3 +186,24 @@ evidence; do not make callers traverse arbitrary exception context to recover
 process attribution. Use a shared cleanup helper for the legacy controller
 boundaries rather than duplicating exception replacement rules. An ordinary
 successful operation followed by cleanup failure still reports that failure.
+
+### Go group completion and compound checkpoint errors
+
+Refinement recorded 2026-10-04 UTC before correction of the hosted review
+findings: the existing Go supervisor confirms signal delivery and leader reaping,
+but those facts do not establish disappearance of the owned process group.
+Cooperating Go help, snapshots and native execution must confirm group absence
+within the existing shared cleanup allowance before reporting confirmed ownership
+or removing activity evidence. Reuse the supervisor rather than introducing a
+probe-specific cleanup implementation. A remaining group, failed inspection or
+expired cleanup allowance must preserve `native.OwnershipError` and its PID.
+Do not extend the five-second native or one-second snapshot cleanup bounds.
+Require a failing real-process collaborator with a ready same-group descendant
+and acknowledged but incomplete termination before the correction; the test owns
+its final cleanup and must leave no orphan.
+
+When Go loop guard release also fails, preserve the primary checkpoint
+`PublicationError` in the returned error chain, including `MayHaveCommitted`,
+alongside a safe cleanup diagnostic. Retain activity and checkpoint evidence;
+ordinary success with cleanup failure still fails. Require an independent
+compound publication/release regression before this correction.

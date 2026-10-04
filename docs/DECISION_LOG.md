@@ -2689,3 +2689,11 @@ ownership, dropping its PID and loop uncertainty. Preserve the original direct
 error type/PID and report cleanup failure through one shared legacy release
 helper; retain the activity marker. Ordinary success plus cleanup failure must
 still fail rather than hide the cleanup error.
+
+2026-10-04 UTC, before hosted-review corrections: Go signal acknowledgement plus
+leader reaping does not establish owned-group disappearance. Require bounded
+absence confirmation in the shared supervisor, within existing cleanup limits,
+and a real ready-descendant RED before correction. Preserve typed ownership/PID
+on remaining or uninspectable groups. A compound Go loop guard-close failure
+must also preserve checkpoint PublicationError/MayHaveCommitted in an error chain;
+qualify through an independent compound regression. See ADR 0093's Go refinement.

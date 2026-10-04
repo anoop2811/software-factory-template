@@ -104,7 +104,7 @@ func inspectPublications(ctx context.Context, root string, operations ops) (resu
 	}
 	var pins recoveryPins
 	defer func() {
-		if !recoveryRootValid(chain) || !pins.valid() {
+		if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
 			// Discard changed observations while retaining prior operational failure.
 			// docs/adr/0095-durable-live-publication.md:235.
 			status := result.Status()

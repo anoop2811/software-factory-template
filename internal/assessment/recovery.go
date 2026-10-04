@@ -88,7 +88,7 @@ func inspectRecovery(ctx context.Context, root string, operations ops) (Recovery
 				result.RootStatus = class
 				result.Complete = false
 			}
-			if !recoveryRootValid(chain) || !pins.valid() {
+			if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
 				result.RootStatus = "unsafe"
 				result.Complete = false
 			}
@@ -123,7 +123,7 @@ func inspectRecovery(ctx context.Context, root string, operations ops) (Recovery
 	if err := ctx.Err(); err != nil {
 		return RecoveryInventory{}, err
 	}
-	if !recoveryRootValid(chain) || !pins.valid() {
+	if !recoveryRootValid(chain, operations) || !pins.valid(operations) {
 		result.RootStatus = "unsafe"
 		result.Complete = false
 		result.Sets = []RecoverySet{}
@@ -149,21 +149,22 @@ func (p recoveryPins) close() {
 		}
 	}
 }
-func (p recoveryPins) valid() bool {
+func (p recoveryPins) valid(options ...ops) bool {
+	operations := metadataOperations(options)
 	for _, pin := range p {
 		if pin.missing {
-			if _, err := named(pin.parent, pin.name); !errors.Is(err, unix.ENOENT) {
+			if _, err := operations.lookup(pin.parent, pin.name); !errors.Is(err, unix.ENOENT) {
 				return false
 			}
 			continue
 		}
 		if pin.file != nil {
-			current, err := descriptor(pin.file)
+			current, err := operations.stat(pin.file)
 			if err != nil || !recoveryUnchanged(pin.stat, current) {
 				return false
 			}
 		}
-		current, err := named(pin.parent, pin.name)
+		current, err := operations.lookup(pin.parent, pin.name)
 		if err != nil || !recoveryUnchanged(pin.stat, current) {
 			return false
 		}
@@ -284,7 +285,8 @@ func recoveryDisplayName(name string) string {
 // Recovery additionally binds root-chain permissions and ownership, while shared
 // ancestor listing changes remain irrelevant to the inspected installation.
 // docs/adr/0083-go-recovery-set-inspection.md:161.
-func recoveryRootValid(chain directories) bool {
+func recoveryRootValid(chain directories, options ...ops) bool {
+	operations := metadataOperations(options)
 	for i, entry := range chain {
 		matches := func(current unix.Stat_t) bool {
 			if i == len(chain)-1 {
@@ -292,7 +294,7 @@ func recoveryRootValid(chain directories) bool {
 			}
 			return sameIdentity(entry.identity, current) && entry.identity.Mode == current.Mode && entry.identity.Uid == current.Uid
 		}
-		current, err := descriptor(entry.file)
+		current, err := operations.stat(entry.file)
 		if err != nil || !matches(current) {
 			return false
 		}
@@ -302,7 +304,7 @@ func recoveryRootValid(chain directories) bool {
 				return false
 			}
 		} else {
-			location, err = named(chain[i-1].file, entry.name)
+			location, err = operations.lookup(chain[i-1].file, entry.name)
 			if err != nil {
 				return false
 			}

@@ -2748,3 +2748,11 @@ original durably unchanged. Close incorrectly claimed the absent evidence was
 retained. Require neutral incomplete-operation wording and local inspection;
 the applied-operation control masks the inner wording and was not a diagnostic
 RED. Keep all checked durability, ownership and retry requirements unchanged.
+
+Before the live-handle alias correction: an independent actual external API
+value copy before first lifecycle use let alias Restore report success and
+clear pending while the original handle's named replacement remained active.
+Move lifecycle phase, mutex and owned resources behind one private shared state
+pointer so legitimate aliases cannot fork authority or cleanup. Refuse nil/zero
+handles and retain every actual after-image/durability check. Observe the direct
+value-copy regression GREEN; a no-copy prose convention is insufficient.

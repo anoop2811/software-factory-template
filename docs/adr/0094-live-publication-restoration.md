@@ -185,3 +185,19 @@ marker existence from the handle's old fields. The applied-operation control
 already hid that wording through the typed publication error and did not
 reproduce the direct-message defect. Preserve the same durability and retry
 rules; this correction grants no cleanup or recovery authority.
+
+## Pre-correction live handle alias refinement
+
+An independent external API regression copied a successful prepared public
+handle before any lifecycle method used its mutex. The original handle applied
+the real replacement; the copied handle then reported successful restore and
+removed pending while the named replacement remained. A copied phase snapshot
+must not turn a live publication into a prepared abort.
+
+Make the exported handle a wrapper around one private shared lifecycle state.
+Every legitimate value alias shares phase, mutex, immutable images, pinned
+ownership and resource closure. Restoration through an alias uses the same
+actual after-inode; closing any alias closes that one operation. Nil and
+zero-state handles refuse. There is still no import/reconstruction authority.
+Retain all checked inode, byte, mode, ancestry and pending durability controls;
+documenting a no-copy convention is not the ownership enforcement.

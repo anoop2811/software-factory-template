@@ -2838,3 +2838,11 @@ preserve the supervisor's actual PID and typed native ownership uncertainty in
 its returned error, including cancellation. A generic local-Git diagnostic may
 not erase that owned state. The pending barrier remains independent evidence
 blocking admission; it does not imply that the query group has exited.
+
+Documentation reconciliation, 2026-10-04 UTC: the current source specification
+already resolves Q2 platform scope and Q3 artifact trust at
+specs/001-go-runtime-conversion.md:481 and
+specs/001-go-runtime-conversion.md:482. Correct the older compatibility inventory
+wording; actual platform/authentication qualification remains pending, while
+specs/001-go-runtime-conversion.md:484 still leaves detailed Q5 pilot criteria
+open. Existing approvals are not additional unfinished approval tasks.

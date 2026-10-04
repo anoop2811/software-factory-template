@@ -3051,3 +3051,22 @@ FAIL github.com/anoop2811/software-factory-template/internal/assessment 2.174s
 
 Raw output: /private/tmp/factory-r22-stat-error-red.log. This is real native
 observation followed by an injected report, not kernel EIO or a released incident.
+
+The inherited writer's initial named-directory/file classification was separately
+isolated through its existing private collaborator. Six paired proposal/grant
+cases performed successful real named observations of .factory, pending and the
+selected current file before one reported EIO. Eligible baselines, complete
+preservation, nonempty descriptor closure and actual flock release passed before
+the final status assertion received 2 instead of 1. Root read the tests and log;
+reuse the existing errno policy in the shared helper before any correction,
+retaining ordinary missing/unsafe refusals and requalifying existing write paths.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery qualified named observation error status' -ginkgo.no-color -count=1
+Ran 6 of 283 Specs in 2.366 seconds
+FAIL! -- 0 Passed | 6 Failed
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 2.839s
+```
+
+Raw output: /private/tmp/factory-r22-named-error-red.log. This qualifies the
+initial lookup error path only; it does not claim a native kernel error.

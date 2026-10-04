@@ -166,3 +166,13 @@ Reuse pinned recovery inspection and filesystem sync/readback; do not call the
 Git-dependent recovery-creation orchestration. Acceptance fixture setup may use
 the existing creation API before the component begins; clear process sentinels
 after setup to independently prove the engine launches no process.
+
+## Pre-correction cleanup refinement
+
+An independent paired actual-descriptor regression observed that an unsafe
+prepared-file mode plus a real close reporting EIO returned refusal status 2,
+discarding the operational close failure. Preserve the safe refusal and report
+the checked close failure as operational status 1, without printing private
+paths or bytes. A confirmed close of the same unsafe descriptor remains a
+refusal. Qualify both through the actual shared preparer and real file handles;
+do not substitute an expected inode or export a test-only production wrapper.

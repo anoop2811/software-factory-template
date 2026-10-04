@@ -2734,3 +2734,10 @@ Before source, explicitly make the live engine filesystem-only: no Git queries,
 native probes or subprocesses. Inspect and re-sync existing saved data; do not
 reuse creation's Git orchestration. Independent process sentinels start after
 fixture backup creation and cover the component's complete lifetime.
+
+Before the prepared-descriptor cleanup correction: the independent paired
+actual opened-stage control observed unsafe mode plus actual close/EIO lose
+the operational close failure and return refusal status 2. Report operational
+status 1 while preserving the safe refusal and pending evidence; keep the
+confirmed-close control at status 2. Reuse a private per-operation boundary,
+not a forged identity or exported test wrapper. See ADR 0094's refinement.

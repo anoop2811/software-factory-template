@@ -2882,3 +2882,16 @@ direction invariant explicitly for Apply: refuse new forward work after any
 valid terminal direction is latched, preserving explicit chosen-direction retry,
 non-latching invalid Finish and legacy journal-free behavior. A persistent
 independent regression must precede correction.
+
+Before late Copilot review corrections, 2026-10-04 UTC: review threads
+4179354651, 4179354694 and 4179354727 identify accepted root spelling being
+compared directly with Git's absolute output, operational errors first observed
+in final metadata checks being collapsed into boolean conflicts, and shared
+recovery inspection erasing earlier record-read I/O after invalidation. These
+claims are under independent runtime qualification; no correction is claimed yet.
+Refine ADR 0095 before regression and implementation: normalize only a qualified
+no-follow root, retain final metadata failure classification, and preserve I/O
+priority while discarding unsafe recovery/publication observations. Private fault
+collaborators retain real syscall execution and production defaults. Persistent
+independent runtime RED must precede behavior correction. This adds no restart,
+restoration, activation, retention or pruning authority.

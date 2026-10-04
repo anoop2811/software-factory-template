@@ -251,3 +251,33 @@ new forward publication. Only explicit retry of that chosen completion may
 proceed. Apply must check the live direction before preparing or publishing any
 candidate. Preserve invalid/unapplied Finish's non-latching behavior and legacy
 handles without a durable journal.
+
+## Qualified root spelling and final metadata classification
+
+An accepted installation root may be relative (including `.`) or an absolute
+path with a trailing separator. Preserve the existing no-follow component walk
+and rejection of `..` before converting the qualified root to a clean absolute
+spelling for Git's absolute repository identity and journal access. Bind that
+spelling to the already-qualified installation; normalization must not admit
+links or traversal, change the selected installation, or leave pending solely
+because Git reports an equivalent absolute spelling.
+
+Final recovery/publication revalidation must retain the failure classification
+of both descriptor and pathname metadata observations. An operational error
+first encountered in final revalidation remains `assessment_error`, status 1;
+an observed identity, ownership or mode mismatch remains refusal status 2.
+Missing expected objects and newly occupied missing entries remain conflicts,
+while an operational failure observing a previously missing entry remains 1.
+Do not collapse all failed metadata observations into a boolean conflict.
+
+The shared recovery inventory must also preserve earlier operational failure
+when final metadata invalidation discards its observations. Root status remains
+`assessment_error` when any relevant I/O failed; clear invalid rows and totals,
+set completeness false and keep every authority field false. Apply the same
+precedence to early-return and final-return validation. Continue resource closure
+without changing saved sets, publication records, installed files or processes.
+
+Private metadata fault collaborators may qualify these boundaries by performing
+the actual stat operation and then reporting a one-shot error. The production
+default still performs native metadata observations; fault evidence must state
+that the reported error was injected rather than a naturally occurring EIO.

@@ -2798,3 +2798,23 @@ same observation classifier to the named pending recheck after its descriptor
 closes. Keep missing/unsafe names and actual ownership or metadata conflicts as
 refusals, with original durability and explicit retry unchanged. See ADR 0094's
 closed pending observation refinement; this grants no additional cleanup action.
+
+## Decision 94 (2026-10-04 UTC): durable live completion and inert records
+
+After merged PR #121, implement ADR 0095's R2.1 source slice. Add durable live
+forward Finish and journaled reverse completion while preserving opaque actual
+ownership, the permanent exclusive guard and the fixed pending barrier. Keep
+records outside immutable v1 sets in a reserved inert namespace under the
+already-excluded backup root; qualify its actual Git exclusion/index state before
+writing. Record retries use actual retained candidate ownership, not local JSON
+as permission. Restart inspection remains read-only with every authority false.
+
+Qualified recovery after interruption is R2.2, with a fresh capability and known
+after-image/compatible-state contract; it is not silently credited to journal
+inspection. Divide R2 into those two equal deliverables before implementation.
+The fixed 30-package denominator remains; merged PR #121 earns 60.4%, and only
+qualified/merged R2.1 can earn 60.6%. This source slice enables no public rollback,
+installer/default cutover, legacy retirement, retention or release readiness.
+Use independent outside-in Ginkgo/Gomega RED before code, shared Go storage and
+staging primitives, and verified review-diamond findings. No new dependency or
+paid/background invocation is authorized.

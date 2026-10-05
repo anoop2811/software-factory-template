@@ -196,12 +196,15 @@ func (w *recoveryWriter) directory(ctx context.Context, parent *writePin, name s
 		}
 		before, err = w.named(parent.file, name)
 	}
-	if err != nil || !trustedDirectory(before, private) {
+	if err != nil {
+		return nil, observationError(err, "cannot observe recovery directory")
+	}
+	if !trustedDirectory(before, private) {
 		return nil, failure(2, "unsafe or unavailable recovery directory")
 	}
 	file, err := w.open(ctx, parent.file, name, unix.O_RDONLY|unix.O_DIRECTORY, 0)
 	if err != nil {
-		return nil, failure(1, "cannot open recovery directory")
+		return nil, observationError(err, "cannot open recovery directory")
 	}
 	after, err := descriptor(file)
 	if err != nil || !writeUnchanged(before, after) {
@@ -218,12 +221,15 @@ func (w *recoveryWriter) existingFile(ctx context.Context, parent *writePin, nam
 		return nil, err
 	}
 	before, err := w.named(parent.file, name)
-	if err != nil || !ownedFile(before, limit) || private && before.Mode&07777 != 0600 {
+	if err != nil {
+		return nil, observationError(err, "cannot observe recovery file")
+	}
+	if !ownedFile(before, limit) || private && before.Mode&07777 != 0600 {
 		return nil, failure(2, "unsafe or unavailable recovery file")
 	}
 	file, err := w.open(ctx, parent.file, name, flags, 0)
 	if err != nil {
-		return nil, failure(1, "cannot open recovery file")
+		return nil, observationError(err, "cannot open recovery file")
 	}
 	after, err := descriptor(file)
 	if err != nil || !writeUnchanged(before, after) {

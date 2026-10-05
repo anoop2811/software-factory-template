@@ -271,8 +271,19 @@ func (h History) HasActive(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
-// HasUnresolved is unsupported until component runtime qualification.
-// docs/adr/0096-interrupted-publication-recovery.md:132.
+// HasUnresolved observes unresolved accounting without inferring PID liveness.
+// docs/adr/0096-interrupted-publication-recovery.md:143.
 func (h History) HasUnresolved(ctx context.Context) (bool, error) {
-	return false, errors.New("unresolved budget history assessment is not implemented")
+	if err := validateHistory(ctx, h); err != nil {
+		return false, err
+	}
+	for _, row := range h.rows() {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		if row["status"] == "active" || row["process_pid"] != nil && row["exit_code"] == nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }

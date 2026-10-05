@@ -41,12 +41,31 @@ type pin struct {
 // Exclusive acquisition excludes cooperating controllers only; it grants no
 // installation or recovery authority. docs/adr/0093-runtime-transition-guard.md:93.
 type Guard struct {
-	operations ops
-	pins       []*pin
-	lock       *pin
-	activity   *pin
-	marker     *pin
-	closed     bool
+	operations   ops
+	pins         []*pin
+	lock         *pin
+	activity     *pin
+	marker       *pin
+	closed       bool
+	recoveryOnly bool
+}
+
+// RecoveryError preserves classification beneath a fixed safe diagnostic.
+// docs/adr/0096-interrupted-publication-recovery.md:218.
+type RecoveryError struct {
+	cause    error
+	conflict bool
+}
+
+func (e *RecoveryError) Error() string  { return "interrupted publication exclusion unavailable" }
+func (e *RecoveryError) Unwrap() error  { return e.cause }
+func (e *RecoveryError) Conflict() bool { return e.conflict }
+
+func (g *Guard) issue(cause error, conflict bool) error {
+	if g.recoveryOnly {
+		return &RecoveryError{cause: cause, conflict: conflict}
+	}
+	return storageError()
 }
 
 func storageError() error { return errors.New("unsafe or unavailable runtime transition storage") }
@@ -63,14 +82,74 @@ func Exclusive(ctx context.Context, root string) (*Guard, error) {
 	return acquire(ctx, root, true, ops{})
 }
 
-// ExclusiveRecovery is unsupported until component runtime qualification.
-// docs/adr/0096-interrupted-publication-recovery.md:100.
+// ExclusiveRecovery excludes cooperating work using existing controls only.
+// docs/adr/0096-interrupted-publication-recovery.md:105.
 func ExclusiveRecovery(ctx context.Context, root string) (*Guard, error) {
 	return acquireRecovery(ctx, root, ops{})
 }
 
-func acquireRecovery(ctx context.Context, root string, operations ops) (*Guard, error) {
-	return nil, errors.New("interrupted publication exclusion is not implemented")
+func acquireRecovery(ctx context.Context, root string, operations ops) (result *Guard, returned error) {
+	root, err := selectedGuardRoot(root)
+	if err != nil {
+		return nil, &RecoveryError{conflict: true}
+	}
+	g := &Guard{operations: operations, recoveryOnly: true}
+	defer func() {
+		if result == nil {
+			returned = errors.Join(g.closeFiles(), returned)
+		}
+	}()
+	project, err := g.existing(ctx, nil, root, "directory")
+	if err != nil {
+		return nil, err
+	}
+	state, err := g.existing(ctx, project.file, ".factory", "directory")
+	if err != nil {
+		return nil, err
+	}
+	g.lock, err = g.existing(ctx, state.file, lockName, "control")
+	if err != nil {
+		return nil, err
+	}
+	g.activity, err = g.existing(ctx, state.file, activityName, "private")
+	if err != nil {
+		return nil, err
+	}
+	if err := g.flock(ctx, true); err != nil {
+		return nil, err
+	}
+	read := g.operations.readDir
+	if read == nil {
+		read = func(_ context.Context, file *os.File, n int) ([]os.DirEntry, error) { return file.ReadDir(n) }
+	}
+	entries, err := read(ctx, g.activity.file, 1)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, g.issue(err, false)
+	}
+	if len(entries) != 0 {
+		return nil, g.issue(nil, true)
+	}
+	// Pending is qualified now, but assessment separately owns its later removal.
+	// docs/adr/0096-interrupted-publication-recovery.md:115.
+	pending, err := g.existing(ctx, state.file, pendingName, "control")
+	if err != nil {
+		return nil, err
+	}
+	if err := g.closeFile(pending.file); err != nil {
+		return nil, g.issue(err, false)
+	}
+	g.pins = g.pins[:len(g.pins)-1]
+	current, err := g.named(ctx, state.file, pendingName)
+	if err != nil {
+		return nil, g.issue(err, false)
+	}
+	if !safe(current, "control") || !same(current, pending.stat) || current.Mode != pending.stat.Mode || current.Gid != pending.stat.Gid || current.Mtim != pending.stat.Mtim || current.Ctim != pending.stat.Ctim {
+		return nil, g.issue(nil, true)
+	}
+	if err := g.check(ctx); err != nil {
+		return nil, err
+	}
+	return g, nil
 }
 
 // Check revalidates the retained owner's existing guard, without acquiring anew.
@@ -91,20 +170,9 @@ func (g *Guard) pendingAbsent(ctx context.Context, state *pin) error {
 }
 
 func acquire(ctx context.Context, root string, exclusive bool, operations ops) (result *Guard, returned error) {
-	if root == "" || strings.ContainsRune(root, 0) {
-		return nil, storageError()
-	}
-	for _, part := range strings.Split(root, "/") {
-		if part == ".." {
-			return nil, storageError()
-		}
-	}
-	for root != "/" && (strings.HasSuffix(root, "/") || strings.HasSuffix(root, "/.")) {
-		if strings.HasSuffix(root, "/.") {
-			root = strings.TrimSuffix(root, "/.")
-		} else {
-			root = strings.TrimSuffix(root, "/")
-		}
+	root, err := selectedGuardRoot(root)
+	if err != nil {
+		return nil, err
 	}
 	g := &Guard{operations: operations}
 	defer func() {
@@ -124,22 +192,7 @@ func acquire(ctx context.Context, root string, exclusive bool, operations ops) (
 	if err != nil {
 		return nil, err
 	}
-	operation := unix.LOCK_SH | unix.LOCK_NB
-	if exclusive {
-		operation = unix.LOCK_EX | unix.LOCK_NB
-	}
-	if err := g.check(ctx); err != nil {
-		return nil, err
-	}
-	if g.operations.flock != nil {
-		err = g.operations.flock(ctx, g.lock.file, operation)
-	} else {
-		err = unix.Flock(int(g.lock.file.Fd()), operation)
-	}
-	if err != nil {
-		return nil, errors.New("runtime transition is locked or unavailable")
-	}
-	if err := g.check(ctx); err != nil {
+	if err := g.flock(ctx, exclusive); err != nil {
 		return nil, err
 	}
 	// Any pending entry blocks fresh work while the permanent flock is held.
@@ -188,6 +241,48 @@ func acquire(ctx context.Context, root string, exclusive bool, operations ops) (
 	return g, nil
 }
 
+func selectedGuardRoot(root string) (string, error) {
+	if root == "" || strings.ContainsRune(root, 0) {
+		return "", storageError()
+	}
+	for _, part := range strings.Split(root, "/") {
+		if part == ".." {
+			return "", storageError()
+		}
+	}
+	for root != "/" && (strings.HasSuffix(root, "/") || strings.HasSuffix(root, "/.")) {
+		if strings.HasSuffix(root, "/.") {
+			root = strings.TrimSuffix(root, "/.")
+		} else {
+			root = strings.TrimSuffix(root, "/")
+		}
+	}
+	return root, nil
+}
+
+func (g *Guard) flock(ctx context.Context, exclusive bool) error {
+	operation := unix.LOCK_SH | unix.LOCK_NB
+	if exclusive {
+		operation = unix.LOCK_EX | unix.LOCK_NB
+	}
+	if err := g.check(ctx); err != nil {
+		return err
+	}
+	var err error
+	if g.operations.flock != nil {
+		err = g.operations.flock(ctx, g.lock.file, operation)
+	} else {
+		err = unix.Flock(int(g.lock.file.Fd()), operation)
+	}
+	if err != nil {
+		if g.recoveryOnly {
+			return g.issue(err, errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN))
+		}
+		return errors.New("runtime transition is locked or unavailable")
+	}
+	return g.check(ctx)
+}
+
 func safe(stat unix.Stat_t, kind string) bool {
 	if int64(stat.Uid) != int64(os.Geteuid()) {
 		return false
@@ -200,6 +295,13 @@ func safe(stat unix.Stat_t, kind string) bool {
 
 func same(a, b unix.Stat_t) bool {
 	return a.Dev == b.Dev && a.Ino == b.Ino && a.Mode&unix.S_IFMT == b.Mode&unix.S_IFMT
+}
+
+// Empty activity evidence stays unchanged across pending qualification and grant.
+// docs/adr/0096-interrupted-publication-recovery.md:119.
+func unchangedActivity(a, b unix.Stat_t) bool {
+	return same(a, b) && a.Mode == b.Mode && a.Uid == b.Uid && a.Gid == b.Gid &&
+		a.Nlink == b.Nlink && a.Size == b.Size && a.Mtim == b.Mtim && a.Ctim == b.Ctim
 }
 
 func (g *Guard) named(ctx context.Context, parent *os.File, name string) (unix.Stat_t, error) {
@@ -239,8 +341,11 @@ func (g *Guard) open(ctx context.Context, parent *os.File, name string, flags in
 
 func (g *Guard) existing(ctx context.Context, parent *os.File, name, kind string) (*pin, error) {
 	before, err := g.named(ctx, parent, name)
-	if err != nil || !safe(before, kind) {
-		return nil, errors.Join(storageError(), ctx.Err())
+	if err != nil {
+		return nil, errors.Join(g.issue(err, false), ctx.Err())
+	}
+	if !safe(before, kind) {
+		return nil, errors.Join(g.issue(nil, true), ctx.Err())
 	}
 	flags := unix.O_RDONLY | unix.O_DIRECTORY
 	if kind == "control" {
@@ -248,7 +353,7 @@ func (g *Guard) existing(ctx context.Context, parent *os.File, name, kind string
 	}
 	file, err := g.open(ctx, parent, name, flags, 0)
 	if err != nil {
-		return nil, errors.Join(storageError(), ctx.Err())
+		return nil, errors.Join(g.issue(err, false), ctx.Err())
 	}
 	entry := &pin{parent: parent, file: file, name: name, stat: before, kind: kind}
 	g.pins = append(g.pins, entry)
@@ -307,15 +412,27 @@ func (g *Guard) check(ctx context.Context) error {
 	}
 	for _, entry := range g.pins {
 		current, err := g.named(ctx, entry.parent, entry.name)
-		if err != nil || !safe(current, entry.kind) || !same(current, entry.stat) {
-			return errors.Join(storageError(), ctx.Err())
+		if err != nil {
+			return errors.Join(g.issue(err, false), ctx.Err())
+		}
+		if !safe(current, entry.kind) || !same(current, entry.stat) {
+			return errors.Join(g.issue(nil, true), ctx.Err())
+		}
+		if g.recoveryOnly && entry == g.activity && !unchangedActivity(entry.stat, current) {
+			return g.issue(nil, true)
 		}
 		if entry.file == nil {
 			continue
 		}
 		var descriptor unix.Stat_t
-		if unix.Fstat(int(entry.file.Fd()), &descriptor) != nil || !safe(descriptor, entry.kind) || !same(current, descriptor) {
-			return storageError()
+		if err := unix.Fstat(int(entry.file.Fd()), &descriptor); err != nil {
+			return g.issue(err, false)
+		}
+		if !safe(descriptor, entry.kind) || !same(current, descriptor) {
+			return g.issue(nil, true)
+		}
+		if g.recoveryOnly && entry == g.activity && !unchangedActivity(entry.stat, descriptor) {
+			return g.issue(nil, true)
 		}
 		if entry.kind == "control" {
 			read := g.operations.read
@@ -323,8 +440,12 @@ func (g *Guard) check(ctx context.Context) error {
 				read = func(_ context.Context, file *os.File, data []byte) (int, error) { return file.Read(data) }
 			}
 			var buffer [1]byte
-			if n, err := read(ctx, entry.file, buffer[:]); n != 0 || !errors.Is(err, io.EOF) {
-				return errors.Join(storageError(), ctx.Err())
+			n, err := read(ctx, entry.file, buffer[:])
+			if n != 0 {
+				return errors.Join(g.issue(nil, true), ctx.Err())
+			}
+			if !errors.Is(err, io.EOF) {
+				return errors.Join(g.issue(err, false), ctx.Err())
 			}
 		}
 	}
@@ -361,16 +482,21 @@ func (g *Guard) closeFile(file *os.File) error {
 func (g *Guard) closeFiles() error {
 	g.closed = true
 	var failed bool
+	var closeErrors []error
 	for i := len(g.pins) - 1; i >= 0; i-- {
 		entry := g.pins[i]
 		if entry.file != nil {
-			if g.closeFile(entry.file) != nil {
+			if err := g.closeFile(entry.file); err != nil {
 				failed = true
+				closeErrors = append(closeErrors, err)
 			}
 			entry.file = nil
 		}
 	}
 	if failed {
+		if g.recoveryOnly {
+			return g.issue(errors.Join(closeErrors...), false)
+		}
 		return errors.New("cannot close runtime transition storage")
 	}
 	return nil

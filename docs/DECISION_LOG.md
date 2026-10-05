@@ -3117,3 +3117,38 @@ FAIL github.com/anoop2811/software-factory-template/internal/assessment 3.855s
 
 Raw output: /private/tmp/factory-r22-close-open-red.log. Compound operational
 cleanup precedence already passed before correction and must remain unchanged.
+
+The independent test set is frozen at 105 runnable criteria plus one
+subprocess-only witness across five new files; no baseline tests changed.
+Final source-qualified affected race output was read back on 2026-10-05 UTC:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=implementer GOCACHE=/private/tmp/factory-durable-recovery-go-cache PATH="/var/folders/83/yj7qqyt551xbbpvm54tqkcbw0000gn/T/factory-pr113-python-_gp80gpr/venv/bin:$PATH" go test -race -v ./internal/assessment ./internal/budget ./internal/loop ./internal/transition -ginkgo.no-color -ginkgo.succinct
+Assessment: 300 Passed | 1 intentional child-witness skip; package 64.844s
+Budget: 58/58 SUCCESS! 6.784260875s; package 8.568s
+Loop: 90/90 SUCCESS! 12.163744417s; package 14.848s
+Transition: 64/64 SUCCESS! 525.79725ms; package 2.664s
+```
+
+Raw output: /private/tmp/factory-r22-implementer-final-affected-race.log.
+The independent author separately reran the final eight cleanup/open controls
+(eight passed, package 5.728s) and eight real compiled clients with race and
+qualified Python admission (eight passed, package 13.100s). Native operation
+faults and actual SIGKILL remain source-process evidence, not power-loss proof.
+Canonical all-package lint independently returned `0 issues.`:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GOLANGCI_LINT_CACHE=/private/tmp/factory-durable-recovery-lint-cache /private/tmp/factory-quality-tools/golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+```
+
+Raw output: /private/tmp/factory-r22-pack-lint-qualified.log. One explained
+function-level errorlint exception preserves actual-node error-tree traversal;
+first-match errors.As would skip a joined operational sibling. No behavior was
+changed for that annotation. Independent correctness/security/test rechecks
+reported no surviving findings on eight source and five test hashes. Root
+subsequently proved exactly three citation-only comment corrections by restoring
+their old text in memory and matching the reviewed SHA256 values.
+
+The full repository/local Go gate and hosted qualification are still separate
+pending checks at this recorded checkpoint. No merged credit or release claim.

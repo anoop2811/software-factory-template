@@ -1,11 +1,11 @@
 # Interrupted publication recovery
 
-Status: source contract; implementation and qualification are pending.
+Status: Go source implementation; no installed recovery consumer.
 [ADR 0096](../adr/0096-interrupted-publication-recovery.md) is authoritative.
 
 A crashed process loses its live publication handle. The retained journal and
 pending marker keep ordinary cooperating execution blocked. Reading those files
-does not restore authority. The next source component uses a fresh proposal and
+does not restore authority. The source component uses a fresh proposal and
 explicit consent to grant a new capability over currently checked evidence.
 
 A trusted caller supplies the known replacement bytes, an independently qualified

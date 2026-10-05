@@ -3089,3 +3089,31 @@ versus real-cleanup precedence across compound errors and existing-policy Openat
 classification before persistent independent RED and implementation correction.
 The private native-default guard-close seam must retain the old behavior until
 its independent real-close-then-reported-error control qualifies precedence.
+
+Exact independent review commands for those retained outputs:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -timeout=120s -overlay=/private/tmp/factory-r22-constructor-late-6hl7tzaw/overlay.json -v ./internal/assessment -ginkgo.focus='Reviewer interrupted constructor late evidence status' -ginkgo.no-color -ginkgo.v
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -timeout=120s -overlay=/private/tmp/factory-r22-constructor-late-6hl7tzaw/open_overlay.json -v ./internal/assessment -ginkgo.focus='Reviewer interrupted actual open conflict status' -ginkgo.no-color -ginkgo.v
+```
+
+Root independently read the second actual probe and native-errno output and
+retained it against the existing missing/unsafe-evidence contract. Executable
+overlay files are evaluator inputs, not production replacements or shipped tests.
+
+The independent author then persisted eight unchanged cleanup/open controls.
+Eligible controls and actual Guard.Close followed by one reported EIO passed.
+Late activity with successful native cleanup, and real file/catalog-directory
+disappearance or symlink substitution before Openat, failed only their final
+status assertion after native errno, preservation and resource-release checks.
+Root read the actual log before authorizing the bounded shared-policy correction.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery qualified (constructor late activity|confined open conflict) status' -ginkgo.no-color -count=1
+Ran 8 of 301 Specs in 3.236 seconds
+FAIL! -- 3 Passed | 5 Failed
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 3.855s
+```
+
+Raw output: /private/tmp/factory-r22-close-open-red.log. Compound operational
+cleanup precedence already passed before correction and must remain unchanged.

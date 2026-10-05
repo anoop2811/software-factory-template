@@ -200,6 +200,7 @@ func interruptedGuardError(ctx context.Context, err error) error {
 
 // Joined cleanup errors retain operational precedence over validation conflicts.
 // docs/adr/0096-interrupted-publication-recovery.md:278.
+//
 //nolint:errorlint // Inspect this exact node; descendant matching would skip joined cleanup siblings.
 func interruptedGuardOperational(err error) bool {
 	if err == nil {

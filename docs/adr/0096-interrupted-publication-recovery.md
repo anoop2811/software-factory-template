@@ -270,3 +270,18 @@ earns only its existing equal 1/18 package:
 (18 + 1/9 + 1/18 + 1/18) / 30 = 60.7407%, reported 60.7%.
 Public R3 and all activation/retirement/retention/platform/pilot/release gates
 remain open. Do not award review fixes, planning or unmerged source extra credit.
+
+## Cleanup and open-boundary refinement
+
+A recovery guard validation conflict remains a refusal when its actual resource
+closure succeeds. Failed-grant cleanup must not relabel it as failed closure.
+Inspect compound errors across the complete error tree: any actual close failure
+or cancellation retains operational precedence over an accompanying conflict.
+Private native-default Guard.Close collaboration may qualify actual guard closure
+followed by one reported error; it grants no authority and introduces no test-only
+export. Reuse the existing errno policy for each observation, not a new classifier.
+
+If a previously qualified directory/file disappears or becomes a symlink before
+confined Openat, classify its real ENOENT/ELOOP as missing/unsafe refusal. Preserve
+the changed evidence and close all descriptors/flocks. Other actual open errors
+remain operational. Requalify existing shared writer consumers after correction.

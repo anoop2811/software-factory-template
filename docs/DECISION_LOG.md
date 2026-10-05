@@ -3070,3 +3070,22 @@ FAIL github.com/anoop2811/software-factory-template/internal/assessment 2.839s
 
 Raw output: /private/tmp/factory-r22-named-error-red.log. This qualifies the
 initial lookup error path only; it does not claim a native kernel error.
+
+Further independent review on 2026-10-05 UTC isolated two compound boundaries.
+An actual late activity file made Begin refuse, while Guard.Close detected a
+validation conflict and successfully released all descriptors/flock. Shared
+cleanup nevertheless manufactured status 1. The paired overlay selected two:
+one passed and one failed (package 1.163s); root and independent security review
+read the actual probe/log and retained the finding. A second overlay displaced
+the qualified catalog file before real confined Openat, with separate native
+ENOENT and ELOOP outcomes. Both preserved all post-change evidence and closed
+actual descriptors/flock, then reported 1 instead of 2. Its three selected cases
+had one pass and two failures (package 2.050s). These are actual filesystem
+changes and errno observations, not kernel-error injection or released incidents.
+
+Evidence remains in /private/tmp/factory-r22-constructor-late-6hl7tzaw,
+qualification.log and open-qualification.log. ADR 0096 specifies guard-conflict
+versus real-cleanup precedence across compound errors and existing-policy Openat
+classification before persistent independent RED and implementation correction.
+The private native-default guard-close seam must retain the old behavior until
+its independent real-close-then-reported-error control qualifies precedence.

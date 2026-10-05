@@ -93,7 +93,14 @@ func beginInterruptedRecovery(ctx context.Context, root string, request Interrup
 		if result == nil {
 			// Borrowed pending is preserved; failed grant is not an incomplete handle.
 			// docs/adr/0096-interrupted-publication-recovery.md:225.
-			returned = errors.Join(p.closeResources(context.WithoutCancel(ctx), false), returned)
+			cleanup := p.closeResources(context.WithoutCancel(ctx), false)
+			// Operational precedence spans both retained error trees.
+			// docs/adr/0096-interrupted-publication-recovery.md:291.
+			var operational error
+			if interruptedGuardOperational(cleanup) || interruptedGuardOperational(returned) {
+				operational = failure(1, "interrupted recovery failed")
+			}
+			returned = errors.Join(operational, cleanup, returned)
 		}
 	}()
 	var err error

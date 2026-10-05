@@ -285,3 +285,22 @@ If a previously qualified directory/file disappears or becomes a symlink before
 confined Openat, classify its real ENOENT/ELOOP as missing/unsafe refusal. Preserve
 the changed evidence and close all descriptors/flocks. Other actual open errors
 remain operational. Requalify existing shared writer consumers after correction.
+
+## Constructor and cleanup error composition
+
+Failed Begin applies operational precedence across both the primary constructor
+error and its cleanup error, not only inside Guard.Close. If either non-nil
+branch contains an operational failure or cancellation, expose a status-1
+Failure before joining both branches. Preserve the original error trees for
+errors.Is and errors.As, including cancellation and query-ownership uncertainty.
+Conflict-only pairs remain status 2; successful cleanup adds no synthetic failure.
+Keep this composition private to failed interrupted-recovery grants and retain
+the shared ErrorStatus contract. Cleanup still closes all owned resources without
+altering borrowed pending, current images, records, saved input or activity.
+
+Independent Ginkgo/Gomega regression cases must reach the constructor under the
+real exclusive flock, then combine actual late activity with primary cancellation
+or an actual native observation followed by a reported I/O error. Include the
+reverse precedence case and conflict-only/eligible positive controls. Assert
+primary error reachability, checked descriptor/flock release and preservation
+before status; demonstrate runtime RED before the production correction.

@@ -17,3 +17,12 @@ rechecks recorded in Decision 95 of docs/DECISION_LOG.md. Read back
 /private/tmp/factory-r22-close-open-red.log before correction, then
 /private/tmp/factory-r22-close-open-final.log (eight passed, package 5.728s).
 These are source-test observations, not released customer incidents.
+
+Follow-up provenance: Copilot comment 4180316394 on PR #123 exposed the same
+first-match status risk across the constructor and cleanup trees. Observed
+2026-10-05 UTC: ten independent native-operation cases first returned 6 passed
+and 4 failed, then 10 passed without evaluator changes after the private join
+correction. Exact commands/output are recorded in Decision 95 of
+docs/DECISION_LOG.md; canon is
+docs/adr/0096-interrupted-publication-recovery.md:291. The refinement covers both
+branches while retaining cancellation and typed ownership evidence.

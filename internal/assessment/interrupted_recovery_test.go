@@ -1226,3 +1226,146 @@ var _ = Describe("Interrupted recovery qualified confined open conflict status",
 		}
 	}, Entry("unchanged actual open eligible grant", "file", "none"), Entry("actual selected file disappearance", "file", "missing"), Entry("actual selected file symlink before no-follow open", "file", "symlink"), Entry("actual catalog directory disappearance", "directory", "missing"), Entry("actual catalog directory symlink before no-follow open", "directory", "symlink"))
 })
+
+var _ = Describe("Interrupted recovery failed constructor error composition", func() {
+	// per docs/adr/0096-interrupted-publication-recovery.md:291
+	// per docs/adr/0096-interrupted-publication-recovery.md:295
+	// per docs/adr/0096-interrupted-publication-recovery.md:296
+	// per docs/adr/0096-interrupted-publication-recovery.md:301
+	// per docs/adr/0096-interrupted-publication-recovery.md:305
+	DescribeTable("preserves operational precedence and original evidence across constructor and cleanup branches", func(kind string, late, closeIO bool, want int) {
+		root, _, request, environment := interruptedFaultFixture(true, "reverse")
+		proposal := interruptedFaultProposal(root, request)
+		controls, files := interruptedCapture(publicationOps{})
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		pending := publicationFaultPending(root)
+		roots := []*os.Root{}
+		reached, held, closed, lateWritten := false, false, false, false
+		queried := 0
+		var reportedOwnership *native.OwnershipError
+		var before map[string]interruptedFile
+		addActivity := func() {
+			Expect(lateWritten).To(BeFalse())
+			Expect(os.WriteFile(filepath.Join(root, ".factory/runtime-activity/constructor-composition-work"), nil, 0600)).To(Succeed())
+			lateWritten = true
+		}
+		controls.directoryStat = func(_ context.Context, directory *os.Root, name string) (os.FileInfo, error) {
+			info, err := directory.Stat(name)
+			Expect(err).NotTo(HaveOccurred(), "the actual confined-root Stat succeeds before cancellation or a reported observation error")
+			roots = append(roots, directory)
+			if !reached {
+				reached = true
+				lock, openErr := os.OpenFile(filepath.Join(root, ".factory/runtime-transition.lock"), os.O_RDWR, 0)
+				Expect(openErr).NotTo(HaveOccurred())
+				flockErr := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+				held = errors.Is(flockErr, unix.EWOULDBLOCK) || errors.Is(flockErr, unix.EAGAIN)
+				Expect(held).To(BeTrue(), "the real constructor holds permanent exclusive exclusion at this operation")
+				Expect(lock.Close()).To(Succeed())
+				if late && !strings.HasPrefix(kind, "query") {
+					addActivity()
+				}
+				before = interruptedFaultTree(root)
+				if kind == "cancel" {
+					cancel()
+				}
+				if kind == "eio" {
+					return info, unix.EIO
+				}
+			}
+			return info, err
+		}
+		if strings.HasPrefix(kind, "query") {
+			controls.query = func(callctx context.Context, directory string, argv []string, values map[string]string, allowance time.Duration) (native.CommandResult, error) {
+				result, err := native.ExecuteCommand(callctx, directory, argv, values, allowance)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result.ProcessPID).To(BeNumerically(">", 0))
+				Expect(result.ExitConfirmed).To(BeTrue())
+				Expect(result.OwnershipUnconfirmed).To(BeFalse())
+				Expect(result.ExitCode).NotTo(BeNil())
+				Expect(*result.ExitCode).To(BeZero())
+				queried++
+				Expect(queried).To(Equal(1), "the actual first supervised Git query precedes its reported ownership uncertainty")
+				if late {
+					addActivity()
+				}
+				before = interruptedFaultTree(root)
+				if kind == "query cancelled" {
+					cancel()
+				}
+				// This is reported uncertainty after a confirmed native query; no
+				// claim is made that an unreaped kernel process survived.
+				reportedOwnership = &native.OwnershipError{ProcessPID: result.ProcessPID}
+				result.OwnershipUnconfirmed = true
+				return result, errors.Join(reportedOwnership, ctx.Err())
+			}
+		}
+		controls.guardClose = func(callctx context.Context, guard *transition.Guard, clean bool) error {
+			Expect(callctx.Err()).NotTo(HaveOccurred(), "failed-constructor cleanup releases resources outside the cancelled context")
+			nativeClose := guard.Close(callctx, clean)
+			Expect(closed).To(BeFalse())
+			closed = true
+			if lateWritten {
+				var conflict *transition.RecoveryError
+				Expect(errors.As(nativeClose, &conflict)).To(BeTrue())
+				Expect(conflict.Conflict()).To(BeTrue(), "actual closure observes the new activity metadata conflict")
+			} else {
+				Expect(nativeClose).NotTo(HaveOccurred())
+			}
+			interruptedGuardReleased(root)
+			if closeIO {
+				return errors.Join(nativeClose, unix.EIO)
+			}
+			return nativeClose
+		}
+		grant, err := beginInterruptedRecovery(ctx, root, request, proposal.ProposalDigest, environment, controls)
+		var closeErr error
+		if grant != nil {
+			closeErr = grant.Close(context.Background())
+		}
+		Expect(reached).To(BeTrue())
+		Expect(held).To(BeTrue())
+		Expect(closed).To(BeTrue(), "real Guard.Close runs exactly once before any collaborator-reported close error")
+		recoveryClosed(*files)
+		Expect(roots).NotTo(BeEmpty())
+		for _, directory := range roots {
+			_, statErr := directory.Stat(".")
+			Expect(errors.Is(statErr, os.ErrClosed)).To(BeTrue())
+		}
+		interruptedGuardReleased(root)
+		interruptedFaultPreserved(root, before)
+		publicationFaultPreserved(root, pending)
+		entries, readErr := os.ReadDir(filepath.Join(root, ".factory/runtime-activity"))
+		Expect(readErr).NotTo(HaveOccurred())
+		if late {
+			Expect(lateWritten).To(BeTrue())
+			Expect(entries).To(HaveLen(1))
+			Expect(entries[0].Name()).To(Equal("constructor-composition-work"))
+		} else {
+			Expect(entries).To(BeEmpty())
+		}
+		if kind == "cancel" || kind == "query cancelled" {
+			Expect(errors.Is(err, context.Canceled)).To(BeTrue(), "the original primary cancellation remains reachable through the final error tree")
+		}
+		if strings.HasPrefix(kind, "query") {
+			Expect(queried).To(Equal(1))
+			var ownership *native.OwnershipError
+			Expect(errors.As(err, &ownership)).To(BeTrue())
+			Expect(ownership).To(BeIdenticalTo(reportedOwnership))
+			Expect(ownership.ProcessPID).To(Equal(reportedOwnership.ProcessPID))
+		}
+		if kind == "eio" {
+			Expect(err.Error()).To(ContainSubstring("cannot observe interrupted recovery directory"), "the safe original observation failure survives cleanup composition")
+		}
+		if want == 0 {
+			Expect(grant).NotTo(BeNil())
+			Expect(err).NotTo(HaveOccurred(), "a successful constructor receives no synthetic failed-cleanup diagnostic")
+			Expect(ErrorStatus(closeErr)).To(Equal(1), "ordinary public Close still reports its genuinely incomplete returned capability")
+		} else {
+			Expect(grant).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).NotTo(ContainSubstring(root))
+			Expect(ErrorStatus(err)).To(Equal(want), "operational precedence applies across both original constructor and actual cleanup errors")
+		}
+	}, Entry("eligible constructor without synthetic failure", "none", false, false, 0), Entry("primary native cancellation with successful cleanup", "cancel", false, false, 1), Entry("primary native cancellation with activity-conflict cleanup", "cancel", true, false, 1), Entry("primary native Stat followed by reported EIO with successful cleanup", "eio", false, false, 1), Entry("primary native Stat followed by reported EIO with activity-conflict cleanup", "eio", true, false, 1), Entry("primary and cleanup conflicts only", "none", true, false, 2), Entry("primary conflict then native Guard.Close followed by reported EIO", "none", true, true, 1), Entry("native query followed by reported typed uncertainty with successful cleanup", "query", false, false, 1), Entry("native query followed by reported typed uncertainty with activity-conflict cleanup", "query", true, false, 1), Entry("native query followed by reported typed uncertainty and cancellation with activity-conflict cleanup", "query cancelled", true, false, 1))
+})

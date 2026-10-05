@@ -3152,3 +3152,34 @@ their old text in memory and matching the reviewed SHA256 values.
 
 The full repository/local Go gate and hosted qualification are still separate
 pending checks at this recorded checkpoint. No merged credit or release claim.
+
+Post-submission qualification on 2026-10-05 UTC identified an evaluator-only
+confinement issue. Hosted Linux at PR #123 head 30e59a5 passed the complete race
+suite (acceptance 422.821s; assessment 15.285s), then canonical lint reported
+G703 at unchanged publication_test.go:29. The new subprocess witness supplies
+its parent-created root and request through environment data; its setup helper
+read the selected journal through the older unconstrained fixture reader.
+The independent author reproduced that same lint finding without edits:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOOS=linux GOARCH=amd64 GOCACHE=/private/tmp/factory-durable-recovery-go-cache GOLANGCI_LINT_CACHE=/private/tmp/factory-durable-recovery-linux-lint-cache /private/tmp/factory-quality-tools/golangci-lint run --config packs/go/.golangci.yml ./internal/assessment
+internal/assessment/publication_test.go:29:26: G703: Path traversal via taint analysis (gosec)
+1 issues:
+* gosec: 1
+```
+
+Root read /private/tmp/factory-r22-linux-lint-red-local.log before authorizing
+the correction. Confine only the new evaluator helper's selected-journal read
+through os.OpenRoot and Root.ReadFile, with checked closure. Preserve the actual
+request/record selection, bytes, reference, all behavioral assertions and native
+fault/crash controls. Do not edit the baseline helper, suppress the rule, change
+production behavior or add a dependency. Requalify affected independent cases
+and canonical Linux lint before freezing the evaluator again.
+
+The stronger local invocation with FACTORY_CLI_TEST_RACE=1 reached its existing
+30-minute whole-suite allowance while executing the unchanged doctor unsafe-
+input matrix. All internal packages passed, but the acceptance package timed out
+at 1800.503s and make exited 2. This is not a green full invocation, nor evidence
+that the doctor case itself hung. Hosted suite qualification and remaining local
+quality checks must be reported separately; no assertion or operation deadline
+is relaxed to hide that result.

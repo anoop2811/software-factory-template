@@ -211,10 +211,18 @@ func (p *publicationState) checkState(ctx context.Context, writer *recoveryWrite
 
 func (p *publicationState) checkImages(ctx context.Context, writer *recoveryWriter, selected *writePin, expected []byte, record *writePin, recordBytes []byte) error {
 	if err := p.guard.Check(ctx); err != nil {
+		if p.checkEvidence != nil {
+			return interruptedGuardError(ctx, err)
+		}
 		return errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
 	if err := writer.check(ctx); err != nil {
 		return err
+	}
+	if p.checkEvidence != nil {
+		if err := p.checkEvidence(ctx, writer); err != nil {
+			return err
+		}
 	}
 	if p.pending != nil && p.pendingClosed && !p.pendingRemoved {
 		current, err := writer.named(p.factory.file, publicationPending)
@@ -368,6 +376,9 @@ func (p *publicationState) reconcile(ctx context.Context) (bool, error) {
 // docs/adr/0095-durable-live-publication.md:120.
 func (p *publicationState) reconcileImage(ctx context.Context, candidate *publicationCandidate, parentPin, prior *writePin, name string, journal bool) (bool, error) {
 	if err := p.guard.Check(ctx); err != nil {
+		if p.checkEvidence != nil {
+			return false, interruptedGuardError(ctx, err)
+		}
 		return false, errors.Join(failure(2, "publication transition changed"), ctx.Err())
 	}
 	current, err := descriptor(candidate.pin.file)

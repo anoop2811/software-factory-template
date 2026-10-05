@@ -29,34 +29,36 @@ type Publication struct {
 }
 
 type publicationState struct {
-	mu             sync.Mutex
-	w              *recoveryWriter
-	guard          *transition.Guard
-	operations     publicationOps
-	directory      *os.Root
-	factory        *writePin
-	parent         *writePin
-	current        *writePin
-	saved          *writePin
-	pending        *writePin
-	name           string
-	original       []byte
-	replacement    []byte
-	expected       []byte
-	mode           os.FileMode
-	stages         []*filepublish.Stage
-	detached       []*os.File
-	candidate      *publicationCandidate
-	journal        *publicationJournal
-	applyUsed      bool
-	changed        bool
-	afterPublished bool
-	undoPublished  bool
-	pendingClosed  bool
-	pendingRemoved bool
-	finished       bool
-	closed         bool
-	lastError      error
+	mu                sync.Mutex
+	w                 *recoveryWriter
+	guard             *transition.Guard
+	operations        publicationOps
+	directory         *os.Root
+	factory           *writePin
+	parent            *writePin
+	current           *writePin
+	saved             *writePin
+	pending           *writePin
+	name              string
+	original          []byte
+	replacement       []byte
+	expected          []byte
+	mode              os.FileMode
+	stages            []*filepublish.Stage
+	detached          []*os.File
+	candidate         *publicationCandidate
+	journal           *publicationJournal
+	applyUsed         bool
+	changed           bool
+	afterPublished    bool
+	undoPublished     bool
+	pendingClosed     bool
+	pendingRemoved    bool
+	finished          bool
+	closed            bool
+	lastError         error
+	checkEvidence     func(context.Context, *recoveryWriter) error
+	recoveryDirection string
 }
 
 type publicationCandidate struct {
@@ -78,14 +80,17 @@ func (e *PublicationError) Error() string {
 func (e *PublicationError) Unwrap() error { return e.cause }
 
 type publicationOps struct {
-	storage      recoveryWriteOps
-	observe      ops
-	prepare      func(context.Context, *os.Root, string, []byte, os.FileMode) (*filepublish.Stage, error)
-	openPrepared func(context.Context, *filepublish.Stage) (*os.File, error)
-	rename       func(context.Context, *filepublish.Stage, string) error
-	unlink       func(context.Context, *os.File, string) error
-	close        func(*os.File) error
-	query        func(context.Context, string, []string, map[string]string, time.Duration) (native.CommandResult, error)
+	storage       recoveryWriteOps
+	observe       ops
+	prepare       func(context.Context, *os.Root, string, []byte, os.FileMode) (*filepublish.Stage, error)
+	openPrepared  func(context.Context, *filepublish.Stage) (*os.File, error)
+	rename        func(context.Context, *filepublish.Stage, string) error
+	unlink        func(context.Context, *os.File, string) error
+	close         func(*os.File) error
+	query         func(context.Context, string, []string, map[string]string, time.Duration) (native.CommandResult, error)
+	directoryStat func(context.Context, *os.Root, string) (os.FileInfo, error)
+	retainedStat  func(context.Context, *os.File) (os.FileInfo, error)
+	guardClose    func(context.Context, *transition.Guard, bool) error
 }
 
 // BeginPublication consumes an existing set; it never creates backups or probes.
@@ -198,6 +203,10 @@ func (p *Publication) Close(ctx context.Context) error {
 }
 
 func (p *publicationState) close(ctx context.Context) error {
+	return p.closeResources(ctx, true)
+}
+
+func (p *publicationState) closeResources(ctx context.Context, reportIncomplete bool) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.closed {
@@ -230,11 +239,19 @@ func (p *publicationState) close(ctx context.Context) error {
 	if p.guard != nil {
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		if p.guard.Close(cleanup, false) != nil {
-			cleanupErrors = append(cleanupErrors, failure(1, "cannot close publication transition guard"))
+		closeGuard := p.operations.guardClose
+		if closeGuard == nil {
+			closeGuard = func(ctx context.Context, guard *transition.Guard, clean bool) error { return guard.Close(ctx, clean) }
+		}
+		if err := closeGuard(cleanup, p.guard, false); err != nil {
+			if reportIncomplete {
+				cleanupErrors = append(cleanupErrors, failure(1, "cannot close publication transition guard"))
+			} else {
+				cleanupErrors = append(cleanupErrors, interruptedGuardError(cleanup, err))
+			}
 		}
 	}
-	if p.pending != nil && !p.finished {
+	if reportIncomplete && p.pending != nil && !p.finished {
 		incomplete := failure(1, "publication incomplete; inspect local evidence")
 		if p.changed {
 			incomplete = &PublicationError{MayHaveChanged: true, cause: incomplete}

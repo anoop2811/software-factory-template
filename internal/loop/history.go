@@ -263,8 +263,20 @@ func (h History) MarshalJSON() ([]byte, error) { return encodeHistory(context.Ba
 // MarshalJSON emits bounded checkpoint JSON.
 func (r Record) MarshalJSON() ([]byte, error) { return encodeHistory(context.Background(), r.data) }
 
-// HasUnresolved is unsupported until component runtime qualification.
-// docs/adr/0096-interrupted-publication-recovery.md:132.
+// HasUnresolved preserves retained process and uncertainty evidence.
+// docs/adr/0096-interrupted-publication-recovery.md:143.
 func (h History) HasUnresolved(ctx context.Context) (bool, error) {
-	return false, errors.New("unresolved loop history assessment is not implemented")
+	if err := validateHistory(ctx, h); err != nil {
+		return false, err
+	}
+	for _, value := range h.data["runs"].([]any) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		row := value.(map[string]any)
+		if row["status"] == "active" || row["uncertain"] == true || row["process_pid"] != nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }

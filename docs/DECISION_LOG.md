@@ -3183,3 +3183,41 @@ at 1800.503s and make exited 2. This is not a green full invocation, nor evidenc
 that the doctor case itself hung. Hosted suite qualification and remaining local
 quality checks must be reported separately; no assertion or operation deadline
 is relaxed to hide that result.
+
+The confined evaluator correction then passed canonical all-package Linux lint
+(`0 issues.`; /private/tmp/factory-r22-linux-lint-corrected.log). Independent
+focused race requalification retained all 105 runnable criteria: assessment 65
+passed (package 27.324s), budget seven (1.741s), loop eight (2.039s), transition
+17 (2.434s), and eight actual compiled clients with child race (10.883s). Root
+read those outputs in factory-r22-evaluator-correction-components.log and
+factory-r22-evaluator-correction-external.log. Independent review checked the
+exact +12/-1 test-helper diff and found no changed assertions, reference bytes,
+request selection or production behavior. The other four new test files and all
+eight source files retain their frozen hashes.
+
+Hosted advisory concerns about existing shared writer consumers were also
+qualified independently without changing shipped tests or code:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -timeout=120s -overlay=/private/tmp/factory-pr123-ordinary-consumer-xk6zabxc/overlay.json -v ./internal/assessment -ginkgo.focus='Reviewer PR123 ordinary publication shared writer qualification' -ginkgo.no-color -ginkgo.v
+Ran 9 of 310 Specs in 0.328 seconds
+SUCCESS! -- 9 Passed | 0 Failed | 0 Pending | 301 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 1.686s
+```
+
+The positive ordinary abort, four actual named/open operations followed by
+reported EIO, and four native disappearance/symlink opens qualified status 1/2
+after immutable-fixture, descriptor and flock checks. Root read the actual
+qualification.log; executable evaluator overlays were then removed. Full-source
+review refuted the missing default-method, history-validation, inventory-overflow
+and pending-emptiness claims; optional fixture diagnostics do not alter authority.
+
+For a separate local full-gate rerun, retain both outer and child race
+instrumentation and the same 30-minute suite allowance, using
+GORACE=atexit_sleep_ms=0 as already used in the acceptance fixture environments.
+This changes the race runtime's exit pause, not factory deadlines or assertions.
+The authoritative Go race-detector options document describes the default
+1000-millisecond main-goroutine exit pause: https://go.dev/doc/articles/race_detector
+(fetched 2026-10-05 UTC). The earlier timeout remains an observed failed invocation;
+the new invocation must produce its own result. Hosted qualification remains
+pending on the next submitted evaluator revision.

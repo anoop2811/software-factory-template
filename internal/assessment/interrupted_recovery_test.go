@@ -36,9 +36,20 @@ func interruptedFaultFixture(applied bool, direction string) (string, Publicatio
 	Expect(owner.Close(context.Background())).To(HaveOccurred(), "evaluator explicitly releases old capability while preserving unresolved pending")
 	return root, request, interruptedFaultRequest(root, request, direction), environment
 }
+func interruptedJournalBytes(root, id string) []byte {
+	GinkgoHelper()
+	directory, err := os.OpenRoot(root)
+	Expect(err).NotTo(HaveOccurred())
+	data, readErr := directory.ReadFile(".factory/backups/.publications/" + id + ".json")
+	closeErr := directory.Close()
+	Expect(readErr).NotTo(HaveOccurred())
+	Expect(closeErr).NotTo(HaveOccurred())
+	return data
+}
+
 func interruptedFaultRequest(root string, request PublicationRequest, direction string) InterruptedRecoveryRequest {
 	GinkgoHelper()
-	data := publicationFaultBytes(root, ".factory/backups/.publications/"+request.MigrationID+".json")
+	data := interruptedJournalBytes(root, request.MigrationID)
 	var record map[string]any
 	Expect(json.Unmarshal(data, &record)).To(Succeed())
 	operation, ok := record["operation_id"].(string)

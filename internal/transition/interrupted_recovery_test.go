@@ -3,6 +3,7 @@ package transition
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -44,7 +45,7 @@ func interruptedGuardTree(root string) map[string]interruptedGuardEntry {
 		}
 		entry := interruptedGuardEntry{info: info}
 		if info.Mode().IsRegular() {
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(path) // #nosec G122 -- stable evaluator-owned control snapshot with no concurrent path mutation.
 			if err != nil {
 				return err
 			}
@@ -75,9 +76,10 @@ func interruptedGuardPreserved(root string, before map[string]interruptedGuardEn
 }
 
 var _ = Describe("Interrupted recovery exclusive guard", func() {
-	// per docs/adr/0096-interrupted-publication-recovery.md:100
-	// per docs/adr/0096-interrupted-publication-recovery.md:108
-	// per docs/adr/0096-interrupted-publication-recovery.md:111
+	// per docs/adr/0096-interrupted-publication-recovery.md:105
+	// per docs/adr/0096-interrupted-publication-recovery.md:113
+	// per docs/adr/0096-interrupted-publication-recovery.md:115
+	// per docs/adr/0096-interrupted-publication-recovery.md:118
 	It("owns the same permanent exclusive inode while leaving pending resolution to its caller", func() {
 		root := interruptedGuardRoot()
 		before := interruptedGuardTree(root)
@@ -103,9 +105,10 @@ var _ = Describe("Interrupted recovery exclusive guard", func() {
 		Expect(unix.Flock(int(file.Fd()), unix.LOCK_UN)).To(Succeed())
 	})
 
-	// per docs/adr/0096-interrupted-publication-recovery.md:103
-	// per docs/adr/0096-interrupted-publication-recovery.md:106
-	// per docs/adr/0096-interrupted-publication-recovery.md:109
+	// per docs/adr/0096-interrupted-publication-recovery.md:108
+	// per docs/adr/0096-interrupted-publication-recovery.md:110
+	// per docs/adr/0096-interrupted-publication-recovery.md:111
+	// per docs/adr/0096-interrupted-publication-recovery.md:113
 	DescribeTable("refuses missing or unsafe existing evidence without creating or repairing infrastructure", func(change string) {
 		root := interruptedGuardRoot()
 		outside := filepath.Join(root, "outside")
@@ -144,8 +147,7 @@ var _ = Describe("Interrupted recovery exclusive guard", func() {
 		interruptedGuardPreserved(root, before)
 	}, Entry("missing state parent", "factory missing"), Entry("missing permanent lock", "lock missing"), Entry("missing activity directory", "activity missing"), Entry("missing pending", "pending missing"), Entry("pending is not empty", "pending bytes"), Entry("pending private mode refused", "pending public mode"), Entry("pending extra hard link", "pending hardlink"), Entry("pending outside symlink", "pending symlink"), Entry("pending is directory", "pending directory"), Entry("existing activity blocker", "activity evidence"), Entry("activity not private", "activity mode"), Entry("unsafe permanent lock", "lock mode"))
 
-	// per docs/adr/0096-interrupted-publication-recovery.md:199
-	// per docs/adr/0096-interrupted-publication-recovery.md:202
+	// per docs/adr/0096-interrupted-publication-recovery.md:213
 	It("releases retained descriptors and flock under canceled closure without deleting pending", func() {
 		root := interruptedGuardRoot()
 		controls, _, _, files := guardControls()
@@ -158,5 +160,73 @@ var _ = Describe("Interrupted recovery exclusive guard", func() {
 		guardClosed(*files)
 		guardManualExclusive(root)
 		interruptedGuardPreserved(root, before)
+	})
+})
+
+var _ = Describe("Interrupted recovery late activity revalidation", func() {
+	// per docs/adr/0096-interrupted-publication-recovery.md:119
+	// per docs/adr/0096-interrupted-publication-recovery.md:123
+	DescribeTable("rechecks activity created after an actual empty enumeration while holding the permanent exclusive inode", func(add bool) {
+		root := interruptedGuardRoot()
+		controls, _, _, files := guardControls()
+		reached, held := false, false
+		activity := filepath.Join(root, ".factory", activityName, "retained-observed-work")
+		controls.readDir = func(_ context.Context, file *os.File, n int) ([]os.DirEntry, error) {
+			entries, err := file.ReadDir(n)
+			if !reached {
+				Expect(entries).To(BeEmpty())
+				Expect(errors.Is(err, io.EOF)).To(BeTrue())
+				reached = true
+				lock, e := os.OpenFile(filepath.Join(root, ".factory", lockName), os.O_RDWR, 0)
+				Expect(e).NotTo(HaveOccurred())
+				e = unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+				held = errors.Is(e, unix.EWOULDBLOCK) || errors.Is(e, unix.EAGAIN)
+				Expect(held).To(BeTrue())
+				Expect(lock.Close()).To(Succeed())
+				if add {
+					Expect(os.WriteFile(activity, nil, 0600)).To(Succeed())
+				}
+			}
+			return entries, err
+		}
+		guard, primary := acquireRecovery(context.Background(), root, controls)
+		before := interruptedGuardTree(root)
+		var checked, closed error
+		if guard != nil {
+			checked = guard.Check(context.Background())
+			closed = guard.Close(context.Background(), false)
+		}
+		Expect(reached).To(BeTrue())
+		Expect(held).To(BeTrue())
+		guardClosed(*files)
+		guardManualExclusive(root)
+		interruptedGuardPreserved(root, before)
+		if add {
+			Expect(guard).To(BeNil(), "an exhausted first directory cursor is no proof that no late evidence appeared")
+			Expect(primary).To(HaveOccurred())
+		} else {
+			Expect(primary).NotTo(HaveOccurred())
+			Expect(guard).NotTo(BeNil())
+			Expect(checked).NotTo(HaveOccurred())
+			Expect(closed).NotTo(HaveOccurred())
+		}
+	}, Entry("no late activity paired control", false), Entry("actual retained activity after initial empty read", true))
+
+	// per docs/adr/0096-interrupted-publication-recovery.md:119
+	// per docs/adr/0096-interrupted-publication-recovery.md:124
+	It("refuses a retained recovery guard Check after actual late activity and closes all owned resources", func() {
+		root := interruptedGuardRoot()
+		controls, _, _, files := guardControls()
+		guard, err := acquireRecovery(context.Background(), root, controls)
+		Expect(err).NotTo(HaveOccurred())
+		activity := filepath.Join(root, ".factory", activityName, "retained-after-grant")
+		Expect(os.WriteFile(activity, nil, 0600)).To(Succeed())
+		before := interruptedGuardTree(root)
+		checked := guard.Check(context.Background())
+		_ = guard.Close(context.Background(), false)
+		guardClosed(*files)
+		guardManualExclusive(root)
+		interruptedGuardPreserved(root, before)
+		Expect(checked).To(HaveOccurred(), "the same directory inode cannot erase known unresolved work after acquisition")
 	})
 })

@@ -23,8 +23,8 @@ import (
 )
 
 // Evaluator-only compiled client; it links the actual exported source API.
-// per docs/adr/0096-interrupted-publication-recovery.md:208
-// per docs/adr/0096-interrupted-publication-recovery.md:211
+// per docs/adr/0096-interrupted-publication-recovery.md:240
+// per docs/adr/0096-interrupted-publication-recovery.md:243
 const interruptedRecoverySource = `package main
 import("context";"encoding/json";"os";"strings";"github.com/anoop2811/software-factory-template/internal/assessment")
 type reply struct{Method string ` + "`json:\"method\"`" + `;Status int ` + "`json:\"status\"`" + `;Error string ` + "`json:\"error\"`" + `;Proposal any ` + "`json:\"proposal,omitempty\"`" + `}
@@ -164,11 +164,38 @@ func interruptedRecoveryProposal(object map[string]any, root, direction, image s
 	return digest
 }
 
+func interruptedRecoveryPythonAdmission(root string, admitted bool) {
+	GinkgoHelper()
+	repository, err := filepath.Abs("..")
+	Expect(err).NotTo(HaveOccurred())
+	source := `import json,sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+import runtime_transition as transition
+results=[]
+for acquire in (transition.shared,transition.exclusive):
+ try:
+  guard=acquire(Path(sys.argv[2]))
+ except transition.TransitionError:
+  results.append(False)
+ else:
+  guard.close(True)
+  results.append(True)
+print(json.dumps(results))
+`
+	out := loopProcess(root, transitionPython(root), []string{"-B", "-c", source, filepath.Join(repository, "scripts/lib"), root}, nil)
+	Expect(out.status).To(BeZero(), "%+v", out)
+	var results []bool
+	Expect(json.Unmarshal([]byte(out.stdout), &results)).To(Succeed())
+	Expect(results).To(Equal([]bool{admitted, admitted}), "actual legacy Python shared/exclusive API observes the same pending barrier")
+}
+
 var _ = Describe("Interrupted recovery compiled client core", func() {
-	// per docs/adr/0096-interrupted-publication-recovery.md:162
-	// per docs/adr/0096-interrupted-publication-recovery.md:163
-	// per docs/adr/0096-interrupted-publication-recovery.md:187
-	// per docs/adr/0096-interrupted-publication-recovery.md:213
+	// per docs/adr/0096-interrupted-publication-recovery.md:176
+	// per docs/adr/0096-interrupted-publication-recovery.md:177
+	// per docs/adr/0096-interrupted-publication-recovery.md:200
+	// per docs/adr/0096-interrupted-publication-recovery.md:245
+	// per docs/adr/0096-interrupted-publication-recovery.md:125
 	DescribeTable("freshly resolves an actual killed owner without changing known desired images unnecessarily", func(applied bool, direction, image, terminal string) {
 		binaryRoot, root, publication := durablePublicationFixture()
 		original := durableBytes(root, publication.Path)
@@ -194,6 +221,8 @@ var _ = Describe("Interrupted recovery compiled client core", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(guard).To(BeNil())
 		}
+		interruptedRecoveryPythonAdmission(root, false)
+		Expect(assessmentTree(root)).To(Equal(before), "refused Python admission cannot repair controls or create activity")
 		durablePublicationSuccess(client.call("begin", digest))
 		transitionLockBlocked(root)
 		grantedQueries := durableBytes(binaryRoot, "durable-git-calls")
@@ -221,14 +250,17 @@ var _ = Describe("Interrupted recovery compiled client core", func() {
 		Expect(durableBytes(binaryRoot, "durable-git-calls")).To(Equal(grantedQueries), "completion and closure are filesystem-only")
 		Expect(durablePublicationProtected(root, publication.Path)).To(Equal(protected))
 		livePublicationNoExecutionState(root)
+		interruptedRecoveryPythonAdmission(root, true)
+		livePublicationNoExecutionState(root)
 		guard, err := transition.Shared(context.Background(), root)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(guard.Close(context.Background(), true)).To(Succeed())
 	}, Entry("killed prepared owner reverse abort", false, "reverse", "before", "aborted"), Entry("killed applied owner forward completion", true, "forward", "after", "forward_completed"), Entry("killed applied owner explicit reverse", true, "reverse", "after", "restored"))
 
-	// per docs/adr/0096-interrupted-publication-recovery.md:198
-	// per docs/adr/0096-interrupted-publication-recovery.md:199
-	// per docs/adr/0096-interrupted-publication-recovery.md:201
+	// per docs/adr/0096-interrupted-publication-recovery.md:207
+	// per docs/adr/0096-interrupted-publication-recovery.md:212
+	// per docs/adr/0096-interrupted-publication-recovery.md:213
+	// per docs/adr/0096-interrupted-publication-recovery.md:215
 	It("close releases a fresh grant without completing it and requires another fresh consent", func() {
 		binaryRoot, root, publication := durablePublicationFixture()
 		owner := durablePublicationBegin(binaryRoot, root, publication)
@@ -251,5 +283,94 @@ var _ = Describe("Interrupted recovery compiled client core", func() {
 		durablePublicationSuccess(retry.call("complete", ""))
 		durablePublicationSuccess(retry.call("close", ""))
 		retry.wait()
+	})
+})
+
+var _ = Describe("Interrupted recovery compiled client boundaries", func() {
+	// per docs/adr/0096-interrupted-publication-recovery.md:48
+	// per docs/adr/0096-interrupted-publication-recovery.md:55
+	// per docs/adr/0096-interrupted-publication-recovery.md:70
+	DescribeTable("preserves actual interrupted evidence when separately known trust or affirmation is absent", func(change string) {
+		binaryRoot, root, publication := durablePublicationFixture()
+		owner := durablePublicationBegin(binaryRoot, root, publication)
+		durablePublicationSuccess(owner.call("apply"))
+		interruptedRecoveryKill(owner)
+		request := interruptedRecoveryRequest(root, publication, "forward")
+		valid := interruptedRecoveryStart(binaryRoot, root, request)
+		interruptedRecoveryProposal(valid.call("propose", ""), root, "forward", "after")
+		valid.wait()
+		if change == "known hash" {
+			reference := request["AfterReference"].(assessment.Observation)
+			reference.SHA256 = strings.Repeat("b", 64)
+			request["AfterReference"] = reference
+		} else {
+			request["UnbridgedQuiescent"] = false
+		}
+		before := assessmentTree(root)
+		pending := publicationFaultPendingExternal(root)
+		queries := durableBytes(binaryRoot, "durable-git-calls")
+		invalid := interruptedRecoveryStart(binaryRoot, root, request)
+		response := invalid.call("propose", "")
+		Expect(response).To(HaveKeyWithValue("status", json.Number("2")))
+		Expect(response).NotTo(HaveKey("proposal"))
+		Expect(response["error"]).NotTo(ContainSubstring(root))
+		invalid.wait()
+		Expect(assessmentTree(root)).To(Equal(before))
+		publicationPendingPreserved(root, pending)
+		Expect(durableBytes(binaryRoot, "durable-git-calls")).To(Equal(queries))
+	}, Entry("journal cannot replace an independently known after hash", "known hash"), Entry("fresh operator affirmation is required", "quiescence"))
+
+	// per docs/adr/0096-interrupted-publication-recovery.md:88
+	// per docs/adr/0096-interrupted-publication-recovery.md:127
+	// per docs/adr/0096-interrupted-publication-recovery.md:166
+	It("refuses fresh-grant replay after an equal-byte foreign active inode replaces the proposed file", func() {
+		binaryRoot, root, publication := durablePublicationFixture()
+		owner := durablePublicationBegin(binaryRoot, root, publication)
+		durablePublicationSuccess(owner.call("apply"))
+		interruptedRecoveryKill(owner)
+		request := interruptedRecoveryRequest(root, publication, "forward")
+		client := interruptedRecoveryStart(binaryRoot, root, request)
+		digest := interruptedRecoveryProposal(client.call("propose", ""), root, "forward", "after")
+		selected := filepath.Join(root, publication.Path)
+		held := filepath.Join(binaryRoot, "evaluator-held-after")
+		Expect(os.Rename(selected, held)).To(Succeed())
+		writeFixture(selected, publication.Replacement, 0755)
+		foreign, err := os.Lstat(selected)
+		Expect(err).NotTo(HaveOccurred())
+		before := assessmentTree(root)
+		queries := durableBytes(binaryRoot, "durable-git-calls")
+		response := client.call("begin", digest)
+		Expect(response).To(HaveKeyWithValue("status", json.Number("2")))
+		client.wait()
+		Expect(assessmentTree(root)).To(Equal(before))
+		actual, err := os.Lstat(selected)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(foreign, actual)).To(BeTrue())
+		Expect(durableBytes(root, publication.Path)).To(Equal(publication.Replacement))
+		Expect(durableBytes(binaryRoot, "durable-git-calls")).To(Equal(queries))
+	})
+
+	// per docs/adr/0096-interrupted-publication-recovery.md:55
+	// per docs/adr/0096-interrupted-publication-recovery.md:113
+	// per docs/adr/0096-interrupted-publication-recovery.md:125
+	It("refuses a fresh recovery grant while the actual prior owner is still alive and holds the permanent flock", func() {
+		binaryRoot, root, publication := durablePublicationFixture()
+		owner := durablePublicationBegin(binaryRoot, root, publication)
+		durablePublicationSuccess(owner.call("apply"))
+		request := interruptedRecoveryRequest(root, publication, "forward")
+		client := interruptedRecoveryStart(binaryRoot, root, request)
+		digest := interruptedRecoveryProposal(client.call("propose", ""), root, "forward", "after")
+		before := assessmentTree(root)
+		queries := durableBytes(binaryRoot, "durable-git-calls")
+		Expect(owner.command.Process.Signal(syscall.Signal(0))).To(Succeed(), "real owner is alive at the refusal boundary")
+		transitionLockBlocked(root)
+		response := client.call("begin", digest)
+		Expect(response).To(HaveKeyWithValue("status", json.Number("2")))
+		client.wait()
+		Expect(assessmentTree(root)).To(Equal(before))
+		Expect(durableBytes(binaryRoot, "durable-git-calls")).To(Equal(queries))
+		durablePublicationSuccess(owner.call("finish"))
+		durablePublicationSuccess(owner.call("close"))
+		owner.wait()
 	})
 })

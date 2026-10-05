@@ -30,10 +30,10 @@ func interruptedBudgetHistory(status string, pid, exit any) History {
 }
 
 var _ = ginkgo.Describe("Interrupted recovery budget state eligibility", func() {
-	// per docs/adr/0096-interrupted-publication-recovery.md:132
-	// per docs/adr/0096-interrupted-publication-recovery.md:134
-	// per docs/adr/0096-interrupted-publication-recovery.md:136
-	// per docs/adr/0096-interrupted-publication-recovery.md:140
+	// per docs/adr/0096-interrupted-publication-recovery.md:145
+	// per docs/adr/0096-interrupted-publication-recovery.md:146
+	// per docs/adr/0096-interrupted-publication-recovery.md:147
+	// per docs/adr/0096-interrupted-publication-recovery.md:151
 	ginkgo.DescribeTable("distinguishes unresolved ownership from recorded historical PID without changing history", func(status string, pid, exit any, want, active bool) {
 		history := interruptedBudgetHistory(status, pid, exit)
 		before, err := history.MarshalJSON()
@@ -49,8 +49,8 @@ var _ = ginkgo.Describe("Interrupted recovery budget state eligibility", func() 
 		Expect(after).To(Equal(before), "consumption and operator extensions remain unchanged")
 	}, ginkgo.Entry("checked empty state", "", nil, nil, false, false), ginkgo.Entry("active reservation without process PID", "active", nil, nil, true, true), ginkgo.Entry("terminal historical PID with recorded zero exit", "completed", 424243, 0, false, false), ginkgo.Entry("terminal historical PID with recorded failure exit", "completed", 424243, 7, false, false), ginkgo.Entry("terminal PID with no exit proof", "completed", 424243, nil, true, false), ginkgo.Entry("terminal pre-child refusal without PID", "completed", nil, nil, false, false))
 
-	// per docs/adr/0096-interrupted-publication-recovery.md:132
-	// per docs/adr/0096-interrupted-publication-recovery.md:202
+	// per docs/adr/0096-interrupted-publication-recovery.md:143
+	// per docs/adr/0096-interrupted-publication-recovery.md:216
 	ginkgo.It("rejects zero History and cancellation rather than granting a vacuous empty-state result", func() {
 		_, err := (History{}).HasUnresolved(context.Background())
 		Expect(err).To(HaveOccurred())

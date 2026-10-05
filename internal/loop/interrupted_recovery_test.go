@@ -24,9 +24,8 @@ func interruptedLoopHistory(status string, uncertain bool, pid any) History {
 }
 
 var _ = Describe("Interrupted recovery checkpoint state eligibility", func() {
-	// per docs/adr/0096-interrupted-publication-recovery.md:132
-	// per docs/adr/0096-interrupted-publication-recovery.md:137
-	// per docs/adr/0096-interrupted-publication-recovery.md:140
+	// per docs/adr/0096-interrupted-publication-recovery.md:148
+	// per docs/adr/0096-interrupted-publication-recovery.md:151
 	DescribeTable("preserves historical owners while refusing active, uncertain and retained process ownership", func(status string, uncertain bool, pid any, want bool) {
 		history := interruptedLoopHistory(status, uncertain, pid)
 		before, err := history.MarshalJSON()
@@ -39,8 +38,8 @@ var _ = Describe("Interrupted recovery checkpoint state eligibility", func() {
 		Expect(after).To(Equal(before), "attempts, consumed budget links and unknown extensions cannot be rewritten")
 	}, Entry("checked empty checkpoints", "", false, nil, false), Entry("completed historical owner", "completed", false, nil, false), Entry("stopped known harmless work", "stopped", false, nil, false), Entry("active checkpoint even without child PID", "active", false, nil, true), Entry("terminal but uncertain checkpoint", "completed", true, nil, true), Entry("stopped but uncertain checkpoint", "stopped", true, nil, true), Entry("terminal retained process PID without uncertain flag", "completed", false, 424243, true))
 
-	// per docs/adr/0096-interrupted-publication-recovery.md:132
-	// per docs/adr/0096-interrupted-publication-recovery.md:202
+	// per docs/adr/0096-interrupted-publication-recovery.md:143
+	// per docs/adr/0096-interrupted-publication-recovery.md:216
 	It("rejects zero History and honors cancellation before inspecting any checkpoint", func() {
 		_, err := (History{}).HasUnresolved(context.Background())
 		Expect(err).To(HaveOccurred())

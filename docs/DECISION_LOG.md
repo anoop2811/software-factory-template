@@ -3221,3 +3221,118 @@ The authoritative Go race-detector options document describes the default
 (fetched 2026-10-05 UTC). The earlier timeout remains an observed failed invocation;
 the new invocation must produce its own result. Hosted qualification remains
 pending on the next submitted evaluator revision.
+
+Copilot thread PRRT_kwDOTa7EQ86o45TV (comment 4180316394 on PR #123)
+identified another composition boundary: failed Begin joins cleanup before its
+primary error, while ErrorStatus selects the first Failure. Source review confirms
+that a cleanup conflict can precede a primary operational error or cancellation.
+Apply ADR 0096's constructor/cleanup refinement before tests and code: operational
+precedence covers both trees, both causes remain reachable, conflict-only remains
+status 2 and cleanup preserves evidence while releasing owned resources. Reuse
+the existing complete-tree classification; do not change global ErrorStatus,
+ordinary Close semantics, authority, deadlines or dependencies. Independent
+runtime RED, correction and requalification remain pending at this checkpoint.
+
+Independent reviewer reproduction then reached the real exclusive flock, native
+Root.Stat, actual late activity and native Guard.Close. Captured descriptor/root
+closure, raw flock reacquisition and complete fixture/pending preservation passed
+before the final status assertion. Native Stat followed by reported EIO and native
+cancellation each returned status 2 instead of 1 when paired with cleanup conflict;
+their clean counterparts and eligible constructor passed. Root read the RED log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -count=1 -timeout=120s -overlay=/private/tmp/factory-pr123-constructor-priority-cbhpn_nh/overlay.json -v ./internal/assessment -ginkgo.focus='Reviewer PR123 failed constructor operational precedence' -ginkgo.no-color -ginkgo.v
+Ran 5 of 306 Specs in 1.995 seconds
+FAIL! -- 3 Passed | 2 Failed | 0 Pending | 301 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 2.820s
+```
+
+The EIO compound tree contained Failure codes [2, 1]; cancellation remained
+reachable through errors.Is despite the wrong status. This verifies the reported
+composition defect at source-test level, not a released customer incident.
+Independent persistent regressions and production correction remain pending.
+
+The independent spec-writer then added ten persistent Ginkgo/Gomega cases without
+editing production or existing assertions. Four compound cases failed only the
+final status check: observation EIO, cancellation, reported typed query uncertainty
+and query uncertainty plus cancellation, each with actual activity-conflict cleanup.
+The six eligible/clean-primary/conflict-only/operational-cleanup controls passed.
+Actual supervised queries exited and were reaped before reported uncertainty;
+no surviving-process claim is made. Both original cancellation and exact typed
+ownership pointer/PID remained reachable, and preservation/closure checks passed
+before status. Root read factory-pr123-constructor-composition-red.log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery failed constructor error composition' -ginkgo.no-color -count=1
+Ran 10 of 311 Specs in 3.936 seconds
+FAIL! -- 6 Passed | 4 Failed | 0 Pending | 301 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/assessment 4.471s
+```
+
+The evaluator is frozen at SHA256
+e2b0e8c23570d689aa079f301e257c46ff098bfd83a6e879da5300c1f511cd25.
+Authorize only the private failed-Begin composition correction in the production
+file, reusing complete-tree operational classification and retaining both branches.
+The implementation role may not edit the evaluator.
+
+The production correction changed only failed Begin's defer: close resources once
+outside cancellation, classify both complete error trees, prepend one safe status-1
+Failure when either is operational, and join both original branches. Shared
+ErrorStatus, ordinary Close, evidence mutation and authority are unchanged.
+The frozen independent evaluator passed without edits after that correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=implementer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -ginkgo.focus='Interrupted recovery failed constructor error composition' -ginkgo.no-color
+Ran 10 of 311 Specs in 3.776 seconds
+SUCCESS! -- 10 Passed | 0 Failed | 0 Pending | 301 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 5.509s
+```
+
+Root read factory-pr123-constructor-composition-green.log. The reviewer's unchanged
+five-case overlay also passed (5 Passed, 0 Failed, package 3.512s); both former
+compound failures now return 1 while original cancellation/Failure branches remain
+reachable. Correctness, security and independent test-methodology review found
+no surviving findings in the narrow correction. The source/test hashes remained
+6ff9c16de37506a28454ed0194360520ad0485770a6d2efbb5ed83cf9766b4cd and
+e2b0e8c23570d689aa079f301e257c46ff098bfd83a6e879da5300c1f511cd25.
+
+Root's affected-package and full-source quality checks returned exit 0. The
+runner supplied FACTORY_AGENT_ROLE=reviewer, the existing GOCACHE and lint cache,
+and prefixed PATH with /private/tmp/factory-quality-tools; child argv below is
+recorded exactly. The separate Linux invocation set its own environment:
+
+```text
+rtk proxy go test -race -count=1 -timeout=10m -v ./internal/assessment ./internal/budget ./internal/loop ./internal/transition -ginkgo.no-color -ginkgo.succinct
+ok github.com/anoop2811/software-factory-template/internal/assessment 64.895s
+ok github.com/anoop2811/software-factory-template/internal/budget 8.430s
+ok github.com/anoop2811/software-factory-template/internal/loop 13.331s
+ok github.com/anoop2811/software-factory-template/internal/transition 2.811s
+rtk proxy go vet ./...
+(exit 0, no output)
+rtk proxy golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOOS=linux GOARCH=amd64 GOCACHE=/private/tmp/factory-durable-recovery-go-cache GOLANGCI_LINT_CACHE=/private/tmp/factory-durable-recovery-linux-lint-cache /private/tmp/factory-quality-tools/golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+rtk proxy gosec ./...
+Issues : 0
+rtk proxy govulncheck ./...
+No vulnerabilities found.
+```
+
+The four suites ran 522 passing criteria plus the intentionally skipped
+subprocess-only witness. Root read the actual factory-pr123-copilot quality logs.
+Ginkgo, workflow, shared-script, hook-existence and pending-lesson checks passed;
+citation-lint skips because no prefix is configured, so ADR line citations were
+checked directly. New-head hosted checks and the review-thread reply/resolution
+remain pending at this delivery checkpoint; protected-path human review remains
+required, and review corrections earn no additional conversion progress.
+
+The independent spec-writer separately rechecked the unchanged evaluator; root
+read factory-pr123-constructor-composition-independent-green.log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache go test -race -v ./internal/assessment -run '^TestAssessment$' -ginkgo.focus 'Interrupted recovery failed constructor error composition' -ginkgo.no-color -count=1
+Ran 10 of 311 Specs in 3.768 seconds
+SUCCESS! -- 10 Passed | 0 Failed | 0 Pending | 301 Skipped
+ok github.com/anoop2811/software-factory-template/internal/assessment 5.319s
+```

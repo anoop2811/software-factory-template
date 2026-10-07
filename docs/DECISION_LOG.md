@@ -3357,3 +3357,20 @@ No new dependency, pin, model invocation or progress denominator is introduced.
 The measured Go source plan remains 60.7% until an existing milestone qualifies
 and merges. Manual pilot project/exit criteria were requested from Anoop and are
 still pending; this does not block independent bundle/source implementation.
+
+Independent outside-in surface RED occurred before interfaces: native producer and
+stager both rejected --installation as an unknown flag, returning 2 instead of 0.
+Root read factory-installation-image-surface-red.log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test ./acceptance -count=1 -ginkgo.focus='accepts the (producer|stager) installation flag'
+Ran 2 of 2568 Specs in 4.040 seconds
+FAIL! -- 0 Passed | 2 Failed | 0 Pending | 2566 Skipped
+FAIL github.com/anoop2811/software-factory-template/acceptance 4.665s
+```
+
+Authorize interface-only fields/flags and explicit unsupported behavior before the
+independent semantic runtime RED. The next behavior remains unimplemented at this
+checkpoint. New acceptance cases are owned by the separate evaluator; the source
+role does not edit them. Strict rejection cases passing an unsupported stub do
+not establish semantic negative-control coverage.

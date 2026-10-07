@@ -26,6 +26,7 @@ var (
 // Options identifies one source, toolchain and output; no fallback is permitted.
 type Options struct {
 	Source, Revision, Target, Output, Version, Compiler string
+	Installation                                        bool
 }
 
 // Result is emitted only after every bundle file has been published.
@@ -45,6 +46,9 @@ func Build(ctx context.Context, options Options) (Result, error) {
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
+	}
+	if options.Installation {
+		return Result{}, errors.New("installation source-image packaging is not implemented")
 	}
 	output, err := resolveOutput(options.Output)
 	if err != nil {

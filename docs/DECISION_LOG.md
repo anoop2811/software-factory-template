@@ -3336,3 +3336,24 @@ Ran 10 of 311 Specs in 3.768 seconds
 SUCCESS! -- 10 Passed | 0 Failed | 0 Pending | 301 Skipped
 ok github.com/anoop2811/software-factory-template/internal/assessment 5.319s
 ```
+
+## Decision 96 (2026-10-06 UTC): bind complete source images before installation rollback
+
+The user authorized the complete Go replacement release with safe script retirement.
+Pre-code review of the R3 boundary found that existing one-file journals and
+three-file runtime bundles cannot qualify a whole installed upgrade or rollback.
+Implement ADR 0097's complete committed-source image and immutable v0.1.6/Bash
+reference catalogs first, then one installation transaction and public rollback.
+Do not expose a partial rollback as complete compatibility or infer authority from
+journal metadata. Default dispatch and destructive cutover remain gated by the
+complete consumer, retirement, retention, target qualification and mandatory pilot.
+
+Add explicit producer/stager --installation mode while retaining exact V1 defaults.
+The archive binds inert source payloads and fixed reference catalogs to the binary,
+source revision and existing authentication policy. The collector uses committed
+objects, not the working tree, and never follows source symlinks. Independent
+runtime RED precedes source behavior; the implementation role cannot edit tests.
+No new dependency, pin, model invocation or progress denominator is introduced.
+The measured Go source plan remains 60.7% until an existing milestone qualifies
+and merges. Manual pilot project/exit criteria were requested from Anoop and are
+still pending; this does not block independent bundle/source implementation.

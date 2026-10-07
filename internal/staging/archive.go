@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"path"
+
+	"github.com/anoop2811/software-factory-template/internal/installationimage"
 )
 
 func bundleNames(o Options) []string {
@@ -17,24 +19,42 @@ func bundleNames(o Options) []string {
 	return []string{prefix + "bin/factory-runtime", prefix + "runtime.manifest", prefix + "source.json"}
 }
 
-func extract(ctx context.Context, snapshots, destination *os.Root, o Options) error {
+func extract(ctx context.Context, snapshots, destination *os.Root, o Options) (err error) {
 	file, err := snapshots.Open("archive")
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		closeErr := file.Close()
+		if o.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	compressed := bufio.NewReader(file)
 	reader, err := gzip.NewReader(compressed)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer func() {
+		closeErr := reader.Close()
+		if o.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	reader.Multistream(false)
-	const totalLimit = 257 << 20
+	totalLimit := int64(257 << 20)
+	if o.Installation {
+		totalLimit = installationimage.WireLimit
+	}
 	limited := &io.LimitedReader{R: &contextReader{ctx, reader}, N: totalLimit + 1}
 	counted := &countReader{reader: limited}
 	archive := tar.NewReader(counted)
 	names := bundleNames(o)
+	var image *imageArchive
+	if o.Installation {
+		image = newImageArchive(o)
+		names = image.names
+	}
 	seen := make(map[string]bool)
 	for {
 		before := counted.count
@@ -48,7 +68,13 @@ func extract(ctx context.Context, snapshots, destination *os.Root, o Options) er
 		if nextErr != nil {
 			return nextErr
 		}
-		if err = extractEntry(destination, archive, header, names, seen); err != nil {
+		if image != nil {
+			if err = image.extractEntry(ctx, destination, archive, header, o); err != nil {
+				return err
+			}
+			names = image.names
+			seen[header.Name] = true
+		} else if err = extractEntry(destination, archive, header, names, seen); err != nil {
 			return err
 		}
 	}

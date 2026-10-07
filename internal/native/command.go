@@ -33,7 +33,7 @@ func executeCommand(ctx context.Context, root string, argv []string, environment
 	}
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
-	stderr := &commandCapture{cancel: cancel}
+	stderr := &commandCapture{cancel: cancel, limit: outputLimit}
 	execution, err := supervise(child, plan, allowance,
 		func(context.Context, int) error { return nil }, defaultProcessOps(),
 		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
@@ -82,12 +82,13 @@ type commandCapture struct {
 	data     []byte
 	overflow bool
 	cancel   context.CancelFunc
+	limit    int
 }
 
 func (c *commandCapture) Write(data []byte) (int, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	count := min(len(data), outputLimit-len(c.data))
+	count := min(len(data), c.limit-len(c.data))
 	c.data = append(c.data, data[:count]...)
 	if count != len(data) {
 		c.overflow = true

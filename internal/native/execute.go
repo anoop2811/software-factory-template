@@ -39,12 +39,13 @@ func defaultProcessOps() processOps {
 }
 
 type runOptions struct {
-	argv0       string
-	errorOutput io.Writer
-	environment []string
-	limit       int
-	mergeStderr bool
-	consume     func(context.Context, []byte) (bool, error)
+	argv0             string
+	errorOutput       io.Writer
+	environment       []string
+	limit             int
+	mergeStderr       bool
+	parentContextOnly bool
+	consume           func(context.Context, []byte) (bool, error)
 }
 
 // Execute supervises an already-admitted process; publication precedes stdin.
@@ -165,14 +166,20 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	start := time.Now()
 	defer func() { result.ElapsedSeconds = time.Since(start).Seconds() }()
 	result.Outcome = "launch_error"
-	if allowance <= 0 || onSpawn == nil {
+	if (!options.parentContextOnly && allowance <= 0) || onSpawn == nil {
 		return result, errors.New("invalid native execution admission")
 	}
 	if err := parent.Err(); err != nil {
 		result.Outcome = contextOutcome(err)
 		return result, errors.New("native execution context ended before launch")
 	}
-	ctx, cancel := context.WithTimeout(parent, allowance)
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if options.parentContextOnly {
+		ctx, cancel = context.WithCancel(parent)
+	} else {
+		ctx, cancel = context.WithTimeout(parent, allowance)
+	}
 	defer cancel()
 	pipes, err := openPipes()
 	if err != nil {

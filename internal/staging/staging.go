@@ -39,15 +39,12 @@ type Result struct {
 
 // Stage follows docs/adr/0061-runtime-bundle-staging.md:25. Neither trust mode
 // executes candidate content, and no release failure falls back to local mode.
-func Stage(ctx context.Context, options Options) (Result, error) {
+func Stage(ctx context.Context, options Options) (result Result, err error) {
 	if err := options.validate(); err != nil {
 		return Result{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
-	}
-	if options.Installation {
-		return Result{}, errors.New("installation source-image staging is not implemented")
 	}
 	output, err := resolveOutput(options.Output)
 	if err != nil {
@@ -57,12 +54,25 @@ func Stage(ctx context.Context, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	defer os.RemoveAll(workspace)
+	defer func() {
+		cleanupErr := os.RemoveAll(workspace)
+		if options.Installation {
+			err = errors.Join(err, cleanupErr)
+			if err != nil {
+				result = Result{}
+			}
+		}
+	}()
 	root, err := os.OpenRoot(workspace)
 	if err != nil {
 		return Result{}, err
 	}
-	defer root.Close()
+	defer func() {
+		closeErr := root.Close()
+		if options.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	digest, err := snapshot(ctx, root, options.Archive, "archive", 128<<20)
 	if err != nil {
 		return Result{}, fmt.Errorf("archive snapshot: %w", err)
@@ -87,7 +97,12 @@ func Stage(ctx context.Context, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	defer content.Close()
+	defer func() {
+		closeErr := content.Close()
+		if options.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	if err = extract(ctx, root, content, options); err != nil {
 		return Result{}, fmt.Errorf("archive: %w", err)
 	}

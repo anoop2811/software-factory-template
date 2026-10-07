@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
+	"github.com/anoop2811/software-factory-template/internal/installationimage"
 )
 
 // ErrInvalidRequest distinguishes malformed operands from operational failures.
@@ -40,15 +41,12 @@ type Result struct {
 
 // Build follows docs/adr/0060-runtime-source-bundles.md:13. It never executes
 // the built candidate and removes only its private temporary workspace.
-func Build(ctx context.Context, options Options) (Result, error) {
+func Build(ctx context.Context, options Options) (result Result, err error) {
 	if err := options.validate(); err != nil {
 		return Result{}, err
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
-	}
-	if options.Installation {
-		return Result{}, errors.New("installation source-image packaging is not implemented")
 	}
 	output, err := resolveOutput(options.Output)
 	if err != nil {
@@ -64,22 +62,46 @@ func Build(ctx context.Context, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	defer os.RemoveAll(workspace)
+	defer func() {
+		cleanupErr := os.RemoveAll(workspace)
+		if options.Installation {
+			err = errors.Join(err, cleanupErr)
+			if err != nil {
+				result = Result{}
+			}
+		}
+	}()
 	root, err := os.OpenRoot(workspace)
 	if err != nil {
 		return Result{}, err
 	}
-	defer root.Close()
+	defer func() {
+		closeErr := root.Close()
+		if options.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	if err = root.Mkdir("source", 0700); err != nil {
 		return Result{}, err
 	}
-	if err = extractSource(ctx, options, root); err != nil {
+	var image installationimage.Manifest
+	if options.Installation {
+		if _, err = isolatedRepository(ctx, options, root); err != nil {
+			return Result{}, err
+		}
+		if image, err = collectInstallation(ctx, root, options); err != nil {
+			return Result{}, err
+		}
+		if err = prepareInstallationSource(ctx, root, options, image); err != nil {
+			return Result{}, err
+		}
+	} else if err = extractSource(ctx, options, root); err != nil {
 		return Result{}, err
 	}
 	if err = compile(ctx, options, workspace); err != nil {
 		return Result{}, err
 	}
-	digest, names, err := createBundle(root, options)
+	digest, names, err := createBundle(ctx, root, options, image)
 	if err != nil {
 		return Result{}, err
 	}

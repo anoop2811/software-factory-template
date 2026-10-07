@@ -30,7 +30,13 @@ func gitCommand(ctx context.Context, source string, args ...string) *exec.Cmd {
 // change committed bytes (docs/adr/0060-runtime-source-bundles.md:13).
 func isolatedRepository(ctx context.Context, options Options, workspace *os.Root) (string, error) {
 	probe := gitCommand(ctx, options.Source, "rev-parse", "--path-format=absolute", "--git-path", "objects")
-	objects, err := probe.Output()
+	var objects []byte
+	var err error
+	if options.Installation {
+		objects, err = boundedGitOutput(ctx, options.Source, []string{"rev-parse", "--path-format=absolute", "--git-path", "objects"})
+	} else {
+		objects, err = probe.Output()
+	}
 	if err != nil {
 		return "", fmt.Errorf("locate source objects: %w", err)
 	}
@@ -39,7 +45,14 @@ func isolatedRepository(ctx context.Context, options Options, workspace *os.Root
 		return "", errors.New("unsupported source object directory")
 	}
 	command := gitCommand(ctx, workspace.Name(), "init", "--bare", "--quiet", "--template=", "repository")
-	if output, initErr := command.CombinedOutput(); initErr != nil {
+	var output []byte
+	var initErr error
+	if options.Installation {
+		output, initErr = boundedGitOutput(ctx, workspace.Name(), []string{"init", "--bare", "--quiet", "--template=", "repository"})
+	} else {
+		output, initErr = command.CombinedOutput()
+	}
+	if initErr != nil {
 		return "", fmt.Errorf("initialize source view: %w: %s", initErr, output)
 	}
 	if err = workspace.MkdirAll("repository/objects/info", 0700); err != nil {

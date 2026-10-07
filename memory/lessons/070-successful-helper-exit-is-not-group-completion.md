@@ -28,7 +28,7 @@ explicit group absence within the existing cleanup deadline. The controlling
 refinement is docs/adr/0093-runtime-transition-guard.md:195; temporary inspection
 errors are not absence evidence.
 
-Observed again 2026-10-06 UTC through public installation packaging Build probes:
+Observed again 2026-10-07 UTC through public installation packaging Build probes:
 a completed Git wrapper retained stdout/stderr for about three seconds past a
 400 ms deadline, or left a closed-pipe descendant alive. The independent process
 regressions at internal/packaging/installation_process_test.go:159 reproduced the

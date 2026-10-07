@@ -26,7 +26,8 @@ factory launcher and ordinary upgrade still use the script installation.
 
 - [ ] Complete committed source-image bundle and fixed legacy reference catalogs,
       with shared validation and authenticated closed-world payload custody.
-      Current implementation contract: ADR 0097; independent RED/GREEN pending.
+      ADR 0097 source implementation: 98 new criteria and 72 unchanged V1 criteria
+      passed locally. Full source gates and four native target jobs remain pending.
 - [ ] Complete reviewed installation selection and retain/replace/retire map for
       each supported predecessor and the Go target. Source/test/development blobs
       in the image are not all installation assets and grant no ownership.

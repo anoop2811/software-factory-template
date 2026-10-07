@@ -183,3 +183,47 @@ and test lenses, reproduce/refute findings before deterministic dedupe, then
 reviewer synthesis. Real release authentication and the manual adopter pilot
 remain later release gates; mocked verifier transport is not live attestation
 qualification.
+
+## Installation Git process ownership refinement
+
+Independent review reproduced a collector cancellation/ownership defect after a
+real native Git operation. A PATH-selected trusted wrapper retained stdout or
+stderr in a descendant and delayed a 400 ms public Build deadline until roughly
+three seconds; a closed-pipe descendant survived after Build returned. A direct
+native Git/FIFO cancellation control still passed. Cancellation must cover owned
+Git groups, not just a direct process or pipe EOF, including trusted wrappers.
+
+Replace the installation collector's private read/kill/wait transport with one
+additive native.ExecuteCommandBounded(ctx, root, argv, environment, stdoutLimit,
+stderrLimit) API. Validate both positive limits against the existing 16 MiB native
+ceiling before spawn. Use the parent context only for this new API, without a
+new operation timeout; preserve existing positive-allowance rules, tool/harness
+semantics and V1 transport paths. Reuse the qualified explicit-pipe/session/group
+termination, leader reap, drainage, shared five-second cleanup and typed
+native.OwnershipError machinery. Do not duplicate another process supervisor.
+
+Keep split-stream captures bounded before allocation. Installation metadata and
+probe stdout is 64 KiB, size replies 32 bytes, blobs their known size plus one
+sentinel, and tree output (PathLimit+128)*(entryLimit+1); Git diagnostics are 64 KiB.
+Keep overflow explicit and never parse/write collected bytes until completion,
+confirmed exit and ownership are established. Return the original cancellation,
+overflow/failure and typed uncertainty together. WaitDelay or closing stdout alone
+cannot establish descendant termination. Preserve actual PID evidence on uncertain
+cleanup. Existing compiler transport and developer-CLI OS-signal behavior are
+separate boundaries and are not claimed repaired by this refinement.
+
+Independent evaluator regressions must execute real Git before controlled stdout,
+stderr and closed-pipe descendants; include a successful native operation and
+an unchanged direct-child control. Check output absence on failure/uncertainty,
+bounded cleanup including the existing post-cancellation allowance, and actual
+child exit or retained typed uncertainty. Observe the persistent failure before
+source behavior changes, then requalify the existing native transport consumers
+and frozen packaging/staging cases. New limits cannot silently widen existing ones.
+
+For the new bounded-tool API, its internal stdout capture may keep the existing
+one-byte overflow sentinel, but returned Stdout/Stderr slices must respect their
+explicit caller limits. Detect and retain output-limit failure before trimming
+returned data; never hide overflow or broaden existing native execution behavior.
+Conservative ownership uncertainty remains valid even when an independent later
+observation sees the PID/group gone. A true uncertainty flag must retain the
+same typed PID error; healthy operations still require established ownership.

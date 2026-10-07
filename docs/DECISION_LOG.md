@@ -3374,3 +3374,211 @@ independent semantic runtime RED. The next behavior remains unimplemented at thi
 checkpoint. New acceptance cases are owned by the separate evaluator; the source
 role does not edit them. Strict rejection cases passing an unsupported stub do
 not establish semantic negative-control coverage.
+
+The interface-only checkpoint 2fe5f33 then produced distinct runtime RED, not an
+unknown-flag or compilation failure. Both flags were accepted and each valid
+operation returned its explicit unsupported diagnostic (status 1 rather than 0).
+Root read factory-installation-image-runtime-red.log:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test ./acceptance -count=1 -ginkgo.no-color -ginkgo.succinct -ginkgo.focus='accepts the (producer|stager) installation flag'
+Ran 2 of 2571 Specs in 3.747 seconds
+FAIL! -- 0 Passed | 2 Failed | 0 Pending | 2569 Skipped
+FAIL github.com/anoop2811/software-factory-template/acceptance 4.366s
+```
+
+The independent evaluator's 69 new criteria are frozen at SHA256
+ d1ee58574f20f88589aa2060b234dd2d4043a2227d2d05b40d0262add3767cd9.
+Every malformed producer/stager fixture first requires its corresponding valid
+fixture to succeed. No negative-control coverage is credited from unsupported
+refusals. Authorize the production behavior now; the source role cannot edit the
+evaluator. Full semantic, race, quality, native-target and review qualification
+remain pending; installation activation and release readiness remain open.
+
+Independent test-method review identified a masking gap in four new malformed
+fixtures: empty/path/prefix catalog mutations retained the original tar payload
+names. Root read the exact switch and deterministically compared declared/member
+sets; each had unrelated undeclared or missing members that could reject without
+the intended catalog check. This is an evaluator coverage gap, not a reproduced
+production acceptance bug. The outside-repo member comparison is recorded in
+factory-installation-image-evaluator-mask-verification.json.
+
+Authorize only the independent evaluator to regenerate matching payload members
+for those manifest mutations, preserving positive controls, bytes, hashes and
+expected refusal. Empty catalogs carry exactly four controls. A pure shared
+schema test is needed for prefix rejection because native directory/file collision
+can independently refuse before publication even with matching member names.
+Do not credit a new runtime RED from this coverage correction or permit the
+implementation role to change the evaluator.
+
+The first implementation's historical 69-case run reported 67 passing and two
+failing evaluator observations. Root did not have that tool-output-only run as a
+raw file and does not claim to have read a retained original log. A separate exact
+two-case reproduction retained factory-installation-image-observation-defects.log;
+root read it before authorizing the evaluator correction: 0 Passed, 2 Failed,
+package 4.574s. Staging had returned 0 before the helper's absolute Lstat exceeded
+macOS PATH_MAX for an otherwise supported 1024-byte logical path. The other case
+returned 1 with no output at the existing archive snapshot bound, but the test
+required the uncontracted literal word limit rather than the observed fixed
+bounded-input diagnostic.
+
+Authorize the evaluator alone to walk/read/stat through descriptor-confined
+os.Root APIs, preserving every tree/type/mode/byte assertion and path boundary.
+Keep compressed-size refusal and no-output assertions, and identify the actual
+archive snapshot failure phase instead of inventing a diagnostic string. This
+does not change production limits or behavior, and it does not earn new source
+bug-fix or RED credit. The original 69-case result and the two-case reproduction
+remain separate observations; final corrected evaluator qualification is pending.
+
+The shared image reader is also a reusable boundary for the later installation
+consumer. Checking imported identity only for equality with a caller-supplied
+Identity is insufficient when both contain the same malformed version, target or
+revision. Its existing unsupported-value contract therefore includes independent
+validation of the literal version, lowercase full SHA and four approved targets,
+with moving aliases refused. This is direct image-API qualification; current
+producer/stager CLI request validators already guard their callers, so no current
+CLI acceptance bug is claimed.
+
+Authorize the independent evaluator to add paired direct Decode cases for matching
+invalid manifest and caller identities and observe them fail before the source
+role adds the shared check. Keep the frozen V1 request policy and diagnostics
+unchanged. The shared invalid-identity regression's RED/GREEN is separate from
+both new flag RED phases and evaluator methodology corrections.
+
+Independent direct-image identity regression then reproduced the reuse gap on
+all eight cases, after each valid sibling control succeeded. Root read
+factory-installation-image-identity-grammar-red.log before the source correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./internal/installationimage -count=1 -ginkgo.no-color -ginkgo.succinct -ginkgo.focus='matching but invalid requested image identity'
+Ran 8 of 14 Specs in 2.492 seconds
+FAIL! -- 0 Passed | 8 Failed | 0 Pending | 6 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/installationimage 2.988s
+```
+
+Matching invalid identities were accepted: empty/moving/path versions, empty,
+uppercase or short commits, and an unsupported target. This qualifies a shared
+reader bug, not a current CLI bypass. Authorize the minimal shared grammar check;
+retain the existing CLI/V1 policy and unchanged independent assertions.
+
+Security review then reproduced one collector ownership defect, verified again by
+an independent correctness reviewer. Root read both retained actual-operation
+probe results before this refinement. At a supplied 400 ms deadline: native control
+403/404 ms; stdout-tail 3017/3018 ms; stderr-tail 3021/3024 ms; closed-pipe tail
+402/403 ms with the actual descendant still alive. All failed operations produced
+no final output, and reviewer-owned surviving PIDs were explicitly cleaned.
+Evidence: factory-installation-security-5icl_36v/{results,tail-results}.json and
+factory-installation-tail-verifier-cyeeozks/qualification.json outside the repo.
+These are source/API process tests, not released customer incidents.
+
+ADR 0097 now requires reuse of qualified native process-group ownership through
+an additive per-stream bounded parent-context tool API. Preserve all existing
+V1/tool/harness deadlines and defaults; no copy of a new cleanup protocol and no
+new operation timeout. Independent persistent descendant/PID regressions precede
+that correction; existing 83 image cases and 72 V1 cases must be requalified.
+
+The independent persistent process regressions then reproduced the three cases
+against the unchanged collector after successful actual Git/PID handshakes.
+The identical no-tail wrapper completed a healthy Build. Held stdout/stderr
+exceeded the existing five-second cleanup allowance; closed pipes returned while
+the actual descendant remained alive without typed ownership uncertainty.
+Root read factory-installation-image-process-red.log before correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./internal/packaging -count=1 -ginkgo.no-color -ginkgo.succinct
+Ran 4 of 4 Specs
+FAIL! -- 1 Passed | 3 Failed | 0 Pending | 0 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/packaging 22.567s
+```
+
+The two new process evaluator files are frozen at
+f7923cccfee5893a0e239b19a4e73e19eafe8303b413ac62edce99af93caa54a and
+75a1deacd9f1619e840681f5a991f727108f85277e5ce63d583426804e15f4cd.
+Authorize the bounded native tool entrypoint and installation-only Git transport
+replacement now. Source role ownership expands only to the necessary native
+command/supervisor production files; independent tests stay author-owned.
+
+The bounded transport correctly terminates an owned group after leader exit, so
+its first run of the new process fixture failed before the cancellation handshake:
+the fixture leader released its child and exited immediately, allowing termination
+before the descendant published its PID. Root read that actual phase failure in
+factory-installation-image-process-green-implementation.log (1 Passed, 3 Failed,
+package 38.496s); it is not a new collector behavior failure.
+
+Authorize only the evaluator to keep its fixture leader alive after the real Git
+operation and descendant spawn until the observer's cancellation/release. Preserve
+the finite safety lifetime, actual PID/readiness handshake, all cancellation,
+cleanup/PID/typed-uncertainty/output/source-preservation assertions and the healthy
+control. Do not delay group termination in production. The original persistent
+RED remains retained; recheck corrected fixture semantics against the old compiled
+probe where feasible before current GREEN.
+
+Root also reproduced the new fixture's sole repository lint failure: staticcheck
+SA1019 at runtime.GOROOT. Actual go doc runtime.GOROOT directs callers to locate
+go and query go env GOROOT. Author-only compiler discovery will follow that
+observed API guidance before PATH-wrapper injection, keeping the pinned compiler
+and positive fixture behavior unchanged. No production version or compiler pin
+is changed by this evaluator correction.
+
+Independent post-implementation bounded-tool qualification ran eleven cases:
+nine passed, two exposed contract/evaluator distinctions (package 2.326s).
+Root read factory-installation-image-bounded-command-qualification.log and the
+existing native capture implementation. Its limit+1 sentinel is intentional
+internally. Clarify and enforce the new API's returned data limits without
+changing existing native capture semantics; the independent stdout bound
+assertion remains unchanged. The stderr case incorrectly required certainty
+while retaining no temporal distinction between return-time proof and a later
+PID/group observation. Author-only correction must check typed PID evidence when
+uncertainty is true, retain actual process/group readback and require certainty
+for the healthy control. This is not permission to discard uncertainty.
+
+Root reproduced the sole new test lint G306 at WriteFile0700. Author may write
+private0600 then explicitly chmod the test executable0700, retaining the same
+execution and marker assertions without suppressing the rule.
+
+Final focused qualification used the corrected transport and independently owned
+evaluators. Root read the retained command metadata and output, then compared all
+15 production hashes with the final freeze: no mismatches. Both unchanged user
+files retained their initial hashes. Exact commands and observed results:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=implementer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 FACTORY_CLI_TEST_RACE=1 go test -race -v ./acceptance ./internal/installationimage -count=1 -timeout=20m -ginkgo.focus='G1 complete installation source images|Installation source image catalog admission' -ginkgo.no-color -ginkgo.succinct
+Go factory command acceptance - 69/2571 specs: SUCCESS!
+ok github.com/anoop2811/software-factory-template/acceptance 158.634s
+Installation source image schema - 14/14 specs: SUCCESS!
+ok github.com/anoop2811/software-factory-template/internal/installationimage 3.499s
+
+rtk proxy env FACTORY_AGENT_ROLE=implementer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 FACTORY_CLI_TEST_RACE=1 go test -race -v ./acceptance -run TestAcceptance -count=1 -timeout=20m -ginkgo.focus='G1 (committed-source runtime packaging|runtime bundle staging)' -ginkgo.no-color -ginkgo.succinct
+Go factory command acceptance - 72/2571 specs: SUCCESS!
+ok github.com/anoop2811/software-factory-template/acceptance 38.444s
+
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./internal/native ./internal/packaging -count=1 -ginkgo.no-color -ginkgo.succinct
+ok github.com/anoop2811/software-factory-template/internal/native 7.473s
+ok github.com/anoop2811/software-factory-template/internal/packaging 9.174s
+```
+
+The native package ran eleven new bounded-tool criteria and six existing native
+criteria; packaging ran four new process criteria. The 98 new criteria are not
+98 independently observed REDs: the surface/runtime pairs, eight shared grammar
+cases and three process regressions have retained failure evidence; additional
+coverage and evaluator corrections are identified separately above.
+
+Correctness and security recompiled their unchanged public probes against the
+final source. Both observed 400 ms deadlines returning in 401-404 ms, all actual
+descendants absent, original deadline errors retained and failed output absent.
+Direct native Git cancellation with its FIFO writer held open returned in 92 ms,
+with the child reaped, borrowed FIFO preserved and no owned workspace. Seven
+external bounded-API controls additionally covered exact channel limits,
+independent overflow, invalid limits before spawn and already-cancelled admission;
+overflow retained typed uncertainty even when a later observer saw the group gone.
+Review-diamond's verified collector finding deduplicates to one resolved item;
+both final reviewer syntheses have no surviving findings. Root read the actual
+JSON artifacts and recorded the deterministic ledger outside the repository.
+
+These observations qualify source/components on local macOS arm64. Full source
+gates and the native four-target V1/image workflow remain pending at this
+checkpoint. Additive workflow qualification preserves the original V1 steps and
+adds native installation-image packaging, inert staging and packaged conformance
+without publishing a release or changing installed selection. Whole-installation
+upgrade, public rollback, retirement, retention and the mandatory pilot remain
+unfinished; source progress remains 60.7%.

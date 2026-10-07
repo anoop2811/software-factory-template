@@ -38,6 +38,7 @@ func main() {
 	flags.StringVar(&options.TrustedRoot, "trusted-root", "", "Independently provisioned trusted roots")
 	flags.StringVar(&options.Verifier, "gh", "", "Trusted GitHub CLI executable (default gh on PATH)")
 	flags.BoolVar(&options.Local, "local", false, "Explicit unauthenticated source-build mode")
+	flags.BoolVar(&options.Installation, "installation", false, "Require the inert installation source-image format")
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(status)

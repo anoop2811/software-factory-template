@@ -24,6 +24,7 @@ type Options struct {
 	Archive, Version, Revision, Target, Output string
 	Attestation, TrustedRoot, Verifier         string
 	Local, ExplicitVerification                bool
+	Installation                               bool
 }
 
 // Result reports this operation only; it is not durable activation authority.
@@ -44,6 +45,9 @@ func Stage(ctx context.Context, options Options) (Result, error) {
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
+	}
+	if options.Installation {
+		return Result{}, errors.New("installation source-image staging is not implemented")
 	}
 	output, err := resolveOutput(options.Output)
 	if err != nil {

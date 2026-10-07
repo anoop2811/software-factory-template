@@ -34,6 +34,7 @@ func main() {
 	flags.StringVar(&options.Output, "output", "", "New bundle directory (must not exist)")
 	flags.StringVar(&options.Version, "version", "", "Literal version label (default local-REVISION)")
 	flags.StringVar(&options.Compiler, "go", "", "Explicit pinned Go compiler")
+	flags.BoolVar(&options.Installation, "installation", false, "Include the inert committed installation source image")
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(status)

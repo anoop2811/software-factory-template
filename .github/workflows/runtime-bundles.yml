@@ -65,11 +65,39 @@ jobs:
           binary="$staged/$version/$TARGET/bin/factory-runtime"
           FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
             -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
+      - name: Qualify the complete installation source image on the native target
+        env:
+          TARGET: ${{ matrix.target }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_VERSION:-local-$GITHUB_SHA}"
+          output="$RUNNER_TEMP/installation-image-bundle"
+          # Inert source/reference data, not installed activation authority.
+          # docs/adr/0097-installation-source-image-bundles.md:21.
+          go run ./cmd/factory-package --installation --source "$GITHUB_WORKSPACE" \
+            --revision "$GITHUB_SHA" --target "$TARGET" --version "$version" --output "$output"
+          staged="$RUNNER_TEMP/installation-image-stage"
+          go run ./cmd/factory-stage --installation --archive "$output/factory-runtime.tar.gz" \
+            --version "$version" --revision "$GITHUB_SHA" --target "$TARGET" \
+            --output "$staged" --local
+          binary="$staged/$version/$TARGET/bin/factory-runtime"
+          FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
+            -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: runtime-${{ matrix.artifact }}
           path: |
             ${{ runner.temp }}/runtime-bundle/factory-runtime.tar.gz
             ${{ runner.temp }}/runtime-bundle/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installation-image-${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/installation-image-bundle/factory-runtime.tar.gz
+            ${{ runner.temp }}/installation-image-bundle/SHA256SUMS
           if-no-files-found: error
           retention-days: 7

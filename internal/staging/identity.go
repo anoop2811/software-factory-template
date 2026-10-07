@@ -12,7 +12,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/artifact"
 )
 
-func validateIdentity(ctx context.Context, content *os.Root, directory string, o Options) error {
+func validateIdentity(ctx context.Context, content *os.Root, directory string, o Options) (err error) {
 	slot := o.Version + "/" + o.Target
 	root := filepath.Join(directory, filepath.FromSlash(slot))
 	metadata, err := artifact.Verify(ctx, filepath.Join(root, "runtime.manifest"), root, o.Target)
@@ -26,8 +26,16 @@ func validateIdentity(ctx context.Context, content *os.Root, directory string, o
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		closeErr := file.Close()
+		if o.Installation {
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	expected := map[string]string{"revision": o.Revision, "version": o.Version, "target": o.Target, "go_version": artifact.SourceGoVersion, "kind": "source-build"}
+	if o.Installation {
+		expected["kind"] = "installation-source-build"
+	}
 	decoder := json.NewDecoder(file)
 	token, err := decoder.Token()
 	if err != nil {

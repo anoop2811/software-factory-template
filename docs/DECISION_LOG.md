@@ -3582,3 +3582,32 @@ adds native installation-image packaging, inert staging and packaged conformance
 without publishing a release or changing installed selection. Whole-installation
 upgrade, public rollback, retirement, retention and the mandatory pilot remain
 unfinished; source progress remains 60.7%.
+
+The first aggregate local source run and hosted macOS source gate then reached
+their existing twenty-minute suite timers. Root read the complete retained logs:
+local acceptance 1200.583s, 2098 passing glyphs, seven skips, no assertion-failure
+blocks; hosted acceptance 1200.202s, 2282 passing glyphs, no assertion-failure
+blocks. The different timeout stacks were in unchanged public-command and legacy
+init operations. The exact local child was absent on independent process readback;
+no cleanup signal was sent. The interrupted public-command phase independently
+passed with outer/CLI race detection:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -count=1 -ginkgo.no-color -ginkgo.succinct -ginkgo.focus='G2 public native command forwarding.*runs public manual checks and reads their status without native clients'
+ok github.com/anoop2811/software-factory-template/acceptance 3.145s
+```
+
+Linux's same complete source gate passed at eabe3ee, with acceptance 616.131s,
+repository lint 0 issues, security 0 issues and no vulnerabilities. Local lint,
+candidate build, security and vulnerability commands also passed independently;
+the interrupted local full test gate is not counted as a pass.
+
+Authorize the bounded aggregate allowance in ADR 0097: developer/CI source tests
+twenty-five minutes and host job thirty minutes. No operation, fixture, model,
+lock, ownership cleanup or spending deadline changes. This does not qualify
+untested remaining acceptance cases; the complete gate must run again under the
+new allowance. Production and evaluator hashes remain unchanged. The hosted
+advisory models were unavailable: OpenRouter returned HTTP 429 on the original
+run and one delayed rerun; Copilot reported quota exhaustion. Neither is credited
+as a model review. The three independent review syntheses remain source evidence,
+and protected paths still require human review.

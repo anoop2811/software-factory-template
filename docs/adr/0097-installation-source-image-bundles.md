@@ -227,3 +227,20 @@ returned data; never hide overflow or broaden existing native execution behavior
 Conservative ownership uncertainty remains valid even when an independent later
 observation sees the PID/group gone. A true uncertainty flag must retain the
 same typed PID error; healthy operations still require established ownership.
+
+## Aggregate qualification allowance
+
+The expanded acceptance suite exceeded its existing twenty-minute aggregate
+allowance on two macOS executions. The local run reached 2098 passing cases and
+the hosted run 2282, with no assertion-failure blocks before the timer. They
+stopped in different unchanged operations, and the local interrupted three-case
+public-command phase completed in 3.145 seconds with race detection. Linux's
+complete gate passed; its acceptance package took 616.131 seconds.
+
+Use twenty-five minutes for the complete source test suite, including the
+developer Make default and CI override, and thirty minutes for the hosting job
+to accommodate provisioning and subsequent quality tools. This is only the
+package-level regression allowance. Keep all factory command, model, lock,
+process cleanup, fixture operation and user budget deadlines unchanged. No
+failed operation is made successful by extending its deadline. Retain both
+original aggregate failures and require a complete new gate before merge.

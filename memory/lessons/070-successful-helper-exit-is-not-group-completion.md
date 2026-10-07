@@ -27,3 +27,14 @@ race detection (`/private/tmp/factory-transition-final-pairs-race.log`). Require
 explicit group absence within the existing cleanup deadline. The controlling
 refinement is docs/adr/0093-runtime-transition-guard.md:195; temporary inspection
 errors are not absence evidence.
+
+Observed again 2026-10-06 UTC through public installation packaging Build probes:
+a completed Git wrapper retained stdout/stderr for about three seconds past a
+400 ms deadline, or left a closed-pipe descendant alive. The independent process
+regressions at internal/packaging/installation_process_test.go:159 reproduced the
+failure before the correction. Reusing the existing supervisor through a bounded
+tool API returned in 401-404 ms and left the observed descendants absent. The
+contract is docs/adr/0097-installation-source-image-bundles.md:187; retained probe
+results are `/private/tmp/factory-installation-tail-requalification-aj0radfy/qualification.json`.
+Bounded output collection must not parse or publish a snapshot before confirmed
+completion and ownership; byte limits alone are insufficient.

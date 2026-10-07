@@ -23,8 +23,8 @@ adversarial-review-selftest:
 # adopter does not select a Go application pack or require Go tooling there.
 # The workflow also identifies this source tree, so deleting go.mod or cmd does
 # not turn a broken factory checkout into a successful template-only skip.
-# docs/adr/0077-go-command-environment.md:137 — suite allowance, not operation deadlines.
-GO_RUNTIME_TEST_TIMEOUT ?= 15m
+# docs/adr/0097-installation-source-image-bundles.md:231 — suite allowance only.
+GO_RUNTIME_TEST_TIMEOUT ?= 25m
 
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:

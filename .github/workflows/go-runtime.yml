@@ -18,8 +18,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # docs/adr/0090-go-native-config-migration.md:146 — suite allowance only.
-    timeout-minutes: 25
+    # docs/adr/0097-installation-source-image-bundles.md:231 — suite allowance only.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -48,4 +48,4 @@ jobs:
           go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=20m
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m

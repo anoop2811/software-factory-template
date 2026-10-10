@@ -40,6 +40,23 @@ func Prepare(ctx context.Context, directory *os.Root, prefix string, data []byte
 }
 
 func prepare(ctx context.Context, directory *os.Root, prefix string, data []byte, mode os.FileMode, operations ops) (stage *Stage, returned error) {
+	return prepareOperation(ctx, directory, prefix, mode, operations,
+		func(ctx context.Context, file *os.File) error {
+			write := operations.write
+			if write == nil {
+				write = func(_ context.Context, file *os.File, data []byte) (int, error) { return file.Write(data) }
+			}
+			n, err := write(ctx, file, data)
+			if err != nil {
+				return err
+			}
+			if n != len(data) {
+				return io.ErrShortWrite
+			}
+			return nil
+		}, func(ctx context.Context, file *os.File) error { return verifyPrepared(ctx, file, data, operations) })
+}
+func prepareOperation(ctx context.Context, directory *os.Root, prefix string, mode os.FileMode, operations ops, writeSource, verifySource func(context.Context, *os.File) error) (stage *Stage, returned error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -66,14 +83,8 @@ func prepare(ctx context.Context, directory *os.Root, prefix string, data []byte
 			returned = errors.Join(returned, owned.Cleanup())
 		}
 	}()
-	write := operations.write
-	if write == nil {
-		write = func(_ context.Context, file *os.File, data []byte) (int, error) { return file.Write(data) }
-	}
-	if n, err := write(ctx, file, data); err != nil {
+	if err := writeSource(ctx, file); err != nil {
 		return nil, err
-	} else if n != len(data) {
-		return nil, io.ErrShortWrite
 	}
 	if err := file.Chmod(mode); err != nil {
 		return nil, err
@@ -87,7 +98,7 @@ func prepare(ctx context.Context, directory *os.Root, prefix string, data []byte
 	}
 	// Preparation verifies actual bytes before exposing its inode to a caller.
 	// docs/adr/0094-live-publication-restoration.md:72.
-	if err := verifyPrepared(ctx, file, data, operations); err != nil {
+	if err := verifySource(ctx, file); err != nil {
 		return nil, err
 	}
 	prepared, err := file.Stat()

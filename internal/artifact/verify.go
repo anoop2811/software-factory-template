@@ -74,6 +74,16 @@ func Verify(ctx context.Context, manifestPath, root, target string) (Metadata, e
 	return metadata, nil
 }
 
+// DecodeManifest validates inert manifest bytes against an explicitly requested target.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:117.
+func DecodeManifest(ctx context.Context, reader io.Reader, target string) (Metadata, error) {
+	metadata, err := parseManifest(ctx, reader)
+	if err == nil && metadata.Target != target {
+		err = errors.New("artifact manifest target does not match requested target")
+	}
+	return metadata, err
+}
+
 func parseManifest(ctx context.Context, reader io.Reader) (Metadata, error) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 256), 64*1024)

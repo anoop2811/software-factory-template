@@ -48,6 +48,7 @@ type Guard struct {
 	marker       *pin
 	closed       bool
 	recoveryOnly bool
+	rootOnly     bool
 }
 
 // RecoveryError preserves classification beneath a fixed safe diagnostic.
@@ -62,6 +63,9 @@ func (e *RecoveryError) Unwrap() error  { return e.cause }
 func (e *RecoveryError) Conflict() bool { return e.conflict }
 
 func (g *Guard) issue(cause error, conflict bool) error {
+	if g.rootOnly {
+		return &RootError{cause: cause, conflict: conflict}
+	}
 	if g.recoveryOnly {
 		return &RecoveryError{cause: cause, conflict: conflict}
 	}
@@ -88,7 +92,15 @@ func ExclusiveRecovery(ctx context.Context, root string) (*Guard, error) {
 	return acquireRecovery(ctx, root, ops{})
 }
 
-func acquireRecovery(ctx context.Context, root string, operations ops) (result *Guard, returned error) {
+// ExclusivePreparation retains existing controls only and requires pending absence.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:418.
+func ExclusivePreparation(ctx context.Context, root string) (*Guard, error) {
+	return acquireRecoveryFor(ctx, root, ops{}, false)
+}
+func acquireRecovery(ctx context.Context, root string, operations ops) (*Guard, error) {
+	return acquireRecoveryFor(ctx, root, operations, true)
+}
+func acquireRecoveryFor(ctx context.Context, root string, operations ops, requirePending bool) (result *Guard, returned error) {
 	root, err := selectedGuardRoot(root)
 	if err != nil {
 		return nil, &RecoveryError{conflict: true}
@@ -128,6 +140,16 @@ func acquireRecovery(ctx context.Context, root string, operations ops) (result *
 	}
 	if len(entries) != 0 {
 		return nil, g.issue(nil, true)
+	}
+	if !requirePending {
+		_, err := g.named(ctx, state.file, pendingName)
+		if !errors.Is(err, unix.ENOENT) {
+			return nil, g.issue(err, err == nil)
+		}
+		if err := g.check(ctx); err != nil {
+			return nil, err
+		}
+		return g, nil
 	}
 	// Pending is qualified now, but assessment separately owns its later removal.
 	// docs/adr/0096-interrupted-publication-recovery.md:115.
@@ -275,7 +297,7 @@ func (g *Guard) flock(ctx context.Context, exclusive bool) error {
 		err = unix.Flock(int(g.lock.file.Fd()), operation)
 	}
 	if err != nil {
-		if g.recoveryOnly {
+		if g.recoveryOnly || g.rootOnly {
 			return g.issue(err, errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN))
 		}
 		return errors.New("runtime transition is locked or unavailable")
@@ -494,7 +516,7 @@ func (g *Guard) closeFiles() error {
 		}
 	}
 	if failed {
-		if g.recoveryOnly {
+		if g.recoveryOnly || g.rootOnly {
 			return g.issue(errors.Join(closeErrors...), false)
 		}
 		return errors.New("cannot close runtime transition storage")

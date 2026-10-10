@@ -46,6 +46,7 @@ type runOptions struct {
 	mergeStderr       bool
 	parentContextOnly bool
 	consume           func(context.Context, []byte) (bool, error)
+	inherited         *InheritedStreams
 }
 
 // Execute supervises an already-admitted process; publication precedes stdin.
@@ -204,6 +205,10 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		command.Stderr = pipes.outputW
 	}
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if options.inherited != nil {
+		command.Stdin, command.Stdout, command.Stderr = options.inherited.Stdin, options.inherited.Stdout, options.inherited.Stderr
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	}
 	if ctx.Err() != nil {
 		result.Outcome = contextOutcome(ctx.Err())
 		return result, errors.New("native execution context ended before launch")
@@ -212,25 +217,53 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		return result, errors.New("cannot launch native harness")
 	}
 	result.ProcessPID = command.Process.Pid
+	var terminal *foreground
+	if options.inherited != nil {
+		terminal, err = takeForeground(options.inherited.Stdin, result.ProcessPID)
+		if err != nil {
+			returned = err
+		}
+		if terminal != nil {
+			defer func() { returned = errors.Join(returned, terminal.restore()) }()
+		}
+	}
 	pipes.closeChild()
 	waited := make(chan error, 1)
-	go func() { waited <- ops.wait(command) }()
+	leaderDone := make(chan struct{})
+	go func() { waited <- ops.wait(command); close(leaderDone) }()
 	captured := &capture{ctx: ctx, options: options, stop: make(chan captureStop, 1)}
+	if terminal != nil {
+		stopJobs := watchJobControl(ctx, result.ProcessPID, terminal, leaderDone, func(err error) { captured.notify(captureStop{outcome: "failed", err: err}) })
+		defer stopJobs()
+	}
 	outputDone := make(chan struct{})
-	go func() { defer close(outputDone); _, _ = io.Copy(captured, pipes.outputR) }()
+	if options.inherited == nil {
+		go func() { defer close(outputDone); _, _ = io.Copy(captured, pipes.outputR) }()
+	} else {
+		close(outputDone)
+	}
 	errorDone := make(chan struct{})
-	go func() {
-		defer close(errorDone)
-		destination := options.errorOutput
-		if destination == nil {
-			destination = io.Discard
-		}
-		_, _ = io.Copy(destination, pipes.errorR)
-	}()
+	if options.inherited == nil {
+		go func() {
+			defer close(errorDone)
+			destination := options.errorOutput
+			if destination == nil {
+				destination = io.Discard
+			}
+			_, _ = io.Copy(destination, pipes.errorR)
+		}()
+	} else {
+		close(errorDone)
+	}
 	inputDone := make(chan struct{})
 	var waitErr error
 	reaped := false
-	callbackErr := onSpawn(ctx, result.ProcessPID)
+	callbackErr := errors.Join(returned, onSpawn(ctx, result.ProcessPID))
+	var stopSignals func()
+	if options.inherited != nil {
+		stopSignals = forwardSignals(result.ProcessPID, terminal != nil)
+		defer stopSignals()
+	}
 	switch {
 	case callbackErr != nil:
 		returned = errors.New("native ownership publication failed")
@@ -239,11 +272,15 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		result.Outcome = contextOutcome(ctx.Err())
 		close(inputDone)
 	default:
-		go func() {
-			defer close(inputDone)
-			_, _ = io.Copy(pipes.inputW, strings.NewReader(plan.Stdin))
-			_ = pipes.inputW.Close()
-		}()
+		if options.inherited == nil {
+			go func() {
+				defer close(inputDone)
+				_, _ = io.Copy(pipes.inputW, strings.NewReader(plan.Stdin))
+				_ = pipes.inputW.Close()
+			}()
+		} else {
+			close(inputDone)
+		}
 		result.Outcome = "completed"
 		select {
 		case waitErr = <-waited:

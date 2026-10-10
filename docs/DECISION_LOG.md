@@ -3611,3 +3611,521 @@ advisory models were unavailable: OpenRouter returned HTTP 429 on the original
 run and one delayed rerun; Copilot reported quota exhaustion. Neither is credited
 as a model review. The three independent review syntheses remain source evidence,
 and protected paths still require human review.
+
+## Decision 97 (2026-10-09 UTC): implement one complete installation consumer
+
+After Anoop merged PR #124 and requested the next release delivery, use the
+complete source-image provider for one installation transaction with public
+opt-in upgrade, interrupted recovery and fresh completed rollback. Keep package
+and stage CLIs as developer tools; regular users use factory.
+
+Pre-code review exposed concrete integration gaps: existing assessment/publication
+is restricted to six single-file references; native init requires old controller
+files; installed asset lookup assumes a colocated source executable; ordinary
+commands lack full-lifetime admission; syscall.Exec would discard lease cleanup;
+legacy selftest depends on implementations being replaced. Whole source catalogs
+are not installed asset selections, and v0.1.6 has no budget/loop controllers.
+
+Record ADR 0098 before implementation. It includes explicit source-to-installed
+selection and transformations, sourceable/public adapters, an opt-in go-hybrid
+target, native installed health proof, physical root admission, one permanent
+exclusion/pending lifetime, verified ignored before-images, bounded streaming
+binary publication, complete durable phases, state compatibility and fresh
+rollback authority. Unbridged maintenance quiescence remains explicit. No
+environment-only health bypass or one-file publication loop is permitted.
+
+Pre-code analysis used the actual native init/legacy copy rules and current code;
+the outside-repository inventory records selected/generated destinations. It is
+planning evidence, not deletion authority. Root-directory flock and installed
+inherited-stream behavior still need native qualification before reliance.
+Independent external surface/runtime RED precedes source behavior; the evaluator
+owns tests and the implementer owns production. Draft design is not a pass.
+
+Full bootstrap/default selection, remaining orchestration, retention, real
+release/minimum-platform qualification and the mandatory adopter pilot remain
+open. The installed hybrid target is not a complete Go release claim. The current
+fixed source measure remains 60.7%; no inventory or interface credit is added.
+
+Independent public interface RED was then observed before any production route.
+Root read the retained raw log: installation help and marker forms reached the
+sentinel legacy fallback (status 99); mixed old-preview/recovery requests produced
+old diagnostics instead of an installation-owned response. Exact command/result:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test ./acceptance -count=1 -ginkgo.focus=Whole.installation.upgrade.public.interface -ginkgo.v
+Ran 2 of 2573 Specs in 5.519 seconds
+FAIL! -- 0 Passed | 2 Failed | 0 Pending | 2571 Skipped
+FAIL github.com/anoop2811/software-factory-template/acceptance 6.067s
+STATUS: 1
+```
+
+Authorize only installationcmd's Cobra marker/help/options interface and explicit
+unsupported operational response, routed before old preview/recovery/fallback.
+The evaluator remains separate. A real semantic runtime RED with valid native
+legacy installations and complete images is still required before behavior.
+
+Correctness review's three implementation-choice gaps are incorporated in ADR
+0098 before source: nonblocking root/transition/store lock order with whole routes
+selected first; dedicated inherited-stream/foreground supervision preserving
+existing ceilings; profile-aware legacy reverse validation. Native Darwin directory
+flock probing observed SH/SH success, EX contention, later EX success, unchanged
+directory identity/mode/times and no entries created. Linux evidence remains open.
+Security review found no surviving draft issue. These are design/probe observations,
+not completed installation behavior or release qualification.
+
+Legacy before evidence uses reviewed inert reference blobs and exact projections,
+not historical Go archives that cannot be built from those baseline commits.
+Specify source/before operands and allowlisted explicit project inputs for the
+evaluator/implementation. No journal, descriptor or environment supplies consent.
+
+The interface-only implementation then passed independent root execution:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test ./acceptance -count=1 -ginkgo.focus='Whole installation upgrade public interface' -ginkgo.no-color -ginkgo.succinct
+ok github.com/anoop2811/software-factory-template/acceptance 5.310s
+```
+
+Only marker ownership, help and operand parsing are implemented. Valid operations
+still explicitly return unsupported status 1. This does not qualify installation
+behavior, and invalid requests cannot supply semantic refusal coverage.
+The reviewed exact selection is INSTALLATION_ROLE_MAP.json; native source data
+is distinct from active roles, preserved identity files and forbidden state paths.
+
+The evaluator then qualified the semantic fixture carrier before runtime RED:
+an owned temporary Git commit contains the exact target source snapshot, excluding
+user edits; the binary was compiled from that snapshot. Independently constructed
+archive/catalogs passed the existing installation stager. Both actual immutable
+legacy initializers completed their proofs (159 passed, 0 failed, 8 explicitly
+skipped each). This does not claim every historical installation is recognized.
+
+Root read factory-installation-semantic-qualified-red.log. Six scenarios (two
+profiles times preview, complete activation and fresh rollback) all stopped at
+the first valid preview, which returned the interface's explicit unsupported
+status 1 instead of 0. These are six failing scenarios at one missing boundary,
+not six independently reproduced source defects or negative-control coverage.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test -v ./acceptance -count=1 -ginkgo.focus=Whole.installation.upgrade.semantic.consumer -ginkgo.no-color
+Ran 6 of 2579 Specs in 96.243 seconds
+FAIL! -- 0 Passed | 6 Failed | 0 Pending | 2573 Skipped
+FAIL github.com/anoop2811/software-factory-template/acceptance 96.669s
+STATUS: 1
+```
+
+The earlier semantic-red.log fixture used mismatched source identity and earns
+no qualified RED credit. Preserve it separately rather than rewriting history.
+Authorize installation consumer behavior now against the corrected independent
+criteria. Shared additions remain bounded to the reviewed streaming/no-replace
+publication, read-only image inspection, root admission, installed layout/proof
+and inherited-stream ownership boundaries. Old tests and assertions remain owned
+by the evaluator; implementation may not weaken them. No qualification or progress
+credit follows until actual complete behavior, review and delivery pass.
+
+During early shared-code review, the new read-only root grant called existing
+Guard observation, whose old public error hides ENOENT. Its attempted absent-state
+allowance could therefore never accept a healthy root lacking .factory. Root read
+both implementations; independent persistent native regression is required before
+the localized constructor correction. Preserve old Guard contracts and no-write
+admission, and revalidate recorded state/pending absence under the held root.
+
+A separate interface verifier reproduced explicit empty --rollback= returning
+unsupported status 1 on otherwise valid preview operands, while malformed nonempty
+--rollback=INVALID! returned invalid status 2. Canon now requires operand presence
+and content validation before operation selection. Independent persistent paired
+regressions precede correction; this is an interface defect, not activation proof.
+
+Root then read both persistent regression logs before localized corrections:
+factory-root-lease-red.log ran four native race criteria, two passed/two failed
+(package 0.394s): absent .factory refused, and a new pending entry was missed by
+retained Check. Existing-state exclusion/closure and changed-state refusal passed.
+factory-installation-empty-mode-red.log ran five paired public parser criteria,
+zero passed/five failed (package 2.949s): explicit empty mode/consent operands
+returned status 1 while malformed operands required status 2. These preserve
+healthy controls and do not count unsupported execution as semantic coverage.
+
+Authorize the minimal root-lease absence/pending revalidation and scalar flag
+presence corrections now. Keep original assertions and old Guard classification.
+A separate verifier found raw duplicate detection treating --source's literal
+value --local as an option: split and attached spellings yielded different status.
+The evaluator will qualify that operand-aware parsing correction before source.
+
+The independent evaluator observed the literal-source parser regression fail:
+factory-installation-literal-source-red.log, zero passed/one failed, package
+1.658s. Attached --source=--local reached inspection (status 1), whereas the
+equivalent split operand was rejected as a repeated flag (status 2). Authorize
+only declared-type-aware flag occurrence scanning; preserve the literal operand
+and duplicate scalar/unique project-input contracts.
+
+The installed descriptor shape and shared confined-parent scope are recorded in
+ADR 0098. A verifier demonstrated that the early Lstat-parent/leaf-only-no-follow
+sequence can read a substituted internal subtree, with both original leaf checks
+still succeeding. Production observation advanced to retained installationfs
+parents during the probe. This proves the prior sequence, not a current completed
+transaction defect; qualify the replacement's actual boundary before credit.
+
+Independent current-source preview then passed for both real legacy profiles:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test -v ./acceptance -count=1 -ginkgo.focus=proposes.a.complete.read-only.installation.from.actual.legacy.init -ginkgo.no-color
+Ran 2 of 2628 Specs in 96.497 seconds
+SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 2626 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 96.940s
+STATUS: 0
+```
+
+This qualifies complete read-only proposal rows and preservation, not forward
+application, completed rollback or recovery. Prior fixture/stager setup failure
+remains separate; its cause was not established across changing source snapshots.
+
+Review also found final native observation failures being relabeled as preserved
+conflicts. Before changing that behavior, authorize a private per-operation
+observeOps.statFile collaborator and observeWith wrapper, with empty operations
+using the existing native statFile. Both before/final stats dispatch it. The
+evaluator must perform actual Fstat then report EIO/cancellation, preserving
+healthy and changed-parent controls, and observe loss of cause/status before fix.
+This is interface plumbing only, not permission to change error classification
+or add a shipping test export. New parent helper/root cause preservation already
+written separately is not retroactively credited with a persistent RED.
+
+After session recovery the private observation collaborator was added with native
+defaults only. The independent evaluator then reproduced final-stat cause loss
+before the classification correction. Root read the retained exact evidence:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test -race -v ./internal/installation -count=1 -ginkgo.no-color
+Ran 3 of 3 Specs in 0.006 seconds
+FAIL! -- 1 Passed | 2 Failed | 0 Pending | 0 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/installation 0.396s
+STATUS: 1
+```
+
+The two failing cases performed actual native Fstat then returned EIO or canceled
+context; both original causes were lost as a file-change conflict. The actual
+changed-parent symlink control passed and preserved both trees. Authorize minimal
+operational-cause propagation and status precedence now, keeping those assertions,
+parent confinement and genuine identity-mismatch refusals unchanged.
+
+The frozen independent observation suite then passed after correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test -race -v ./internal/installation -count=1 -ginkgo.no-color
+Ran 3 of 3 Specs in 0.005 seconds
+SUCCESS! -- 3 Passed | 0 Failed | 0 Pending | 0 Skipped
+ok github.com/anoop2811/software-factory-template/internal/installation 0.331s
+STATUS: 0
+```
+
+Root read the retained GREEN log. EIO/cancellation retain their original causes
+and operational status 1; actual changed-parent conflict remains status 2 and
+preserves both trees. Test-file hashes stayed unchanged. This is component error
+qualification only; full forward/rollback/recovery still await implementation.
+
+Before changing the retained hook-existence gate, clarify its installed contract:
+the sourceable config.sh library is regular, readable and tracked, with declared
+mode 0644; it needs no executable bit. Invoked shipped and configured local hooks
+remain regular, readable, executable and tracked. The independent evaluator will
+observe the current gate reject that real installed library mode and preserve
+missing/non-executable hook controls. The native proof must use the installed
+mode directly rather than chmod its fixture into a historical executable reader.
+
+The current activation run reached real checks and journaled writes but exceeded
+the evaluator helper's generic ten-second process deadline. Before optimizing,
+authorize reuse only of a private in-memory proof bound to the complete candidate
+selection. All gate violation/healthy controls still execute before activation.
+Post-apply owner validation independently rereads all active bytes, modes and
+identities and actual project state under retained exclusion. A mismatch refuses
+completion. Journals, environment flags and caller receipts provide no proof.
+This removes repeated identical isolated fixtures, not active-root validation.
+
+The independent installed hook-mode suite observed the intended regression before
+the retained gate correction, then passed with its assertions unchanged:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 go test -race -v ./acceptance -count=1 -ginkgo.focus='Installed hook-existence library and invocation modes' -ginkgo.no-color
+RED: 9 Passed | 3 Failed; package 4.972s; STATUS: 1
+GREEN: 12 Passed | 0 Failed; package 4.874s; STATUS: 0
+```
+
+The actual failures were config.sh mode 0644 refused and unreadable executable
+shipped/local hooks accepted. Missing, non-executable, untracked and non-regular
+hook controls remain effective. Root read both retained logs. The target fixture
+carrier now includes only the changed hook in its explicit production overlay;
+this keeps the committed archive consistent with its compiled source while
+preserving every behavioral assertion and excluding user-only files.
+
+An independent transaction review reproduced a failed candidate check leaving a
+checking journal without a before-image manifest or pending marker. Root replayed
+rtk proxy python3 /private/tmp/factory-transaction-review-preflight.py on a fresh
+fixture: preview 0, apply 1, journal present, backup/pending absent, same-ID retry 2
+and recovery preview 1. The deliberately older qualified target explains its gate
+failure; current driver ordering explains the stranded identifier. Before fixing,
+authorize checked cleanup of newly owned preparation evidence only after confirmed
+child exit and no active changes, plus fresh interrupted-preparation qualification
+without requiring an uncreated backup. Add an independent persistent regression.
+Also qualify final committed-journal/pending-marker cleanup through actual native
+interruption and fresh consent; committed must not blanket-refuse that route.
+
+The independent verifier rebuilt the current driver and reproduced those
+preparation and terminal-cleanup gaps on fresh fixture copies. It also observed
+interrupted reverse preview propose retiring a foreign equal-byte source.json
+inode with no blockers: enforce the existing checked publication-identity
+requirement on interrupted rows as well as committed rows. This qualifies the
+unsafe proposal only; no deletion was executed. The evaluator will add a
+persistent native-interruption and equal-byte replacement regression before code.
+
+The runtime verifier rebuilt the inherited-stream probe and compared it with
+direct Bash on a real PTY: Ctrl-Z returned the direct-shell prompt but stranded
+the supervised invocation. The installed init boundary also refused an empty
+project for missing canonical README, while an existing application README
+reached its confirmation prompt. Preserve the existing stop/continue and
+canonical-source requirements; qualify persistent regressions before correction.
+An installed report path correction passed the verifier's then-current snapshot;
+that isolated command evidence is not full installer qualification.
+
+Root read the new persistent installed-runtime RED log: report read/clear failed
+at their public boundary. Its third failure used an invalid non-TTY prompt
+expectation and does not qualify the initializer regression. The evaluator
+corrected that test-only expectation before source changes, then observed the
+existing-README sibling reach Summary and Aborted while the empty target refused
+a missing required template in factory-installed-readme-red.log (zero passed,
+one failed). Before correcting the initializer selection, add only inert
+canonical README.md at mode 0600. Its source is conditionally required by
+internal/initcmd/plan.go:100; application README files remain preserved. The
+reviewed canonical count changes from 84 to 85, independently reflected by the
+evaluator's exact map-count criterion rather than relaxing that criterion.
+
+The independent public installed report regressions passed after the root-routing
+correction:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer PATH='/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' GOTOOLCHAIN=local GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test ./acceptance -run '^TestAcceptance$' -ginkgo.focus='reports actual installation events|clears only the installation event log' -ginkgo.no-color
+ok github.com/anoop2811/software-factory-template/acceptance 2.116s
+```
+
+Root read the retained report GREEN log. The evaluator also observed the native
+PTY regression before terminal source correction: direct Bash stop/resume and
+literal pipe argv/cwd/environment/status controls passed, while the inherited
+runtime failed to return the shell prompt after Ctrl-Z. The narrow native command
+selected one spec and failed (spec 3.553s, package 3.865s) in
+factory-inherited-pty-red.log.
+Correct terminal stop/resume through owned supervision with these assertions
+unchanged; do not extend this evidence to complete installer qualification.
+
+A diagnostic-only timed driver completed actual local v0.1.6 application on a
+fresh genuine initializer root and independently committed target archive
+011e11e2d2a1208149e1f1a796a883cae6b501c6: status 0, wall 14.806 seconds. Its
+temporary source timing instrumentation was removed. Candidate checks ended at
+9.522 seconds, backup at 10.055, rows at 13.922 and pending cleanup at 14.758.
+Root read the retained timing log. This qualifies that diagnostic operation, not
+the frozen suite or publisher authentication. The generic ten-second acceptance
+helper is not a specified whole-operation ceiling and caused false timeouts.
+Before changing test plumbing, authorize a finite sixty-second harness allowance
+only for explicit whole-installation mutations, preserving every behavioral
+assertion, existing read-only ceilings and production/cleanup deadlines.
+
+Source tracing found installed unmarked upgrade falling back to its generated
+upgrade adapter, which invokes the same public command again. Before correction,
+declare installed-only native bare/--help/-h aliases and a status-2 guided refusal
+for unsupported unmarked mutation operands. Preserve unmarked source-mode legacy
+behavior. The evaluator will use a bounded second-invocation witness so the
+regression cannot spawn an unbounded process chain during qualification.
+
+The independent bounded upgrade-alias test observed all eight public/direct
+unmarked routes enter a second launcher invocation and stop at its test sentinel
+(status 99), while explicit whole-installation help succeeded (status 0). Root
+read factory-installed-upgrade-alias-red.log: one failed spec, package 2.961s.
+The fixture stops before a second runtime launches. Correct only installed alias
+dispatch now, preserving explicit whole and unmarked source-mode contracts.
+The new preparation regression also reached a real healthy activation sibling
+before reproducing the failed candidate's occupied identifier and blocked retry;
+its persistent criterion now qualifies the checked preparation-cleanup correction.
+
+The independent native-interruption regression now witnessed the actual terminal
+boundary after replacing only its polling plumbing with a bounded phase-prefix
+probe. Full journal/pending rereads and actual SIGKILL assertions were unchanged.
+Root read factory-installation-terminal-qualified-red/runtime.log: PID 67570,
+committed record and pending present, then fresh forward recovery refused with
+"installation is already committed"; one failed spec, package 107.491s. Authorize
+terminal cleanup correction now. Add the actual pending image as descriptive
+whole-journal evidence before code; require its continuity plus full fresh source,
+terminal images, state and consent. Existing released R1/R2 protocols stay intact.
+
+A narrowed source review identified unresolved-child scratch deletion and the
+descriptor's missing separate publication-identity comparison. These are not yet
+runtime-qualified findings. Before correction, authorize a private per-operation
+observed-command collaborator with native defaults, for an independent evaluator
+to report uncertainty after an actual fixture child executes. Add a native
+equal-byte descriptor replacement control separately. Preserve unknown scratch
+and durable admission evidence, and check the descriptor's retained identity;
+neither a private test hook in public dispatch nor journal-derived authority is
+permitted. The source review does not earn a runtime completion claim.
+
+The two source concerns now have independent component runtime RED. Actual native
+fixture children executed and recorded their onSpawn PIDs before the collaborator
+reported exit-observation uncertainty with EIO. Close deleted that candidate
+scratch and admitted both ordinary readers/work; confirmed-exit controls cleaned
+up normally. Separate published/retained descriptor controls validated healthy
+native identity, then wrongly accepted a different inode with identical bytes.
+Root read factory-installation-component-red.log: three failed specs, package
+0.986s. Authorize the localized preservation/admission and descriptor-identity
+corrections now. These component fixtures do not claim publisher authentication,
+complete activation or execution of every installed gate.
+
+The five-case recovery qualification passed preparation cleanup and actual
+committed/pending cleanup, but exposed an existing interruption regression:
+after two durably applied rows, the next rename can precede its journaled
+observed_after. Strict foreign-identity protection correctly refuses that row
+without prepared-object evidence. Root read the actual SIGKILL failures and
+blocker for the reviewer.toml canonical asset in the retained five-case log:
+two passed, three failed, package 257.083s. Before correction, refine the already
+required prepared-identity contract with prepared_after and explicit rename
+continuity. Preserve full observed identity and every foreign-edit assertion;
+do not substitute target byte equality for recorded object evidence.
+
+The full selected suite then exposed completed rollback comparing its new marker
+with the previous successful forward marker. Root read both actual status-2
+failures before the correction. Each fresh grant must capture its own published
+marker; strict continuity remains for recovery retaining an existing marker.
+
+The missing-input fixture removed PROJECT_NAME, although that input is used only
+by preserved prompt/agent files in the pinned predecessors. It is not required by
+the selected active baseline transformations. Do not invent a blanket required
+input to satisfy that fixture. The independent evaluator may replace only its
+missing operand with an actually needed selected transformation input after
+checking the immutable reference, retaining its status-2 and preservation
+assertions. The existing contract remains ADR 0098's needed-input rule.
+
+The independent immutable-reference audit found no required project marker in the
+existing selected predecessor stimulus. The evaluator therefore qualifies the
+same needed-input assertion using a bounded, valid target asset with a harmless
+PROJECT_NAME marker in a reviewed substitution row: public staging and the
+same-archive healthy preview precede the missing-operand case. Source policy is
+unchanged. The direct budget help fixture also used an invalid lowercase needle;
+it now requires the existing native plan/report/run help contract from
+docs/adr/0072-go-budget-argument-compatibility.md:37, retaining status, path, cwd
+and stderr assertions.
+
+Two real lease-refusal cases then returned operational status 1 rather than
+conflict status 2. Root read the held-shared/held-exclusive native failures before
+correction. Treat expected EAGAIN/EWOULDBLOCK only beneath the explicitly typed
+root-conflict domain as a refusal; retain actual causes and inspect independent
+joined I/O/cancellation failures with operational precedence. The exclusion itself
+already prevented conflicting work and is unchanged.
+
+The full selected race pass executed all 76 criteria and finished with 69 passed
+and seven failed (package 1250.409s). The immutable target in that run predates
+the fresh-marker/status corrections and the two test-stimulus corrections. The
+independent evaluator then reran only those seven against the current fixed
+target and frozen corrected fixtures:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 GOPROXY=off GOTOOLCHAIN=go1.27.1 FACTORY_CLI_TEST_RACE=1 go test -race -v ./acceptance -count=1 -timeout=15m '-ginkgo.focus=Whole installation upgrade semantic consumer (uses fresh consent to restore a completed legacy installation|qualifies unchanged baseline budget state|refuses installation under an independently retained shared physical-root lease|refuses an installed read-only command under an independent exclusive root lease|rejects unbound or ambiguous project inputs beside a valid request missing selected transformation input|uses installed native commands and canonical data from a different application cwd generated direct native adapter)' -ginkgo.no-color -ginkgo.v
+Ran 7 of 2647 Specs in 315.361 seconds
+SUCCESS! -- 7 Passed | 0 Failed | 0 Pending | 2640 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 316.046s
+STATUS: 0
+```
+
+The exact executable command and output are retained in
+factory-installation-seven-affected-qualified/runtime.log.
+Root read both logs. This closes the observed seven failures across those source
+snapshots; it is not a claim of one current 76-pass run or hosted CI success.
+
+The canonical complete race command exhausted the acceptance package's 25-minute
+allowance (acceptance 1500.974s; wrapper status 2). All other test packages passed.
+The log separately records denied ps, loopback-server and invalid-UTF8 fixture
+operations; actual native observation showed requested setuid/setgid bits absent.
+These are unavailable fixture evidence, not green checks or source defects.
+Build, lint and gosec subsequently passed as separate runs; vulnerability data
+remained unreachable. Before correcting scheduling, declare base/installation
+qualification groups with complete test coverage, unchanged 25-minute group
+allowances and preserved existing CI check names. Default local checks run both;
+the two OS-matrix groups run independently in CI. No paid calls or operational
+deadline changes follow from this partition.
+
+The independent scheduling regression executed real Make recipes against a
+recording fixture runner. Before correction eight criteria failed; after the
+Make/CI partition eight passed under race:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 PATH='/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' GOTOOLCHAIN=local GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./acceptance -run '^TestAcceptance$' '-ginkgo.focus=Go source qualification scheduling|Go source qualification workflow partition' -ginkgo.no-color -v -count=1
+Ran 8 of 2655 Specs in 7.312 seconds
+SUCCESS! -- 8 Passed | 0 Failed | 0 Pending | 2647 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 7.959s
+```
+
+Root read factory-source-scheduler-race-green.log. The assertions exercise
+partition membership and union, failure propagation, invalid selection before
+test launch, retained quality stages and the actual CI recipes against their
+prior OS/check-name/tool-pin baseline. This qualifies scheduling; it is not a
+claim of successful execution of the full source or hosted CI suites.
+
+The actual partitioned installation command completed in 0.705s because its
+anchored expression omitted Ginkgo's suite-description prefix and selected no
+criteria. This is a real scheduling defect; the earlier recording fixture's
+unprefixed corpus did not qualify actual Ginkgo selection. Before correction,
+bind the actual acceptance-suite prefix and add an independent real dry-run count
+alongside the prefixed recording corpus. A zero-selected run earns no pass.
+The independent source fixture carrier may include only the changed Makefile and
+Go-runtime workflow in addition to its existing production allowlist, preserving
+all behavioral assertions and excluding user files.
+
+The persistent native-discovery regression reproduced installation selecting
+0 of 2,655 with status 0 and base selecting all 2,655. Its real nonmatching
+fail-on-empty control selected zero and returned status 1. After binding the
+actual suite prefix and adding fail-on-empty to installation, all eight original
+scheduling criteria passed with race detection. Actual discovery selected 76
+installation criteria and the complementary 2,579 base criteria.
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 PATH='/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin' GOTOOLCHAIN=local GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./acceptance -run '^TestAcceptance$' '-ginkgo.focus=Go source qualification scheduling|Go source qualification workflow partition' -ginkgo.no-color -v -count=1
+Ran 8 of 2655 Specs in 11.330 seconds
+SUCCESS! -- 8 Passed | 0 Failed | 0 Pending | 2647 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 11.907s
+```
+
+Root read factory-source-native-selection-race-green.log. Dry-run discovery
+qualifies selection only; the current selected installation execution is separate.
+Final lint returned `0 issues.` and gosec reported 172 files, 29,903 lines and
+zero issues, both status 0:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOTOOLCHAIN=local GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GOLANGCI_LINT_CACHE=/private/tmp/factory-durable-recovery-lint-cache PATH=/var/folders/83/yj7qqyt551xbbpvm54tqkcbw0000gn/T/factory-pr113-python-_gp80gpr/venv/bin:/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin:/private/tmp/factory-quality-tools:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+STATUS: 0
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOTOOLCHAIN=local GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache PATH=/var/folders/83/yj7qqyt551xbbpvm54tqkcbw0000gn/T/factory-pr113-python-_gp80gpr/venv/bin:/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.1.darwin-arm64/bin:/private/tmp/factory-quality-tools:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin gosec ./...
+Files: 172
+Lines: 29903
+Nosec: 19
+Issues: 0
+STATUS: 0
+```
+
+The command outputs are retained in factory-installation-final-lint.log and
+factory-installation-final-gosec.log. No hosted-CI or release-readiness claim
+follows from these local checks.
+
+The one current-source installation execution then passed every selected
+criterion under race detection. It used the exact corrected Make selector and
+fail-on-empty flag, without dry-run:
+
+The qualified environment used cached Go 1.27.1, Python 3.12.14,
+FACTORY_AGENT_ROLE=implementer, FACTORY_CLI_TEST_RACE=1,
+GOTOOLCHAIN=local, GOPROXY=off, GORACE=atexit_sleep_ms=0 and the existing
+factory-durable-recovery Go/lint caches. No tool pin changed.
+
+```text
+go test -race -v -count=1 -timeout=25m ./acceptance '-ginkgo.focus=^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$)' -ginkgo.fail-on-empty
+Ran 76 of 2655 Specs in 1256.363 seconds
+SUCCESS! -- 76 Passed | 0 Failed | 0 Pending | 2579 Skipped
+--- PASS: TestAcceptance (1256.47s)
+ok github.com/anoop2811/software-factory-template/acceptance 1257.089s
+STATUS: 0
+```
+
+Root read the exact argv and actual summary in
+factory-installation-current-76-qualified.log. Unlike the earlier split 69/7
+evidence, this is one complete current-source 76-pass run. The source fixture
+carrier includes the changed Makefile and Go-runtime workflow. Broader local
+fixture restrictions, unreachable vulnerability data, hosted CI, merge and
+replacement-release gates remain separate and incomplete.

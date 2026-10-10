@@ -15,9 +15,13 @@ import (
 )
 
 type imageArchive struct {
-	names    []string
-	next     int
-	manifest installationimage.Manifest
+	names        []string
+	next         int
+	manifest     installationimage.Manifest
+	controls     map[string][]byte
+	payload      map[string][]byte
+	binaryDigest string
+	binaryBytes  int64
 }
 
 func newImageArchive(o Options) *imageArchive {
@@ -29,6 +33,9 @@ func newImageArchive(o Options) *imageArchive {
 // or mode is inferred from the basename of untrusted source data.
 // docs/adr/0097-installation-source-image-bundles.md:59.
 func (image *imageArchive) extractEntry(ctx context.Context, root *os.Root, archive *tar.Reader, header *tar.Header, o Options) error {
+	if root == nil {
+		return image.inspectEntry(ctx, archive, header, o)
+	}
 	index := image.next
 	if index >= len(image.names) || header.Name != image.names[index] {
 		return fmt.Errorf("unexpected or reordered installation entry %q", header.Name)

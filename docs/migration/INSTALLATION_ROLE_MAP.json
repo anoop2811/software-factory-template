@@ -1,0 +1,1025 @@
+{
+  "schema_version": 1,
+  "mode": "go-hybrid-v1",
+  "authority": "reviewed-selection-not-installation-ownership",
+  "roles": [
+    {
+      "source_path": null,
+      "path": ".factory-version",
+      "operation": "runtime-control",
+      "generator": "qualified-runtime-layout",
+      "mode": "0644",
+      "required": true,
+      "reason": "explicit binary/control role; never general private-state ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/bin/factory-runtime",
+      "operation": "runtime-control",
+      "generator": "qualified-runtime-layout",
+      "mode": "0700",
+      "required": true,
+      "reason": "explicit binary/control role; never general private-state ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/bin/runtime.manifest",
+      "operation": "runtime-control",
+      "generator": "qualified-runtime-layout",
+      "mode": "0600",
+      "required": true,
+      "reason": "explicit binary/control role; never general private-state ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/bin/source.json",
+      "operation": "runtime-control",
+      "generator": "qualified-runtime-layout",
+      "mode": "0600",
+      "required": true,
+      "reason": "explicit binary/control role; never general private-state ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/installation.current",
+      "operation": "runtime-control",
+      "generator": "qualified-runtime-layout",
+      "mode": "0600",
+      "required": true,
+      "reason": "explicit binary/control role; never general private-state ownership"
+    },
+    {
+      "source_path": ".githooks/pre-push",
+      "path": ".githooks/pre-push",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "factory",
+      "operation": "generate",
+      "generator": "installed-launcher",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": "packs/review-lane/review-pr.yml",
+      "path": "packs/review-lane/review-pr.yml",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/adversarial-review.sh",
+      "path": "scripts/adversarial-review.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/citation-lint.sh",
+      "path": "scripts/citation-lint.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-budget.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-doctor.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-init.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-loop.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-metrics.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-migrate-config.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-report.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-review-lane.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/factory-upgrade.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": "scripts/golden-task-eval.sh",
+      "path": "scripts/golden-task-eval.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/harness-structural-eval.sh",
+      "path": "scripts/harness-structural-eval.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/commit-message-lint.sh",
+      "path": "scripts/hooks/commit-message-lint.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/copy-manifest-check.sh",
+      "path": "scripts/hooks/copy-manifest-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/decision-log-gate.sh",
+      "path": "scripts/hooks/decision-log-gate.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/diff-aware-check.sh",
+      "path": "scripts/hooks/diff-aware-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/direct-main-push-block.sh",
+      "path": "scripts/hooks/direct-main-push-block.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/gate-instrumentation-check.sh",
+      "path": "scripts/hooks/gate-instrumentation-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/hook-existence-check.sh",
+      "path": "scripts/hooks/hook-existence-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/loop-close-check.sh",
+      "path": "scripts/hooks/loop-close-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/pending-lessons-push-block.sh",
+      "path": "scripts/hooks/pending-lessons-push-block.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/shared-script-enforcement.sh",
+      "path": "scripts/hooks/shared-script-enforcement.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/test-edit-denial.sh",
+      "path": "scripts/hooks/test-edit-denial.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/wiki-lint.sh",
+      "path": "scripts/hooks/wiki-lint.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/hooks/workflow-lint.sh",
+      "path": "scripts/hooks/workflow-lint.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/budget-config.sh",
+      "operation": "generate",
+      "generator": "sourceable-go-bridge",
+      "mode": "0644",
+      "required": true,
+      "reason": "preserve supported caller-shell functions and effects"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/budget.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "known legacy controller superseded by qualified Go implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/budget_adapters.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "known legacy controller superseded by qualified Go implementation"
+    },
+    {
+      "source_path": "scripts/lib/color.sh",
+      "path": "scripts/lib/color.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/config.sh",
+      "operation": "generate",
+      "generator": "sourceable-go-bridge",
+      "mode": "0644",
+      "required": true,
+      "reason": "preserve supported caller-shell functions and effects"
+    },
+    {
+      "source_path": "scripts/lib/events.sh",
+      "path": "scripts/lib/events.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/lib/hookspath.sh",
+      "path": "scripts/lib/hookspath.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/loop.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "known legacy controller superseded by qualified Go implementation"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/lib/roles.sh",
+      "operation": "generate",
+      "generator": "sourceable-go-bridge",
+      "mode": "0644",
+      "required": true,
+      "reason": "preserve supported caller-shell functions and effects"
+    },
+    {
+      "source_path": "scripts/lib/timing.sh",
+      "path": "scripts/lib/timing.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/pre-push-check.sh",
+      "path": "scripts/pre-push-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/prereq-check.sh",
+      "path": "scripts/prereq-check.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": "scripts/selftest/run.sh",
+      "operation": "generate",
+      "generator": "native-command-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "stable public invocation of the canonical installed implementation"
+    },
+    {
+      "source_path": "scripts/sync-claude.sh",
+      "path": "scripts/sync-claude.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/sync-codex.sh",
+      "path": "scripts/sync-codex.sh",
+      "operation": "copy",
+      "generator": "baseline-project-substitution",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "scripts/sync-opencode.sh",
+      "path": "scripts/sync-opencode.sh",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0755",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": "templates/metrics.html",
+      "path": "templates/metrics.html",
+      "operation": "copy",
+      "generator": "literal",
+      "mode": "0644",
+      "required": true,
+      "reason": "declared shell validation/orchestration boundary or native runtime data"
+    }
+  ],
+  "canonical_source_assets": [
+    {
+      "source_path": ".codex/agents/implementer.toml",
+      "path": ".factory/assets/scaffold/.codex/agents/implementer.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".codex/agents/refactorer.toml",
+      "path": ".factory/assets/scaffold/.codex/agents/refactorer.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".codex/agents/reviewer.toml",
+      "path": ".factory/assets/scaffold/.codex/agents/reviewer.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".codex/agents/spec-writer.toml",
+      "path": ".factory/assets/scaffold/.codex/agents/spec-writer.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".codex/agents/wiki-maintainer.toml",
+      "path": ".factory/assets/scaffold/.codex/agents/wiki-maintainer.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".codex/config.toml",
+      "path": ".factory/assets/scaffold/.codex/config.toml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".githooks/pre-push",
+      "path": ".factory/assets/scaffold/.githooks/pre-push",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".github/CODEOWNERS",
+      "path": ".factory/assets/scaffold/.github/CODEOWNERS",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".github/workflows/ci.yml",
+      "path": ".factory/assets/scaffold/.github/workflows/ci.yml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".gitignore",
+      "path": ".factory/assets/scaffold/.gitignore",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/.gitignore",
+      "path": ".factory/assets/scaffold/.opencode/.gitignore",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/agent/implementer.md",
+      "path": ".factory/assets/scaffold/.opencode/agent/implementer.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/agent/refactorer.md",
+      "path": ".factory/assets/scaffold/.opencode/agent/refactorer.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/agent/reviewer.md",
+      "path": ".factory/assets/scaffold/.opencode/agent/reviewer.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/agent/spec-writer.md",
+      "path": ".factory/assets/scaffold/.opencode/agent/spec-writer.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/agent/wiki-maintainer.md",
+      "path": ".factory/assets/scaffold/.opencode/agent/wiki-maintainer.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/package.json",
+      "path": ".factory/assets/scaffold/.opencode/package.json",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": ".opencode/plugin/factory-hooks.ts",
+      "path": ".factory/assets/scaffold/.opencode/plugin/factory-hooks.ts",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "AGENTS.md",
+      "path": ".factory/assets/scaffold/AGENTS.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "Makefile",
+      "path": ".factory/assets/scaffold/Makefile",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "README.md",
+      "path": ".factory/assets/scaffold/README.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "docs/BUDGETS.md",
+      "path": ".factory/assets/scaffold/docs/BUDGETS.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "docs/FACTORY_RULES.md",
+      "path": ".factory/assets/scaffold/docs/FACTORY_RULES.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "docs/LOOPS.md",
+      "path": ".factory/assets/scaffold/docs/LOOPS.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/README.md",
+      "path": ".factory/assets/scaffold/eval/README.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/golden-tasks/reference-answer/task.md",
+      "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/task.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/golden-tasks/reference-answer/verify.sh",
+      "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/verify.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/runners/claude.sh",
+      "path": ".factory/assets/scaffold/eval/runners/claude.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/runners/codex.sh",
+      "path": ".factory/assets/scaffold/eval/runners/codex.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/runners/example-harness.sh",
+      "path": ".factory/assets/scaffold/eval/runners/example-harness.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/runners/mock.sh",
+      "path": ".factory/assets/scaffold/eval/runners/mock.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "eval/runners/opencode.sh",
+      "path": ".factory/assets/scaffold/eval/runners/opencode.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "factory",
+      "path": ".factory/assets/scaffold/factory",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "memory/lessons/001-verification-contract.md",
+      "path": ".factory/assets/scaffold/memory/lessons/001-verification-contract.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "opencode.json",
+      "path": ".factory/assets/scaffold/opencode.json",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "packs/review-lane/review-pr.yml",
+      "path": ".factory/assets/scaffold/packs/review-lane/review-pr.yml",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/adversarial-review.sh",
+      "path": ".factory/assets/scaffold/scripts/adversarial-review.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/citation-lint.sh",
+      "path": ".factory/assets/scaffold/scripts/citation-lint.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-budget.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-budget.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-doctor.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-doctor.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-init.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-init.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-loop.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-loop.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-metrics.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-metrics.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-migrate-config.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-migrate-config.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-report.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-report.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-review-lane.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-review-lane.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/factory-upgrade.sh",
+      "path": ".factory/assets/scaffold/scripts/factory-upgrade.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/golden-task-eval.sh",
+      "path": ".factory/assets/scaffold/scripts/golden-task-eval.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/harness-structural-eval.sh",
+      "path": ".factory/assets/scaffold/scripts/harness-structural-eval.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/commit-message-lint.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/commit-message-lint.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/copy-manifest-check.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/copy-manifest-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/decision-log-gate.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/decision-log-gate.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/diff-aware-check.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/diff-aware-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/direct-main-push-block.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/direct-main-push-block.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/gate-instrumentation-check.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/gate-instrumentation-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/hook-existence-check.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/hook-existence-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/loop-close-check.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/loop-close-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/pending-lessons-push-block.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/pending-lessons-push-block.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/shared-script-enforcement.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/shared-script-enforcement.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/test-edit-denial.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/test-edit-denial.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/wiki-lint.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/wiki-lint.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/hooks/workflow-lint.sh",
+      "path": ".factory/assets/scaffold/scripts/hooks/workflow-lint.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/budget-config.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/budget-config.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/budget.py",
+      "path": ".factory/assets/scaffold/scripts/lib/budget.py",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/budget_adapters.py",
+      "path": ".factory/assets/scaffold/scripts/lib/budget_adapters.py",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/color.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/color.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/config.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/config.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/events.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/events.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/hookspath.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/hookspath.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/loop.py",
+      "path": ".factory/assets/scaffold/scripts/lib/loop.py",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/roles.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/roles.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/runtime_transition.py",
+      "path": ".factory/assets/scaffold/scripts/lib/runtime_transition.py",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/lib/timing.sh",
+      "path": ".factory/assets/scaffold/scripts/lib/timing.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/pre-push-check.sh",
+      "path": ".factory/assets/scaffold/scripts/pre-push-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/prereq-check.sh",
+      "path": ".factory/assets/scaffold/scripts/prereq-check.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/selftest/run.sh",
+      "path": ".factory/assets/scaffold/scripts/selftest/run.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/sync-claude.sh",
+      "path": ".factory/assets/scaffold/scripts/sync-claude.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/sync-codex.sh",
+      "path": ".factory/assets/scaffold/scripts/sync-codex.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "scripts/sync-opencode.sh",
+      "path": ".factory/assets/scaffold/scripts/sync-opencode.sh",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "specs/TEMPLATE.md",
+      "path": ".factory/assets/scaffold/specs/TEMPLATE.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "templates/metrics.html",
+      "path": ".factory/assets/scaffold/templates/metrics.html",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "wiki/README.md",
+      "path": ".factory/assets/scaffold/wiki/README.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "workflows/README.md",
+      "path": ".factory/assets/scaffold/workflows/README.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "workflows/eval-fanout.md",
+      "path": ".factory/assets/scaffold/workflows/eval-fanout.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    },
+    {
+      "source_path": "workflows/review-diamond.md",
+      "path": ".factory/assets/scaffold/workflows/review-diamond.md",
+      "mode": "0600",
+      "operation": "inert-data"
+    }
+  ],
+  "preserve_prefixes": [
+    ".git/",
+    "specs/",
+    "memory/",
+    "wiki/",
+    "docs/adr/",
+    "eval/results/",
+    ".opencode/agent/",
+    ".opencode/plugin/",
+    ".claude/",
+    ".codex/"
+  ],
+  "preserve_paths": [
+    "factory.yaml",
+    "factory.config",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "Makefile",
+    "opencode.json",
+    ".mcp.json",
+    ".opencode/package.json",
+    ".opencode/.gitignore",
+    ".github/CODEOWNERS",
+    ".github/workflows/ci.yml",
+    "docs/DECISION_LOG.md"
+  ],
+  "unrecognized_retirement_paths": [
+    "scripts/lib/runtime_transition.py"
+  ],
+  "forbidden_asset_prefixes": [
+    ".factory/backups/",
+    ".factory/runtime-activity/",
+    ".factory/loops/"
+  ],
+  "forbidden_asset_paths": [
+    ".factory/budget.json",
+    ".factory/loops.json",
+    ".factory/events.log",
+    ".factory/runtime-transition.lock",
+    ".factory/runtime-publication.pending"
+  ],
+  "special_operations": [
+    "narrow-ignore-rule",
+    "owned-parent-directories"
+  ],
+  "native_product_pack_selection": false
+}

@@ -17,16 +17,25 @@ type CommandResult struct {
 // ExecuteCommand supervises literal initializer tools without harness-role overlays.
 // docs/adr/0085-go-native-init.md:55.
 func ExecuteCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
-	return executeCommand(ctx, root, argv, environment, allowance, false)
+	return executeCommand(ctx, root, argv, environment, allowance, false, nil)
 }
 
 // ExecuteCommandCombined preserves the proof script's shared output stream.
 // docs/adr/0086-go-native-doctor.md:72.
 func ExecuteCommandCombined(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
-	return executeCommand(ctx, root, argv, environment, allowance, true)
+	return executeCommand(ctx, root, argv, environment, allowance, true, nil)
 }
 
-func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, combined bool) (CommandResult, error) {
+// ExecuteCommandObserved durably publishes actual child ownership before work.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:210.
+func ExecuteCommandObserved(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, onSpawn func(context.Context, int) error) (CommandResult, error) {
+	if onSpawn == nil {
+		return CommandResult{}, errors.New("missing command ownership publication")
+	}
+	return executeCommand(ctx, root, argv, environment, allowance, false, onSpawn)
+}
+
+func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, combined bool, onSpawn func(context.Context, int) error) (CommandResult, error) {
 	plan, variables, err := prepareCommand(root, argv, environment)
 	if err != nil {
 		return CommandResult{}, err
@@ -34,8 +43,11 @@ func executeCommand(ctx context.Context, root string, argv []string, environment
 	child, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stderr := &commandCapture{cancel: cancel, limit: outputLimit}
+	if onSpawn == nil {
+		onSpawn = func(context.Context, int) error { return nil }
+	}
 	execution, err := supervise(child, plan, allowance,
-		func(context.Context, int) error { return nil }, defaultProcessOps(),
+		onSpawn, defaultProcessOps(),
 		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
 	data, overflow := stderr.snapshot()
 	if overflow {

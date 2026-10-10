@@ -30,10 +30,15 @@ func extract(ctx context.Context, snapshots, destination *os.Root, o Options) (e
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	compressed := bufio.NewReader(file)
+	_, err = inspectArchive(ctx, file, destination, o)
+	return err
+}
+
+func inspectArchive(ctx context.Context, input io.Reader, destination *os.Root, o Options) (image *imageArchive, err error) {
+	compressed := bufio.NewReader(input)
 	reader, err := gzip.NewReader(compressed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() {
 		closeErr := reader.Close()
@@ -50,7 +55,6 @@ func extract(ctx context.Context, snapshots, destination *os.Root, o Options) (e
 	counted := &countReader{reader: limited}
 	archive := tar.NewReader(counted)
 	names := bundleNames(o)
-	var image *imageArchive
 	if o.Installation {
 		image = newImageArchive(o)
 		names = image.names
@@ -61,42 +65,42 @@ func extract(ctx context.Context, snapshots, destination *os.Root, o Options) (e
 		header, nextErr := archive.Next()
 		if errors.Is(nextErr, io.EOF) {
 			if counted.count-before < 1024 {
-				return errors.New("missing complete tar end markers")
+				return nil, errors.New("missing complete tar end markers")
 			}
 			break
 		}
 		if nextErr != nil {
-			return nextErr
+			return nil, nextErr
 		}
 		if image != nil {
 			if err = image.extractEntry(ctx, destination, archive, header, o); err != nil {
-				return err
+				return nil, err
 			}
 			names = image.names
 			seen[header.Name] = true
 		} else if err = extractEntry(destination, archive, header, names, seen); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if len(seen) != len(names) {
-		return errors.New("archive is missing required entries")
+		return nil, errors.New("archive is missing required entries")
 	}
 	// Drain through gzip EOF, including its checksum, but allow only zero tar
 	// padding. A ByteReader keeps the next compressed stream outside gzip.
 	// docs/adr/0061-runtime-bundle-staging.md:51.
 	if _, err = io.Copy(zeroWriter{}, counted); err != nil {
-		return err
+		return nil, err
 	}
 	if limited.N == 0 {
-		return errors.New("decompressed archive exceeds limit")
+		return nil, errors.New("decompressed archive exceeds limit")
 	}
 	if _, err = compressed.ReadByte(); !errors.Is(err, io.EOF) {
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return errors.New("archive has concatenated gzip or trailing compressed data")
+		return nil, errors.New("archive has concatenated gzip or trailing compressed data")
 	}
-	return nil
+	return image, nil
 }
 
 func extractEntry(root *os.Root, archive *tar.Reader, header *tar.Header, names []string, seen map[string]bool) error {

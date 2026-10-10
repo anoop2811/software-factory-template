@@ -13,6 +13,8 @@ set -euo pipefail
 # This check verifies that every hook script referenced by the plugin and
 # CI exists and is executable. If a script is missing or not executable,
 # this check fails — catching the fail-open condition before it ships.
+# Sourceable configuration is required to be readable, without an execute bit.
+# docs/adr/0098-whole-installation-upgrade-and-rollback.md:392.
 #
 # Your own hooks belong in factory.yaml, not in this list. This file is a
 # framework file: `factory upgrade` overwrites it byte-for-byte, so anything
@@ -86,6 +88,17 @@ for SCRIPT in "${HOOK_SCRIPTS[@]}"; do
     continue
   fi
 
+  if [ ! -r "$SCRIPT" ]; then
+    echo "HOOK-EXISTENCE FAIL: $SCRIPT is not readable"
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
+
+  if [ "$SCRIPT" = "scripts/lib/config.sh" ]; then
+    echo "hook-existence: OK $SCRIPT (exists, readable sourceable library)"
+    continue
+  fi
+
   if [ ! -x "$SCRIPT" ]; then
     echo "HOOK-EXISTENCE FAIL: $SCRIPT is not executable"
     ERRORS=$((ERRORS + 1))
@@ -96,10 +109,10 @@ for SCRIPT in "${HOOK_SCRIPTS[@]}"; do
 done
 
 if [ "$ERRORS" -gt 0 ]; then
-  echo "hook-existence-check: $ERRORS script(s) missing or not executable"
+  echo "hook-existence-check: $ERRORS required file(s) missing, unreadable or not executable"
   echo "The plugin fails open when a script is missing — this check catches that before merge."
-  factory_log_event "hook-existence-check" "$ERRORS hook script(s) missing or not executable"
+  factory_log_event "hook-existence-check" "$ERRORS required file(s) missing, unreadable or not executable"
   exit 1
 fi
 
-echo "hook-existence-check: all hook scripts exist and are executable"
+echo "hook-existence-check: all required files are readable and invoked hooks are executable"

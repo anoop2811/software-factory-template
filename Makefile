@@ -25,6 +25,8 @@ adversarial-review-selftest:
 # not turn a broken factory checkout into a successful template-only skip.
 # docs/adr/0097-installation-source-image-bundles.md:231 — suite allowance only.
 GO_RUNTIME_TEST_TIMEOUT ?= 25m
+# docs/adr/0098-whole-installation-upgrade-and-rollback.md:535 — complete test partitions.
+GO_RUNTIME_TEST_GROUP ?= all
 
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
@@ -34,6 +36,8 @@ go-runtime-check:
 	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
 
 go-runtime-source-check:
+	@case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base or installation" >&2; exit 2 ;; esac
 	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
 	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh || \
@@ -50,7 +54,14 @@ go-runtime-source-check:
 # behavior remains in the pack rather than a second factory implementation.
 	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"
 	go vet ./...
-	go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./...
+	@GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
+		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; \
+		case "$(GO_RUNTIME_TEST_GROUP)" in all|base) \
+			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./... -ginkgo.skip="$$GO_INSTALLATION_FAMILIES" || GO_BASE_TEST_STATUS=$$? ;; esac; \
+		case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
+			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
+		if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
+		exit "$$GO_INSTALLATION_TEST_STATUS"
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory
 	golangci-lint run --config packs/go/.golangci.yml ./...

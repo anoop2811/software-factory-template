@@ -2,7 +2,7 @@
 
 This is the delivery checklist for the approved conversion specification, not a
 second feature roadmap. Source implementation progress and release readiness are
-different measurements. At merged PR #123, the fixed source plan is 60.7%.
+different measurements. At merged PR #124, the fixed source plan is 60.7%.
 
 The supported initial upgrade inputs are v0.1.6 and immutable Bash baseline
 76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Unknown/customized installations are
@@ -24,10 +24,11 @@ factory launcher and ordinary upgrade still use the script installation.
 
 ## Required release gates
 
-- [ ] Complete committed source-image bundle and fixed legacy reference catalogs,
+- [x] Complete committed source-image bundle and fixed legacy reference catalogs,
       with shared validation and authenticated closed-world payload custody.
       ADR 0097 source implementation: 98 new criteria and 72 unchanged V1 criteria
-      passed locally. Full source gates and four native target jobs remain pending.
+      passed locally. PR #124 merged after all thirteen checks passed, including
+      complete Linux/macOS source gates and four native V1/image target jobs.
 - [ ] Complete reviewed installation selection and retain/replace/retire map for
       each supported predecessor and the Go target. Source/test/development blobs
       in the image are not all installation assets and grant no ownership.
@@ -77,3 +78,25 @@ and budgets remain explicit.
 The pilot project and evidence period/exit criteria were requested from Anoop on
 2026-10-06. Q5 of the conversion spec remains open until answered. This does not
 block independent implementation of the source-image and installation consumer.
+
+## Current installation-consumer qualification
+
+The unmerged installation-consumer branch adds the opt-in go-hybrid-v1 whole
+upgrade, rollback and interrupted-recovery paths specified in
+docs/adr/0098-whole-installation-upgrade-and-rollback.md:14. It does not change
+default bootstrap or establish a replacement release.
+
+Source qualification now separates complementary base and installation groups,
+with all as the local default. Actual pinned Ginkgo discovery selects 76
+installation criteria and 2,579 base criteria; an empty installation selection
+fails. Eight scheduling regressions passed under race detection. One complete
+current-source installation run also passed all 76 selected criteria with race
+detection (package 1257.089s). The broader local source run encountered
+sandbox-denied process inspection, loopback listeners
+and filesystem fixtures; vulnerability data was unreachable. Native hosted CI and
+the remaining release gates still require evidence. Decision 97 records the
+commands, observed results and qualification limits.
+
+Keep the release checkboxes and merged source percentage above unchanged until
+the corresponding gates have completed; this branch's implementation is not a
+merged-progress increment.

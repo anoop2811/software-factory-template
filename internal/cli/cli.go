@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/transition"
 	"io"
 	"os"
 	"os/exec"
@@ -16,6 +18,8 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
+	"github.com/anoop2811/software-factory-template/internal/installationcmd"
+	"github.com/anoop2811/software-factory-template/internal/installedproof"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
 	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
@@ -67,6 +71,21 @@ var scripts = map[string]string{
 
 // Run routes the legacy first command token without reinterpreting script flags.
 // Cobra defaults must not change this contract. specs/001-go-runtime-conversion.md:293.
+type installationKey struct{}
+type installationContext struct{ root, assets string }
+
+// RunInstalled receives the validated physical context; no environment value grants it.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:109.
+func RunInstalled(ctx context.Context, args []string, root, assets string) int {
+	return Run(context.WithValue(ctx, installationKey{}, installationContext{root, assets}), args)
+}
+func assetDirectory(ctx context.Context) (string, error) {
+	if selected, ok := ctx.Value(installationKey{}).(installationContext); ok {
+		return selected.assets, nil
+	}
+	return dispatcherDirectory()
+}
+
 func Run(ctx context.Context, args []string) int {
 	command := "help"
 	if len(args) > 0 && args[0] != "" {
@@ -108,12 +127,21 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				if name == "selftest" {
+					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
+						if err := installedproof.Run(cmd.Context(), selected.root, os.Stdout); err != nil {
+							fmt.Fprintln(os.Stderr, "factory selftest:", err)
+							status = 1
+						}
+						return nil
+					}
+				}
 				if name == "migrate-config" {
 					status = migrateconfigcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
 				}
 				if name == "review-lane" {
-					directory, err := dispatcherDirectory()
+					directory, err := assetDirectory(cmd.Context())
 					if err != nil {
 						return err
 					}
@@ -124,7 +152,7 @@ func Run(ctx context.Context, args []string) int {
 				// Native metrics use only the invocation's HTML template asset.
 				// docs/adr/0088-go-native-metrics.md:29.
 				if name == "metrics" {
-					directory, err := dispatcherDirectory()
+					directory, err := assetDirectory(cmd.Context())
 					if err != nil {
 						return err
 					}
@@ -134,9 +162,12 @@ func Run(ctx context.Context, args []string) int {
 				// Reporting selects assets beside the invoked dispatcher.
 				// docs/adr/0087-go-native-report.md:22.
 				if name == "report" {
-					directory, err := dispatcherDirectory()
+					directory, err := assetDirectory(cmd.Context())
 					if err != nil {
 						return err
+					}
+					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
+						directory = selected.root
 					}
 					status = reportcmd.Run(cmd.Context(), forwarded, directory, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
@@ -150,7 +181,7 @@ func Run(ctx context.Context, args []string) int {
 				// Native init uses assets beside the invoked source-built executable.
 				// docs/adr/0085-go-native-init.md:24.
 				if name == "init" {
-					directory, err := dispatcherDirectory()
+					directory, err := assetDirectory(cmd.Context())
 					if err != nil {
 						return err
 					}
@@ -167,6 +198,25 @@ func Run(ctx context.Context, args []string) int {
 					}
 					return nil
 				}
+				// Installed adapters cannot dispatch back into their own upgrade adapter.
+				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:457.
+				if name == "upgrade" && !installationcmd.Claimed(forwarded) {
+					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
+						if len(forwarded) == 0 || len(forwarded) == 1 && (forwarded[0] == "--help" || forwarded[0] == "-h") {
+							status = installationcmd.Run(cmd.Context(), []string{"--installation", "--help"}, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+						} else {
+							fmt.Fprintln(os.Stderr, "factory upgrade: installed upgrades require --installation (use upgrade --installation --help)")
+							status = 2
+						}
+						return nil
+					}
+				}
+				// Whole-installation markers own malformed requests before older routes.
+				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:33.
+				if name == "upgrade" && installationcmd.Claimed(forwarded) {
+					status = installationcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					return nil
+				}
 				// Recovery markers reserve handling before preview and legacy dispatch.
 				// docs/adr/0091-durable-local-recovery-creation.md:25.
 				// docs/adr/0092-go-recovery-restoration-planning.md:25.
@@ -179,6 +229,21 @@ func Run(ctx context.Context, args []string) int {
 				if name == "upgrade" && upgradecmd.Claimed(forwarded) {
 					status = upgradecmd.Run(cmd.Context(), forwarded, os.Stdout, os.Stderr)
 					return nil
+				}
+				if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
+					guard, err := transition.Shared(cmd.Context(), selected.root)
+					if err != nil {
+						return err
+					}
+					result, runErr := native.ExecuteInherited(cmd.Context(), mustCwd(), append([]string{filepath.Join(selected.root, "scripts", script)}, forwarded...), configuredcmd.CaptureEnvironment(), native.InheritedStreams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}, 0)
+					closeErr := guard.Close(context.WithoutCancel(cmd.Context()), !result.OwnershipUnconfirmed && result.ExitConfirmed)
+					if result.ExitCode != nil {
+						status = *result.ExitCode
+						if status < 0 {
+							status = 128 - status
+						}
+					}
+					return errors.Join(runErr, closeErr)
 				}
 				return dispatch(cmd.Context(), name, script, forwarded)
 			},
@@ -197,6 +262,9 @@ func dispatch(ctx context.Context, command, script string, args []string) error 
 		return err
 	}
 	directory, err := dispatcherDirectory()
+	if selected, ok := ctx.Value(installationKey{}).(installationContext); ok {
+		directory, err = selected.root, nil
+	}
 	if err != nil {
 		return err
 	}
@@ -240,4 +308,12 @@ func dispatcherDirectory() (string, error) {
 		return "", fmt.Errorf("factory: locate dispatcher directory: %w", err)
 	}
 	return directory, nil
+}
+
+func mustCwd() string {
+	path, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return path
 }

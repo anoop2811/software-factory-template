@@ -253,7 +253,7 @@ func installationTargetSnapshot(repository, destination string) (string, []byte,
 		// fixture as well as the compiled consumer; user scripts stay excluded.
 		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:392
 		production = production || path == "scripts/hooks/hook-existence-check.sh"
-		production = production || path == "Makefile" || path == ".github/workflows/go-runtime.yml"
+		production = production || path == "Makefile" || path == ".github/workflows/go-runtime.yml" || path == "go.mod"
 		if path == "" || !production || strings.HasSuffix(path, "_test.go") {
 			continue
 		}

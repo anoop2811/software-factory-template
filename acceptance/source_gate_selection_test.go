@@ -368,6 +368,8 @@ type sourceGateWorkflowJob struct {
 var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:530
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:562
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
 	It("preserves existing OS check names and pinned setup while scheduling installation independently on every same platform", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -384,6 +386,20 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		Expect(candidate.Jobs).To(HaveKey("go-runtime"), "existing required matrix check names must retain their job identifier")
 		Expect(candidate.Jobs).To(HaveLen(2), "installation needs its own parallel OS matrix rather than the exhausted single job")
 		original := baseline.Jobs["go-runtime"]
+		// Apply only the reviewed compiler/analyzer setup exceptions to the
+		// historical baseline; all other setup operands still compare exactly.
+		Expect(original.Steps[1].Uses).To(Equal("actions/setup-go@v7.0.0"))
+		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
+		original.Steps[1].With["go-version"] = "1.27.2"
+		Expect(original.Steps[4].Name).To(Equal("Install pinned quality tools"))
+		oldLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
+		newLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"
+		oldSecurity := "go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0"
+		newSecurity := "go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec"
+		Expect(strings.Count(original.Steps[4].Run, oldLinter)).To(Equal(1))
+		Expect(strings.Count(original.Steps[4].Run, oldSecurity)).To(Equal(1))
+		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldLinter, newLinter, 1)
+		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldSecurity, newSecurity, 1)
 		for identifier, job := range candidate.Jobs {
 			Expect(job.RunsOn).To(Equal(original.RunsOn))
 			Expect(job.Timeout).To(Equal(30))

@@ -77,7 +77,7 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 		archive, output, marker = filepath.Join(work, "input.tar.gz"), filepath.Join(work, "output"), filepath.Join(work, "executed")
 		payload := []byte("#!/bin/sh\nprintf executed > '" + marker + "'\n")
 		manifest := fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%x\nEND\n", version, target, sha256.Sum256(payload))
-		source := fmt.Sprintf(`{"revision":%q,"version":%q,"target":%q,"go_version":"go1.27.1","kind":"source-build"}`, revision, version, target)
+		source := fmt.Sprintf(`{"revision":%q,"version":%q,"target":%q,"go_version":"go1.27.2","kind":"source-build"}`, revision, version, target)
 		entries = []stageEntry{{prefix + "bin/factory-runtime", payload, 0755, tar.TypeReg}, {prefix + "runtime.manifest", []byte(manifest), 0644, tar.TypeReg}, {prefix + "source.json", []byte(source), 0644, tar.TypeReg}}
 	})
 	args := func(local bool) []string {
@@ -182,7 +182,7 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 		case "source identity":
 			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte(revision), []byte(strings.Repeat("a", 40)))
 		case "source compiler":
-			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte("go1.27.1"), []byte("go1.26.0"))
+			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte("go1.27.2"), []byte("go1.26.0"))
 		case "source version":
 			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte(version), []byte("v9.9.9"))
 		case "source target":

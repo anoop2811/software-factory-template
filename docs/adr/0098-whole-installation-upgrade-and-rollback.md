@@ -548,3 +548,53 @@ must select all 76 current family criteria and base must select their complement
 with no overlap or zero-selection success. Keep focus/skip expressions identical.
 The installation invocation also uses Ginkgo fail-on-empty, supported by the
 currently pinned Ginkgo flag definition, so an empty selection fails the check.
+
+## Hosted qualification corrections
+
+PR #125's Linux terminal regression returns the shell prompt on Ctrl-Z, but
+foreground resumption stops the supervisor again before its child consumes stdin.
+Qualify the actual native transition, including the gap after SIGCONT before an
+observable running state. A stale observation of the previous stop must not be
+treated as a new stop event. Preserve ownership, foreground transfer, bounded
+cleanup and the existing real PTY/direct Bash/non-TTY assertions. Do not weaken
+or skip the Linux criterion.
+
+The hosted installation groups pass their behavioral race tests but fail the
+security scan because Go 1.27.1's standard library has reachable vulnerabilities.
+The official Go release history, fetched 2026-10-10, identifies Go 1.27.2,
+released 2026-10-08, as the patch release containing the relevant security fixes:
+https://go.dev/doc/devel/release. Update the factory module and actual runtime
+build/CI pins consistently to 1.27.2. Preserve historical qualification commands
+and predecessor fixtures; do not rewrite them as if they ran the new toolchain.
+User-local tool-version preferences remain outside this change. Re-run the
+security scan and affected native regressions, and let hosted CI qualify both
+OS groups on the updated head.
+
+The exact source-build compiler and staged metadata identity must move together:
+artifact.SourceGoVersion becomes go1.27.2, alongside active valid fixtures and
+their independent expected metadata. Keep malformed/wrong-compiler negatives
+and immutable Bash/v0.1.6 catalogs intact. The previously unreleased Go source
+candidate artifacts require repackaging with the qualified security patch;
+there is no silent acceptance of mismatched compiler metadata.
+
+Preserve genuine subsequent stop events as well as stale-state suppression.
+Observe stop/continue notifications without consuming the exit/reap evidence
+owned by Cmd.Wait; do not require a sampled running interval as the sole proof
+of continuation. Independently qualify a child that immediately stops again
+after continuation beside direct Bash. The active fixture source carrier may
+include the changed go.mod so qualification uses the declared compiler contract.
+
+The compiler patch also requires compatible development analyzers. Actual
+golangci-lint 2.13.2 and standalone gosec 2.29.0 builds cannot decode the new
+export-data version; rebuilding with the new compiler alone did not fix that.
+Use the independently fetched golangci-lint 2.14.0 release (2026-09-24), which
+passes current source analysis. Keep gosec's published 2.29.0 engine and build
+it through a separate factory-development tool module selecting x/tools 0.50.0,
+the compatible analyzer dependency already selected by that linter release.
+Keep this tool dependency outside the factory runtime module and adopter packs.
+Pin module checksums and qualify the full standalone scan; zero reported issues
+with a nonzero parser-error exit is not a pass. Workflow regression comparisons
+permit only these explicit compiler/analyzer setup exceptions and retain the
+existing actions, Python and remaining tool pins.
+https://github.com/golangci/golangci-lint/releases/tag/v2.14.0
+https://github.com/securego/gosec/releases/tag/v2.29.0

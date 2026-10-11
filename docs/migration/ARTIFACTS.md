@@ -46,7 +46,7 @@ qualification and lifecycle exits still remain.
 
 ## Build an exact committed source bundle
 
-The developer-only Cobra packager requires the pinned Go 1.27.1 toolchain, Git,
+The developer-only Cobra packager requires the pinned Go 1.27.2 toolchain, Git,
 and pre-provisioned module dependencies. Adopters do not need these tools.
 
 ```sh

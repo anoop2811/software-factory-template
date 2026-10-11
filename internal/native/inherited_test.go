@@ -43,7 +43,7 @@ def terminate(number,frame):raise SystemExit(128+number)
 signal.signal(signal.SIGTERM,terminate)
 def remember(shell,group):
  with open(sys.argv[2],'a') as record:record.write(json.dumps([shell,group])+'\n')
-def run(probe):
+def run(probe,restop=False):
  shell,fd=pty.fork()
  if shell==0:
   os.environ['PS1']=prompt.decode();os.environ['BASH_SILENCE_DEPRECATION_WARNING']='1'
@@ -72,6 +72,20 @@ def run(probe):
   if not ready:raise RuntimeError('interactive shell did not establish its prompt')
   program="echo CHILD_PID=$$ OWNER_PID=$PPID; IFS= read -r value; printf 'READ=%s\\n' \"$value\""
   command=('/bin/bash -c '+shlex.quote(program))
+  if restop:
+   program="""import os,signal,sys
+continued=0
+def on_continue(number,frame):
+ global continued
+ continued+=1
+ if continued==1:
+  print('FRESH_SELF_STOP',flush=True)
+  os.kill(os.getpid(),signal.SIGSTOP)
+signal.signal(signal.SIGCONT,on_continue)
+print('CHILD_PID='+str(os.getpid())+' OWNER_PID='+str(os.getppid()),flush=True)
+print('READ='+sys.stdin.readline().rstrip('\\n'),flush=True)
+"""
+   command=shlex.quote(sys.executable)+' -c '+shlex.quote(program)
   if probe:command=shlex.quote(probe)+' '+command
   os.write(fd,(command+'\n').encode())
   output,ready=until(lambda output:re.search(rb'CHILD_PID=(\d+) OWNER_PID=(\d+)',output) is not None)
@@ -84,8 +98,15 @@ def run(probe):
   record['stop_returns_prompt']=stopped
   record['stop_returns_foreground']=os.tcgetpgrp(fd)==shell
   record['resume_consumes_input']=False;record['exit_returns_prompt']=False
+  record['fresh_stop_marker']=False;record['second_stop_returns_prompt']=False
   if stopped:
    os.write(fd,b'fg\n')
+   if restop:
+    output,second=until(lambda output:b'\r\nFRESH_SELF_STOP\r\n' in output and prompt in output and os.tcgetpgrp(fd)==shell)
+    record['fresh_stop_marker']=b'\r\nFRESH_SELF_STOP\r\n' in output
+    record['second_stop_returns_prompt']=second
+    if second:os.write(fd,b'fg\n')
+    else:record['transcript']=transcript.decode(errors='replace');return record
    _,resumed=until(lambda output:os.tcgetpgrp(fd)==child)
    if resumed:
     os.write(fd,b'literal resumed input\n')
@@ -102,12 +123,13 @@ def run(probe):
   os.waitpid(shell,0);os.close(fd)
  record['transcript']=transcript.decode(errors='replace')
  return record
-print(json.dumps({'direct':run(None),'inherited':run(sys.argv[1])}))
+print(json.dumps({'direct':run(None),'inherited':run(sys.argv[1]),'direct-restop':run(None,True),'inherited-restop':run(sys.argv[1],True)}))
 `
 
 var _ = Describe("Native inherited terminal job control", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:157
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:282
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:580
 	It("returns a real shell prompt on Ctrl-Z and resumes stdin through fg beside direct Bash and non-TTY controls", func() {
 		temporary := GinkgoT().TempDir()
 		root, err := filepath.EvalSymlinks(temporary)
@@ -195,22 +217,30 @@ var _ = Describe("Native inherited terminal job control", func() {
 		Expect(terminalCtx.Err()).NotTo(HaveOccurred(), "PTY fixture exceeded its explicit bounds: %s", output)
 		Expect(err).NotTo(HaveOccurred(), "PTY fixture did not complete its owned cleanup: %s", output)
 		var observations map[string]struct {
-			ChildForeground       bool   `json:"child_foreground"`
-			StopReturnsPrompt     bool   `json:"stop_returns_prompt"`
-			StopReturnsForeground bool   `json:"stop_returns_foreground"`
-			ResumeConsumesInput   bool   `json:"resume_consumes_input"`
-			ExitReturnsPrompt     bool   `json:"exit_returns_prompt"`
-			Transcript            string `json:"transcript"`
+			ChildForeground         bool   `json:"child_foreground"`
+			StopReturnsPrompt       bool   `json:"stop_returns_prompt"`
+			StopReturnsForeground   bool   `json:"stop_returns_foreground"`
+			ResumeConsumesInput     bool   `json:"resume_consumes_input"`
+			ExitReturnsPrompt       bool   `json:"exit_returns_prompt"`
+			FreshStopMarker         bool   `json:"fresh_stop_marker"`
+			SecondStopReturnsPrompt bool   `json:"second_stop_returns_prompt"`
+			Transcript              string `json:"transcript"`
 		}
 		Expect(json.Unmarshal(output, &observations)).To(Succeed(), "%s", output)
 		_, _ = fmt.Fprintf(GinkgoWriter, "real PTY observations: %s\n", strings.TrimSpace(string(output)))
 		Expect(observations).To(HaveKey("direct"))
 		Expect(observations).To(HaveKey("inherited"))
-		for _, label := range []string{"direct", "inherited"} {
+		Expect(observations).To(HaveKey("direct-restop"))
+		Expect(observations).To(HaveKey("inherited-restop"))
+		for _, label := range []string{"direct", "inherited", "direct-restop", "inherited-restop"} {
 			observed := observations[label]
 			Expect(observed.ChildForeground).To(BeTrue(), "%s child never owned the real terminal: %s", label, observed.Transcript)
 			Expect(observed.StopReturnsPrompt).To(BeTrue(), "%s Ctrl-Z left the shell waiting without its prompt: %s", label, observed.Transcript)
 			Expect(observed.StopReturnsForeground).To(BeTrue(), "%s Ctrl-Z failed to restore terminal ownership: %s", label, observed.Transcript)
+			if strings.HasSuffix(label, "-restop") {
+				Expect(observed.FreshStopMarker).To(BeTrue(), "%s actual child did not announce its immediate new SIGSTOP from SIGCONT: %s", label, observed.Transcript)
+				Expect(observed.SecondStopReturnsPrompt).To(BeTrue(), "%s a genuine second stop did not return the prompt and shell foreground: %s", label, observed.Transcript)
+			}
 			Expect(observed.ResumeConsumesInput).To(BeTrue(), "%s fg failed to resume the same child's real stdin: %s", label, observed.Transcript)
 			Expect(observed.ExitReturnsPrompt).To(BeTrue(), "%s normal resumed exit did not return terminal ownership: %s", label, observed.Transcript)
 		}

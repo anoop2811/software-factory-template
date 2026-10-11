@@ -60,7 +60,7 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 	BeforeEach(func() {
 		sequence++
 		source = filepath.Join(work, fmt.Sprintf("source-%d", sequence))
-		writeFixture(filepath.Join(source, "go.mod"), []byte("module example.com/package-fixture\n\ngo 1.27.1\n"), 0600)
+		writeFixture(filepath.Join(source, "go.mod"), []byte("module example.com/package-fixture\n\ngo 1.27.2\n"), 0600)
 		writeFixture(filepath.Join(source, "cmd", "factory", "main.go"), []byte("package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"committed fixture\") }\n"), 0600)
 		for _, args := range [][]string{{"init", "--quiet"}, {"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture"}} {
 			result := run("git", source, nil, args...)
@@ -133,7 +133,7 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 		Expect(string(files[prefix+"runtime.manifest"])).To(Equal(fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%s\nEND\n", version, target, binaryDigest)))
 		var metadata map[string]string
 		Expect(json.Unmarshal(files[prefix+"source.json"], &metadata)).To(Succeed())
-		Expect(metadata).To(Equal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.1", "kind": "source-build"}))
+		Expect(metadata).To(Equal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.2", "kind": "source-build"}))
 		for name, contents := range files {
 			onDisk, readErr := os.ReadFile(filepath.Join(out, "store", filepath.FromSlash(name)))
 			Expect(readErr).NotTo(HaveOccurred())
@@ -303,9 +303,9 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 	})
 	It("rejects filesystem module replacements instead of importing ambient source", func() {
 		dependency := filepath.Join(work, "ambient-dependency")
-		writeFixture(filepath.Join(dependency, "go.mod"), []byte("module example.com/ambient\n\ngo 1.27.1\n"), 0600)
+		writeFixture(filepath.Join(dependency, "go.mod"), []byte("module example.com/ambient\n\ngo 1.27.2\n"), 0600)
 		writeFixture(filepath.Join(dependency, "value.go"), []byte("package ambient\nconst Value = \"outside commit\"\n"), 0600)
-		writeFixture(filepath.Join(source, "go.mod"), []byte(fmt.Sprintf("module example.com/package-fixture\n\ngo 1.27.1\n\nrequire example.com/ambient v0.0.0\nreplace example.com/ambient => %q\n", dependency)), 0600)
+		writeFixture(filepath.Join(source, "go.mod"), []byte(fmt.Sprintf("module example.com/package-fixture\n\ngo 1.27.2\n\nrequire example.com/ambient v0.0.0\nreplace example.com/ambient => %q\n", dependency)), 0600)
 		writeFixture(filepath.Join(source, "cmd", "factory", "main.go"), []byte("package main\nimport (\"fmt\"; \"example.com/ambient\")\nfunc main() { fmt.Println(ambient.Value) }\n"), 0600)
 		result := run("git", source, nil, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "-c", "commit.gpgsign=false", "commit", "--quiet", "-am", "ambient dependency")
 		Expect(result.status).To(Equal(0), result.stderr)

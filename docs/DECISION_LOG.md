@@ -4129,3 +4129,76 @@ evidence, this is one complete current-source 76-pass run. The source fixture
 carrier includes the changed Makefile and Go-runtime workflow. Broader local
 fixture restrictions, unreachable vulnerability data, hosted CI, merge and
 replacement-release gates remain separate and incomplete.
+
+PR #125 was created under Anoop's identity on 2026-10-10 after Git/GitHub access
+was restored, at initial head 9737e4fd32067bfaf37306a07a4ce5cee586aef0.
+Hosted installation race tests passed on Linux/macOS, but their final security
+stage reported reachable standard-library vulnerabilities fixed in Go 1.27.2.
+Linux base qualification separately observed the real Ctrl-Z/fg criterion fail:
+17 native criteria passed and one failed; the inherited child stopped again
+before consuming resumed input. Record the hosted correction contract in
+ADR 0098 before source edits; retain the independent native assertions and
+qualify actual resumption instead of crediting Linux compile-only evidence.
+
+The authoritative Go release history was fetched 2026-10-10 and identifies
+Go 1.27.2 released 2026-10-08 with security fixes. Update active factory toolchain
+pins, not historical logs, adopted project packs or user-local .tool-versions.
+Actual local govulncheck using 1.27.1 exited 3 with nine reachable standard-library
+vulnerabilities; this is observed failure evidence, not a passing scan.
+
+After the active factory compiler/metadata/CI pins moved to Go 1.27.2, the
+security scan returned status 0. The exact tool command and actual output were:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOTOOLCHAIN=go1.27.2 GOPROXY=https://proxy.golang.org,direct GOCACHE=/private/tmp/factory-durable-recovery-go-cache PATH=/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.darwin-arm64/bin:/private/tmp/factory-quality-tools:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin govulncheck ./...
+No vulnerabilities found.
+STATUS: 0
+```
+
+Output is retained in factory-pr125-go1272-govulncheck.log. This closes the
+observed security failure locally; native Linux resumption and current-head
+hosted qualification remain open until their actual execution evidence exists.
+
+Follow-up qualification found the old development analyzers could not decode
+Go 1.27.2 export data, even when rebuilt. Official golangci-lint 2.14.0 was
+fetched before selection; its source scan returned `0 issues.`, status 0. Keep
+the published gosec 2.29.0 engine, selecting compatible x/tools 0.50.0 in a
+separate checksummed development module. Its full standalone scan reported
+172 files, 29,904 lines, 19 nosec entries and zero issues, status 0. The prior
+scanner's zero-issue summary with parser errors and exit 1 was not a pass.
+
+```text
+go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
+STATUS: 0
+golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+STATUS: 0
+gosec ./...
+Files: 172
+Lines: 29904
+Nosec: 19
+Issues: 0
+STATUS: 0
+```
+
+These commands used Go 1.27.2 and the qualified development tool binaries.
+Actual outputs are retained in factory-pr125-lint214.log and
+factory-pr125-gosec-compatible.log. The tool module adds no runtime dependency.
+
+The discarded sampled-running latch was independently observed missing a
+genuine immediate second stop beside a healthy direct Bash control. Replace
+only Linux's level observation with WSTOPPED/WNOHANG waitid notifications;
+Cmd.Wait retains exit/reap ownership. The final unchanged Darwin observer with
+the strengthened existing real PTY criterion passed under race:
+
+```text
+go test -race ./internal/native -ginkgo.focus='Native inherited terminal job control' -ginkgo.no-color -v -count=1
+Ran 1 of 18 Specs in 0.867 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 17 Skipped
+ok github.com/anoop2811/software-factory-template/internal/native 1.269s
+```
+
+The active compiler/metadata fixture qualification separately ran 153 selected
+acceptance criteria with 153 passed, zero failed and eleven runtime skips;
+packaging ownership ran four with four passed. Updated Linux execution and
+the complete current-head hosted gate still require their own CI results.

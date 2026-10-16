@@ -37,6 +37,7 @@ func main(){
 // Select deadlines bound missing events; elapsed time is never success evidence.
 // Cleanup kills only this fixture's newly created shell, supervisor and job groups.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:282
+// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:623
 const inheritedTerminalFixture = `import errno,fcntl,json,os,pty,re,select,shlex,signal,struct,sys,termios,time
 prompt=b'INHERITED_FIXTURE_PROMPT> '
 def terminate(number,frame):raise SystemExit(128+number)
@@ -79,7 +80,7 @@ def on_continue(number,frame):
  global continued
  continued+=1
  if continued==1:
-  print('FRESH_SELF_STOP',flush=True)
+  os.write(1,b'FRESH_SELF_STOP\\n')
   os.kill(os.getpid(),signal.SIGSTOP)
 signal.signal(signal.SIGCONT,on_continue)
 print('CHILD_PID='+str(os.getpid())+' OWNER_PID='+str(os.getppid()),flush=True)

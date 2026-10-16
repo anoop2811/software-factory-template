@@ -615,3 +615,18 @@ requesting stop, register and reconcile native continuation notification for thi
 cycle. Wait for the actual supervisor continuation before terminal handoff and
 child SIGCONT, preserving cancellation, leader-exit and cleanup paths. Qualify
 the frozen real Linux criterion and repeated-stop control before claiming success.
+
+Hosted qualification of commit 9ea9edb passed normal inherited Ctrl-Z/fg and both
+installation jobs but exposed a separate repeated-stop fixture failure. Python's
+SIGCONT handler called buffered print while the interrupted mainline also held
+stdout's buffered-writer lock, raising a reentrant-call RuntimeError before the
+fresh-stop marker. Use unbuffered descriptor output for signal-handler evidence;
+retain the real immediate SIGSTOP, both direct/inherited controls, prompt and
+foreground assertions, and actual resumed input. This does not justify weakening
+the criterion, changing production signal ordering, or increasing its deadline.
+
+Python's authoritative reentrancy documentation, fetched 2026-10-16, explicitly
+describes buffered-I/O RuntimeError from signal handlers and includes print:
+https://docs.python.org/3/library/io.html#reentrancy
+The descriptor-write API is documented at:
+https://docs.python.org/3/library/os.html#os.write

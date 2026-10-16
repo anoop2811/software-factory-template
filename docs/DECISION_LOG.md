@@ -4202,3 +4202,45 @@ The active compiler/metadata fixture qualification separately ran 153 selected
 acceptance criteria with 153 passed, zero failed and eleven runtime skips;
 packaging ownership ran four with four passed. Updated Linux execution and
 the complete current-head hosted gate still require their own CI results.
+
+The subsequent real Linux trace showed that waitid alone did not close the
+foreground-resume race: the child received SIGTTIN after its supervisor executed
+terminal handoff before actually completing self-SIGSTOP. ADR 0098 records the
+continuation-witness contract before the production correction. The supervisor
+now registers SIGCONT, discards an older notification, and waits for actual
+continuation before handing off the terminal and continuing the child.
+Cancellation, leader exit and watcher cleanup remain selectable while waiting.
+
+Actual Linux qualification used a Docker container with an init process so that
+orphan cleanup was reaped correctly. Source was mounted read-only, and the
+existing real-terminal and repeated-stop controls were unchanged:
+
+```text
+rtk proxy docker exec -e GOTOOLCHAIN=go1.27.2 -e GOMODCACHE=/tmp/factory-modcache -e GOCACHE=/tmp/factory-gocache -e GOPROXY=off -e FACTORY_AGENT_ROLE=reviewer factory-pr125-linux-native /bin/bash -c 'go test -race -v -count=1 ./internal/native > /tmp/factory-native-final-with-init.log 2>&1; status=$?; tail -8 /tmp/factory-native-final-with-init.log; exit "$status"'
+Ran 18 of 18 Specs in 7.005 seconds
+SUCCESS! -- 18 Passed | 0 Failed | 0 Pending | 0 Skipped
+--- PASS: TestNativeOwnership (7.01s)
+PASS
+ok github.com/anoop2811/software-factory-template/internal/native 8.021s
+STATUS: 0
+```
+
+The actual output was copied to factory-pr125-native-final-linux.log. Darwin
+qualification of the same final continuation guard also passed:
+
+```text
+rtk proxy env FACTORY_AGENT_ROLE=reviewer GOTOOLCHAIN=go1.27.2 GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 go test -race ./internal/native '-ginkgo.focus=Native inherited terminal job control' -ginkgo.no-color -v -count=1
+Ran 1 of 18 Specs in 2.518 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 17 Skipped
+ok github.com/anoop2811/software-factory-template/internal/native 3.198s
+STATUS: 0
+
+golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+STATUS: 0
+```
+
+Independent source review reported no unresolved finding in this correction.
+These are local results; the hosted checks must run against the new commit.
+The advisory model review skipped the large diff, and Copilot reported exhausted
+quota; neither supplies a completed model review.

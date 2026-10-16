@@ -598,3 +598,20 @@ permit only these explicit compiler/analyzer setup exceptions and retain the
 existing actions, Python and remaining tool pins.
 https://github.com/golangci/golangci-lint/releases/tag/v2.14.0
 https://github.com/securego/gosec/releases/tag/v2.29.0
+
+The updated Linux base gate still observes a genuine additional stop on normal
+foreground resumption, even with event-based stop observation. Qualify actual
+terminal foreground ownership and signal ordering on Linux before further
+correction. Sending SIGCONT or resuming the supervisor alone is insufficient
+evidence that the child's terminal handoff completed. Keep diagnostics confined
+to fixture processes and retain the direct Bash, repeated-stop and real-input
+controls; no source-test skip or deadline increase follows from this failure.
+
+The direct Linux fixture trace identifies the new stop as SIGTTIN: child input
+resumed while the terminal still named the supervisor's foreground group.
+The supervisor continued executing immediately after requesting its own SIGSTOP;
+return from that signal syscall is not evidence of a subsequent resume. Before
+requesting stop, register and reconcile native continuation notification for this
+cycle. Wait for the actual supervisor continuation before terminal handoff and
+child SIGCONT, preserving cancellation, leader-exit and cleanup paths. Qualify
+the frozen real Linux criterion and repeated-stop control before claiming success.

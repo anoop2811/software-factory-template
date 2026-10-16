@@ -82,8 +82,11 @@ func forwardSignals(pid int, terminalOwned bool) func() {
 func watchJobControl(ctx context.Context, pid int, terminal *foreground, leaderDone <-chan struct{}, failed func(error)) func() {
 	stop := make(chan struct{})
 	finished := make(chan struct{})
+	continued := make(chan os.Signal, 1)
+	signal.Notify(continued, syscall.SIGCONT)
 	go func() {
 		defer close(finished)
+		defer signal.Stop(continued)
 		ticker := time.NewTicker(20 * time.Millisecond)
 		defer ticker.Stop()
 		for {
@@ -112,9 +115,26 @@ func watchJobControl(ctx context.Context, pid int, terminal *foreground, leaderD
 					failed(err)
 					return
 				}
+				// Discard a notification preceding this stop cycle.
+				select {
+				case <-continued:
+				default:
+				}
 				// The caller's shell sees this supervisor stop and regains its terminal.
 				if err := syscall.Kill(os.Getpid(), syscall.SIGSTOP); err != nil {
 					failed(err)
+					return
+				}
+				// SIGSTOP delivery can follow the syscall return on a multithreaded
+				// process. Only a native continuation notification permits handoff.
+				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:615.
+				select {
+				case <-continued:
+				case <-ctx.Done():
+					return
+				case <-leaderDone:
+					return
+				case <-stop:
 					return
 				}
 				if ctx.Err() != nil {

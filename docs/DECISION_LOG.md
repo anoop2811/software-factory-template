@@ -4244,3 +4244,38 @@ Independent source review reported no unresolved finding in this correction.
 These are local results; the hosted checks must run against the new commit.
 The advisory model review skipped the large diff, and Copilot reported exhausted
 quota; neither supplies a completed model review.
+
+Current-head hosted installation gates passed on Linux and macOS, including
+lint, gosec and vulnerability checks. Linux base qualification passed normal
+inherited Ctrl-Z/fg but failed the immediate-restop fixture: buffered Python
+print raised RuntimeError from SIGCONT while mainline stdout was active. The
+production continuation correction remains; the separate fixture correction
+uses descriptor output, retaining every event assertion and deadline. Python's
+authoritative reentrancy documentation confirms this failure mode:
+https://docs.python.org/3/library/io.html#reentrancy (fetched 2026-10-16).
+
+The spec-writer made the minimal fixture correction and a separate reviewer
+parsed both Python layers, confirmed the exact newline-terminated marker and
+unchanged immediate SIGSTOP/control assertions, and reported no finding.
+Repeated local execution used independent test processes because Ginkgo rejects
+go test -count greater than one; that rejected invocation is not a test pass.
+The Linux container also required its task-local Git safe.directory entry for
+read-only source ownership before the fixture could build its probe.
+
+```text
+rtk proxy docker exec factory-pr125-fixture /bin/bash -c 'for iteration in {1..10}; do go test -race -v -count=1 ./internal/native "-ginkgo.focus=Native inherited terminal job control" -ginkgo.no-color >> /tmp/factory-tty-fixture-ten-independent-final-race.log 2>&1 || exit "$?"; done; tail -12 /tmp/factory-tty-fixture-ten-independent-final-race.log'
+Ten independent runs each reported:
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 17 Skipped
+Final package: ok github.com/anoop2811/software-factory-template/internal/native 1.412s
+STATUS: 0
+
+rtk proxy /bin/bash -c 'for iteration in 1 2 3 4 5; do env FACTORY_AGENT_ROLE=spec-writer GOTOOLCHAIN=go1.27.2 GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 FACTORY_CLI_TEST_RACE=1 go test -race ./internal/native "-ginkgo.focus=Native inherited terminal job control" -ginkgo.no-color -v -count=1 || exit "$?"; done'
+Five independent macOS runs each reported:
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 17 Skipped
+Final package: ok github.com/anoop2811/software-factory-template/internal/native 1.026s
+STATUS: 0
+```
+
+Root read the complete retained logs, counted ten Linux and five macOS successful
+criteria, and observed zero command exit status. Hosted CI must run again on the
+fixture correction; previous-head successes do not qualify the new head.

@@ -59,6 +59,51 @@
     },
     {
       "source_path": null,
+      "path": "eval/runners/claude.sh",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "legacy runner invocation delegates to canonical Go orchestration"
+    },
+    {
+      "source_path": null,
+      "path": "eval/runners/codex.sh",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "legacy runner invocation delegates to canonical Go orchestration"
+    },
+    {
+      "source_path": null,
+      "path": "eval/runners/example-harness.sh",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "legacy runner invocation delegates to canonical Go orchestration"
+    },
+    {
+      "source_path": null,
+      "path": "eval/runners/mock.sh",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "legacy runner invocation delegates to canonical Go orchestration"
+    },
+    {
+      "source_path": null,
+      "path": "eval/runners/opencode.sh",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
+      "mode": "0755",
+      "required": true,
+      "reason": "legacy runner invocation delegates to canonical Go orchestration"
+    },
+    {
+      "source_path": null,
       "path": "factory",
       "operation": "generate",
       "generator": "installed-launcher",
@@ -76,13 +121,13 @@
       "reason": "declared shell validation/orchestration boundary or native runtime data"
     },
     {
-      "source_path": "scripts/adversarial-review.sh",
+      "source_path": null,
       "path": "scripts/adversarial-review.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
       "source_path": "scripts/citation-lint.sh",
@@ -175,22 +220,22 @@
       "reason": "stable public invocation of the canonical installed implementation"
     },
     {
-      "source_path": "scripts/golden-task-eval.sh",
+      "source_path": null,
       "path": "scripts/golden-task-eval.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
-      "source_path": "scripts/harness-structural-eval.sh",
+      "source_path": null,
       "path": "scripts/harness-structural-eval.sh",
-      "operation": "copy",
-      "generator": "baseline-project-substitution",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
       "source_path": "scripts/hooks/commit-message-lint.sh",
@@ -313,10 +358,10 @@
       "source_path": null,
       "path": "scripts/lib/budget-config.sh",
       "operation": "generate",
-      "generator": "sourceable-go-bridge",
+      "generator": "sourceable-helper-bridge",
       "mode": "0644",
       "required": true,
-      "reason": "preserve supported caller-shell functions and effects"
+      "reason": "preserve caller-shell functions with canonical Go helpers"
     },
     {
       "source_path": null,
@@ -337,13 +382,13 @@
       "reason": "known legacy controller superseded by qualified Go implementation"
     },
     {
-      "source_path": "scripts/lib/color.sh",
+      "source_path": null,
       "path": "scripts/lib/color.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "sourceable-helper-bridge",
       "mode": "0644",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "preserve caller-shell functions with canonical Go helpers"
     },
     {
       "source_path": null,
@@ -355,22 +400,22 @@
       "reason": "preserve supported caller-shell functions and effects"
     },
     {
-      "source_path": "scripts/lib/events.sh",
+      "source_path": null,
       "path": "scripts/lib/events.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "sourceable-helper-bridge",
       "mode": "0644",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "preserve caller-shell functions with canonical Go helpers"
     },
     {
-      "source_path": "scripts/lib/hookspath.sh",
+      "source_path": null,
       "path": "scripts/lib/hookspath.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "sourceable-helper-bridge",
       "mode": "0644",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "preserve caller-shell functions with canonical Go helpers"
     },
     {
       "source_path": null,
@@ -391,31 +436,31 @@
       "reason": "preserve supported caller-shell functions and effects"
     },
     {
-      "source_path": "scripts/lib/timing.sh",
+      "source_path": null,
       "path": "scripts/lib/timing.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "sourceable-helper-bridge",
       "mode": "0644",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "preserve caller-shell functions with canonical Go helpers"
     },
     {
-      "source_path": "scripts/pre-push-check.sh",
+      "source_path": null,
       "path": "scripts/pre-push-check.sh",
-      "operation": "copy",
-      "generator": "baseline-project-substitution",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
-      "source_path": "scripts/prereq-check.sh",
+      "source_path": null,
       "path": "scripts/prereq-check.sh",
-      "operation": "copy",
-      "generator": "baseline-project-substitution",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
       "source_path": null,
@@ -427,31 +472,31 @@
       "reason": "stable public invocation of the canonical installed implementation"
     },
     {
-      "source_path": "scripts/sync-claude.sh",
+      "source_path": null,
       "path": "scripts/sync-claude.sh",
-      "operation": "copy",
-      "generator": "baseline-project-substitution",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
-      "source_path": "scripts/sync-codex.sh",
+      "source_path": null,
       "path": "scripts/sync-codex.sh",
-      "operation": "copy",
-      "generator": "baseline-project-substitution",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
-      "source_path": "scripts/sync-opencode.sh",
+      "source_path": null,
       "path": "scripts/sync-opencode.sh",
-      "operation": "copy",
-      "generator": "literal",
+      "operation": "generate",
+      "generator": "native-orchestration-adapter",
       "mode": "0755",
       "required": true,
-      "reason": "declared shell validation/orchestration boundary or native runtime data"
+      "reason": "legacy invocation delegates to canonical Go orchestration"
     },
     {
       "source_path": "templates/metrics.html",

@@ -254,6 +254,9 @@ func installationTargetSnapshot(repository, destination string) (string, []byte,
 		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:392
 		production = production || path == "scripts/hooks/hook-existence-check.sh"
 		production = production || path == "Makefile" || path == ".github/workflows/go-runtime.yml" || path == "go.mod"
+		// The reviewed orchestration role map is part of the exact target image.
+		// per docs/adr/0099-native-factory-orchestration.md:38
+		production = production || path == "docs/migration/INSTALLATION_ROLE_MAP.json"
 		if path == "" || !production || strings.HasSuffix(path, "_test.go") {
 			continue
 		}
@@ -419,7 +422,9 @@ func installationLegacyFixture(binary []byte, reference installationReference, a
 	tools := filepath.Join(filepath.Dir(root), "external tools")
 	writeFixture(filepath.Join(tools, "npm"), []byte("#!/bin/sh\nexit 0\n"), 0700)
 	writeFixture(filepath.Join(tools, "gh"), []byte("#!/bin/sh\nexit 1\n"), 0700)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	// The full immutable selftest can exceed one minute on hosted macOS.
+	// per docs/adr/0099-native-factory-orchestration.md:229
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, "bash", filepath.Join(source, "scripts/factory-init.sh"), root, "--pack", "none") // #nosec G204 -- immutable legacy initializer and fixture-owned output, literal operands.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -770,7 +775,8 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		canon, err := os.ReadFile(filepath.Join(repository, "docs/migration/INSTALLATION_ROLE_MAP.json"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(json.Unmarshal(canon, &roleMap)).To(Succeed())
-		Expect(roleMap.Roles).To(HaveLen(51))
+		// per docs/adr/0099-native-factory-orchestration.md:38
+		Expect(roleMap.Roles).To(HaveLen(56))
 		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:440
 		Expect(roleMap.CanonicalSourceAssets).To(HaveLen(85))
 		stager = filepath.Join(work, "factory-stage")

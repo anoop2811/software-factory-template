@@ -4,7 +4,6 @@ package commandenv
 import (
 	"context"
 	"errors"
-	"maps"
 	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/config"
@@ -97,13 +96,13 @@ func base(ctx context.Context, environment map[string]string) (map[string]string
 	if _, present := environment["PATH"]; !present {
 		return nil, "", environmentError()
 	}
-	effective := maps.Clone(environment)
-	if effective == nil {
-		effective = make(map[string]string)
-	}
 	root, path, err := discover(ctx, environment)
 	if err != nil {
 		return nil, "", err
+	}
+	effective, err := config.Effective(ctx, path, environment)
+	if err != nil {
+		return nil, "", preparationError(ctx)
 	}
 	effective["FACTORY_BUDGET_ROOT"] = root
 	if err := settings(ctx, effective, path, "budget", []setting{
@@ -113,22 +112,13 @@ func base(ctx context.Context, environment map[string]string) (map[string]string
 	}); err != nil {
 		return nil, "", err
 	}
-	var preserved []string
-	for key := range environment {
-		if config.KnownExportKey(key) {
-			preserved = append(preserved, key)
-		}
-	}
-	actions, err := config.ExportPlan(ctx, path, preserved)
-	if err != nil {
-		return nil, "", preparationError(ctx)
-	}
-	for _, action := range actions {
-		if !action.ExportOnly {
-			effective[action.Key] = action.Value
-		}
-	}
 	return effective, path, nil
+}
+
+// Base prepares the shared budget and known configuration values without model
+// selection. docs/adr/0099-native-factory-orchestration.md:132.
+func Base(ctx context.Context, environment map[string]string) (map[string]string, string, error) {
+	return base(ctx, environment)
 }
 func settings(ctx context.Context, environment map[string]string, path, prefix string, values []setting) error {
 	for _, item := range values {

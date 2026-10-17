@@ -11,20 +11,26 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 
+	"github.com/anoop2811/software-factory-template/internal/adversarialreviewcmd"
+	"github.com/anoop2811/software-factory-template/internal/checkcmd"
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
+	"github.com/anoop2811/software-factory-template/internal/evalcmd"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/installationcmd"
 	"github.com/anoop2811/software-factory-template/internal/installedproof"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
+	"github.com/anoop2811/software-factory-template/internal/prereqcmd"
 	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
+	"github.com/anoop2811/software-factory-template/internal/synccmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +46,11 @@ Usage: factory <command> [args]
               touches your factory.yaml, content, or customized files
               Preview locally with --dry-run --source PATH (run at installation root)
               Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
+  sync        Synchronize harness adapters (all, opencode, claude, codex)
+  prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
+  eval        Run structural or golden evaluation, or a selected harness runner
+  review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
   metrics     What the factory is doing to this repo (--json, --html); local only
@@ -52,7 +62,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -67,6 +77,10 @@ var scripts = map[string]string{
 	"metrics":        "factory-metrics.sh",
 	"review-lane":    "factory-review-lane.sh",
 	"migrate-config": "factory-migrate-config.sh",
+	"sync":           "",
+	"prereq":         "",
+	"eval":           "",
+	"review":         "",
 }
 
 // Run routes the legacy first command token without reinterpreting script flags.
@@ -98,6 +112,14 @@ func Run(ctx context.Context, args []string) int {
 		fmt.Fprintf(os.Stderr, "factory: unknown command '%s' (try: factory help)\n", command)
 		return 2
 	}
+	// New orchestration owns cancellation until every child has been reconciled.
+	// docs/adr/0099-native-factory-orchestration.md:81.
+	switch command {
+	case "sync", "prereq", "check", "eval", "review":
+		var stop context.CancelFunc
+		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+	}
 
 	status := 0
 	root := &cobra.Command{
@@ -127,6 +149,39 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Native orchestration never executes its old script implementation.
+				// docs/adr/0099-native-factory-orchestration.md:20.
+				switch name {
+				case "sync", "prereq", "check", "eval", "review":
+					directory, err := assetDirectory(cmd.Context())
+					if err != nil {
+						return err
+					}
+					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
+						directory = selected.root
+					}
+					environment := configuredcmd.CaptureEnvironment()
+					switch name {
+					case "sync":
+						status = synccmd.Run(cmd.Context(), forwarded, directory, environment, os.Stdout, os.Stderr)
+					case "prereq":
+						status = prereqcmd.Run(cmd.Context(), forwarded, directory, environment, os.Stdout, os.Stderr)
+					case "check":
+						status = checkcmd.Run(cmd.Context(), forwarded, directory, environment, os.Stdin, os.Stdout, os.Stderr)
+					case "eval":
+						// Evaluation inputs and results belong to the caller's
+						// project, including invocation through another checkout.
+						// docs/adr/0099-native-factory-orchestration.md:99.
+						directory, err = os.Getwd()
+						if err != nil {
+							return err
+						}
+						status = evalcmd.Run(cmd.Context(), forwarded, directory, environment, os.Stdout, os.Stderr)
+					case "review":
+						status = adversarialreviewcmd.Run(cmd.Context(), forwarded, directory, environment, os.Stdout, os.Stderr)
+					}
+					return nil
+				}
 				if name == "selftest" {
 					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
 						if err := installedproof.Run(cmd.Context(), selected.root, os.Stdout); err != nil {

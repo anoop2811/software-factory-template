@@ -2,7 +2,8 @@
 
 This is the delivery checklist for the approved conversion specification, not a
 second feature roadmap. Source implementation progress and release readiness are
-different measurements. At merged PR #124, the fixed source plan is 60.7%.
+different measurements. The last recorded fixed source-plan score is 60.7% at
+merged PR #124; it is a historical score, not a new estimate for later work.
 
 The supported initial upgrade inputs are v0.1.6 and immutable Bash baseline
 76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Unknown/customized installations are
@@ -29,13 +30,13 @@ factory launcher and ordinary upgrade still use the script installation.
       ADR 0097 source implementation: 98 new criteria and 72 unchanged V1 criteria
       passed locally. PR #124 merged after all thirteen checks passed, including
       complete Linux/macOS source gates and four native V1/image target jobs.
-- [ ] Complete reviewed installation selection and retain/replace/retire map for
+- [x] Complete reviewed installation selection and retain/replace/retire map for
       each supported predecessor and the Go target. Source/test/development blobs
       in the image are not all installation assets and grant no ownership.
-- [ ] One whole-installation upgrade transaction retains exclusion and pending
+- [x] One whole-installation upgrade transaction retains exclusion and pending
       admission across all changed files, durable ignored backup, candidate checks,
       activation and the durable installed-version result.
-- [ ] Public upgrade, explicit rollback and interrupted recovery reuse that
+- [x] Public upgrade, explicit rollback and interrupted recovery reuse that
       transaction and independently qualified images; later edits and unsupported
       predecessor state remain preserved conflicts.
 - [ ] Complete remaining factory-owned orchestration and adapter/dependency audit.
@@ -81,22 +82,15 @@ block independent implementation of the source-image and installation consumer.
 
 ## Current installation-consumer qualification
 
-The unmerged installation-consumer branch adds the opt-in go-hybrid-v1 whole
-upgrade, rollback and interrupted-recovery paths specified in
-docs/adr/0098-whole-installation-upgrade-and-rollback.md:14. It does not change
-default bootstrap or establish a replacement release.
+PR #125 merged on 2026-10-17 after all fifteen reported checks passed. It adds
+the opt-in go-hybrid-v1 whole upgrade, rollback and interrupted-recovery paths
+specified in docs/adr/0098-whole-installation-upgrade-and-rollback.md:14. This
+closes those three source prerequisites above; default bootstrap and replacement
+release gates remain open. The advisory model review skipped the oversized diff
+and Copilot had no quota, so neither is claimed as completed model review.
 
-Source qualification now separates complementary base and installation groups,
-with all as the local default. Actual pinned Ginkgo discovery selects 76
-installation criteria and 2,579 base criteria; an empty installation selection
-fails. Eight scheduling regressions passed under race detection. One complete
-current-source installation run also passed all 76 selected criteria with race
-detection (package 1257.089s). The broader local source run encountered
-sandbox-denied process inspection, loopback listeners
-and filesystem fixtures; vulnerability data was unreachable. Native hosted CI and
-the remaining release gates still require evidence. Decision 97 records the
-commands, observed results and qualification limits.
-
-Keep the release checkboxes and merged source percentage above unchanged until
-the corresponding gates have completed; this branch's implementation is not a
-merged-progress increment.
+The remaining orchestration implementation and its qualification are tracked in
+[ORCHESTRATION.md](ORCHESTRATION.md). Keep its release checkbox open until its
+source checks, independent review and hosted CI have completed. Do not count a
+new interface, inventory or review correction as another source-plan package.
+The fixed denominator remains thirty; no new percentage is inferred here.

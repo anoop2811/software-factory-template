@@ -3,7 +3,6 @@ package reviewlanecmd
 import (
 	"context"
 	"errors"
-	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,24 +20,9 @@ type Settings struct{ Values map[string]string }
 // SettingsFromBytes retains the shared export grammar and caller precedence.
 // docs/adr/0089-go-native-review-lane.md:26.
 func SettingsFromBytes(ctx context.Context, yaml, legacy []byte, environment map[string]string) (Settings, error) {
-	var preserved []string
-	for key := range environment {
-		if config.KnownExportKey(key) {
-			preserved = append(preserved, key)
-		}
-	}
-	actions, err := config.ExportPlanBytes(ctx, yaml, legacy, preserved)
+	effective, err := config.EffectiveBytes(ctx, yaml, legacy, environment)
 	if err != nil {
 		return Settings{}, err
-	}
-	effective := maps.Clone(environment)
-	if effective == nil {
-		effective = map[string]string{}
-	}
-	for _, action := range actions {
-		if !action.ExportOnly {
-			effective[action.Key] = action.Value
-		}
 	}
 	return Settings{Values: effective}, nil
 }

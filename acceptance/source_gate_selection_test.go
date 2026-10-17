@@ -106,6 +106,8 @@ func sourceGateMakeFixture() sourceGateFixture {
 	}
 	writeFixture(filepath.Join(root, "runtime/shell/readers.sh"), []byte("#!/bin/sh\n:\n"), 0600)
 	writeFixture(filepath.Join(root, "runtime/shell/config.sh"), []byte("#!/bin/bash\n:\n"), 0600)
+	// per docs/adr/0099-native-factory-orchestration.md:149
+	writeFixture(filepath.Join(root, "runtime/shell/helpers.sh"), []byte("#!/bin/sh\n:\n"), 0600)
 	writeFixture(filepath.Join(root, "packs/go/hooks/ginkgo-only-check.sh"), []byte("printf 'dialect\\n' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"), 0600)
 	writeFixture(filepath.Join(root, "tools/go"), []byte(sourceGateRecordingGo), 0700)
 	for _, name := range []string{"gofmt", "golangci-lint", "gosec", "govulncheck"} {
@@ -258,6 +260,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:530
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:549
+	// per docs/adr/0099-native-factory-orchestration.md:155
 	It("executes disjoint base and installation criteria with the same selector while retaining every source quality stage", func() {
 		selectors := []string{}
 		captured := []struct {
@@ -280,15 +283,15 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		Expect(negativeTotal).To(Equal(2655))
+		Expect(negativeTotal).To(Equal(2808))
 		baseStatus, baseCount, baseTotal := sourceGateNativeDiscovery(sourceGateTests(captured[0].calls)[0])
 		installationStatus, installationCount, installationTotal := sourceGateNativeDiscovery(sourceGateTests(captured[1].calls)[0])
 		Expect(installationStatus).To(Equal(0))
 		Expect(baseStatus).To(Equal(0))
-		Expect(installationTotal).To(Equal(2655))
+		Expect(installationTotal).To(Equal(2808))
 		Expect(baseTotal).To(Equal(installationTotal))
-		Expect(installationCount).To(Equal(76), "actual pinned Ginkgo must select every installation criterion; a mock-only success is insufficient")
-		Expect(baseCount).To(Equal(2579))
+		Expect(installationCount).To(Equal(78), "actual pinned Ginkgo must select every installation criterion; a mock-only success is insufficient")
+		Expect(baseCount).To(Equal(2730))
 		Expect(baseCount + installationCount).To(Equal(baseTotal))
 		for _, observed := range captured {
 			group, calls, quality := observed.group, observed.calls, observed.quality

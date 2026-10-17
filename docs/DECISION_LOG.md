@@ -4341,3 +4341,19 @@ safety/cleanup or coverage finding. Hosted CI must qualify this new commit;
 the earlier 15-green head does not establish that. Python stays provisioned for
 remaining fixtures and actual supported legacy/cross-language compatibility
 oracles. A Go rewrite of those reference implementations would remove evidence.
+
+## Decision 98 (2026-10-17 UTC): complete remaining factory orchestration in Go
+
+The user authorized the complete remaining orchestration workstream after PR
+#125: all three harness syncs, check/prerequisite wiring, evaluation/review and
+shared helpers. ADR 0099 records the scope and compatibility/correction contract
+before code. Use independent Ginkgo/Gomega RED before implementations, existing
+Go supervision/configuration/publication primitives, no new module or Cgo
+dependency, and fake models/providers for qualification. Preserve the configured
+cost choices and the supported sourceable/host validation boundaries.
+
+Native installation roles must activate Go adapters and shared bridges, not
+merely add source commands beside copied shell business logic. Keep source-mode
+legacy evidence until default bootstrap cutover, which is a separate release
+workstream. Retain the fixed source-plan denominator and chat-only feature table;
+status must distinguish implemented, qualified, merged and released behavior.

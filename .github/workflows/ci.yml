@@ -43,6 +43,7 @@ jobs:
           bash -n factory
           sh -n runtime/shell/readers.sh
           bash -n runtime/shell/config.sh
+          sh -n runtime/shell/helpers.sh
 
       - name: shellcheck
         run: |
@@ -51,6 +52,7 @@ jobs:
           shellcheck -S warning -x factory
           shellcheck -s sh -S warning runtime/shell/readers.sh
           shellcheck -s bash -S warning runtime/shell/config.sh
+          shellcheck -s bash -S warning runtime/shell/helpers.sh
 
       - name: Set up Go (for pinned actionlint)
         uses: actions/setup-go@v6

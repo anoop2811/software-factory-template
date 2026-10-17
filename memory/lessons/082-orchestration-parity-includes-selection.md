@@ -17,6 +17,15 @@ regular-file stdin scenario did not expose it. The platform handling is recorded
 in docs/adr/0099-native-factory-orchestration.md:197, not generalized into a rule
 that all terminal-query errors can be ignored.
 
+Observed 2026-10-17 in the full Linux source qualification: changing a shared
+fixture exposed six older doctor report comparisons outside the new focused
+probes. The frozen generator created an unused empty `.claude/hooks` directory;
+the native generator did not. Seed classification controls from the independent
+generator, retain complete report comparisons, and run the full dependent test
+family when its shared fixture changes. Evidence is the failed CI job
+https://github.com/anoop2811/software-factory-template/actions/runs/39048579614/job/117442226965
+and `acceptance/native_doctor_test.go`.
+
 Provenance: review reproductions retained locally at
 `/private/tmp/factory-review-check-root-ed58lrdx`,
 `/private/tmp/factory-review-verifier2-596fiao1`, and

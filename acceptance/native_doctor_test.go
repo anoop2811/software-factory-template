@@ -631,8 +631,12 @@ var _ = Describe("Native Go doctor classifications", func() {
 		Expect(out.stdout).To(ContainSubstring("review lane            advisory PR review, secret present"))
 	})
 	// per docs/adr/0086-go-native-doctor.md:90
+	// per docs/adr/0099-native-factory-orchestration.md:157
 	DescribeTable("matches the frozen report and status", func(kind string) {
 		root, environment := doctorFixture()
+		// The Git archive omits the legacy generator's empty .claude/hooks
+		// directory. Seed complete canonical outputs before each case's change.
+		doctorFrozenAdapters(root, environment)
 		switch kind {
 		case "inert":
 			doctorConfig(root, "project_name: fixture\n")

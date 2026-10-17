@@ -630,3 +630,28 @@ describes buffered-I/O RuntimeError from signal handlers and includes print:
 https://docs.python.org/3/library/io.html#reentrancy
 The descriptor-write API is documented at:
 https://docs.python.org/3/library/os.html#os.write
+
+## Native test fixture dependency reduction
+
+User-approved 2026-10-17: replace Python used only to drive native terminal and
+detached-process tests with Go fixtures. Keep real terminal sessions, Bash
+controls, Ctrl-Z/fg, immediate repeated stop, literal stdin, group ownership and
+cleanup observations. Do not replace OS evidence with mocks, weaken assertions,
+extend event deadlines, or add a runtime language/interpreter requirement.
+Use the existing standard library and golang.org/x/sys; introduce no module or
+Cgo dependency. Test helpers belong to test-only files or testdata, never the
+shipped command. Reuse fixture build/launch plumbing where meaningful.
+
+Qualification must run the complete native package under race detection on
+Linux and macOS with Python invocations explicitly refused, as well as repeated
+real-terminal criteria. Keep the previous direct/control observations and prove
+that deliberately breaking terminal continuation makes the criterion fail.
+The final source/CI gate must still pass. Qualified Python provisioning stays
+while immutable legacy Python compatibility oracles and remaining fixtures need
+it; this bounded change does not claim the entire repository is Python-free.
+The default bootstrap and replacement-release gates remain unchanged.
+
+API sources inspected 2026-10-17 before implementation:
+https://pkg.go.dev/syscall#SysProcAttr
+Existing golang.org/x/sys v0.46.0 ioctl declarations and generated OS constants
+were inspected in the pinned local module source; no version pin changes.

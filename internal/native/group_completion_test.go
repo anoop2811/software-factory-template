@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -15,31 +14,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const nativeDetachedGroupFixture = `import json,os,subprocess,sys,time
-from pathlib import Path
-ready=Path(os.environ['NATIVE_GROUP_READY'])
-child=subprocess.Popen([sys.executable,'-B','-c',"import json,os,time;from pathlib import Path;p=Path(os.environ['NATIVE_GROUP_READY']);t=p.with_suffix('.tmp');t.write_text(json.dumps(dict(pid=os.getpid(),group=os.getpgrp())));os.replace(t,p);time.sleep(30)"],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-deadline=time.monotonic()+5
-while not ready.exists():
- if time.monotonic()>deadline:raise RuntimeError('child readiness was not established')
- time.sleep(.01)
-record=json.loads(ready.read_text())
-assert record['pid']==child.pid and record['group']==os.getpgrp()
-print('fixture leader completed',flush=True)
-`
-
 var _ = Describe("Native process group completion proof", func() {
 	// per docs/adr/0093-runtime-transition-guard.md:195
 	// per docs/adr/0093-runtime-transition-guard.md:199
 	// per docs/adr/0093-runtime-transition-guard.md:201
 	// per specs/001-go-runtime-conversion.md:314
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:634
 	DescribeTable("distinguishes group termination acknowledgement from the actual end of detached-pipe ownership", func(acknowledgeOnly bool) {
 		root := GinkgoT().TempDir()
-		pythonCommand := exec.Command("python3", "-B", "-c", "import sys;print(sys.executable)") // #nosec G204 -- fixed local interpreter qualification, no shell or user input.
-		python, err := pythonCommand.Output()
+		executable, err := os.Executable()
 		Expect(err).NotTo(HaveOccurred())
 		ready := filepath.Join(root, "child.json")
-		plan := Plan{Harness: "opencode", Role: "reviewer", Root: root, Argv: []string{strings.TrimSpace(string(python)), "-B", "-c", nativeDetachedGroupFixture}, Environment: map[string]string{"NATIVE_GROUP_READY": ready}}
+		plan := Plan{Harness: "opencode", Role: "reviewer", Root: root, Argv: []string{executable, "--factory-native-test-fixture", "detached-leader"}, Environment: map[string]string{"NATIVE_GROUP_READY": ready, "GORACE": "atexit_sleep_ms=0"}}
 		ops := defaultProcessOps()
 		originalSignal, originalWait := ops.signalGroup, ops.wait
 		waited := make(chan error, 1)

@@ -4279,3 +4279,65 @@ STATUS: 0
 Root read the complete retained logs, counted ten Linux and five macOS successful
 criteria, and observed zero command exit status. Hosted CI must run again on the
 fixture correction; previous-head successes do not qualify the new head.
+
+On 2026-10-17 the user requested fewer test dependencies and Go replacements
+for Python fixtures. ADR 0098 records the bounded conversion before source
+changes. Native terminal and detached-process fixtures now re-execute the
+already compiled test binary; Darwin/Linux PTY allocation uses the existing
+x/sys module. The 18 criteria, four real-terminal controls and detached-group
+assertions remain. No production file, module pin or Cgo dependency changed.
+The remaining fixture/oracle inventory is in migration/TEST_DEPENDENCIES.md.
+
+The interpreter-refusal wrapper prepended executable python/python3 tripwires
+that record any call and exit 127. Before conversion, the complete native race
+suite ran 18 criteria: 15 passed and the terminal/two group criteria failed.
+The final same refusal check passed on macOS and Linux with no recorded calls:
+
+```text
+rtk proxy /bin/bash -c 'fixture_root=$(cat /private/tmp/factory-native-go-fixtures-root); env FACTORY_AGENT_ROLE=reviewer GOTOOLCHAIN=go1.27.2 GOPROXY=off GOCACHE=/private/tmp/factory-durable-recovery-go-cache GORACE=atexit_sleep_ms=0 FACTORY_CLI_TEST_RACE=1 FACTORY_TEST_PYTHON_CALLS="$fixture_root/python-calls-green" PATH="$fixture_root/bin:/Users/anoopgopalakrishnan/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.2.darwin-arm64/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" go test -race ./internal/native -ginkgo.no-color -v -count=1 > "$fixture_root/native-no-python-green-mac.log" 2>&1; status=$?; tail -9 "$fixture_root/native-no-python-green-mac.log"; if test -e "$fixture_root/python-calls-green"; then cat "$fixture_root/python-calls-green"; exit 91; fi; printf "STATUS: %s; Python calls: 0\n" "$status"; exit "$status"'
+Ran 18 of 18 Specs in 7.054 seconds
+SUCCESS! -- 18 Passed | 0 Failed | 0 Pending | 0 Skipped
+ok github.com/anoop2811/software-factory-template/internal/native 7.476s
+STATUS: 0; Python calls: 0
+
+rtk proxy docker exec -e PATH=/tmp/python-refused:/usr/local/go/bin:/usr/bin:/bin -e FACTORY_TEST_PYTHON_CALLS=/tmp/python-calls-green factory-pr125-native-go /bin/bash -c 'go test -race -v -count=1 ./internal/native -ginkgo.no-color > /tmp/native-no-python-green-linux.log 2>&1; status=$?; tail -10 /tmp/native-no-python-green-linux.log; if test -e /tmp/python-calls-green; then cat /tmp/python-calls-green; exit 91; fi; printf "STATUS: %s; Python calls: 0\n" "$status"; exit "$status"'
+Ran 18 of 18 Specs in 5.337 seconds
+SUCCESS! -- 18 Passed | 0 Failed | 0 Pending | 0 Skipped
+ok github.com/anoop2811/software-factory-template/internal/native 5.351s
+STATUS: 0; Python calls: 0
+```
+
+The Linux container uses init for orphan reaping and read-only source. Its
+actual log was copied to factory-native-no-python-green-linux.log. A separate
+compiler overlay replaced only child SIGCONT with SIGWINCH; the tracked file
+was never changed. The overlay execution actually failed at resumed stdin:
+
+```text
+go test -race -overlay=/tmp/native-negative-overlay/overlay.json -count=1 ./internal/native "-ginkgo.focus=Native inherited terminal job control" -ginkgo.no-color -v
+Ran 1 of 18 Specs in 6.142 seconds
+FAIL! -- 0 Passed | 1 Failed | 0 Pending | 17 Skipped
+FAIL github.com/anoop2811/software-factory-template/internal/native 6.155s
+EXPECTED-FAIL STATUS: 1
+```
+
+The unchanged source then passed five independent Linux terminal race runs
+with Python refused; each reported one passed, zero failed and 17 skipped.
+The spec-writer separately observed five passing macOS terminal runs. Root
+read and counted the five Linux summaries in the retained log:
+
+```text
+rtk proxy docker exec -e PATH=/tmp/python-refused:/usr/local/go/bin:/usr/bin:/bin -e FACTORY_TEST_PYTHON_CALLS=/tmp/python-calls-repeat factory-pr125-native-go /bin/bash -c 'for iteration in {1..5}; do go test -race -v -count=1 ./internal/native "-ginkgo.focus=Native inherited terminal job control" -ginkgo.no-color >> /tmp/native-terminal-repeat-green-linux.log 2>&1 || exit "$?"; done; tail -10 /tmp/native-terminal-repeat-green-linux.log; test ! -e /tmp/python-calls-repeat'
+Final run: SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 17 Skipped
+Final package: ok github.com/anoop2811/software-factory-template/internal/native 0.175s
+STATUS: 0
+
+golangci-lint run --config packs/go/.golangci.yml ./...
+0 issues.
+STATUS: 0
+```
+
+Three independent source-review lenses reported no surviving correctness,
+safety/cleanup or coverage finding. Hosted CI must qualify this new commit;
+the earlier 15-green head does not establish that. Python stays provisioned for
+remaining fixtures and actual supported legacy/cross-language compatibility
+oracles. A Go rewrite of those reference implementations would remove evidence.

@@ -17,7 +17,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/fileinput"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
-	"golang.org/x/sys/unix"
+	"github.com/anoop2811/software-factory-template/internal/presentation"
 )
 
 const fileLimit = 16 << 20
@@ -185,12 +185,7 @@ func entries(ctx context.Context, path string) ([]os.DirEntry, error) {
 	return list, ctx.Err()
 }
 func terminal(out io.Writer) bool {
-	f, ok := out.(*os.File)
-	if !ok {
-		return false
-	}
-	_, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
-	return err == nil
+	return presentation.Terminal(out)
 }
 
 type metrics struct {

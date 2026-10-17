@@ -40,10 +40,11 @@ go-runtime-source-check:
 		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base or installation" >&2; exit 2 ;; esac
 	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
-	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh || \
+	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
 		{ echo "go-runtime-check: required candidate CLI, shim or acceptance sources are missing" >&2; exit 1; }
 	sh -n runtime/shell/readers.sh
 	bash -n runtime/shell/config.sh
+	sh -n runtime/shell/helpers.sh
 	@git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
 		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }
 	@GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
@@ -115,7 +116,10 @@ sync-claude:
 sync-codex:
 	./scripts/sync-codex.sh
 
-sync-harnesses: sync-opencode sync-claude sync-codex
+sync-harnesses:
+	$(MAKE) sync-opencode
+	$(MAKE) sync-claude
+	$(MAKE) sync-codex
 
 lint-commits:
 	./scripts/hooks/commit-message-lint.sh HEAD

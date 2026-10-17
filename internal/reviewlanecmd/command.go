@@ -14,7 +14,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
-	"golang.org/x/sys/unix"
+	"github.com/anoop2811/software-factory-template/internal/presentation"
 )
 
 const workflow = ".github/workflows/adversarial-review.yml"
@@ -75,12 +75,7 @@ func discover(ctx context.Context, environment map[string]string) (string, error
 	return root, nil
 }
 func isTerminal(writer io.Writer) bool {
-	file, ok := writer.(*os.File)
-	if !ok {
-		return false
-	}
-	_, err := unix.IoctlGetWinsize(int(file.Fd()), unix.TIOCGWINSZ)
-	return err == nil
+	return presentation.Terminal(writer)
 }
 
 // Execute is shared by CLI and init, using explicit roots and literal settings.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"maps"
 	"os"
@@ -13,44 +14,29 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/config"
+	"github.com/anoop2811/software-factory-template/internal/githooks"
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/presentation"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
-	"golang.org/x/sys/unix"
+	"github.com/anoop2811/software-factory-template/internal/synccmd"
 )
 
 func (r *report) hooksPath(ctx context.Context) error {
 	if !regular(r.path(".githooks/pre-push")) {
 		return nil
 	}
-	probe := func(args ...string) (string, error) {
-		result, err := native.ExecuteCommand(ctx, r.root, append([]string{"git"}, args...), r.environment, 5*time.Second)
-		if unsafeResult(result) || ctx.Err() != nil {
-			return "", errors.New("git hooksPath probe did not complete safely")
-		}
-		if err == nil && succeeded(result) {
-			return strings.TrimRight(string(result.Stdout), "\n"), nil
-		}
-		// Ordinary unavailable or unsuccessful Git probes retain the warning
-		// classification below; unsafe supervision failures were rejected above.
-		return "", nil
-	}
-	resolved, err := probe("rev-parse", "--git-path", "hooks/pre-push")
+	state, resolved, err := githooks.Status(ctx, r.root, r.environment)
 	if err != nil {
 		return err
 	}
-	value, err := probe("config", "--get", "core.hooksPath")
-	if err != nil {
-		return err
-	}
-	resolved = r.path(resolved)
-	switch {
-	case resolved == r.path(".githooks/pre-push") && executable(resolved):
+	switch state {
+	case "armed":
 		r.line("[ ok ]", "git resolves the pre-push hook to this repo's .githooks")
-	case resolved == r.path(".githooks/pre-push"):
+	case "inert":
 		r.line("[warn]", "the pre-push hook is not executable — git ignores it, so the push gate is INERT")
 		r.line("", "  file:  "+resolved)
 		r.line("", "  fix:   chmod +x .githooks/pre-push")
-	case value != "":
+	case "hijacked":
 		r.line("[warn]", "core.hooksPath redirects git away from .githooks — the push gate is INERT")
 		r.line("", "  git runs: "+resolved)
 		r.line("", "  fix: git config core.hooksPath .githooks")
@@ -136,7 +122,7 @@ func (r *report) review(ctx context.Context, path string, data []byte) error {
 }
 
 var adapterPaths = []string{".claude", ".codex", ".mcp.json", "CLAUDE.md"}
-var inputPaths = []string{"opencode.json", "AGENTS.md", ".opencode/agent", "scripts/sync-claude.sh", "scripts/sync-codex.sh", "scripts/lib/config.sh", "scripts/lib/roles.sh"}
+var inputPaths = []string{"opencode.json", "AGENTS.md", ".opencode/agent"}
 
 func scratchEnvironment(environment map[string]string, root string) map[string]string {
 	result := map[string]string{}
@@ -151,7 +137,7 @@ func scratchEnvironment(environment map[string]string, root string) map[string]s
 	return result
 }
 func (r *report) adapters(ctx context.Context, path string, data []byte) (returned error) {
-	if !executable(r.path("scripts/sync-claude.sh")) || !directory(r.path(".claude")) {
+	if !directory(r.path(".claude")) {
 		r.line("[skip]", "adapter drift (sync scripts or .claude not present)")
 		return r.err
 	}
@@ -195,16 +181,13 @@ func (r *report) adapters(ctx context.Context, path string, data []byte) (return
 		r.line("[warn]", "adapter drift skipped (cannot prepare scratch snapshot: "+err.Error()+")")
 		return ctx.Err()
 	}
-	for _, script := range []string{"sync-claude.sh", "sync-codex.sh"} {
-		if !executable(filepath.Join(scratch, "scripts", script)) {
-			continue
+	for _, harness := range []string{"claude", "codex"} {
+		err := synccmd.Execute(ctx, []string{harness}, scratch, scratchEnvironment(r.environment, scratch), io.Discard, io.Discard)
+		if ctx.Err() != nil || errors.Is(err, synccmd.ErrUnsafe) {
+			return errors.Join(ctx.Err(), err)
 		}
-		result, err := native.ExecuteCommand(ctx, scratch, []string{"./scripts/" + script}, scratchEnvironment(r.environment, scratch), time.Minute)
-		if unsafeResult(result) || ctx.Err() != nil {
-			return fmt.Errorf("adapter sync %s did not complete safely (%s)", script, result.Outcome)
-		}
-		if err != nil || !succeeded(result) {
-			r.line("[warn]", "adapter drift unverified — "+script+" failed; run 'make sync-harnesses'")
+		if err != nil {
+			r.line("[warn]", "adapter drift unverified — sync-"+harness+".sh failed; run 'make sync-harnesses'")
 			return r.err
 		}
 	}
@@ -222,12 +205,41 @@ func (r *report) adapters(ctx context.Context, path string, data []byte) (return
 			}
 		}
 	}
-	if maps.Equal(expected, after.entries) {
+	if maps.Equal(normalizeAdapterJSON(expected), normalizeAdapterJSON(after.entries)) {
 		r.line("[ ok ]", "harness adapters match the opencode canon (no drift)")
 	} else {
 		r.line("[warn]", "harness adapters drifted — run 'make sync-harnesses' and commit")
 	}
 	return r.err
+}
+
+// JSON formatting is incidental; adapter modes, values and all other bytes
+// remain part of the drift comparison. Invalid JSON retains its literal bytes.
+// docs/adr/0099-native-factory-orchestration.md:55.
+func normalizeAdapterJSON(entries map[string]entry) map[string]entry {
+	result := maps.Clone(entries)
+	for _, name := range []string{".mcp.json", ".claude/settings.json"} {
+		item, ok := result[name]
+		if !ok {
+			continue
+		}
+		var value any
+		decoder := json.NewDecoder(strings.NewReader(item.data))
+		decoder.UseNumber()
+		if decoder.Decode(&value) != nil {
+			continue
+		}
+		var extra any
+		if decoder.Decode(&extra) != io.EOF {
+			continue
+		}
+		data, err := json.Marshal(value)
+		if err == nil {
+			item.data = string(data)
+			result[name] = item
+		}
+	}
+	return result
 }
 
 func (r *report) proof(ctx context.Context) error {
@@ -236,11 +248,7 @@ func (r *report) proof(ctx context.Context) error {
 		r.line("[FAIL]", "scripts/selftest/run.sh is missing — cannot prove the gates fire")
 		return r.err
 	}
-	tty := false
-	if file, ok := r.out.(*os.File); ok {
-		_, err := unix.IoctlGetWinsize(int(file.Fd()), unix.TIOCGWINSZ)
-		tty = err == nil
-	}
+	tty := presentation.Terminal(r.out)
 	if tty {
 		r.print("  break/fix self-test still going...\n")
 	} else {

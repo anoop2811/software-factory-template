@@ -32,7 +32,9 @@ type foreground struct {
 
 func takeForeground(file *os.File, pid int) (*foreground, error) {
 	group, err := unix.IoctlGetInt(int(file.Fd()), unix.TIOCGPGRP)
-	if errors.Is(err, unix.ENOTTY) {
+	// Darwin /dev/null reports ENODEV; neither case owns a terminal foreground.
+	// docs/adr/0099-native-factory-orchestration.md:200.
+	if errors.Is(err, unix.ENOTTY) || errors.Is(err, unix.ENODEV) {
 		return nil, nil
 	}
 	if err != nil {

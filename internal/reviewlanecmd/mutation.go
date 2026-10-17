@@ -16,6 +16,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/fileinput"
 	"github.com/anoop2811/software-factory-template/internal/filepublish"
 	"github.com/anoop2811/software-factory-template/internal/output"
+	"github.com/anoop2811/software-factory-template/internal/presentation"
 	"github.com/anoop2811/software-factory-template/internal/terminalinput"
 )
 
@@ -195,17 +196,10 @@ func enabledMessage(ctx context.Context, out io.Writer, s Settings, secret, mode
 	if model == "" {
 		model = s.model() + " (frontier tier)"
 	}
-	yellow, bold, reset := "", "", ""
-	if interactive && isTerminal(out) && s.Values["NO_COLOR"] == "" {
-		yellow = "\x1b[33m"
-		bold = "\x1b[1m"
-		reset = "\x1b[0m"
-	}
+	palette := presentation.PaletteFor(interactive && isTerminal(out), s.Values["NO_COLOR"])
+	bold, reset := palette.Bold, palette.Reset
 	message := "review lane: enabled.\n  model:  " + model + "\n\n  It runs a model over the diff of every pull request and posts an\n  advisory comment. That costs tokens on each PR — the reviewer is\n  deliberately the frontier tier, so it is the expensive one.\n\n"
-	message += yellow + bold + "┌─ Action required — the lane cannot work without this " + reset + "\n"
-	for _, line := range []string{"Add a repository secret named " + bold + secret + reset, "GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret", "Value: your " + s.value("MODEL_PROVIDER", "openrouter") + " API key"} {
-		message += yellow + "│" + reset + " " + line + "\n"
-	}
-	message += yellow + "└─" + reset + "\n\n  It is advisory only and never a required check. Turn it off any time\n  with: ./factory review-lane disable\n"
+	message += presentation.Box(palette, "Action required — the lane cannot work without this", []string{"Add a repository secret named " + bold + secret + reset, "GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret", "Value: your " + s.value("MODEL_PROVIDER", "openrouter") + " API key"})
+	message += "\n  It is advisory only and never a required check. Turn it off any time\n  with: ./factory review-lane disable\n"
 	return output.WriteEvent(ctx, out, []byte(message))
 }

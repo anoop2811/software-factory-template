@@ -222,3 +222,15 @@ Authoritative sources checked 2026-10-17: https://pkg.go.dev/vuln/GO-2026-5970
 and https://github.com/golang/text/tags (v0.39.0 dated 2026-06-30). The official
 Go module proxy latest query returned v0.43.0, dated 2026-10-09; the selected
 v0.39.0 is deliberately the bounded security update, not a latest-version claim.
+
+### Frozen initializer qualification allowance
+
+The installation acceptance fixture executes the immutable initializer and its
+entire installed selftest. Give that fixture a bounded three-minute allowance:
+the macOS run at commit 3bcf530 reached its former one-minute deadline while
+the legacy selftest was still reporting successful checks. Keep the real
+initializer, process-group cancellation, successful exit and `gates proven`
+assertions. This changes only the test fixture's allowance; adopter operation
+timeouts and production execution limits remain unchanged.
+Observed 2026-10-17:
+https://github.com/anoop2811/software-factory-template/actions/runs/39050121070/job/117446817823

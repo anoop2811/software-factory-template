@@ -407,11 +407,18 @@ var _ = Describe("Native orchestration helpers", func() {
 	// per docs/adr/0099-native-factory-orchestration.md:143
 	DescribeTable("refuses budget target attributes before an earlier valid assignment can take effect", func(declaration string) {
 		root, cwd := fixture()
+		shell, err := exec.LookPath("bash")
+		Expect(err).NotTo(HaveOccurred())
+		if strings.HasPrefix(declaration, "declare -n ") {
+			if supported := orchestrationHelperProcess(cwd, nil, shell, "-c", `declare -n fixture_probe`); supported.status != 0 {
+				Skip("the selected Bash does not support declare -n: " + shell)
+			}
+		}
 		fake := filepath.Join(root, "plan-runtime")
 		writeFixture(fake, []byte("#!/bin/sh\nprintf '%s' \"$FACTORY_ACCEPTANCE_HELPER_PLAN\"\n"), 0755)
 		payload := "FACTORY_BUDGET_PLAN_V1\nset\tMODEL_PROVIDER\tchanged\nset\tFACTORY_BUDGET_MAX_ATTEMPTS\t9\nEND\n"
 		probe := `. "$1" || exit "$?"; MODEL_PROVIDER=original; target=1; ` + declaration + `; factory_budget_config; status=$?; printf '%s\000%s\000%s' "$status" "$MODEL_PROVIDER" "$target"`
-		result := orchestrationHelperShell(root, cwd, "bash", probe, map[string]string{"FACTORY_RUNTIME_BINARY": fake, "FACTORY_ACCEPTANCE_HELPER_PLAN": payload})
+		result := orchestrationHelperShell(root, cwd, shell, probe, map[string]string{"FACTORY_RUNTIME_BINARY": fake, "FACTORY_ACCEPTANCE_HELPER_PLAN": payload})
 		Expect(result.status).To(BeZero())
 		Expect(result.stdout).To(Equal("2\x00original\x001"))
 		Expect(result.stderr).To(HavePrefix("factory bridge: "))

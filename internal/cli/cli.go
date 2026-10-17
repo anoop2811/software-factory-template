@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -24,6 +25,8 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
 	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
+	"github.com/anoop2811/software-factory-template/internal/reviewbatch"
+	"github.com/anoop2811/software-factory-template/internal/reviewci"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
 	"github.com/anoop2811/software-factory-template/internal/upgradecmd"
 	"github.com/spf13/cobra"
@@ -42,6 +45,7 @@ Usage: factory <command> [args]
               Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
   check       Run the full pre-push gate suite
   selftest    Run the break/fix self-test (watch every gate fire)
+  review-batch Review complete PR diffs in bounded, budgeted model batches
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
   metrics     What the factory is doing to this repo (--json, --html); local only
               (--html opens the page; --no-open just writes it)
@@ -67,6 +71,7 @@ var scripts = map[string]string{
 	"metrics":        "factory-metrics.sh",
 	"review-lane":    "factory-review-lane.sh",
 	"migrate-config": "factory-migrate-config.sh",
+	"review-batch":   "",
 }
 
 // Run routes the legacy first command token without reinterpreting script flags.
@@ -127,6 +132,19 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Trusted CI and local callers share one bounded Go review engine.
+				// docs/adr/0100-budgeted-batched-adversarial-review.md:23.
+				if name == "review-batch" {
+					ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+					defer stop()
+					environment := configuredcmd.CaptureEnvironment()
+					if len(forwarded) > 0 && forwarded[0] == "github" {
+						status = reviewci.Run(ctx, forwarded[1:], environment, os.Stdout, os.Stderr)
+					} else {
+						status = reviewbatch.Run(ctx, forwarded, environment, os.Stdout, os.Stderr)
+					}
+					return nil
+				}
 				if name == "selftest" {
 					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
 						if err := installedproof.Run(cmd.Context(), selected.root, os.Stdout); err != nil {

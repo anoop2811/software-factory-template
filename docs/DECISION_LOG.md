@@ -4341,3 +4341,16 @@ safety/cleanup or coverage finding. Hosted CI must qualify this new commit;
 the earlier 15-green head does not establish that. Python stays provisioned for
 remaining fixtures and actual supported legacy/cross-language compatibility
 oracles. A Go rewrite of those reference implementations would remove evidence.
+
+## Decision 99 (2026-10-17 UTC): make adversarial review bounded and explicit
+
+The user authorized the six-part batched-review proposal and explicitly required
+the change itself to receive model review. ADR 0100 records the contract before
+code: bounded batches, exact-commit coverage, authenticated successful cache,
+optional approved same-model fallback, run-wide attempt/token/input limits and
+truthful completion status. Use independent Ginkgo/Gomega criteria, the existing
+Go client, no new dependency module and no PR-head execution with review secrets.
+
+This branch is independent of open PR #126. Reserve ADR 0099 and Decision 98 for
+that existing orchestration change. Observe actual model completion for this
+repair's final diff, not merely an advisory workflow's successful posting step.

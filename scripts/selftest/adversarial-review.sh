@@ -188,44 +188,95 @@ repository_default_provider() {
 }
 
 # These source constraints do not prove GitHub runtime execution.
-trusted_base_guard() {
-  local guard workflow checkout
-  for workflow in "$ROOT/packs/review-lane/review-pr.yml" "$ROOT/.github/workflows/adversarial-review.yml"; do
-    guard="$(sed -n '/^  review:$/,/^    runs-on:/s/^    if: //p' "$workflow")"
-    if [ "$guard" != 'github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch' ]; then
-      printf 'unexpected privileged-job guard: %s\n' "$workflow" >&2
-      return 1
-    fi
-    # Read this scaffold's explicit step layout; a changed layout must receive
-    # review rather than making this bounded structural check pass vacuously.
-    checkout="$(awk '
-      function finish() {
-        if (owns_checkout) saved = block
-        block = ""; owns_checkout = 0
-      }
-      /^      - / { finish(); in_step = 1 }
-      in_step && NF && $0 !~ /^      / { finish(); in_step = 0 }
-      /^[[:space:]]*(-[[:space:]]*)?uses:[[:space:]]*actions\/checkout@/ {
-        count++
-        if (in_step) owns_checkout = 1
-      }
-      in_step { block = block $0 "\n" }
-      END {
-        finish()
-        if (count != 1 || saved == "") exit 1
-        printf "%s", saved
-      }
-    ' "$workflow")" || {
-      printf 'expected exactly one explicit checkout step: %s\n' "$workflow" >&2
-      return 1
+# Read the explicit scaffold layout fail-closed; identity/cache data may name the
+# PR head, but executable code stays on the trusted base.
+# docs/adr/0100-budgeted-batched-adversarial-review.md:83.
+trusted_workflow_guard() {
+  local workflow="$1" guard checkout runs head_uses unsafe_head_uses
+  guard="$(sed -n '/^  review:$/,/^    runs-on:/s/^    if: //p' "$workflow")"
+  if [ "$guard" != "(github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch) || (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))" ]; then
+    printf 'unexpected privileged-job guard: %s\n' "$workflow" >&2
+    return 1
+  fi
+  checkout="$(awk '
+    function finish() {
+      if (owns_checkout) saved = block
+      block = ""; owns_checkout = 0
     }
-    if ! printf '%s\n' "$checkout" | grep -qE '^      (  uses:|- uses:) actions/checkout@[[:xdigit:]]{40}( #.*)?$' ||
-       [ "$(printf '%s\n' "$checkout" | grep '^          ref:')" != '          ref: ${{ github.event.pull_request.base.sha }}' ] ||
-       [ "$(printf '%s\n' "$checkout" | grep '^          persist-credentials:')" != '          persist-credentials: false' ] ||
-       grep -qE 'github\.event\.pull_request\.head\.(sha|ref)|github\.head_ref' "$workflow"; then
-      printf 'unexpected trusted checkout configuration: %s\n' "$workflow" >&2
-      return 1
-    fi
+    /^      - / { finish(); in_step = 1 }
+    in_step && NF && $0 !~ /^      / { finish(); in_step = 0 }
+    /^[[:space:]]*(-[[:space:]]*)?uses:[[:space:]]*actions\/checkout@/ {
+      count++
+      if (in_step) owns_checkout = 1
+    }
+    in_step { block = block $0 "\n" }
+    END {
+      finish()
+      if (count != 1 || saved == "") exit 1
+      printf "%s", saved
+    }
+  ' "$workflow")" || {
+    printf 'expected exactly one explicit checkout step: %s\n' "$workflow" >&2
+    return 1
+  }
+  if ! printf '%s\n' "$checkout" | grep -qE '^      (  uses:|- uses:) actions/checkout@[[:xdigit:]]{40}( #.*)?$' ||
+     [ "$(printf '%s\n' "$checkout" | grep '^          ref:')" != '          ref: ${{ github.event.pull_request.base.sha || github.sha }}' ] ||
+     [ "$(printf '%s\n' "$checkout" | grep '^          persist-credentials:')" != '          persist-credentials: false' ] ||
+     grep -qE 'github\.event\.pull_request\.head\.ref|github\.head_ref' "$workflow"; then
+    printf 'unexpected trusted checkout configuration: %s\n' "$workflow" >&2
+    return 1
+  fi
+
+  # Head SHA is allowed only in the expected-identity environment binding and
+  # inert cache keys. It must never select executable source or enter run code
+  # as an Actions expression. Default-branch dispatch is guarded above, so its
+  # github.sha fallback still names trusted executable source.
+  head_uses="$(grep 'github.event.pull_request.head.sha' "$workflow" || true)"
+  unsafe_head_uses="$(printf '%s\n' "$head_uses" | grep -vE '^      EXPECTED_HEAD: \$\{\{ github\.event\.pull_request\.head\.sha \}\}$|^          key: factory-review-v1-.*\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}.*$' || true)"
+  [ -z "$unsafe_head_uses" ] || {
+    printf 'head identity appears outside inert bindings: %s\n' "$workflow" >&2
+    return 1
+  }
+  runs="$(awk '
+    /^        run: / { active = 1; print; next }
+    active && NF && $0 !~ /^          / { active = 0 }
+    active { print }
+  ' "$workflow")"
+  unsafe_head_uses="$(printf '%s\n' "$runs" | grep 'EXPECTED_HEAD' |
+    grep -vxF -e '          if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi' \
+      -e '          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \' || true)"
+  [ -z "$unsafe_head_uses" ] || {
+    printf 'head identity used outside literal identity arguments: %s\n' "$workflow" >&2
+    return 1
+  }
+}
+
+trusted_base_guard() {
+  local workflow mutation
+  for workflow in "$ROOT/packs/review-lane/review-pr.yml" "$ROOT/.github/workflows/adversarial-review.yml"; do
+    trusted_workflow_guard "$workflow" || return 1
+
+    # Negative controls retain the old untrusted-checkout/missing-guard checks
+    # and cover the newly permitted manual-dispatch and data-only head paths.
+    for mutation in missing-guard untrusted-checkout missing-default-target unguarded-dispatch persisted-credentials execute-head-expression execute-head-variable; do
+      case "$mutation" in
+        missing-guard) sed '/^    if: /d' "$workflow" ;;
+        untrusted-checkout) sed 's/ref: \${{ github.event.pull_request.base.sha || github.sha }}/ref: ${{ github.event.pull_request.head.sha }}/' "$workflow" ;;
+        missing-default-target) sed 's/ \&\& github.event.pull_request.base.ref == github.event.repository.default_branch//' "$workflow" ;;
+        unguarded-dispatch) sed "s/ \&\& github.ref == format('refs\/heads\/{0}', github.event.repository.default_branch)//" "$workflow" ;;
+        persisted-credentials) sed 's/persist-credentials: false/persist-credentials: true/' "$workflow" ;;
+        execute-head-expression) sed '/^        run: |$/a\
+          git checkout ${{ github.event.pull_request.head.sha }}
+' "$workflow" ;;
+        execute-head-variable) sed '/^        run: |$/a\
+          git checkout "$EXPECTED_HEAD"
+' "$workflow" ;;
+      esac > "$FIXTURE/unsafe-workflow.yml"
+      if trusted_workflow_guard "$FIXTURE/unsafe-workflow.yml" >/dev/null 2>&1; then
+        printf 'trusted guard accepted negative control %s: %s\n' "$mutation" "$workflow" >&2
+        return 1
+      fi
+    done
   done
 }
 

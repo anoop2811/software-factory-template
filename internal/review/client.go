@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,17 @@ type metrics struct {
 	mu                                                      sync.Mutex
 	status, attempts, bytes, content, reasoning, heartbeats int
 	start                                                   time.Time
+	usage                                                   json.RawMessage
+}
+
+// Options lets a caller share one budget and deadline across review requests.
+// docs/adr/0100-budgeted-batched-adversarial-review.md:49.
+type Options struct {
+	APIKey         string
+	TimeoutSeconds int
+	HTTPRetries    int
+	BeforeAttempt  func(requestBytes, maxTokens int) error
+	OnUsage        func(json.RawMessage)
 }
 
 func (m *metrics) report(out io.Writer, kind string) {
@@ -46,13 +58,32 @@ func Run(ctx context.Context, input io.Reader, output, diagnostics io.Writer) er
 	if retries != "" && retries != "0" && retries != "1" {
 		return errors.New("invalid review retries")
 	}
-	key := os.Getenv("REVIEW_API_KEY")
-	if strings.TrimSpace(key) == "" {
+	count := 0
+	if retries == "1" {
+		count = 1
+	}
+	return run(ctx, input, output, diagnostics, m, Options{APIKey: os.Getenv("REVIEW_API_KEY"), TimeoutSeconds: seconds, HTTPRetries: count})
+}
+
+// RunWithOptions preserves strict streaming admission while admitting each
+// actual attempt through the caller's run-wide budget.
+// docs/adr/0100-budgeted-batched-adversarial-review.md:68.
+func RunWithOptions(ctx context.Context, input io.Reader, output, diagnostics io.Writer, options Options) error {
+	m := &metrics{start: time.Now()}
+	defer m.report(diagnostics, "summary")
+	return run(ctx, input, output, diagnostics, m, options)
+}
+
+func run(ctx context.Context, input io.Reader, output, diagnostics io.Writer, m *metrics, options Options) error {
+	if options.TimeoutSeconds < 1 || options.TimeoutSeconds > 1200 || options.HTTPRetries < 0 || options.HTTPRetries > 1 {
+		return errors.New("invalid review options")
+	}
+	if strings.TrimSpace(options.APIKey) == "" {
 		return errors.New("missing review API key")
 	}
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(options.TimeoutSeconds)*time.Second)
 	defer cancel()
 	if closer, ok := input.(io.Closer); ok {
 		stopClose := context.AfterFunc(ctx, func() { _ = closer.Close() })
@@ -62,14 +93,25 @@ func Run(ctx context.Context, input io.Reader, output, diagnostics io.Writer) er
 	if err != nil {
 		return contextFailure(ctx, err)
 	}
+	var allowance struct {
+		MaxTokens int `json:"max_tokens"`
+	}
+	if json.Unmarshal(body, &allowance) != nil {
+		return errors.New("invalid review request")
+	}
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, DialContext: (&net.Dialer{Timeout: 15 * time.Second}).DialContext, TLSHandshakeTimeout: 15 * time.Second, DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 1 << 20}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	for attempt := 1; attempt <= 2; attempt++ {
+		if options.BeforeAttempt != nil {
+			if err := options.BeforeAttempt(len(body), allowance.MaxTokens); err != nil {
+				return errors.New("review budget exhausted")
+			}
+		}
 		m.mu.Lock()
 		m.attempts = attempt
 		m.mu.Unlock()
-		response, closeAttempt, err := send(ctx, client, body, key)
+		response, closeAttempt, err := send(ctx, client, body, options.APIKey)
 		if err != nil {
 			return contextFailure(ctx, err)
 		}
@@ -80,7 +122,7 @@ func Run(ctx context.Context, input io.Reader, output, diagnostics io.Writer) er
 			header := response.Header.Get("Retry-After")
 			_ = response.Body.Close()
 			closeAttempt()
-			if attempt != 1 || retries != "1" || (response.StatusCode != 429 && response.StatusCode != 503) {
+			if attempt != 1 || options.HTTPRetries != 1 || (response.StatusCode != 429 && response.StatusCode != 503) {
 				return errors.New("review HTTP failure")
 			}
 			delay, err := retryDelay(header, time.Now())
@@ -128,6 +170,12 @@ func Run(ctx context.Context, input io.Reader, output, diagnostics io.Writer) er
 		}
 		if _, err := io.WriteString(output, strings.TrimRight(findings, "\n")+"\n"); err != nil {
 			return errors.New("cannot write review")
+		}
+		if options.OnUsage != nil {
+			m.mu.Lock()
+			usage := append(json.RawMessage(nil), m.usage...)
+			m.mu.Unlock()
+			options.OnUsage(usage)
 		}
 		return nil
 	}

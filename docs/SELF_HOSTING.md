@@ -45,9 +45,29 @@ runner defaults to OpenRouter; no native harness model setting is needed.
 Add the key through GitHub Settings > Secrets and variables > Actions. Never
 commit it. After the workflow is merged, same-repository PR open/update/reopen
 events targeting the default branch fetch the diff as data and post an advisory
-review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
+review using trusted base code. Fork PRs and other base branches are excluded.
+The model's opinion is not a required merge gate.
 
-The lane permits one HTTP request per run, a 200000-byte diff, a 1200-second
+### Budgeted batch review
+
+The trusted-base Go command `factory review-batch github` reviews bounded batches
+and authenticates reusable completed results. Local `factory review-batch --plan`
+is offline. [ADR 0100](adr/0100-budgeted-batched-adversarial-review.md) defines
+inputs, Actions variables, defaults, nullable usage and opt-in provider limits.
+Account/key limits remain the monetary backstop.
+
+**Adversarial review coverage** succeeds only for complete current-head coverage.
+The comment and retained seven-day artifacts identify revisions and missing work;
+findings remain advisory. After merge, Actions > Adversarial review > Run workflow
+accepts a PR number on the trusted default branch. PR-head code never gets keys.
+
+Generated workflows opt in using an absolute compatible trusted `REVIEW_GO_CLIENT`
+and configured model. Otherwise they retain the legacy path below; skips/failures
+exit nonzero. They never compile adopter product code.
+
+### Legacy single-diff compatibility runner
+
+The legacy runner permits one HTTP request per run, a 200000-byte diff, a 1200-second
 total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
 The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment

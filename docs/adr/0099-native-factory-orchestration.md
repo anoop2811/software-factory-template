@@ -234,3 +234,25 @@ assertions. This changes only the test fixture's allowance; adopter operation
 timeouts and production execution limits remain unchanged.
 Observed 2026-10-17:
 https://github.com/anoop2811/software-factory-template/actions/runs/39050121070/job/117446817823
+
+### Reviewed parity edge cases
+
+Codex basic strings must escape DEL (U+007F) as `\u007f`; JSON string
+encoding alone leaves this TOML-forbidden scalar literal. Preserve its decoded
+value in every generated TOML field that contains it.
+
+Structural evaluation returns status 2 and a sanitized, relative adapter-path
+diagnostic when its required adapter cannot be read; an ordinary missing marker
+still returns 1. Do not expose raw file contents or environment values.
+
+Event retention must process regular logs larger than 64 MiB with bounded memory.
+Count newline-terminated rows and retain the newest configured half only after
+the configured line cap is exceeded, including the newly appended row. Retain
+private atomic publication and best-effort behavior; do not reset existing logs
+or introduce a locking contract absent from the immutable implementation.
+
+Artifact-parity normalization must preserve exact JSON numbers, including
+adjacent integers above 2^53, while ignoring whitespace and member ordering.
+These refinements were confirmed by independent verification of the completed
+PR #126 model review of commit 7e4f1b9947c2ba34e49bc8fdb2c8b866060d5df6:
+https://github.com/anoop2811/software-factory-template/pull/126#issuecomment-6244615935

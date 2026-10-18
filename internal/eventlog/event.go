@@ -2,17 +2,15 @@
 package eventlog
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
-
-	"github.com/anoop2811/software-factory-template/internal/fileinput"
 )
 
 // Append keeps the newest half only after the configured line cap is exceeded.
@@ -55,14 +53,26 @@ func Append(ctx context.Context, root string, environment map[string]string, gat
 	if err != nil || maximum <= 0 {
 		maximum = 5000
 	}
-	data, err := fileinput.Read(ctx, path, 64<<20)
-	if err != nil || int64(bytes.Count(data, []byte{'\n'})) <= maximum {
+	return retain(ctx, path, maximum)
+}
+
+// retain scans and copies fixed-size chunks, including logs with oversized rows.
+// docs/adr/0099-native-factory-orchestration.md:248.
+func retain(ctx context.Context, path string, maximum int64) error {
+	// #nosec G304 -- Caller-selected log; nonblocking open followed by regular-file validation.
+	input, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
 		return err
 	}
-	keep := max(maximum/2, 1)
-	start := len(data)
-	for remaining := keep; remaining > 0 && start > 0; remaining-- {
-		start = bytes.LastIndexByte(data[:start-1], '\n') + 1
+	defer func() { _ = input.Close() }()
+	before, err := input.Stat()
+	if err != nil || !before.Mode().IsRegular() {
+		return errors.Join(err, errors.New("event log is not a regular file"))
+	}
+	buffer := make([]byte, 32<<10)
+	start, trim, err := retainedStart(ctx, input, before.Size(), maximum, buffer)
+	if err != nil || !trim {
+		return err
 	}
 	directory, err := os.MkdirTemp(filepath.Dir(path), ".events.")
 	if err != nil {
@@ -70,11 +80,79 @@ func Append(ctx context.Context, root string, environment map[string]string, gat
 	}
 	defer func() { _ = os.RemoveAll(directory) }()
 	temporary := directory + "/trim"
-	if err := os.WriteFile(temporary, data[start:], 0600); err != nil {
+	// #nosec G304 -- Exclusive file in the private directory created above.
+	output, err := os.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
 		return err
+	}
+	copyErr := copyRetained(ctx, output, io.NewSectionReader(input, start, before.Size()-start), buffer)
+	if err := errors.Join(copyErr, output.Close()); err != nil {
+		return err
+	}
+	after, err := input.Stat()
+	if err != nil {
+		return err
+	}
+	if before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) || before.Mode() != after.Mode() {
+		return errors.New("event log changed during retention")
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	return os.Rename(temporary, path)
+}
+
+// Count newline-terminated rows like wc -l, locating the suffix like tail -n.
+// A partial final row counts toward the retained suffix, but not the line cap.
+func retainedStart(ctx context.Context, file *os.File, size, maximum int64, buffer []byte) (int64, bool, error) {
+	keep := max(maximum/2, 1)
+	var lines, boundaries, start int64
+	for end := size; end > 0; {
+		if err := ctx.Err(); err != nil {
+			return 0, false, err
+		}
+		offset := max(end-int64(len(buffer)), 0)
+		chunk := buffer[:end-offset]
+		if _, err := file.ReadAt(chunk, offset); err != nil {
+			return 0, false, err
+		}
+		if end == size && chunk[len(chunk)-1] != '\n' {
+			boundaries = 1
+		}
+		for i := len(chunk) - 1; i >= 0; i-- {
+			if chunk[i] != '\n' {
+				continue
+			}
+			lines++
+			boundaries++
+			if boundaries == keep+1 {
+				start = offset + int64(i) + 1
+			}
+			if lines > maximum {
+				return start, true, nil
+			}
+		}
+		end = offset
+	}
+	return 0, false, nil
+}
+
+func copyRetained(ctx context.Context, output io.Writer, input io.Reader, buffer []byte) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		n, readErr := input.Read(buffer)
+		if n > 0 {
+			if _, err := output.Write(buffer[:n]); err != nil {
+				return err
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return ctx.Err()
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
 }

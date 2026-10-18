@@ -4357,3 +4357,16 @@ merely add source commands beside copied shell business logic. Keep source-mode
 legacy evidence until default bootstrap cutover, which is a separate release
 workstream. Retain the fixed source-plan denominator and chat-only feature table;
 status must distinguish implemented, qualified, merged and released behavior.
+
+## Decision 99 (2026-10-17 UTC): make adversarial review bounded and explicit
+
+User-approved ADR 0100 requires independent Ginkgo/Gomega TDD and model review.
+Never execute PR-head code with secrets.
+PR #126 stays separate, with ADR 0099 and Decision 98 reserved.
+
+Manual reruns bind recorded PR revisions separately from trusted code provenance.
+
+The user requested resolving PR #126 conflicts after #127 merged. Retain both
+native orchestration and budgeted review routes and their independent acceptance
+coverage. Rediscover the combined scheduling counts. Review the resulting head
+from trusted main; an earlier review of 7e4f1b9 does not qualify the merged code.

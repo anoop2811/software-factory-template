@@ -264,13 +264,14 @@ func yamlScalar(value string) string {
 	return string(data)
 }
 func tomlString(value string) string {
-	// JSON's string escapes are also TOML basic-string escapes; disable HTML
-	// escaping to retain the legacy generator's ordinary bytes.
+	// JSON leaves DEL literal, but TOML basic strings prohibit it. Preserve its
+	// decoded value and avoid HTML escaping ordinary generator bytes.
+	// docs/adr/0099-native-factory-orchestration.md:240.
 	var out strings.Builder
 	encoder := json.NewEncoder(&out)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(value)
-	return strings.TrimSuffix(out.String(), "\n")
+	return strings.ReplaceAll(strings.TrimSuffix(out.String(), "\n"), "\x7f", `\u007f`)
 }
 
 const claudeImplementerHook = `hooks:

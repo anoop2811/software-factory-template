@@ -406,6 +406,23 @@ var _ = Describe("Native orchestration eval", func() {
 		Expect(os.IsNotExist(err)).To(BeTrue(), "the original task remains untouched")
 	})
 
+	// per docs/adr/0099-native-factory-orchestration.md:244
+	DescribeTable("distinguishes missing structural adapters from ordinary missing markers", func(harness, path string) {
+		root, environment := orchestrationEvalFixture()
+		legacy := orchestrationCommand(root, root, environment, "/bin/bash", filepath.Join(root, "frozen/scripts/harness-structural-eval.sh"), "--harness="+harness)
+		Expect(legacy.status).To(Equal(2), "%+v", legacy)
+		Expect(legacy.stderr).To(ContainSubstring(path))
+		missing := orchestrationEval(root, environment, "structural", "--harness="+harness)
+		Expect(missing.status).To(Equal(legacy.status), "%+v", missing)
+		Expect(missing.stderr).To(ContainSubstring(path))
+		writeFixture(filepath.Join(root, path), []byte("PRIVATE_ADAPTER_CONTENT_WITHOUT_MARKERS\n"), 0600)
+		mismatch := orchestrationEval(root, environment, "structural", "--harness="+harness)
+		Expect(mismatch.status).To(Equal(1), "%+v", mismatch)
+		Expect(mismatch.stderr).NotTo(ContainSubstring("PRIVATE_ADAPTER_CONTENT"))
+	}, Entry("OpenCode", "opencode", ".opencode/plugin/factory-hooks.ts"),
+		Entry("Claude", "claude", ".claude/agents/implementer.md"),
+		Entry("Codex", "codex", ".codex/agents/implementer.toml"))
+
 	// per docs/adr/0099-native-factory-orchestration.md:99
 	// per docs/adr/0099-native-factory-orchestration.md:104
 	DescribeTable("evaluates caller project inputs when its binary is located in another checkout", func(operation string) {

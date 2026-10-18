@@ -28,6 +28,7 @@ var commandRoutes = []struct{ command, script string }{
 
 // Independent expected public command inventory, including the new native routes.
 // per docs/adr/0099-native-factory-orchestration.md:22
+// per docs/adr/0100-batched-review.md:23
 const nativeCLIUsage = `factory — software factory control surface
 
 Usage: factory <command> [args]
@@ -45,6 +46,7 @@ Usage: factory <command> [args]
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)
+  review-batch Review complete PR diffs in bounded, budgeted model batches
   review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
   metrics     What the factory is doing to this repo (--json, --html); local only
               (--html opens the page; --no-open just writes it)
@@ -55,7 +57,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
 `
 
 type cliResult struct {

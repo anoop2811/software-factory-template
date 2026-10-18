@@ -239,7 +239,11 @@ func nativeInitComparableArtifacts(root string) map[string]string {
 		data, err := hex.DecodeString(encoded)
 		Expect(err).NotTo(HaveOccurred())
 		var value any
-		Expect(json.Unmarshal(data, &value)).To(Succeed())
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.UseNumber()
+		Expect(decoder.Decode(&value)).To(Succeed())
+		var trailing any
+		Expect(decoder.Decode(&trailing)).To(Equal(io.EOF))
 		normalized, err := json.Marshal(value)
 		Expect(err).NotTo(HaveOccurred())
 		artifacts[path] = mode + ":" + hex.EncodeToString(normalized)
@@ -264,6 +268,17 @@ func nativeInitPoisonSync(source, oracle string, environment []string) ([]string
 }
 
 var _ = Describe("Native Go init artifact compatibility", func() {
+	// per docs/adr/0099-native-factory-orchestration.md:254
+	It("distinguishes adjacent large JSON integers while ignoring representation whitespace", func() {
+		_, cwd := fixture()
+		left, right := filepath.Join(cwd, "left"), filepath.Join(cwd, "right")
+		writeFixture(filepath.Join(left, "opencode.json"), []byte(`{"extra":"kept","retained":{"count":9007199254740992}}`), 0600)
+		writeFixture(filepath.Join(right, "opencode.json"), []byte(`{"extra":"kept","retained":{"count":9007199254740993}}`), 0600)
+		Expect(nativeInitComparableArtifacts(left)).NotTo(Equal(nativeInitComparableArtifacts(right)), "the parity oracle must detect one changed integer")
+		writeFixture(filepath.Join(right, "opencode.json"), []byte("{\n  \"retained\": {\"count\": 9007199254740992},\n  \"extra\": \"kept\"\n}\n"), 0600)
+		Expect(nativeInitComparableArtifacts(left)).To(Equal(nativeInitComparableArtifacts(right)))
+	})
+
 	// per docs/adr/0085-go-native-init.md:17
 	// per docs/adr/0099-native-factory-orchestration.md:43
 	// per docs/adr/0099-native-factory-orchestration.md:60

@@ -204,6 +204,36 @@ var _ = Describe("Native orchestration helpers", func() {
 		}
 	})
 
+	// per docs/adr/0099-native-factory-orchestration.md:248
+	It("retains the newest prior row and appended event after a log exceeds 64 MiB", func() {
+		root, cwd := fixture()
+		path := filepath.Join(cwd, "large-events.log")
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		payload := strings.Repeat("x", 22<<20)
+		for row := 0; row < 3; row++ {
+			_, err = file.WriteString("old\tgate\t")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = file.WriteString(payload)
+			Expect(err).NotTo(HaveOccurred())
+			_, err = file.WriteString("\n")
+			Expect(err).NotTo(HaveOccurred())
+		}
+		_, err = file.WriteString("prior\tgate\tretained-newest\n")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(file.Close()).To(Succeed())
+		info, err := os.Stat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Size()).To(BeNumerically(">", 64<<20))
+		environment := map[string]string{"FACTORY_EVENT_LOG": path, "FACTORY_EVENT_MAX_LINES": "4"}
+		Expect(orchestrationHelperBridge(root, cwd, environment, "event", "gate", "newest")).To(Equal(cliResult{"", "", 0}))
+		data, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Count(string(data), "\n")).To(Equal(2))
+		Expect(string(data)).To(HavePrefix("prior\tgate\tretained-newest\n"))
+		Expect(string(data)).To(HaveSuffix("\tgate\tnewest\n"))
+	})
+
 	// per docs/adr/0099-native-factory-orchestration.md:138
 	It("falls back to 5000 for invalid caps and never turns logging failure into a gate failure", func() {
 		root, cwd := fixture()

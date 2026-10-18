@@ -39,32 +39,28 @@ type reviewService struct {
 	requests  []reviewObservation
 }
 
-func reviewFixture(cwd string, respond func(http.ResponseWriter, *http.Request, int)) *reviewService {
+// Both streaming and hosted adapters retain real HTTPS hostname validation and
+// an explicit CONNECT destination allowlist through the same test transport.
+// per docs/adr/0100-batched-review.md:106
+func reviewTLSProxy(cwd string, allowedHosts []string, respond http.Handler) (string, string) {
 	GinkgoHelper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	Expect(err).NotTo(HaveOccurred())
-	cert := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "test-owned review service"}, DNSNames: []string{"openrouter.ai"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, IsCA: true, BasicConstraintsValid: true}
+	cert := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "test-owned review service"}, DNSNames: allowedHosts, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, IsCA: true, BasicConstraintsValid: true}
 	der, err := x509.CreateCertificate(rand.Reader, cert, cert, &key.PublicKey, key)
 	Expect(err).NotTo(HaveOccurred())
-	service := &reviewService{ca: filepath.Join(cwd, "review-ca.pem")}
-	writeFixture(service.ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0600)
-	backend := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, readErr := io.ReadAll(r.Body)
-		if readErr != nil {
-			http.Error(w, "fixture read failure", http.StatusInternalServerError)
-			return
-		}
-		service.mu.Lock()
-		service.requests = append(service.requests, reviewObservation{r.Host, r.URL.Path, r.Header.Get("Authorization"), body})
-		count := len(service.requests)
-		service.mu.Unlock()
-		respond(w, r, count)
-	}))
+	ca := filepath.Join(cwd, "review-ca.pem")
+	writeFixture(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0600)
+	backend := httptest.NewUnstartedServer(respond)
 	backend.TLS = &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
 	backend.StartTLS()
 	DeferCleanup(backend.Close)
+	allowed := make(map[string]bool, len(allowedHosts))
+	for _, host := range allowedHosts {
+		allowed[net.JoinHostPort(host, "443")] = true
+	}
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodConnect || r.Host != "openrouter.ai:443" {
+		if r.Method != http.MethodConnect || !allowed[r.Host] {
 			http.Error(w, "unexpected fixture destination", http.StatusBadRequest)
 			return
 		}
@@ -90,7 +86,24 @@ func reviewFixture(cwd string, respond func(http.ResponseWriter, *http.Request, 
 		<-done
 	}))
 	DeferCleanup(proxy.Close)
-	service.proxy = proxy.URL
+	return proxy.URL, ca
+}
+
+func reviewFixture(cwd string, respond func(http.ResponseWriter, *http.Request, int)) *reviewService {
+	GinkgoHelper()
+	service := &reviewService{}
+	service.proxy, service.ca = reviewTLSProxy(cwd, []string{"openrouter.ai"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr := io.ReadAll(r.Body)
+		if readErr != nil {
+			http.Error(w, "fixture read failure", http.StatusInternalServerError)
+			return
+		}
+		service.mu.Lock()
+		service.requests = append(service.requests, reviewObservation{r.Host, r.URL.Path, r.Header.Get("Authorization"), body})
+		count := len(service.requests)
+		service.mu.Unlock()
+		respond(w, r, count)
+	}))
 	return service
 }
 func (s *reviewService) observed() []reviewObservation {

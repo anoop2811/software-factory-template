@@ -40,7 +40,9 @@ func structural(ctx context.Context, args []string, root string, environment map
 	}
 	data, err := fileinput.Read(ctx, filepath.Join(root, path), fileLimit)
 	if err != nil {
-		return 1
+		// docs/adr/0099-native-factory-orchestration.md:244.
+		fmt.Fprintf(stderr, "harness-structural-eval: cannot read adapter %s\n", path)
+		return 2
 	}
 	for _, needle := range needles {
 		if !strings.Contains(string(data), needle) {

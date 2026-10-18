@@ -254,6 +254,26 @@ var _ = Describe("Native orchestration sync generated adapters", func() {
 		Expect(syncRead(root, "opencode.json")).To(Equal(syncCanonicalJSON))
 	})
 
+	// per docs/adr/0099-native-factory-orchestration.md:240
+	It("escapes DEL in Codex descriptions without changing the decoded canonical value", func() {
+		root, cwd, environment := syncFixture()
+		description := "Canonical \x7f description"
+		canonical := syncJSON(syncCanonicalJSON)
+		canonical["agent"].(map[string]any)["implementer"].(map[string]any)["description"] = description
+		syncWriteJSON(root, canonical)
+		result := syncRun(root, cwd, environment, "codex")
+		Expect(result.status).To(BeZero(), "%+v", result)
+		for _, path := range []string{".codex/config.toml", ".codex/agents/implementer.toml"} {
+			data := syncRead(root, path)
+			Expect(data).NotTo(ContainSubstring("\x7f"), "TOML forbids literal DEL: %s", path)
+		}
+		role := syncRead(root, ".codex/agents/implementer.toml")
+		Expect(role).To(ContainSubstring(`\u007f`))
+		decoded, exists := syncTOMLString(role, "description")
+		Expect(exists).To(BeTrue())
+		Expect(decoded).To(Equal(description))
+	})
+
 	// per docs/adr/0099-native-factory-orchestration.md:57
 	It("leaves OpenCode byte-for-byte intact when no harness setting activates synchronization", func() {
 		root, cwd, environment := syncFixture()

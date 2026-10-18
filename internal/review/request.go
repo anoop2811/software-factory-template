@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -81,11 +83,7 @@ func prepare(ctx context.Context, input io.Reader) ([]byte, error) {
 		}
 	}
 	if raw, exists := request["provider"]; exists {
-		var fields map[string]json.RawMessage
-		var order []string
-		if json.Unmarshal(raw, &fields) != nil || len(fields) != 3 || json.Unmarshal(fields["order"], &order) != nil || len(order) != 1 ||
-			!regexp.MustCompile(`^[a-z0-9]+([-/][a-z0-9]+)*$`).MatchString(order[0]) ||
-			!bytes.Equal(bytes.TrimSpace(fields["allow_fallbacks"]), []byte("false")) || !bytes.Equal(bytes.TrimSpace(fields["require_parameters"]), []byte("true")) {
+		if !validProvider(raw) {
 			return nil, errors.New("invalid review request")
 		}
 	}
@@ -95,6 +93,57 @@ func prepare(ctx context.Context, input io.Reader) ([]byte, error) {
 		return nil, errors.New("invalid review request")
 	}
 	return body, nil
+}
+
+// Explicit same-model fallback cannot widen the approved provider set or price.
+// docs/adr/0100-batched-review.md:68.
+func validProvider(raw json.RawMessage) bool {
+	var fields map[string]json.RawMessage
+	var order []string
+	if json.Unmarshal(raw, &fields) != nil || len(fields) < 3 || len(fields) > 5 ||
+		json.Unmarshal(fields["order"], &order) != nil || len(order) < 1 || len(order) > 4 ||
+		!bytes.Equal(bytes.TrimSpace(fields["require_parameters"]), []byte("true")) {
+		return false
+	}
+	for key := range fields {
+		switch key {
+		case "order", "only", "allow_fallbacks", "require_parameters", "max_price":
+		default:
+			return false
+		}
+	}
+	seen := map[string]bool{}
+	for _, provider := range order {
+		if len(provider) > 128 || !regexp.MustCompile(`^[a-z0-9]+([-/][a-z0-9]+)*$`).MatchString(provider) || seen[provider] {
+			return false
+		}
+		seen[provider] = true
+	}
+	if only, exists := fields["only"]; exists {
+		var providers []string
+		if json.Unmarshal(only, &providers) != nil || !slices.Equal(order, providers) {
+			return false
+		}
+	} else if len(order) != 1 {
+		return false
+	}
+	price, priced := fields["max_price"]
+	if priced {
+		var prices map[string]float64
+		if json.Unmarshal(price, &prices) != nil || len(prices) != 2 {
+			return false
+		}
+		for _, key := range []string{"prompt", "completion"} {
+			value := prices[key]
+			if value <= 0 || math.IsInf(value, 0) || math.IsNaN(value) {
+				return false
+			}
+		}
+	}
+	if len(order) > 1 {
+		return priced && bytes.Equal(bytes.TrimSpace(fields["allow_fallbacks"]), []byte("true"))
+	}
+	return bytes.Equal(bytes.TrimSpace(fields["allow_fallbacks"]), []byte("false"))
 }
 
 type checkedReader struct {

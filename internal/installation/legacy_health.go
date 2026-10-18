@@ -14,13 +14,22 @@ import (
 // Saved before-images remain inert; none are used as execution fallback.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:297.
 func (owner *transaction) legacyHealth(ctx context.Context) (returned error) {
-	reference, err := reference(ctx, owner.request.Profile)
+	reference, err := predecessor(ctx, owner.request, owner.planned.image)
 	if err != nil {
 		return err
 	}
 	root := filepath.Join(owner.scratch, "legacy-candidate")
-	if err := os.Mkdir(root, 0700); err != nil {
-		return err
+	if owner.request.Profile == "go-hybrid-v1" {
+		if reference.Runtime == nil || owner.beforeStageTree == nil {
+			return conflict("qualified Go predecessor is unavailable")
+		}
+		if err := materializeSelection(ctx, root, *reference.Runtime, owner.request.Inputs, owner.beforeStageTree); err != nil {
+			return err
+		}
+	} else {
+		if err := os.Mkdir(root, 0700); err != nil {
+			return err
+		}
 	}
 	tree, err := installationfs.Open(ctx, root)
 	if err != nil {
@@ -28,6 +37,9 @@ func (owner *transaction) legacyHealth(ctx context.Context) (returned error) {
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
 	for _, row := range roles {
+		if owner.request.Profile == "go-hybrid-v1" {
+			break
+		}
 		data, mode, known, err := reference.original(ctx, row.Path, owner.request.Inputs)
 		if err != nil {
 			return err
@@ -54,6 +66,9 @@ func (owner *transaction) legacyHealth(ctx context.Context) (returned error) {
 	commands := [][]string{{"./factory", "--help"}, {"./factory", "metrics", "--json"}}
 	if owner.request.Profile == "bash-baseline" {
 		commands = append(commands, []string{"./factory", "budget", "report", "--json"})
+	}
+	if owner.request.Profile == "go-hybrid-v1" {
+		commands = append(commands, []string{"./factory", "selftest"})
 	}
 	for _, argv := range commands {
 		owner.record.Checks = append(owner.record.Checks, checkRecord{Name: "state-compatibility", Phase: "checking", Outcome: "pending", OwnershipUnconfirmed: true})

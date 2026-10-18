@@ -1,6 +1,198 @@
 #!/bin/sh
 set -eu
 
+# Candidate selection is reserved before the legacy parser (which re-splits its
+# arguments). Preserve literal argv and authenticate before the first execution.
+# docs/adr/0101-go-release-handoff.md:40, docs/adr/0101-go-release-handoff.md:80.
+candidate_install() {
+  umask 077
+  case "${1-}" in init|upgrade) ;; *) printf '%s\n' 'install: candidate requires init or upgrade' >&2; exit 2 ;; esac
+  candidate_tag='' candidate_pending=0 candidate_seen=0 candidate_help=0
+  for candidate_arg do
+    if [ "$candidate_pending" -eq 1 ]; then
+      candidate_tag=$candidate_arg; candidate_pending=0; continue
+    fi
+    case "$candidate_arg" in
+      --go-candidate|--go-candidate=*)
+        [ "$candidate_seen" -eq 0 ] || { printf '%s\n' 'install: repeated candidate selector' >&2; exit 2; }
+        candidate_seen=1
+        case "$candidate_arg" in
+          --go-candidate) candidate_pending=1 ;;
+          *) candidate_tag=${candidate_arg#--go-candidate=} ;;
+        esac ;;
+      --source|--source=*|--ref|--ref=*|--local|--local=*|--installation|--installation=*)
+        printf '%s\n' 'install: conflicting candidate source' >&2; exit 2 ;;
+      --help|-h) candidate_help=1 ;;
+    esac
+  done
+  case "$candidate_tag" in
+    ''|*[!a-zA-Z0-9._+-]*|[!a-zA-Z0-9]*|[mM][aA][iI][nN]|[hH][eE][aA][dD]|[lL][aA][tT][eE][sS][tT]|[cC][uU][rR][rR][eE][nN][tT])
+      printf '%s\n' 'install: invalid candidate tag' >&2; exit 2 ;;
+  esac
+  [ "$candidate_pending" -eq 0 ] && [ "${#candidate_tag}" -le 128 ] || exit 2
+  if [ "$candidate_help" -eq 1 ]; then
+    printf '%s\n' 'Usage: install.sh init|upgrade [args] --go-candidate TAG'
+    exit 0
+  fi
+  command -v gh >/dev/null 2>&1 || { printf '%s\n' 'install: trusted GitHub CLI (gh) is required' >&2; exit 1; }
+  candidate_verifier=$(command -v gh)
+  [ -f "$candidate_verifier" ] && [ -x "$candidate_verifier" ] && [ -x /bin/bash ] || { printf '%s\n' 'install: trusted gh executable and /bin/bash are required' >&2; exit 1; }
+  case "$(uname -s)/$(uname -m)" in
+    Linux/x86_64) candidate_target=linux-amd64 ;;
+    Linux/aarch64|Linux/arm64) candidate_target=linux-arm64 ;;
+    Darwin/x86_64) candidate_target=darwin-amd64 ;;
+    Darwin/arm64) candidate_target=darwin-arm64 ;;
+    *) printf '%s\n' 'install: unsupported candidate platform' >&2; exit 1 ;;
+  esac
+  candidate_dir=$(mktemp -d "${TMPDIR:-/tmp}/factory-release.XXXXXXXX")
+  candidate_child='' candidate_watchdog=''
+  candidate_retain=0
+  candidate_watch() {
+    candidate_sleep=
+    candidate_stop_sleep() {
+      if [ -n "$candidate_sleep" ]; then
+        kill "$candidate_sleep" 2>/dev/null || :
+        wait "$candidate_sleep" 2>/dev/null || :
+        candidate_sleep=
+      fi
+    }
+    trap candidate_stop_sleep 0
+    trap 'candidate_stop_sleep; exit 0' TERM HUP INT
+    sleep "$1" &
+    candidate_sleep=$!
+    wait "$candidate_sleep" || exit 0
+    candidate_sleep=
+    kill -"$3" "$2" 2>/dev/null || :
+    if [ "$3" = TERM ]; then
+      sleep 5 &
+      candidate_sleep=$!
+      wait "$candidate_sleep" || exit 0
+      candidate_sleep=
+      kill -KILL "$2" 2>/dev/null || :
+    fi
+  }
+  candidate_cleanup() {
+    if [ -n "$candidate_child" ]; then
+      kill "$candidate_child" 2>/dev/null || :
+      candidate_watch 5 "$candidate_child" KILL </dev/null >/dev/null 2>&1 &
+      candidate_reaper=$!
+      candidate_cleanup_status=0
+      wait "$candidate_child" 2>/dev/null || candidate_cleanup_status=$?
+      [ "$candidate_cleanup_status" -ne 125 ] || candidate_retain=1
+      kill "$candidate_reaper" 2>/dev/null || :
+      wait "$candidate_reaper" 2>/dev/null || :
+    fi
+    [ -z "$candidate_watchdog" ] || { kill "$candidate_watchdog" 2>/dev/null || :; wait "$candidate_watchdog" 2>/dev/null || :; }
+    if [ "$candidate_retain" -eq 0 ]; then
+      rm -rf -- "$candidate_dir"
+    else
+      printf 'install: unresolved verifier ownership; preserve private cache %s\n' "$candidate_dir" >&2
+    fi
+  }
+  trap candidate_cleanup 0
+  trap 'exit 130' INT
+  trap 'exit 143' TERM HUP
+  # Finite acquisition commands, bounded files, and no downloaded executable
+  # probes. The authenticated Go owner supplies strict per-input bounds again.
+  candidate_gh() {
+    candidate_output_limit=65536
+    case "$1 ${2-}" in
+      api\ *) candidate_output_limit=256 ;;
+      'release view') candidate_output_limit=512 ;;
+      'attestation verify') candidate_output_limit=256 ;;
+      'attestation trusted-root') candidate_output_limit=16777216 ;;
+    esac
+    # Fixed code only; every user operand remains an argv element. Bash is the
+    # factory's existing adapter prerequisite and supplies portable job groups.
+    # docs/adr/0101-go-release-handoff.md:401.
+    (unset BASH_ENV ENV; ulimit -f 524288; exec /bin/bash --noprofile --norc -c '
+      set -m
+      child=
+      stop_group() {
+        trap "" INT TERM HUP
+        [ -n "$child" ] || return 0
+        kill -TERM -- "-$child" 2>/dev/null || :
+        for ((attempt=0; attempt<25; attempt++)); do
+          kill -0 -- "-$child" 2>/dev/null || { wait "$child" 2>/dev/null || :; child=; return 0; }
+          sleep 0.02
+        done
+        kill -KILL -- "-$child" 2>/dev/null || :
+        wait "$child" 2>/dev/null || :
+        for ((attempt=0; attempt<50; attempt++)); do
+          kill -0 -- "-$child" 2>/dev/null || { child=; return 0; }
+          sleep 0.02
+        done
+        printf "%s\n" "install: verifier process group did not close" >&2
+        return 125
+      }
+      trap "stop_group || exit 125; exit 143" TERM HUP
+      trap "stop_group || exit 125; exit 130" INT
+      "$@" &
+      child=$!
+      status=0
+      wait "$child" 2>/dev/null || status=$?
+      stop_group || exit 125
+      exit "$status"
+    ' factory-bootstrap "$candidate_verifier" "$@") > "$candidate_dir/command.stdout" 2> "$candidate_dir/command.stderr" &
+    candidate_child=$!
+    candidate_watch 120 "$candidate_child" TERM </dev/null >/dev/null 2>&1 &
+    candidate_watchdog=$!
+    candidate_status=0
+    wait "$candidate_child" || candidate_status=$?
+    [ "$candidate_status" -ne 125 ] || candidate_retain=1
+    candidate_child=
+    kill "$candidate_watchdog" 2>/dev/null || :
+    wait "$candidate_watchdog" 2>/dev/null || :
+    candidate_watchdog=
+    head -c 65536 "$candidate_dir/command.stderr" >&2
+    [ "$(wc -c < "$candidate_dir/command.stdout")" -le "$candidate_output_limit" ] || { printf '%s\n' 'install: oversized candidate metadata' >&2; return 1; }
+    return "$candidate_status"
+  }
+  GH_HOST=github.com GH_PROMPT_DISABLED=1
+  export GH_HOST GH_PROMPT_DISABLED
+  candidate_repo=anoop2811/software-factory-template
+  candidate_gh api "repos/$candidate_repo/commits/refs/tags/$candidate_tag" --jq .sha
+  candidate_revision=$(cat "$candidate_dir/command.stdout")
+  case "$candidate_revision" in ''|*[!0-9a-f]*) printf '%s\n' 'install: invalid candidate revision' >&2; exit 1 ;; esac
+  [ "${#candidate_revision}" -eq 40 ] || exit 1
+  candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv'
+  candidate_release=$(cat "$candidate_dir/command.stdout")
+  [ "$candidate_release" = "$(printf '%s\tfalse' "$candidate_tag")" ] || { printf '%s\n' 'install: candidate release is unavailable' >&2; exit 1; }
+  candidate_raw=factory-bootstrap-$candidate_tag-$candidate_target
+  candidate_image=factory-installation-$candidate_tag-$candidate_target.tar.gz
+  candidate_gh release download "$candidate_tag" --repo "$candidate_repo" --pattern "$candidate_raw" --pattern "$candidate_image" --pattern runtime-attestations.jsonl --dir "$candidate_dir"
+  for candidate_file in "$candidate_raw" "$candidate_image" runtime-attestations.jsonl; do
+    [ -f "$candidate_dir/$candidate_file" ] && [ ! -L "$candidate_dir/$candidate_file" ] || { printf '%s\n' 'install: incomplete candidate release' >&2; exit 1; }
+    candidate_limit=16777216
+    case "$candidate_file" in "$candidate_raw") candidate_limit=268435456 ;; "$candidate_image") candidate_limit=134217728 ;; esac
+    [ "$(wc -c < "$candidate_dir/$candidate_file")" -le "$candidate_limit" ] || { printf '%s\n' 'install: oversized candidate asset' >&2; exit 1; }
+  done
+  candidate_gh attestation trusted-root
+  cp "$candidate_dir/command.stdout" "$candidate_dir/trusted-root.jsonl"
+  if command -v sha256sum >/dev/null 2>&1; then
+    candidate_checksum=$(sha256sum "$candidate_dir/$candidate_raw")
+  else
+    candidate_checksum=$(shasum -a 256 "$candidate_dir/$candidate_raw")
+  fi
+  candidate_digest=${candidate_checksum%% *}
+  case "$candidate_digest" in ''|*[!0-9a-f]*) exit 1 ;; esac
+  [ "${#candidate_digest}" -eq 64 ] || exit 1
+  candidate_gh attestation verify "$candidate_dir/$candidate_raw" --repo "$candidate_repo" --signer-workflow "$candidate_repo/.github/workflows/runtime-release.yml" --source-digest "$candidate_revision" --source-ref "refs/tags/$candidate_tag" --bundle "$candidate_dir/runtime-attestations.jsonl" --custom-trusted-root "$candidate_dir/trusted-root.jsonl" --deny-self-hosted-runners --format json --jq "any(.[]; any(.verificationResult.statement.subject[]; .name == \"$candidate_raw\" and .digest.sha256 == \"$candidate_digest\"))"
+  candidate_verified=$(cat "$candidate_dir/command.stdout")
+  [ "$candidate_verified" = true ] || { printf '%s\n' 'install: candidate authentication failed' >&2; exit 1; }
+  printf '%s\n' "$candidate_revision" > "$candidate_dir/revision"
+  chmod 700 "$candidate_dir/$candidate_raw"
+  FACTORY_RELEASE_DIR=$candidate_dir
+  export FACTORY_RELEASE_DIR
+  # Keep this parent alive to remove its private handoff after the native child.
+  "$candidate_dir/$candidate_raw" "$@" <&0 &
+  candidate_child=$!
+  candidate_status=0
+  wait "$candidate_child" || candidate_status=$?
+  candidate_child=
+  exit "$candidate_status"
+}
+legacy_install() {
 # softwareaifactory.sh installer.
 #
 #   curl -fsSL https://softwareaifactory.sh/install.sh | sh
@@ -203,3 +395,17 @@ say ""
 # factory-init reads its prompts from /dev/tty, so it works through the pipe.
 # Any remaining args (e.g. --pack go) pass straight through.
 exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"
+}
+
+# Parse the complete source before a candidate can inherit stdin. In a curl|sh
+# invocation unread script text must never become initializer answers.
+# docs/adr/0101-go-release-handoff.md:455.
+installer_main() {
+  for installer_arg do
+    case "$installer_arg" in
+      --go-candidate|--go-candidate=*) candidate_install "$@"; exit $? ;;
+    esac
+  done
+  legacy_install "$@"
+}
+installer_main "$@"

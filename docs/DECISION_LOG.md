@@ -4370,3 +4370,36 @@ The user requested resolving PR #126 conflicts after #127 merged. Retain both
 native orchestration and budgeted review routes and their independent acceptance
 coverage. Rediscover the combined scheduling counts. Review the resulting head
 from trusted main; an earlier review of 7e4f1b9 does not qualify the merged code.
+
+
+## Decision 100 (2026-10-18 UTC): hand off official candidate releases to the Go factory
+
+The user authorized the next delivery after merged PR #126: connect ordinary
+installation and upgrade to authenticated prebuilt Go assets without a Go/Python
+runtime prerequisite. ADR 0101 records the contract before production changes.
+Use explicit immutable `--go-candidate TAG` selection while preserving existing
+bootstrap defaults and fetch-only consent until pilot/default-cutover gates pass.
+
+Publish and attest complete installation archives plus raw host-specific bootstrap
+executables. An independently trusted GitHub CLI verifies repository, signer
+workflow, tag, full commit and exact host subject/digest before chmod or execution;
+then reuse strict Go staging and the existing whole-installation transaction.
+Do not use the candidate to establish its own authenticity or add a shell archive
+installer. Fresh init must select the installed Go runtime; recognized legacy and
+subsequent Go upgrades retain explicit proposal consent, quiescence, checked ignored
+backups, state/customization preservation and recovery. Independent Ginkgo/Gomega
+RED precedes implementation. Automatic retention, real release authentication,
+four-platform qualification, adopter pilot and default cutover remain separately
+evidenced gates; this decision does not claim those gates complete.
+
+
+ADR 0101's preimplementation refinements require a typed qualified selection overlay
+in native init before any destination writes, retaining the ordinary 16 MiB file
+limit and a separately streamed 256 MiB fixed runtime role. Fresh mode refuses
+existing factory/private installation metadata, omits retired code upfront and
+publishes activation only after required validation; no complete init rollback is
+claimed. Go predecessor recognition requires freshly authenticated before images,
+actual installed evidence and a closed supported generator recipe, never descriptor
+trust or executing predecessor code. Candidate confirmation binds fresh release
+identities and archive digests rather than random acquisition paths, while retaining
+all project observations, explicit consent and fresh authentication under exclusion.

@@ -1,0 +1,131 @@
+// Package releasecmd connects explicit release selection to the native factory.
+package releasecmd
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"regexp"
+	"strings"
+	"syscall"
+
+	"github.com/spf13/cobra"
+)
+
+var tagPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
+
+// Claimed reserves malformed selectors before any legacy command dispatch.
+// docs/adr/0101-go-release-handoff.md:40.
+func Claimed(args []string) bool {
+	for _, arg := range args {
+		if arg == "--go-candidate" || strings.HasPrefix(arg, "--go-candidate=") {
+			return true
+		}
+	}
+	return false
+}
+
+type options struct {
+	tag, confirmation string
+	args              []string
+	dryRun, json      bool
+	quiescent         bool
+	projectInputs     []string
+}
+
+// Run keeps acquisition and migration under one explicit public command.
+// docs/adr/0101-go-release-handoff.md:32.
+func Run(parent context.Context, verb string, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	option, help, err := parse(verb, args)
+	if err != nil {
+		fmt.Fprintln(stderr, "factory candidate: invalid candidate arguments")
+		return 2
+	}
+	if help {
+		fmt.Fprintf(stdout, "Usage: factory %s [args] --go-candidate TAG\n\nSelect one authenticated official Go release candidate.\n", verb)
+		if verb == "upgrade" {
+			fmt.Fprintln(stdout, "Options: --dry-run --json --confirm DIGEST --quiescent")
+		}
+		return 0
+	}
+	return execute(ctx, verb, option, environment, stdin, stdout, stderr)
+}
+
+func parse(verb string, args []string) (options, bool, error) {
+	var result options
+	seen := false
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--go-candidate" || strings.HasPrefix(arg, "--go-candidate=") {
+			if seen {
+				return result, false, errors.New("repeated candidate selector")
+			}
+			seen = true
+			if arg == "--go-candidate" {
+				i++
+				if i == len(args) {
+					return result, false, errors.New("missing candidate tag")
+				}
+				result.tag = args[i]
+			} else {
+				result.tag = strings.TrimPrefix(arg, "--go-candidate=")
+			}
+			continue
+		}
+		for _, conflict := range []string{"--source", "--ref", "--local", "--installation"} {
+			if arg == conflict || strings.HasPrefix(arg, conflict+"=") {
+				return result, false, errors.New("conflicting candidate source")
+			}
+		}
+		result.args = append(result.args, arg)
+	}
+	if !seen || !validTag(result.tag) {
+		return result, false, errors.New("invalid candidate tag")
+	}
+	if verb == "init" {
+		for _, arg := range result.args {
+			if arg == "--help" || arg == "-h" {
+				return result, true, nil
+			}
+		}
+		return result, false, nil
+	}
+	if verb != "upgrade" {
+		return result, false, errors.New("unsupported candidate operation")
+	}
+	var help bool
+	command := &cobra.Command{Use: "upgrade", Args: cobra.NoArgs, SilenceErrors: true, SilenceUsage: true}
+	command.SetOut(io.Discard)
+	command.SetErr(io.Discard)
+	command.Flags().BoolVarP(&help, "help", "h", false, "Show candidate help")
+	command.Flags().BoolVar(&result.dryRun, "dry-run", false, "Acquire and inspect without project changes")
+	command.Flags().BoolVar(&result.json, "json", false, "Report a candidate preview as JSON")
+	command.Flags().BoolVar(&result.quiescent, "quiescent", false, "Declare maintained maintenance exclusion")
+	command.Flags().StringVar(&result.confirmation, "confirm", "", "Confirm the current complete proposal digest")
+	command.Flags().StringArrayVar(&result.projectInputs, "project-input", nil, "Explicit missing project input KEY=VALUE")
+	command.Run = func(*cobra.Command, []string) {}
+	command.SetArgs(result.args)
+	if err := command.Execute(); err != nil {
+		return result, false, err
+	}
+	if !help && (result.dryRun && (result.confirmation != "" || result.quiescent) || result.quiescent != (result.confirmation != "") || result.json && result.confirmation != "" || result.confirmation != "" && (len(result.confirmation) != 64 || strings.Trim(result.confirmation, "0123456789abcdef") != "")) {
+		return result, false, errors.New("invalid candidate consent")
+	}
+	return result, help, nil
+}
+
+func validTag(tag string) bool {
+	if !tagPattern.MatchString(tag) {
+		return false
+	}
+	switch strings.ToLower(tag) {
+	case "main", "head", "latest", "current":
+		return false
+	}
+	return true
+}

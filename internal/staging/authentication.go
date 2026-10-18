@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
 func authenticate(ctx context.Context, options Options, workspace string) error {
@@ -18,38 +19,25 @@ func authenticate(ctx context.Context, options Options, workspace string) error 
 	if verifier == "" {
 		verifier = "gh"
 	}
-	// #nosec G204 -- Explicit trusted verifier, fixed argument structure, and private snapshots; no shell or candidate execution.
-	command := exec.CommandContext(ctx, verifier, "attestation", "verify", filepath.Join(workspace, "archive"),
+	args := []string{verifier, "attestation", "verify", filepath.Join(workspace, "archive"),
 		"--repo", "anoop2811/software-factory-template",
 		"--signer-workflow", "anoop2811/software-factory-template/.github/workflows/runtime-release.yml",
-		"--source-digest", options.Revision, "--source-ref", "refs/tags/"+options.Version,
-		"--bundle", filepath.Join(workspace, "attestation"), "--custom-trusted-root", filepath.Join(workspace, "trusted-root"), "--deny-self-hosted-runners")
+		"--source-digest", options.Revision, "--source-ref", "refs/tags/" + options.Version,
+		"--bundle", filepath.Join(workspace, "attestation"), "--custom-trusted-root", filepath.Join(workspace, "trusted-root"), "--deny-self-hosted-runners"}
+	environment := map[string]string{}
 	for _, entry := range os.Environ() {
-		key, _, _ := strings.Cut(entry, "=")
-		if key != "GH_HOST" && key != "GH_PROMPT_DISABLED" {
-			command.Env = append(command.Env, entry)
-		}
+		key, value, _ := strings.Cut(entry, "=")
+		environment[key] = value
 	}
-	command.Env = append(command.Env, "GH_HOST=github.com", "GH_PROMPT_DISABLED=1")
-	var diagnostics boundedDiagnostics
-	command.Stdout, command.Stderr = &diagnostics, &diagnostics
-	command.WaitDelay = time.Second
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("GitHub attestation verification: %w: %s", errors.Join(err, ctx.Err()), diagnostics.text.String())
+	environment["GH_HOST"], environment["GH_PROMPT_DISABLED"] = "github.com", "1"
+	// Verification shares the same bounded descendant ownership as all native
+	// release tools. docs/adr/0101-go-release-handoff.md:140.
+	result, err := native.ExecuteCommandBounded(ctx, workspace, args, environment, 64<<10, 64<<10)
+	if err != nil || result.ExitCode == nil || *result.ExitCode != 0 || !result.ExitConfirmed || result.OwnershipUnconfirmed {
+		if err == nil {
+			err = errors.New("trusted verifier did not complete successfully")
+		}
+		return fmt.Errorf("GitHub attestation verification: %w: stdout=%q stderr=%q", errors.Join(err, ctx.Err()), result.Stdout, result.Stderr)
 	}
 	return nil
-}
-
-type boundedDiagnostics struct{ text strings.Builder }
-
-func (b *boundedDiagnostics) Write(p []byte) (int, error) {
-	n := len(p)
-	remaining := 64*1024 - b.text.Len()
-	if remaining > 0 {
-		if len(p) > remaining {
-			p = p[:remaining]
-		}
-		_, _ = b.text.Write(p)
-	}
-	return n, nil
 }

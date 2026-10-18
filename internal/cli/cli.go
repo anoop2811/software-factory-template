@@ -28,6 +28,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
 	"github.com/anoop2811/software-factory-template/internal/prereqcmd"
 	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
+	"github.com/anoop2811/software-factory-template/internal/releasecmd"
 	"github.com/anoop2811/software-factory-template/internal/reportcmd"
 	"github.com/anoop2811/software-factory-template/internal/reviewbatch"
 	"github.com/anoop2811/software-factory-template/internal/reviewci"
@@ -153,6 +154,12 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Candidate ownership precedes both installed and source dispatch.
+				// docs/adr/0101-go-release-handoff.md:40.
+				if (name == "init" || name == "upgrade") && releasecmd.Claimed(forwarded) {
+					status = releasecmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
 				// Trusted CI and local callers share one bounded Go review engine.
 				// docs/adr/0100-batched-review.md:23.
 				if name == "review-batch" {
@@ -253,6 +260,17 @@ func Run(ctx context.Context, args []string) int {
 				// Native init uses assets beside the invoked source-built executable.
 				// docs/adr/0085-go-native-init.md:24.
 				if name == "init" {
+					// Installed init cannot republish the inert Bash scaffold.
+					// docs/adr/0101-go-release-handoff.md:435.
+					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
+						if len(forwarded) == 1 && (forwarded[0] == "--help" || forwarded[0] == "-h") {
+							fmt.Fprintln(os.Stdout, "Usage: factory init [TARGET] --go-candidate TAG [--pack PACKS]")
+						} else {
+							fmt.Fprintln(os.Stderr, "factory init: select an authenticated Go release with factory init [TARGET] --go-candidate TAG")
+							status = 2
+						}
+						return nil
+					}
 					directory, err := assetDirectory(cmd.Context())
 					if err != nil {
 						return err

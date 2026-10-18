@@ -12,6 +12,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/installedlayout"
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/staging"
 )
 
 func operationEnvironment() map[string]string {
@@ -26,48 +27,35 @@ func operationEnvironment() map[string]string {
 	return environment
 }
 func (owner *transaction) materializeCandidate(ctx context.Context) (returned error) {
-	if err := os.Mkdir(owner.candidate, 0700); err != nil {
+	return materializeSelection(ctx, owner.candidate, owner.planned.image, owner.request.Inputs, owner.stageTree)
+}
+
+func materializeSelection(ctx context.Context, path string, image staging.Inspection, inputs map[string]string, source *installationfs.Tree) (returned error) {
+	if err := os.Mkdir(path, 0700); err != nil {
 		return err
 	}
-	tree, err := installationfs.Open(ctx, owner.candidate)
+	tree, err := installationfs.Open(ctx, path)
 	if err != nil {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
 	// Candidate always proves the freshly qualified target, including reverse requests.
 	// docs/adr/0098-whole-installation-upgrade-and-rollback.md:200.
-	actions := []Action{}
-	for _, row := range roles {
-		if row.Operation == "retire" {
-			continue
-		}
-		data, err := generate(ctx, row, owner.planned.image, owner.request.Inputs)
-		if err != nil {
-			return err
-		}
-		action := Action{Path: row.Path, After: bytesImage(data, uint32(modeFor(row)))}
-		if row.Path == ".factory/bin/factory-runtime" {
-			action.After.SHA256 = owner.planned.image.Runtime.SHA256
-			action.After.Bytes = owner.planned.image.BinaryBytes
-		}
-		actions = append(actions, action)
-		if row.Path == ".factory/installation.current" {
-			continue
-		}
-		if row.Path == ".factory/bin/factory-runtime" {
-			err = owner.publishBinary(ctx, tree, row.Path, nil)
-		} else {
-			err = publishBytes(ctx, tree, row.Path, data, modeFor(row), nil)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	control, err := descriptorBytes(owner.planned.image, actions)
+	selection, err := Selection(ctx, image, inputs)
 	if err != nil {
 		return err
 	}
-	return publishBytes(ctx, tree, ".factory/installation.current", control, 0600, nil)
+	for _, row := range selection {
+		if row.Runtime {
+			err = publishRuntime(ctx, source, image, tree, row.Path, nil, nil)
+		} else {
+			err = publishBytes(ctx, tree, row.Path, row.Data, row.Mode, nil)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
 }
 func (owner *transaction) preflightCandidate(ctx context.Context, reverse bool) error {
 	if owner.record.Entries == nil {
@@ -127,7 +115,7 @@ func (owner *transaction) ensurePrivateIgnore(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	rules := []string{"/.factory/bin/", "/.factory/assets/", "/.factory/installation.current", "/.factory/installation-transactions/", "/.factory/backups/"}
+	rules := PrivateIgnoreRules()
 	updated := append([]byte{}, data...)
 	for _, rule := range rules {
 		if !strings.Contains("\n"+string(updated)+"\n", "\n"+rule+"\n") {

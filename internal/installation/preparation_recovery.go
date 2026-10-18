@@ -71,6 +71,7 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 		return result, conflict("installation is not unchanged preparation")
 	}
 	result = plan{image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
+	result.reference = reference
 	if request.Source.Local {
 		result.proposal.Authentication = "local-source"
 	}
@@ -99,11 +100,11 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 			reason = issue.Reason
 		}
 		if saved.Before != nil && saved.Action != "retain" {
-			raw, mode, known, err := reference.original(ctx, row.Path, request.Inputs)
+			expected, _, known, err := reference.expected(ctx, row.Path, request.Inputs)
 			if err != nil {
 				return result, err
 			}
-			if !known || !imageEqual(saved.Before, bytesImage(raw, mode), false) {
+			if !known || !imageEqual(saved.Before, expected, false) {
 				return result, conflict("preparation before selection is not qualified baseline")
 			}
 		}
@@ -123,13 +124,13 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 	}
 	encoded, err := json.Marshal(struct {
 		Root                   string
-		Source                 staging.Options
-		Archive                string
+		Source, Before         staging.Options
+		Archive, BeforeArchive string
 		Profile, ID, Direction string
 		Inputs                 map[string]string
 		Entries                []Action
 		State                  []stateObservation
-	}{root, request.Source, image.ArchiveSHA256, request.Profile, record.MigrationID, request.Direction, request.Inputs, result.proposal.Actions, state})
+	}{root, request.Source, request.Before, image.ArchiveSHA256, reference.ArchiveSHA256, request.Profile, record.MigrationID, request.Direction, request.Inputs, result.proposal.Actions, state})
 	if err != nil {
 		return result, err
 	}

@@ -223,26 +223,32 @@ var _ = Describe("Installed runtime root separation", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:435
 	// per docs/adr/0085-go-native-init.md:20
 	// per docs/adr/0085-go-native-init.md:99
-	It("has the canonical README needed to review initialization of an empty target beside a retained README sibling", func() {
+	// per docs/adr/0101-go-release-handoff.md:435
+	It("preserves canonical and application README custody while requiring an explicit installed initializer candidate", func() {
 		fixture := installedRuntimeCustodyFixture()
+		canonicalPath := filepath.Join(fixture.assets, "README.md")
+		canonical, err := os.ReadFile(canonicalPath)
+		Expect(err).NotTo(HaveOccurred(), "the installation still needs its canonical README asset")
+		Expect(canonical).NotTo(BeEmpty())
 		existing := filepath.Join(filepath.Dir(fixture.root), "existing project")
 		readme := []byte("application README is retained verbatim\n")
 		writeFixture(filepath.Join(existing, "README.md"), readme, 0644)
 		before := nativeInitArtifacts(existing)
 		control := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", existing, "--pack=none")
-		Expect(control.status).To(Equal(1), "%+v", control)
-		Expect(control.stdout).To(ContainSubstring("=== Summary ==="))
-		Expect(control.stdout).To(ContainSubstring("Aborted."))
-		Expect(control.stderr).To(BeEmpty())
+		Expect(control.status).To(Equal(2), "%+v", control)
+		Expect(control.stdout).To(BeEmpty(), "a missing candidate selection must refuse before initializer prompts")
+		Expect(control.stderr).To(ContainSubstring("--go-candidate"))
 		Expect(nativeInitArtifacts(existing)).To(Equal(before))
 		empty := filepath.Join(filepath.Dir(fixture.root), "empty project")
 		actual := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", empty, "--pack=none")
-		Expect(actual.status).To(Equal(1), "%+v", actual)
-		Expect(actual.stdout).To(ContainSubstring("=== Summary ==="), "empty target must reach the same explicit review boundary as the existing README sibling: %+v", actual)
-		Expect(actual.stdout).To(ContainSubstring("Aborted."))
-		Expect(actual.stderr).To(BeEmpty())
-		_, err := os.Lstat(empty)
-		Expect(os.IsNotExist(err)).To(BeTrue(), "decline must not create the target")
+		Expect(actual.status).To(Equal(2), "%+v", actual)
+		Expect(actual.stdout).To(BeEmpty())
+		Expect(actual.stderr).To(ContainSubstring("--go-candidate"))
+		_, err = os.Lstat(empty)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "refusal must not create the target")
+		retainedCanonical, err := os.ReadFile(canonicalPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(retainedCanonical).To(Equal(canonical))
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:33

@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/filepublish"
+	"github.com/anoop2811/software-factory-template/internal/installationfs"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -103,7 +106,11 @@ func (t *tree) parent(ctx context.Context, relative string, create bool) (*os.Fi
 		}
 		next, err := unix.Openat(int(current.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		if errors.Is(err, unix.ENOENT) && create {
-			if err = unix.Mkdirat(int(current.Fd()), part, 0755); err == nil || errors.Is(err, unix.EEXIST) {
+			mode := uint32(0755)
+			if parts[0] == ".factory" {
+				mode = 0700
+			}
+			if err = unix.Mkdirat(int(current.Fd()), part, mode); err == nil || errors.Is(err, unix.EEXIST) {
 				next, err = unix.Openat(int(current.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 			}
 		}
@@ -200,9 +207,15 @@ type asset struct {
 	previousMode     os.FileMode
 	previousIdentity unix.Stat_t
 	existed          bool
+	runtime          string
+	runtimeSHA256    string
+	runtimeBytes     int64
 }
 
 func (t *tree) publish(ctx context.Context, a asset) (returned error) {
+	if a.runtime != "" {
+		return t.publishRuntime(ctx, a)
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -323,4 +336,33 @@ func (t *tree) publish(ctx context.Context, a asset) (returned error) {
 	}
 	published = true
 	return parent.Sync()
+}
+
+func (t *tree) publishRuntime(ctx context.Context, a asset) (returned error) {
+	source, file, err := runtimeReader(ctx, a)
+	if err != nil {
+		return err
+	}
+	defer func() { returned = errors.Join(returned, file.Close(), source.Close()) }()
+	destination, err := installationfs.Open(ctx, t.path)
+	if err != nil {
+		return err
+	}
+	defer func() { returned = errors.Join(returned, destination.Close()) }()
+	parent, name, _, err := destination.Parent(ctx, a.path, true)
+	if err != nil {
+		return err
+	}
+	stage, err := filepublish.PrepareReader(ctx, parent.Root, ".factory-init-", file.File, a.runtimeBytes, a.runtimeSHA256, 0700)
+	if err != nil {
+		return err
+	}
+	defer func() { returned = errors.Join(returned, stage.Cleanup()) }()
+	if err := file.Check(ctx); err != nil {
+		return err
+	}
+	if err := stage.PublishNoReplace(ctx, name); err != nil {
+		return err
+	}
+	return parent.Sync(ctx)
 }

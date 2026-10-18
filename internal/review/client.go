@@ -105,6 +105,8 @@ func run(ctx context.Context, input io.Reader, output, diagnostics io.Writer, m 
 	for attempt := 1; attempt <= 2; attempt++ {
 		if options.BeforeAttempt != nil {
 			if err := options.BeforeAttempt(len(body), allowance.MaxTokens); err != nil {
+				// Callback details may contain sensitive state; publish only
+				// this classification, while the caller retains its own reason.
 				return errors.New("review budget exhausted")
 			}
 		}

@@ -163,6 +163,8 @@ func reportedUsage(raw json.RawMessage) json.RawMessage {
 	return jsonBytes(clean)
 }
 
+// addUsage intersects known fields: later replies cannot supply missing earlier
+// usage. The caller separately preserves unknown whole-response accounting.
 func addUsage(total, next json.RawMessage) json.RawMessage {
 	if len(next) == 0 {
 		return nil

@@ -85,7 +85,7 @@ jobs:
             --expected-base "$EXPECTED_BASE" --output "$RUNNER_TEMP/factory-review-output"
             --cache "$RUNNER_TEMP/factory-review-cache")
           if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
-          FACTORY_BRIDGE_PROTOCOL= "$REVIEW_GO_CLIENT" "${args[@]}"
+          FACTORY_BRIDGE_PROTOCOL='' "$REVIEW_GO_CLIENT" "${args[@]}"
 
       - name: Save authenticated completed batches
         if: always() && steps.review.outcome != 'skipped'

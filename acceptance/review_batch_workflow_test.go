@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -61,6 +62,38 @@ func ciReviewWorkflowEntries() []TableEntry {
 }
 
 var _ = Describe("Budgeted review workflow security and publication", func() {
+	// per docs/adr/0100-budgeted-batched-adversarial-review.md:112
+	// per docs/adr/0100-budgeted-batched-adversarial-review.md:116
+	It("publishes a safe legacy timeout reason without copying private provider stderr", func() {
+		workflow := ciReviewLoadWorkflow("packs/review-lane/review-pr.yml")
+		var script string
+		for _, step := range workflow.Jobs["review"].Steps {
+			if strings.Contains(strings.ToLower(step.Name), "review legacy") {
+				script = step.Run
+			}
+		}
+		Expect(script).NotTo(BeEmpty())
+		root := GinkgoT().TempDir()
+		metadata := `{"head":{"sha":"` + ciReviewHead + `","repo":{"full_name":"fixture/project"}},"base":{"sha":"` + ciReviewBase + `","ref":"main","repo":{"full_name":"fixture/project"}}}`
+		writeFixture(filepath.Join(root, "metadata.json"), []byte(metadata), 0600)
+		writeFixture(filepath.Join(root, "tools/gh"), []byte("#!/bin/sh\ncase \"$*\" in\n*--body-file*) while [ \"$1\" != --body-file ]; do shift; done; cat \"$2\" > \"$CAPTURE_COMMENT\" ;;\n*Accept:*) printf 'fixture diff\\n' ;;\n*) cat \"$FIXTURE_METADATA\" ;;\nesac\n"), 0700)
+		writeFixture(filepath.Join(root, "scripts/adversarial-review.sh"), []byte("#!/bin/sh\nprintf 'adversarial-review: request timed out.\\nPRIVATE_PROVIDER_ERROR PRIVATE_API_KEY\\n' >&2\nexit 1\n"), 0700)
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "bash", "-e", "-c", script) // #nosec G204 G702 -- reviewed legacy workflow step with inert test-owned gh/reviewer; no model or PR code.
+		cmd.Dir = root
+		comment := filepath.Join(root, "posted-comment")
+		cmd.Env = []string{"PATH=" + filepath.Join(root, "tools") + string(os.PathListSeparator) + os.Getenv("PATH"), "PR=7", "REPO=fixture/project", "EXPECTED_BASE=" + ciReviewBase, "EXPECTED_HEAD=" + ciReviewHead, "DEFAULT_BRANCH=main", "RUNNER_TEMP=" + root, "MAX_DIFF_BYTES=200000", "REVIEW_API_KEY=PRIVATE_API_KEY", "FIXTURE_METADATA=" + filepath.Join(root, "metadata.json"), "CAPTURE_COMMENT=" + comment}
+		output, err := cmd.CombinedOutput()
+		Expect(ctx.Err()).NotTo(HaveOccurred(), "legacy fixture watchdog: %s", output)
+		var exit *exec.ExitError
+		Expect(errors.As(err, &exit)).To(BeTrue(), "%s", output)
+		Expect(exit.ExitCode()).To(Equal(1))
+		body, err := os.ReadFile(comment)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(body)).NotTo(ContainSubstring("PRIVATE_"))
+		Expect(string(body)).To(ContainSubstring("timed out"))
+	})
 	// per docs/adr/0100-budgeted-batched-adversarial-review.md:83
 	// per docs/adr/0100-budgeted-batched-adversarial-review.md:117
 	DescribeTable("keeps executable checkout trusted and scopes credentials to review steps", func(path string) {

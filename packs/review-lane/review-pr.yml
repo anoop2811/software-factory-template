@@ -92,7 +92,7 @@ jobs:
             --expected-base "$EXPECTED_BASE" --output "$RUNNER_TEMP/factory-review-output"
             --cache "$RUNNER_TEMP/factory-review-cache")
           if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
-          FACTORY_BRIDGE_PROTOCOL= "$REVIEW_GO_CLIENT" "${args[@]}"
+          FACTORY_BRIDGE_PROTOCOL='' "$REVIEW_GO_CLIENT" "${args[@]}"
 
       # Explicit compatibility path for adopters that have not installed the
       # Go client. Only this path retains the old single-request size boundary.
@@ -127,6 +127,15 @@ jobs:
             status=complete
           else
             printf 'Legacy model review failed; this pull request has not received a completed model review.\n' > "$review"
+            # Publish only fixed classifications; provider stderr can contain secrets.
+            while IFS= read -r reason; do
+              case "$reason" in
+                'adversarial-review: request timed out.'|'adversarial-review: transport failure.'|'adversarial-review: HTTP request failed.'|'adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length).')
+                  printf '\n%s\n' "$reason" >> "$review" ;;
+                'adversarial-review: the model returned no review'*)
+                  printf '\nThe provider returned no completed review.\n' >> "$review" ;;
+              esac
+            done < "$RUNNER_TEMP/factory-review-legacy.err"
           fi
           # Bind the posted finding to the same revisions used for its input.
           gh api "repos/$REPO/pulls/$PR" > "$RUNNER_TEMP/factory-review-current.json"

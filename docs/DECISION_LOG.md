@@ -4403,3 +4403,16 @@ actual installed evidence and a closed supported generator recipe, never descrip
 trust or executing predecessor code. Candidate confirmation binds fresh release
 identities and archive digests rather than random acquisition paths, while retaining
 all project observations, explicit consent and fresh authentication under exclusion.
+
+
+## Decision 101 (2026-10-18 UTC): parallelize Go acceptance without reducing qualification
+
+After merged PR128, the user approved priorities1,2 and3 from the CI audit.
+ADR0102 records the contract before implementation: bounded two-process Ginkgo
+execution for base and independent handoff scenarios, lean component fixtures,
+per-spec reports and measured final-head timings. Preserve the complete criterion
+inventory, all non-acceptance Go packages, Linux/macOS qualification, race/fresh-run
+checks, failure propagation, source/image identity and crash/recovery assertions.
+Keep the existing test/job allowances, production code and all quality stages.
+Independent scheduler RED precedes runner wiring. Source cache redesign and
+quality-stage consolidation remain outside this authorized slice.

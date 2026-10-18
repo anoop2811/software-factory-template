@@ -104,7 +104,7 @@ func nativeBuild() {
 }
 func nativeFixture() (string, string) {
 	GinkgoHelper()
-	root, cwd := fixture()
+	root, cwd := fixtureDirectories()
 	writeFixture(filepath.Join(root, "driver"), nativeDriver, 0755)
 	for _, h := range []string{"codex", "claude", "opencode"} {
 		writeFixture(filepath.Join(root, "bin", h), nativeDriver, 0755)

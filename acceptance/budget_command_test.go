@@ -224,6 +224,7 @@ func budgetCLIFixture() (string, string) {
 	GinkgoHelper()
 	controllerBuild()
 	root, cwd := controllerFixture()
+	writeCLIExecutables(root)
 	for _, h := range []string{"codex", "claude", "opencode"} {
 		writeFixture(filepath.Join(root, "native", h), controllerDriver, 0755)
 		wrapper := "#!/bin/sh\nfor arg do\n  if [ \"$arg\" = --help ]; then exec \"$BUDGET_FIXTURE_NATIVE/" + h + "\" \"$@\"; fi\ndone\nif [ -s \"$BUDGET_FIXTURE_OUTPUT\" ]; then printf 'plan-before-stdin\\n' > \"$BUDGET_FIXTURE_ORDER\"; else exit 91; fi\nexec \"$BUDGET_FIXTURE_NATIVE/" + h + "\" \"$@\"\n"

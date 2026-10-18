@@ -71,7 +71,7 @@ func budgetBuild() {
 }
 func budgetFixture() (string, string) {
 	GinkgoHelper()
-	root, cwd := fixture()
+	root, cwd := fixtureDirectories()
 	writeFixture(filepath.Join(root, "budget-driver"), budgetDriver, 0755)
 	return root, cwd
 }

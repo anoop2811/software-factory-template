@@ -20,11 +20,45 @@ import (
 // This matrix is an independent compatibility oracle, not discovery from the
 // candidate's registrations. per specs/001-go-runtime-conversion.md:295
 // Budget/loop have native public qualification: per docs/adr/0078-go-public-budget-loop.md:43
+// Check now has a native orchestration contract: per docs/adr/0099-native-factory-orchestration.md:25
 var commandRoutes = []struct{ command, script string }{
 	{"upgrade", "scripts/factory-upgrade.sh"},
-	{"check", "scripts/pre-push-check.sh"},
 	{"selftest", "scripts/selftest/run.sh"},
 }
+
+// Independent expected public command inventory, including the new native routes.
+// per docs/adr/0099-native-factory-orchestration.md:22
+// per docs/adr/0100-batched-review.md:23
+const nativeCLIUsage = `factory — software factory control surface
+
+Usage: factory <command> [args]
+
+  init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
+  doctor      Report the health of an installed factory: armed/inert/stale gates,
+              hook + adapter integrity, and a break/fix proof that every gate fires
+  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
+              touches your factory.yaml, content, or customized files
+              Preview locally with --dry-run --source PATH (run at installation root)
+              Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
+  sync        Synchronize harness adapters (all, opencode, claude, codex)
+  prereq      Check required tools and configured Go minimum
+  check       Run the full pre-push gate suite
+  eval        Run structural or golden evaluation, or a selected harness runner
+  review      Review a diff with the configured adversarial provider
+  selftest    Run the break/fix self-test (watch every gate fire)
+  review-batch Review complete PR diffs in bounded, budgeted model batches
+  review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
+  metrics     What the factory is doing to this repo (--json, --html); local only
+              (--html opens the page; --no-open just writes it)
+  report      Cost report: gates enforced at 0 tokens, blocks caught, one labeled
+              estimate (factory report --clear resets the block log)
+  budget      Plan, bound, and report opt-in Codex/Claude/OpenCode invocations
+  loop        Run manual checks or opt-in bounded implementation and repair
+  migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
+  help        Show this message
+
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+`
 
 type cliResult struct {
 	stdout, stderr string
@@ -129,32 +163,15 @@ func normalizeBashDiagnostic(stderr, invocation string) (string, error) {
 
 var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:295
+	// per docs/adr/0099-native-factory-orchestration.md:22
 	DescribeTable("preserves help aliases without adding framework commands", func(args []string) {
 		root, cwd := fixture()
 		baseline := invoke(root, cwd, "legacy-factory", "", args...)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			result := invoke(root, cwd, executable, "", args...)
 			expected := baseline
-			// per docs/adr/0082-go-public-upgrade-preview.md:109
 			if executable == "factory" {
-				oldFooter := "Commands use auditable scripts. Inspect scripts/ for their implementation."
-				Expect(strings.Count(expected.stdout, oldFooter)).To(Equal(1))
-				// per docs/adr/0090-go-native-config-migration.md:154
-				// per docs/adr/0092-go-recovery-restoration-planning.md:106
-				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.", 1)
-				// per docs/adr/0100-batched-review.md:23
-				const reviewLaneHelp = "  review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)\n"
-				Expect(strings.Count(expected.stdout, reviewLaneHelp)).To(Equal(1))
-				expected.stdout = strings.Replace(expected.stdout, reviewLaneHelp, "  review-batch Review complete PR diffs in bounded, budgeted model batches\n"+reviewLaneHelp, 1)
-				lines := strings.SplitAfter(expected.stdout, "\n")
-				for index, line := range lines {
-					if line == "              touches your factory.yaml, content, or customized files\n" {
-						lines[index] += "              Preview locally with --dry-run --source PATH (run at installation root)\n"
-						// per docs/adr/0092-go-recovery-restoration-planning.md:106
-						lines[index] += "              Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)\n"
-					}
-				}
-				expected.stdout = strings.Join(lines, "")
+				expected.stdout = nativeCLIUsage
 			}
 			Expect(result).To(Equal(expected), executable)
 			Expect(result.status).To(Equal(0), executable)
@@ -236,18 +253,18 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:297
 	It("leaves successful piped JSON stdout free of CLI banners", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\ncat\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\ncat\n"), 0755)
 		input := "{\"budget\":null,\"runs\":[]}\n"
 		expected := cliResult{input, "", 0}
-		Expect(invoke(root, cwd, "legacy-factory", input, "check", "--json")).To(Equal(expected))
-		Expect(invoke(root, cwd, "factory", input, "check", "--json")).To(Equal(expected))
+		Expect(invoke(root, cwd, "legacy-factory", input, "selftest", "--json")).To(Equal(expected))
+		Expect(invoke(root, cwd, "factory", input, "selftest", "--json")).To(Equal(expected))
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
 	It("retains Bash exec fallback for an executable script without a shebang", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
-		args := []string{"check", "$(touch never-created)", "two words", ""}
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
+		args := []string{"selftest", "$(touch never-created)", "two words", ""}
 		expected := cliResult{"legacy script fallback\n$(touch never-created)\x00two words\x00\x00", "", 29}
 		Expect(invoke(root, cwd, "legacy-factory", "", args...)).To(Equal(expected))
 		Expect(invoke(root, cwd, "factory", "", args...)).To(Equal(expected))
@@ -258,13 +275,13 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("retains OS execution-failure status with a useful script diagnostic", func(kind string) {
 		root, cwd := fixture()
-		path := filepath.Join(root, "scripts/pre-push-check.sh")
+		path := filepath.Join(root, "scripts/selftest/run.sh")
 		if kind == "directory" {
 			Expect(os.MkdirAll(path, 0755)).To(Succeed())
 		} else {
 			writeFixture(path, []byte("#!/factory-acceptance-nonexistent-interpreter\n"), 0755)
 		}
-		baseline := invoke(root, cwd, "legacy-factory", "", "check")
+		baseline := invoke(root, cwd, "legacy-factory", "", "selftest")
 		if kind == "directory" {
 			Expect(baseline.status).To(Equal(126))
 		} else {
@@ -273,10 +290,10 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			Expect(baseline.status).To(BeElementOf(1, 126, 127))
 		}
 		for _, executable := range []string{"legacy-factory", "factory"} {
-			result := invoke(root, cwd, executable, "", "check")
+			result := invoke(root, cwd, executable, "", "selftest")
 			Expect(result.status).To(Equal(baseline.status), executable)
 			Expect(result.stdout).To(BeEmpty(), executable)
-			Expect(result.stderr).To(ContainSubstring("pre-push-check.sh"), executable)
+			Expect(result.stderr).To(ContainSubstring("selftest/run.sh"), executable)
 			Expect(result.stderr).NotTo(ContainSubstring("Usage:"), executable)
 			baselineDiagnostic, err := normalizeBashDiagnostic(baseline.stderr, filepath.Join(root, "legacy-factory"))
 			Expect(err).NotTo(HaveOccurred())
@@ -298,17 +315,17 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			Expect(os.Symlink(filepath.Join(root, executable), filepath.Join(aliasRoot, executable))).To(Succeed())
 		}
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\necho wrong-executable-target\nexit 99\n"), 0755)
-		writeFixture(filepath.Join(aliasRoot, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\nprintf 'invocation root\\n'\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\necho wrong-executable-target\nexit 99\n"), 0755)
+		writeFixture(filepath.Join(aliasRoot, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf 'invocation root\\n'\n"), 0755)
 		expected := cliResult{"invocation root\n", "", 0}
-		Expect(invoke(aliasRoot, cwd, "legacy-factory", "", "check")).To(Equal(expected))
-		Expect(invoke(aliasRoot, cwd, "factory", "", "check")).To(Equal(expected))
+		Expect(invoke(aliasRoot, cwd, "legacy-factory", "", "selftest")).To(Equal(expected))
+		Expect(invoke(aliasRoot, cwd, "factory", "", "selftest")).To(Equal(expected))
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("locates co-located scripts after PATH invocation", func(relative bool) {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
 		lookupRoot := root
 		if relative {
 			var err error
@@ -318,7 +335,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, "/usr/bin/env", "PATH="+lookupRoot+":/bin:/usr/bin", executable, "check") // #nosec G204 -- isolated fixture PATH; direct argv intentionally exercises caller lookup.
+			cmd := exec.CommandContext(ctx, "/usr/bin/env", "PATH="+lookupRoot+":/bin:/usr/bin", executable, "selftest") // #nosec G204 -- isolated fixture PATH; direct argv intentionally exercises caller lookup.
 			cmd.Dir = cwd
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -331,11 +348,11 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	It("preserves signal termination instead of converting it into a normal error exit", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "check") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
+			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "selftest") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
 			cmd.Dir = cwd
 			err := cmd.Run()
 			Expect(ctx.Err()).NotTo(HaveOccurred())
@@ -351,11 +368,11 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	It("replaces the dispatcher process with its script, preserving caller process ownership", func() {
 		root, cwd := fixture()
-		writeFixture(filepath.Join(root, "scripts/pre-push-check.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\"\n"), 0755)
+		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\"\n"), 0755)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "check") // #nosec G204 -- isolated fixture; comparing PID requires a real process launch.
+			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "selftest") // #nosec G204 -- isolated fixture; comparing PID requires a real process launch.
 			cmd.Dir = cwd
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr

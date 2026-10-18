@@ -70,7 +70,9 @@ func nativeInitFixture() (string, string, []string) {
 	Expect(err).NotTo(HaveOccurred())
 	writeFixture(filepath.Join(source, "scripts/factory-init-legacy.sh"), original, 0700)
 	writeFixture(filepath.Join(source, "scripts/factory-init.sh"), []byte("#!/bin/sh\nprintf LEGACY_INIT_CALLED >&2\nexit 93\n"), 0700)
-	for _, path := range []string{"scripts/selftest/run.sh", "scripts/prereq-check.sh", "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh", "scripts/factory-review-lane.sh"} {
+	// Actual immutable sync sources are needed by artifact-parity oracles. The
+	// candidate must render those artifacts natively. per docs/adr/0099-native-factory-orchestration.md:43
+	for _, path := range []string{"scripts/selftest/run.sh", "scripts/prereq-check.sh", "scripts/factory-review-lane.sh"} {
 		writeFixture(filepath.Join(source, path), []byte("#!/bin/sh\nexit 0\n"), 0700)
 	}
 	bin := filepath.Join(base, "bin")
@@ -211,7 +213,7 @@ func nativeInitArtifacts(root string) map[string]string {
 // per docs/adr/0093-runtime-transition-guard.md:146
 func nativeInitLegacyComparableArtifacts(source, target string) map[string]string {
 	GinkgoHelper()
-	actual := nativeInitArtifacts(target)
+	actual := nativeInitComparableArtifacts(target)
 	const path = "scripts/lib/runtime_transition.py"
 	data, err := os.ReadFile(filepath.Join(source, path))
 	Expect(err).NotTo(HaveOccurred())
@@ -222,8 +224,66 @@ func nativeInitLegacyComparableArtifacts(source, target string) map[string]strin
 	return actual
 }
 
+// JSON representation is incidental; all keys, types, values, other files and
+// file modes remain compared. per docs/adr/0099-native-factory-orchestration.md:60
+func nativeInitComparableArtifacts(root string) map[string]string {
+	GinkgoHelper()
+	artifacts := nativeInitArtifacts(root)
+	for _, path := range []string{"opencode.json", ".mcp.json", ".claude/settings.json"} {
+		artifact, exists := artifacts[path]
+		if !exists {
+			continue
+		}
+		mode, encoded, found := strings.Cut(artifact, ":")
+		Expect(found).To(BeTrue())
+		data, err := hex.DecodeString(encoded)
+		Expect(err).NotTo(HaveOccurred())
+		var value any
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.UseNumber()
+		Expect(decoder.Decode(&value)).To(Succeed())
+		var trailing any
+		Expect(decoder.Decode(&trailing)).To(Equal(io.EOF))
+		normalized, err := json.Marshal(value)
+		Expect(err).NotTo(HaveOccurred())
+		artifacts[path] = mode + ":" + hex.EncodeToString(normalized)
+	}
+	return artifacts
+}
+
+// Poison only after the immutable initializer produced its expected adapters.
+// Mirroring the poison bytes into the oracle's copied scripts preserves the
+// exact source-copy assertion without changing its generated-output oracle.
+// per docs/adr/0099-native-factory-orchestration.md:43
+func nativeInitPoisonSync(source, oracle string, environment []string) ([]string, string) {
+	GinkgoHelper()
+	marker := filepath.Join(filepath.Dir(source), "forbidden-legacy-sync")
+	poison := []byte("#!/bin/sh\nprintf '%s\\n' \"$0\" >> \"$INIT_LEGACY_SYNC_MARKER\"\nexit 97\n")
+	for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
+		for _, root := range []string{source, oracle} {
+			writeFixture(filepath.Join(root, "scripts", name), poison, 0700)
+		}
+	}
+	return append(environment, "INIT_LEGACY_SYNC_MARKER="+marker), marker
+}
+
 var _ = Describe("Native Go init artifact compatibility", func() {
+	// per docs/adr/0099-native-factory-orchestration.md:254
+	It("distinguishes adjacent large JSON integers while ignoring representation whitespace", func() {
+		_, cwd := fixture()
+		left, right := filepath.Join(cwd, "left"), filepath.Join(cwd, "right")
+		writeFixture(filepath.Join(left, "opencode.json"), []byte(`{"extra":"kept","retained":{"count":9007199254740992}}`), 0600)
+		writeFixture(filepath.Join(right, "opencode.json"), []byte(`{"extra":"kept","retained":{"count":9007199254740993}}`), 0600)
+		Expect(nativeInitComparableArtifacts(left)).NotTo(Equal(nativeInitComparableArtifacts(right)), "the parity oracle must detect one changed integer")
+		writeFixture(filepath.Join(right, "opencode.json"), []byte("{\n  \"retained\": {\"count\": 9007199254740992},\n  \"extra\": \"kept\"\n}\n"), 0600)
+		Expect(nativeInitComparableArtifacts(left)).To(Equal(nativeInitComparableArtifacts(right)))
+	})
+
 	// per docs/adr/0085-go-native-init.md:17
+	// per docs/adr/0099-native-factory-orchestration.md:43
+	// per docs/adr/0099-native-factory-orchestration.md:60
+	// per docs/adr/0099-native-factory-orchestration.md:43
+	// per docs/adr/0099-native-factory-orchestration.md:60
 	DescribeTable("matches immutable generated artifacts for packs and model profiles", func(packs, build, hints, provider, profile string) {
 		source, target, environment := nativeInitFixture()
 		oracle := target + "-legacy"
@@ -253,9 +313,12 @@ var _ = Describe("Native Go init artifact compatibility", func() {
 		input := nativeInitInput(fields, versions, "y")
 		baseline := nativeInitLegacy(source, oracle, input, environment, args)
 		Expect(baseline.status).To(BeZero(), "%+v", baseline)
+		environment, marker := nativeInitPoisonSync(source, oracle, environment)
 		actual := nativeInitRun(source, target, input, environment, args)
 		Expect(actual.status).To(BeZero(), "%+v", actual)
-		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitArtifacts(oracle)))
+		_, err := os.Stat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "candidate must not execute legacy synchronization")
+		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitComparableArtifacts(oracle)))
 	}, Entry("plain inherit", "none", "", "", "inherit", "standard"), Entry("Go", "go", "", "", "inherit", "standard"), Entry("TypeScript", "typescript", "", "", "inherit", "standard"), Entry("Java default Gradle", "java", "", "", "inherit", "standard"), Entry("Maven POM detection", "java", "", "pom", "inherit", "standard"), Entry("Maven wrapper", "java", "", "pom mvnw", "inherit", "standard"), Entry("Gradle wrapper wins", "java", "", "pom mvnw gradlew", "inherit", "standard"), Entry("explicit Maven wins", "java", "maven", "pom mvnw gradlew", "inherit", "standard"), Entry("polyglot dedupe", "go,typescript,java,go", "", "pom", "inherit", "standard"), Entry("OpenRouter economy", "none", "", "", "openrouter", "Economy"), Entry("Anthropic standard", "none", "", "", "anthropic", "standard"), Entry("OpenAI economy", "none", "", "", "openai", "economy"), Entry("other provider", "none", "", "", "other", "standard"), Entry("invalid profile defaults", "none", "", "", "inherit", "UNRECOGNIZED"))
 	// per docs/adr/0085-go-native-init.md:17
 	It("does not require a colocated legacy init script", func() {
@@ -414,6 +477,7 @@ var _ = Describe("Native Go init admission and safety", func() {
 
 var _ = Describe("Native Go init preservation", func() {
 	// per docs/adr/0085-go-native-init.md:101
+	// per docs/adr/0099-native-factory-orchestration.md:55
 	It("keeps adopter files and creates exclusive old-configuration backups across reruns", func() {
 		source, target, environment := nativeInitFixture()
 		files := map[string]string{"README.md": "adopter __PROJECT_NAME__ & retained\r\n", "Makefile": "custom-target:\n\t@echo retained\n", ".gitignore": "private-company-files/\n", "factory.yaml": "old_private_config: retained\n"}
@@ -426,12 +490,24 @@ var _ = Describe("Native Go init preservation", func() {
 		out = nativeInitRun(source, target, nativeInitAnswers("y"), environment, []string{"--pack", "none"})
 		Expect(out.status).To(BeZero(), "%+v", out)
 		after := nativeInitArtifacts(target)
-		Expect(after).To(HaveLen(len(before)), "changed artifact paths: %v", initArtifactChanges(before, after))
-		Expect(after).To(Equal(before), "changed artifact paths: %v", initArtifactChanges(before, after))
+		// Sync changes model metadata in these copied sources. A rerun preserves
+		// their synchronized bytes before copying and synchronizing them again.
+		regeneratedSources := []string{"opencode.json", ".opencode/agent/implementer.md", ".opencode/agent/refactorer.md", ".opencode/agent/reviewer.md", ".opencode/agent/spec-writer.md", ".opencode/agent/wiki-maintainer.md"}
+		Expect(after).To(HaveLen(len(before)+len(regeneratedSources)), "changed artifact paths: %v", initArtifactChanges(before, after))
 		for path, value := range before {
-			if strings.Contains(path, ".factory-backup.") {
-				Expect(after).To(HaveKeyWithValue(path, value))
+			Expect(after).To(HaveKeyWithValue(path, value), "every prior live artifact and backup must be unchanged")
+		}
+		for _, sourcePath := range regeneratedSources {
+			var added []string
+			for path := range after {
+				if _, existed := before[path]; !existed && strings.HasPrefix(path, sourcePath+".factory-backup.") {
+					added = append(added, path)
+				}
 			}
+			Expect(added).To(HaveLen(1), "exactly one new backup of %s", sourcePath)
+			_, priorBytes, found := strings.Cut(before[sourcePath], ":")
+			Expect(found).To(BeTrue())
+			Expect(after[added[0]]).To(Equal("600:"+priorBytes), "new backup must privately preserve the complete previous source bytes")
 		}
 		readme, err := os.ReadFile(filepath.Join(target, "README.md"))
 		Expect(err).NotTo(HaveOccurred())
@@ -471,10 +547,11 @@ var _ = Describe("Native Go init preservation", func() {
 
 var _ = Describe("Native Go init external boundaries", func() {
 	// per docs/adr/0085-go-native-init.md:62
+	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("distinguishes advisory failures from mandatory gate attestation", func(which string, status int) {
 		source, target, environment := nativeInitFixture()
 		trace := filepath.Join(filepath.Dir(source), "external-trace")
-		scripts := map[string]string{"npm": filepath.Join(filepath.Dir(source), "bin/npm"), "sync": filepath.Join(source, "scripts/sync-opencode.sh"), "selftest": filepath.Join(source, "scripts/selftest/run.sh")}
+		scripts := map[string]string{"npm": filepath.Join(filepath.Dir(source), "bin/npm"), "selftest": filepath.Join(source, "scripts/selftest/run.sh")}
 		for name, path := range scripts {
 			code := "0"
 			if name == which {
@@ -487,6 +564,14 @@ var _ = Describe("Native Go init external boundaries", func() {
 			script += "exit " + code + "\n"
 			writeFixture(path, []byte(script), 0700)
 		}
+		for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
+			writeFixture(filepath.Join(source, "scripts", name), []byte("#!/bin/sh\nprintf 'sync|unexpected legacy execution\\n' >> '"+trace+"'\nexit 7\n"), 0700)
+		}
+		if which == "sync" {
+			// The native renderer must reject the actual malformed role, while
+			// initialization retains the advisory status of synchronization.
+			writeFixture(filepath.Join(source, ".opencode/agent/implementer.md"), []byte("Missing canonical frontmatter.\n"), 0600)
+		}
 		if which == "review" {
 			writeFixture(filepath.Join(source, "packs/review-lane/review-pr.yml"), []byte("missing required secret placeholder\n"), 0600)
 		}
@@ -498,8 +583,12 @@ var _ = Describe("Native Go init external boundaries", func() {
 		Expect(err).NotTo(HaveOccurred())
 		text := string(data)
 		Expect(text).To(ContainSubstring("npm|" + filepath.Join(target, ".opencode") + "|install"))
-		Expect(text).To(ContainSubstring("sync|" + target + "|"))
+		Expect(text).NotTo(ContainSubstring("sync|"))
 		Expect(text).To(ContainSubstring("selftest|" + target + "|"))
+		if which == "sync" {
+			Expect(strings.ToLower(out.stdout + out.stderr)).To(ContainSubstring("sync"))
+			Expect(out.stdout).To(ContainSubstring("warning"))
+		}
 		if which == "review" {
 			Expect(out.stdout).To(ContainSubstring("could not enable the review lane"))
 		} else {
@@ -518,6 +607,7 @@ var _ = Describe("Native Go init external boundaries", func() {
 
 var _ = Describe("Native Go init shared synchronization", func() {
 	// per docs/adr/0085-go-native-init.md:62
+	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("produces the same synchronized harness artifacts as the immutable initializer", func(provider, profile string) {
 		source, target, environment := nativeInitFixture()
 		for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
@@ -531,10 +621,42 @@ var _ = Describe("Native Go init shared synchronization", func() {
 		oracle := target + "-oracle"
 		expected := nativeInitLegacy(source, oracle, input, environment, []string{"--pack", "none"})
 		Expect(expected.status).To(BeZero(), "oracle %+v", expected)
+		environment, marker := nativeInitPoisonSync(source, oracle, environment)
 		actual := nativeInitRun(source, target, input, environment, []string{"--pack", "none"})
 		Expect(actual.status).To(BeZero(), "candidate %+v", actual)
-		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitArtifacts(oracle)))
+		_, err := os.Stat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "candidate must not execute legacy synchronization")
+		Expect(nativeInitLegacyComparableArtifacts(source, target)).To(Equal(nativeInitComparableArtifacts(oracle)))
 	}, Entry("inherit", "inherit", "standard"), Entry("economy", "openai", "economy"), Entry("standard", "anthropic", "standard"))
+})
+
+var _ = Describe("Native orchestration init synchronization", func() {
+	// per docs/adr/0099-native-factory-orchestration.md:43
+	// per docs/adr/0099-native-factory-orchestration.md:55
+	It("renders all new-target harness adapters without executing the copied legacy sync scripts", func() {
+		source, target, environment := nativeInitFixture()
+		marker := filepath.Join(filepath.Dir(source), "legacy-sync-executed")
+		environment = append(environment, "INIT_SYNC_TRACE="+marker)
+		for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
+			writeFixture(filepath.Join(source, "scripts", name), []byte("#!/bin/sh\nprintf '%s\\n' \"$0\" >> \"$INIT_SYNC_TRACE\"\nexit 97\n"), 0700)
+		}
+		out := nativeInitRun(source, target, nativeInitAnswers("y"), environment, []string{"--pack", "none"})
+		Expect(out.status).To(BeZero(), "%+v", out)
+		_, err := os.Stat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "legacy sync must not run in the new target")
+		settings := syncJSON(syncRead(target, ".claude/settings.json"))
+		Expect(settings["permissions"].(map[string]any)["allow"]).To(ContainElement("Bash(go *)"))
+		for _, role := range []string{"implementer", "refactorer", "reviewer", "spec-writer", "wiki-maintainer"} {
+			metadata, body := syncClaudeRole(target, role)
+			Expect(metadata["model"]).To(Equal("inherit"))
+			Expect(body).To(ContainSubstring("Native Project"))
+			codex := syncRead(target, ".codex/agents/"+role+".toml")
+			_, exists := syncTOMLString(codex, "model")
+			Expect(exists).To(BeFalse(), "inherit must omit the native Codex model")
+		}
+		Expect(syncJSON(syncRead(target, "opencode.json"))).NotTo(HaveKey("model"))
+		Expect(out.stdout).To(ContainSubstring("gates proven"))
+	})
 })
 
 var _ = Describe("Native Go init input and child ownership", func() {
@@ -1000,7 +1122,8 @@ var _ = Describe("Native Go init review secret representation", func() {
 
 var _ = Describe("Native Go init exported prompt compatibility", func() {
 	// per docs/adr/0085-go-native-init.md:72
-	It("passes updated prompt values to real sync children when those variables were originally exported", func() {
+	// per docs/adr/0099-native-factory-orchestration.md:43
+	It("passes updated prompt values to synchronization when those variables were originally exported", func() {
 		source, target, environment := nativeInitFixture()
 		environment = append(environment, "MODEL_PROVIDER=anthropic", "COST_PROFILE=economy", "GO_VERSION=1.22", "REVIEW_LANE=on")
 		for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
@@ -1016,9 +1139,12 @@ var _ = Describe("Native Go init exported prompt compatibility", func() {
 		args := []string{"--pack", "go"}
 		expected := nativeInitLegacy(source, oracle, input, environment, args)
 		Expect(expected.status).To(BeZero(), "%+v", expected)
+		environment, marker := nativeInitPoisonSync(source, oracle, environment)
 		actual := nativeInitRun(source, target, input, environment, args)
 		Expect(actual.status).To(BeZero(), "%+v", actual)
-		before, after := nativeInitArtifacts(oracle), nativeInitLegacyComparableArtifacts(source, target)
+		_, err := os.Stat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "candidate must not execute legacy synchronization")
+		before, after := nativeInitComparableArtifacts(oracle), nativeInitLegacyComparableArtifacts(source, target)
 		Expect(after).To(Equal(before), "changed artifact paths: %v", initArtifactChanges(before, after))
 	})
 })

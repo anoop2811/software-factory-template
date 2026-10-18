@@ -227,7 +227,7 @@ func Run(ctx context.Context, args []string) int {
 		return nil
 	}))
 	loopCommand := loopCommands(&status)
-	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand, assessmentCommands(&status))
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand, assessmentCommands(&status), helperCommand(&status))
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.

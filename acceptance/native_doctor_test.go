@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -192,49 +193,141 @@ func doctorConfig(root, text string) {
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte(text), 0600)
 }
 
+// Materialize the unchanged adapter contract from immutable generators, never
+// from the candidate being evaluated. JSON formatting is normalized by doctor.
+// per docs/adr/0099-native-factory-orchestration.md:157
+func doctorFrozenAdapters(root string, environment []string) {
+	GinkgoHelper()
+	for _, harness := range []string{"claude", "codex"} {
+		path := filepath.Join(root, "scripts", "oracle-sync-"+harness+".sh")
+		writeFixture(path, orchestrationFrozen("scripts/sync-"+harness+".sh"), 0700)
+		command := exec.Command("/bin/bash", path) // #nosec G204 -- immutable evaluator oracle, not a source implementation under test.
+		command.Dir, command.Env = root, environment
+		output, err := command.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), "frozen %s sync failed: %s", harness, output)
+		Expect(os.Remove(path)).To(Succeed())
+	}
+}
+
+// Give the independent observer a bounded interval in the real native staging
+// boundary, after the snapshot is complete. No production fault hook is used.
+// per docs/adr/0099-native-factory-orchestration.md:65
+func doctorNativeStageFixture(root string) {
+	GinkgoHelper()
+	canon := syncJSON(syncRead(root, "opencode.json"))
+	roles := canon["agent"].(map[string]any)
+	for i := 0; i < 80; i++ {
+		name := "scratch-probe-" + strconv.Itoa(i)
+		roles[name] = map[string]any{"description": "Native scratch ownership probe", "permission": map[string]any{"edit": "ask"}}
+		writeFixture(filepath.Join(root, ".opencode/agent", name+".md"), []byte("---\ndescription: Native scratch ownership probe\nmode: subagent\n---\n"+strings.Repeat("Literal instructions for the bounded scratch probe.\n", 160)), 0600)
+	}
+	syncWriteJSON(root, canon)
+}
+
+// Stop only an observed native publication, then replace only its guarded
+// direct-child temporary root. The child owns the cleanup decision on resume.
+// per docs/adr/0086-go-native-doctor.md:58
+// per docs/adr/0099-native-factory-orchestration.md:43
+func doctorReplaceNativeScratch(root string, environment []string, temporary, outside, kind string) (cliResult, string) {
+	GinkgoHelper()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, filepath.Join(root, "factory-go"), "doctor") // #nosec G204 -- evaluator-owned compiled CLI; no shell source or external process is selected.
+	command.Dir, command.Env = root, append(append([]string{}, environment...), "TMPDIR="+temporary)
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	Expect(command.Start()).To(Succeed())
+	done := make(chan error, 1)
+	go func() { defer close(done); done <- command.Wait() }()
+	finished := false
+	DeferCleanup(func() {
+		if !finished {
+			_ = command.Process.Signal(syscall.SIGCONT)
+			_ = command.Process.Kill()
+			Eventually(done, 3*time.Second).Should(BeClosed())
+		}
+	})
+	selected := ""
+	deadline := time.Now().Add(10 * time.Second)
+	for selected == "" && time.Now().Before(deadline) {
+		entries, err := os.ReadDir(temporary)
+		Expect(err).NotTo(HaveOccurred())
+		for _, entry := range entries {
+			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "factory-doctor-config-") {
+				continue
+			}
+			candidate := filepath.Join(temporary, entry.Name())
+			stages, err := os.ReadDir(filepath.Join(candidate, ".claude"))
+			if err != nil {
+				continue
+			}
+			for _, stage := range stages {
+				if strings.HasPrefix(stage.Name(), ".factory-sync-") {
+					selected = candidate
+					break
+				}
+			}
+		}
+		select {
+		case <-done:
+			finished = true
+			Fail("doctor exited before a native sync publication was observed: " + stdout.String() + stderr.String())
+		default:
+		}
+		if selected == "" {
+			time.Sleep(time.Millisecond)
+		}
+	}
+	Expect(selected).NotTo(BeEmpty(), "native sync publication must be observed before the adversarial replacement")
+	Expect(command.Process.Signal(syscall.SIGSTOP)).To(Succeed())
+	Eventually(func() string {
+		state, _ := exec.Command("/bin/ps", "-o", "state=", "-p", strconv.Itoa(command.Process.Pid)).Output() // #nosec G204 -- inspect only the evaluator-owned child PID.
+		return string(state)
+	}, 2*time.Second).Should(ContainSubstring("T"), "observe the stopped process before changing its scratch path")
+	Expect(filepath.Dir(selected)).To(Equal(temporary))
+	Expect(selected).NotTo(Equal(root))
+	info, err := os.Lstat(selected)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(info.IsDir()).To(BeTrue())
+	Expect(info.Mode() & os.ModeSymlink).To(BeZero())
+	_, err = os.Lstat(selected + ".retired")
+	Expect(os.IsNotExist(err)).To(BeTrue())
+	Expect(os.Rename(selected, selected+".retired")).To(Succeed())
+	if kind == "directory" {
+		Expect(os.Mkdir(selected, 0700)).To(Succeed())
+		writeFixture(filepath.Join(selected, "KEEP"), []byte("REPLACEMENT_KEEP"), 0600)
+	} else {
+		Expect(kind).To(Equal("symlink"))
+		Expect(os.Symlink(outside, selected)).To(Succeed())
+	}
+	Expect(command.Process.Signal(syscall.SIGCONT)).To(Succeed())
+	var waitErr error
+	Eventually(done, 7*time.Second).Should(Receive(&waitErr))
+	finished = true
+	Expect(ctx.Err()).NotTo(HaveOccurred())
+	var exited *exec.ExitError
+	Expect(errors.As(waitErr, &exited)).To(BeTrue(), "replacement must refuse cleanup rather than return healthy")
+	return cliResult{stdout.String(), stderr.String(), exited.ExitCode()}, selected
+}
+
 var _ = Describe("Native Go doctor scratch and process safety", func() {
 	// per docs/adr/0086-go-native-doctor.md:58
+	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("refuses cleanup after its guarded scratch path is replaced", func(kind string) {
 		root, environment := doctorFixture()
 		base := filepath.Dir(root)
 		tmp := filepath.Join(base, "doctor-owned-tmp")
 		outside := filepath.Join(base, "outside-scratch")
-		marker := filepath.Join(base, "checked-scratch-pwd")
 		Expect(os.Mkdir(tmp, 0700)).To(Succeed())
 		Expect(os.Mkdir(outside, 0750)).To(Succeed())
 		writeFixture(filepath.Join(outside, "KEEP"), []byte("OUTSIDE_KEEP"), 0600)
 		outsideBefore, err := os.Stat(outside)
 		Expect(err).NotTo(HaveOccurred())
-		// This helper may mutate only a single, direct child of a dedicated
-		// temporary directory. All guards precede the marker and rename.
-		const replaceOwnScratch = `#!/bin/bash
-set -euo pipefail
-: "${DOCTOR_TEST_TMP:?}" "${DOCTOR_LIVE_ROOT:?}" "${DOCTOR_CHECKED_PWD:?}" "${DOCTOR_OUTSIDE:?}" "${DOCTOR_REPLACE_KIND:?}"
-[ "$PWD" != "$DOCTOR_LIVE_ROOT" ] || exit 81
-[ "${PWD%/*}" = "$DOCTOR_TEST_TMP" ] || exit 82
-case "${PWD##*/}" in factory-doctor-config-?*) ;; *) exit 83 ;; esac
-[ -d "$PWD" ] && [ ! -L "$PWD" ] || exit 84
-[ ! -e "$PWD.retired" ] && [ ! -L "$PWD.retired" ] || exit 85
-case "$DOCTOR_REPLACE_KIND" in directory|symlink) ;; *) exit 86 ;; esac
-printf '%s' "$PWD" > "$DOCTOR_CHECKED_PWD"
-/bin/mv "$PWD" "$PWD.retired"
-if [ "$DOCTOR_REPLACE_KIND" = directory ]; then
-  /bin/mkdir "$PWD"
-  printf 'REPLACEMENT_KEEP' > "$PWD/KEEP"
-else
-  /bin/ln -s "$DOCTOR_OUTSIDE" "$PWD"
-fi
-exit 0
-`
-		writeFixture(filepath.Join(root, "scripts/sync-claude.sh"), []byte(replaceOwnScratch), 0700)
+		doctorNativeStageFixture(root)
 		before := nativeInitArtifacts(root)
-		environment = append(environment, "TMPDIR="+tmp, "DOCTOR_TEST_TMP="+tmp, "DOCTOR_LIVE_ROOT="+root, "DOCTOR_CHECKED_PWD="+marker, "DOCTOR_OUTSIDE="+outside, "DOCTOR_REPLACE_KIND="+kind)
-		out := doctorRun(root, environment, false)
+		out, replacement := doctorReplaceNativeScratch(root, environment, tmp, outside, kind)
 		Expect(out.status).To(Equal(1), "%+v", out)
 		Expect(out.stdout + out.stderr).To(ContainSubstring("scratch identity changed; cleanup refused"))
-		checked, err := os.ReadFile(marker)
-		Expect(err).NotTo(HaveOccurred(), "guarded helper must have reached the isolated mutation")
-		replacement := string(checked)
 		Expect(filepath.Dir(replacement)).To(Equal(tmp))
 		Expect(filepath.Base(replacement)).To(HavePrefix("factory-doctor-config-"))
 		info, err := os.Lstat(replacement)
@@ -308,44 +401,45 @@ exit 0
 		Expect(entries).To(BeEmpty(), "doctor must remove only its owned scratch")
 	})
 	// per docs/adr/0086-go-native-doctor.md:50
+	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("detects adapter changes without touching the live inode or backups", func(kind string) {
 		root, environment := doctorFixture()
+		doctorFrozenAdapters(root, environment)
 		doctorGit(root, environment, "init", "-q")
 		writeFixture(filepath.Join(root, "node_modules/PRIVATE"), []byte("EXCLUDED"), 0600)
 		path := filepath.Join(root, ".claude/settings.json")
-		writeFixture(path, []byte("USER_EDITS\n"), 0600)
-		beforeInfo, err := os.Stat(path)
-		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, "CLAUDE.md.replaced-by-symlink"), []byte("OLD_BACKUP"), 0600)
-		body := ""
 		switch kind {
 		case "content":
-			body = "printf generated > .claude/settings.json"
-		case "mode":
-			body = "chmod 755 .claude/settings.json"
+			// Valid live JSON with a permission value absent from the canon.
+			writeFixture(path, []byte("{\"permissions\":{\"allow\":[\"USER_EDITS\"]}}\n"), 0750)
 		case "new":
-			body = "printf new > .claude/new-adapter.json"
+			Expect(os.Remove(filepath.Join(root, ".claude/agents/reviewer.md"))).To(Succeed())
 		case "link":
-			body = "rm -f CLAUDE.md; ln -s AGENTS-other.md CLAUDE.md"
+			Expect(os.Remove(filepath.Join(root, "CLAUDE.md"))).To(Succeed())
+			writeFixture(filepath.Join(root, "CLAUDE.md"), []byte("User-owned instructions needing a local backup.\n"), 0600)
+		case "canonical role":
+			writeFixture(filepath.Join(root, ".opencode/agent/reviewer.md"), []byte("---\ndescription: Reviewer\nmode: subagent\n---\nChanged canonical reviewer instructions.\n"), 0600)
 		}
-		// Require a scratch cwd and excluded assets; inode/mtime assertions below
-		// additionally reject restore-after-write mutation of live adapters.
-		writeFixture(filepath.Join(root, "scripts/sync-claude.sh"), []byte("#!/bin/bash\n[ \"$PWD\" != \"$DOCTOR_LIVE_ROOT\" ] || exit 81\n[ ! -e node_modules/PRIVATE ] || exit 82\n[ ! -e .git ] || exit 83\n"+body+"\n"), 0700)
+		beforeInfo, err := os.Stat(path)
+		Expect(err).NotTo(HaveOccurred())
 		before := nativeInitArtifacts(root)
-		out := doctorRun(root, append(environment, "DOCTOR_LIVE_ROOT="+root), false)
+		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		Expect(out.stdout).To(ContainSubstring("harness adapters drifted"))
 		afterInfo, err := os.Stat(path)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(os.SameFile(beforeInfo, afterInfo)).To(BeTrue())
 		Expect(afterInfo.ModTime()).To(Equal(beforeInfo.ModTime()))
+		Expect(afterInfo.Mode()).To(Equal(beforeInfo.Mode()), "native synchronization retains the live file mode")
 		Expect(nativeInitArtifacts(root)).To(Equal(before))
-	}, Entry("content", "content"), Entry("mode", "mode"), Entry("new output", "new"), Entry("link target", "link"))
+	}, Entry("content", "content"), Entry("new generated output", "new"), Entry("link shape", "link"), Entry("canonical role body", "canonical role"))
 
 	// per docs/adr/0086-go-native-doctor.md:46
+	// per docs/adr/0099-native-factory-orchestration.md:63
 	It("reports unsuccessful sync as a warning rather than agreement", func() {
 		root, environment := doctorFixture()
-		writeFixture(filepath.Join(root, "scripts/sync-claude.sh"), []byte("#!/bin/bash\nexit 9\n"), 0700)
+		writeFixture(filepath.Join(root, ".opencode/agent/reviewer.md"), []byte("Malformed frontmatter with private instructions.\n"), 0600)
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		Expect(out.stdout).To(ContainSubstring("[warn]"))
@@ -419,6 +513,54 @@ exit 0
 	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
 })
 
+var _ = Describe("Native orchestration doctor synchronization", func() {
+	// per docs/adr/0099-native-factory-orchestration.md:43
+	It("inspects adapters with native sync while poisoned legacy scripts remain inert", func() {
+		root, environment := doctorFixture()
+		marker := filepath.Join(filepath.Dir(root), "forbidden-doctor-sync")
+		for _, harness := range []string{"opencode", "claude", "codex"} {
+			writeFixture(filepath.Join(root, "scripts", "sync-"+harness+".sh"), []byte("#!/bin/sh\nprintf legacy-sync-executed > \"$DOCTOR_FORBIDDEN_SYNC\"\nexit 91\n"), 0700)
+		}
+		before := nativeInitArtifacts(root)
+		out := doctorRun(root, append(environment, "DOCTOR_FORBIDDEN_SYNC="+marker), false)
+		Expect(out.status).To(BeZero(), "%+v", out)
+		Expect(out.stdout).To(Or(ContainSubstring("adapters match"), ContainSubstring("adapters drifted")))
+		Expect(out.stdout).NotTo(ContainSubstring("adapter drift unverified"))
+		_, err := os.Stat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "native doctor must not run a source sync script in its scratch tree")
+		Expect(nativeInitArtifacts(root)).To(Equal(before))
+	})
+
+	// per docs/adr/0099-native-factory-orchestration.md:60
+	// per docs/adr/0086-go-native-doctor.md:50
+	It("treats JSON whitespace and member order as equal while retaining live modes and inodes", func() {
+		root, environment := doctorFixture()
+		doctorFrozenAdapters(root, environment)
+		for _, path := range []string{".claude/settings.json", ".mcp.json"} {
+			value := syncJSON(syncRead(root, path))
+			// Marshal produces compact, sorted members independently of both the
+			// frozen jq layout and the native generator's indented layout.
+			body, err := json.Marshal(value)
+			Expect(err).NotTo(HaveOccurred())
+			writeFixture(filepath.Join(root, path), body, 0640)
+		}
+		path := filepath.Join(root, ".claude/settings.json")
+		info, err := os.Stat(path)
+		Expect(err).NotTo(HaveOccurred())
+		before := nativeInitArtifacts(root)
+		out := doctorRun(root, environment, false)
+		Expect(out.status).To(BeZero(), "%+v", out)
+		Expect(out.stdout).To(ContainSubstring("adapters match"))
+		Expect(out.stdout).NotTo(ContainSubstring("adapters drifted"))
+		after, err := os.Stat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(info, after)).To(BeTrue())
+		Expect(after.Mode()).To(Equal(info.Mode()))
+		Expect(after.ModTime()).To(Equal(info.ModTime()))
+		Expect(nativeInitArtifacts(root)).To(Equal(before))
+	})
+})
+
 func doctorGit(root string, environment []string, args ...string) {
 	GinkgoHelper()
 	command := exec.Command("git", args...) // #nosec G204 -- literal fixture Git operations.
@@ -489,8 +631,12 @@ var _ = Describe("Native Go doctor classifications", func() {
 		Expect(out.stdout).To(ContainSubstring("review lane            advisory PR review, secret present"))
 	})
 	// per docs/adr/0086-go-native-doctor.md:90
+	// per docs/adr/0099-native-factory-orchestration.md:157
 	DescribeTable("matches the frozen report and status", func(kind string) {
 		root, environment := doctorFixture()
+		// The Git archive omits the legacy generator's empty .claude/hooks
+		// directory. Seed complete canonical outputs before each case's change.
+		doctorFrozenAdapters(root, environment)
 		switch kind {
 		case "inert":
 			doctorConfig(root, "project_name: fixture\n")

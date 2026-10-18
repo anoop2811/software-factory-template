@@ -56,14 +56,11 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 				parent = "../.."
 			}
 			return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n_factory_root=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/%s\" && pwd -P)\"\nexec \"$_factory_root/factory\" %s \"$@\"\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, parent, name)), nil
+		case "native-orchestration-adapter":
+			return orchestrationAdapter(role.Path, image)
+		case "sourceable-helper-bridge":
+			return helperBridge(ctx, role.Path, image)
 		case "sourceable-go-bridge":
-			if role.Path == "scripts/lib/budget-config.sh" {
-				data, found := image.Assets[role.Path]
-				if !found {
-					return nil, conflict("required budget bridge source is missing")
-				}
-				return data, nil
-			}
 			reader, found := image.Assets["runtime/shell/readers.sh"]
 			if !found {
 				return nil, conflict("required native bridge source is missing")

@@ -17,6 +17,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
+	"github.com/anoop2811/software-factory-template/internal/synccmd"
 	"golang.org/x/sys/unix"
 )
 
@@ -277,16 +278,19 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	if err := output.WriteEvent(ctx, stdout, []byte("\nApplying models to opencode, Claude, and Codex...\n")); err != nil {
 		return err
 	}
-	for _, name := range []string{"sync-opencode.sh", "sync-claude.sh", "sync-codex.sh"} {
-		ok, err := stage(target, []string{"./scripts/" + name}, false)
-		if err != nil {
-			return err
+	// Invoke the canonical Go implementation; source scripts are installation
+	// data and cannot select a second synchronization implementation.
+	// docs/adr/0099-native-factory-orchestration.md:34.
+	err = synccmd.Execute(ctx, nil, target, environment, stdout, stderr)
+	if ctx.Err() != nil || errors.Is(err, synccmd.ErrUnsafe) {
+		return errors.Join(ctx.Err(), err)
+	}
+	if err != nil {
+		if writeErr := output.WriteEvent(ctx, stderr, []byte(err.Error()+"\n")); writeErr != nil {
+			return writeErr
 		}
-		if !ok {
-			if err := output.WriteEvent(ctx, stdout, []byte("  warning: harness sync did not complete — run 'make sync-harnesses' (jq required)\n")); err != nil {
-				return err
-			}
-			break
+		if err := output.WriteEvent(ctx, stdout, []byte("  warning: harness sync did not complete — run 'make sync-harnesses'\n")); err != nil {
+			return err
 		}
 	}
 	if v["REVIEW_LANE"] == "on" {

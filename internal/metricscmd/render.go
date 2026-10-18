@@ -8,16 +8,12 @@ import (
 	"strings"
 
 	"github.com/anoop2811/software-factory-template/internal/output"
+	"github.com/anoop2811/software-factory-template/internal/presentation"
 )
 
 func renderText(ctx context.Context, out io.Writer, environment map[string]string, o options, m metrics) error {
-	bold, dim, yellow, reset := "", "", "", ""
-	if terminal(out) && environment["NO_COLOR"] == "" {
-		bold = "\x1b[1m"
-		dim = "\x1b[2m"
-		yellow = "\x1b[33m"
-		reset = "\x1b[0m"
-	}
+	palette := presentation.PaletteFor(terminal(out), environment["NO_COLOR"])
+	bold, dim, yellow, reset := palette.Bold, palette.Dim, palette.Yellow, palette.Reset
 	var writeErr error
 	printf := func(format string, args ...any) {
 		if writeErr == nil {

@@ -4407,8 +4407,8 @@ all project observations, explicit consent and fresh authentication under exclus
 
 ## Decision 101 (2026-10-18 UTC): parallelize Go acceptance without reducing qualification
 
-After merged PR128, the user approved priorities1,2 and3 from the CI audit.
-ADR0102 records the contract before implementation: bounded two-process Ginkgo
+After merged PR #128, the user approved priorities 1, 2 and 3 from the CI audit.
+ADR 0102 records the contract before implementation: bounded two-process Ginkgo
 execution for base and independent handoff scenarios, lean component fixtures,
 per-spec reports and measured final-head timings. Preserve the complete criterion
 inventory, all non-acceptance Go packages, Linux/macOS qualification, race/fresh-run
@@ -4418,7 +4418,7 @@ Independent scheduler RED precedes runner wiring. Source cache redesign and
 quality-stage consolidation remain outside this authorized slice.
 
 The first hosted macOS handoff report exposed two undifferentiated native
-ownership failures during installed-proof preparation. ADR0102's qualification
+ownership failures during installed-proof preparation. ADR 0102's qualification
 addendum permits bounded, private cleanup diagnostics before another diagnostic
 run, preserving the fixed typed error, cleanup order, deadlines and fail-closed
 policy. A passing rerun alone does not establish the cause or close this failure.

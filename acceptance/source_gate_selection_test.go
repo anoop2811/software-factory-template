@@ -334,6 +334,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 	} else {
 		// per docs/adr/0102-parallel-go-qualification.md:23
 		// per docs/adr/0102-parallel-go-qualification.md:40
+		Expect(len(call.Args)).To(BeNumerically(">=", 3))
 		Expect(call.Args[:3]).To(Equal([]string{"run", "-mod=readonly", "github.com/onsi/ginkgo/v2/ginkgo"}))
 		Expect(call.Args).To(ContainElements("--race", "--timeout=25m", "--fail-on-empty", "--keep-going", "--no-color", "--", "-test.count=1", "-test.timeout=25m"))
 		Expect(sourceGateOperand(call.Args, "--procs")).To(BeElementOf("1", "2"))

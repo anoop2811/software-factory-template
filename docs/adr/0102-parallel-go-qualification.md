@@ -6,16 +6,16 @@
 
 ## Scope and baseline
 
-The user authorized performance priorities 1, 2 and 3 after merging PR128: two
+The user authorized performance priorities 1, 2 and 3 after merging PR #128: two
 Ginkgo workers for base acceptance, lighter component fixtures, and independent
 release-handoff scenario groups. Keep all acceptance behavior, platform coverage,
 source qualification, race checks, failure propagation and existing timeouts.
 Do not expand this change into compiler-cache redesign, quality-stage removal,
 paid runners, or replacement of historical compatibility oracles.
 
-The completed PR128 run39102958496 provides the baseline: macOS base job1451s,
-acceptance1328.933s; Linux base job919s, acceptance702.777s. The macOS handoff job
-was1052s. These are different runner executions, not a controlled OS benchmark.
+The completed [PR #128 run 39102958496](https://github.com/anoop2811/software-factory-template/actions/runs/39102958496) provides the baseline: macOS base job 1,451 s,
+acceptance 1,328.933 s; Linux base job 919 s, acceptance 702.777 s. The macOS handoff job
+was 1,052 s. These are different runner executions, not a controlled OS benchmark.
 The new implementation must publish actual timings rather than promise a ratio.
 
 ## Worker execution and reports

@@ -4434,3 +4434,12 @@ termination, timeout, interruption, overflow or unknown signal error may use thi
 path. Preserve the real exit code and fixed typed diagnostics. Independent RED,
 negative controls, full-source review and protected-path human review precede
 merge; no successful rerun substitutes for the required terminal proof.
+
+## Decision 103 (2026-10-18 UTC): choose bounded Ginkgo workers from runner resources
+
+The user requested CPU-aware parallel qualification beyond the fixed two-worker
+limit after merging PR 129. [ADR 0104](adr/0104-adaptive-qualification-workers.md)
+defines automatic CPU/memory budgets, a configurable cap, explicit reproducible
+overrides and a two-group ceiling for release handoff. It preserves complete
+qualification and adds no installed CLI or dependency. Go is already pinned to
+1.27.2; no fictitious version upgrade or unmeasured timing improvement is claimed.

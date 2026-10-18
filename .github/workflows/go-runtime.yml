@@ -25,6 +25,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # docs/adr/0097-installation-source-image-bundles.md:231 — suite allowance only.
     timeout-minutes: 30
+    # docs/adr/0104-adaptive-qualification-workers.md:53 — bounded auto selection.
+    env:
+      GO_RUNTIME_TEST_MAX_PROCS: ${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -69,7 +72,7 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       # docs/adr/0102-parallel-go-qualification.md:27 — preserve all qualification.
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
       - name: Retain acceptance outcomes and timings
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -89,6 +92,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30
+    # docs/adr/0104-adaptive-qualification-workers.md:53 — bounded auto selection.
+    env:
+      GO_RUNTIME_TEST_MAX_PROCS: ${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -133,7 +139,7 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       # docs/adr/0102-parallel-go-qualification.md:32 — isolated handoff groups.
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
       - name: Retain acceptance outcomes and timings
         if: always() && matrix.group == 'release-handoff'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

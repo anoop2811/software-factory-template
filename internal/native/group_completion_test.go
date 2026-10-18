@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,8 @@ var _ = Describe("Native process group completion proof", func() {
 	// per docs/adr/0093-runtime-transition-guard.md:201
 	// per specs/001-go-runtime-conversion.md:314
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:634
+	// per docs/adr/0102-parallel-go-qualification.md:117
+	// per docs/adr/0102-parallel-go-qualification.md:125
 	DescribeTable("distinguishes group termination acknowledgement from the actual end of detached-pipe ownership", func(acknowledgeOnly bool) {
 		root := GinkgoT().TempDir()
 		executable, err := os.Executable()
@@ -79,6 +82,7 @@ var _ = Describe("Native process group completion proof", func() {
 			var ownership *OwnershipError
 			Expect(errors.As(err, &ownership)).To(BeTrue(), "signal acknowledgement plus a completed leader cannot prove the actual child group stopped")
 			Expect(ownership.ProcessPID).To(Equal(leader))
+			Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=group signal_errno=none reaped=true exit_confirmed=true drained=true group_state=present group_errno=none", leader)), "real group survival must remain distinct from signal or pipe uncertainty")
 			Expect(result.OwnershipUnconfirmed).To(BeTrue())
 			Expect(result.Outcome).NotTo(Equal("completed"))
 		} else {

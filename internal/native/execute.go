@@ -13,12 +13,6 @@ import (
 	"time"
 )
 
-// OwnershipError preserves the PID when termination or reap is unconfirmed.
-// docs/adr/0068-go-native-harness-execution.md:44.
-type OwnershipError struct{ ProcessPID int }
-
-func (e *OwnershipError) Error() string { return "native process ownership is unconfirmed" }
-
 type processOps struct {
 	signalGroup func(int) error
 	wait        func(*exec.Cmd) error
@@ -349,12 +343,33 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if len(result.Stdout) > options.limit {
 		result.Outcome = "output_limit"
 	}
-	if signalErr != nil || !result.ExitConfirmed || !drained || !groupStopped(cleanupCtx, result.ProcessPID) {
+	// Preserve cleanup's original short-circuit order and observation deadline.
+	// docs/adr/0102-parallel-go-qualification.md:125.
+	evidence := ownershipEvidence{
+		signalErrno: safeErrno(signalErr), reaped: reaped,
+		exitConfirmed: result.ExitConfirmed, drained: drained,
+		group: groupObservation{state: "not_observed", errno: "none"},
+	}
+	switch {
+	case signalErr != nil:
+		evidence.phase = "signal"
+	case !result.ExitConfirmed:
+		evidence.phase = "reap"
+	case !drained:
+		evidence.phase = "pipe_drain"
+	default:
+		var stopped bool
+		stopped, evidence.group = groupStopped(cleanupCtx, result.ProcessPID)
+		if !stopped {
+			evidence.phase = "group"
+		}
+	}
+	if evidence.phase != "" {
 		result.OwnershipUnconfirmed = true
 		if result.Outcome == "completed" {
 			result.Outcome = "failed"
 		}
-		return result, &OwnershipError{ProcessPID: result.ProcessPID}
+		return result, &OwnershipError{ProcessPID: result.ProcessPID, evidence: &evidence}
 	}
 	if result.Outcome == "completed" && result.ExitCode != nil && *result.ExitCode != 0 {
 		result.Outcome = "failed"
@@ -364,21 +379,28 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 
 // Acknowledged termination and leader reap do not prove descendant exit.
 // Share the existing cleanup deadline: docs/adr/0093-runtime-transition-guard.md:195.
-func groupStopped(ctx context.Context, pid int) bool {
+func groupStopped(ctx context.Context, pid int) (bool, groupObservation) {
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
+	observation := groupObservation{state: "not_observed", errno: "none"}
 	for ctx.Err() == nil {
 		err := syscall.Kill(-pid, 0)
+		observation.errno = safeErrno(err)
 		if errors.Is(err, syscall.ESRCH) {
-			return ctx.Err() == nil
+			observation.state = "absent"
+			return ctx.Err() == nil, observation
+		}
+		observation.state = "present"
+		if err != nil {
+			observation.state = "inspection_error"
 		}
 		select {
 		case <-ctx.Done():
-			return false
+			return false, observation
 		case <-ticker.C:
 		}
 	}
-	return false
+	return false, observation
 }
 
 func contextOutcome(err error) string {

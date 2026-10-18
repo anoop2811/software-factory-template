@@ -4413,6 +4413,12 @@ execution for base and independent handoff scenarios, lean component fixtures,
 per-spec reports and measured final-head timings. Preserve the complete criterion
 inventory, all non-acceptance Go packages, Linux/macOS qualification, race/fresh-run
 checks, failure propagation, source/image identity and crash/recovery assertions.
-Keep the existing test/job allowances, production code and all quality stages.
+Keep the existing test/job allowances, runtime behavior and all quality stages.
 Independent scheduler RED precedes runner wiring. Source cache redesign and
 quality-stage consolidation remain outside this authorized slice.
+
+The first hosted macOS handoff report exposed two undifferentiated native
+ownership failures during installed-proof preparation. ADR0102's qualification
+addendum permits bounded, private cleanup diagnostics before another diagnostic
+run, preserving the fixed typed error, cleanup order, deadlines and fail-closed
+policy. A passing rerun alone does not establish the cause or close this failure.

@@ -99,13 +99,13 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 		if err := p.write(ctx, "factory.yaml", "project_name: Proof\n", 0600); err != nil {
 			return err
 		}
-		for _, args := range [][]string{{"init", "-q"}, {"config", "user.name", "Factory proof"}, {"config", "user.email", "proof@example.invalid"}, {"add", "--all"}, {"commit", "-q", "-m", "chore: fixture base"}} {
+		for index, args := range [][]string{{"init", "-q"}, {"config", "user.name", "Factory proof"}, {"config", "user.email", "proof@example.invalid"}, {"add", "--all"}, {"commit", "-q", "-m", "chore: fixture base"}} {
 			if err := p.git(ctx, args...); err != nil {
-				return err
+				return fmt.Errorf("installed proof %s Git preparation step %d: %w", name, index+1, ownershipDiagnostic(err))
 			}
 		}
 		if err := p.pair(ctx, name); err != nil {
-			return fmt.Errorf("installed proof %s: %w", name, err)
+			return fmt.Errorf("installed proof %s: %w", name, ownershipDiagnostic(err))
 		}
 		if _, err := fmt.Fprintf(out, "proof: %s refused its violation and accepted its healthy control\n", name); err != nil {
 			return err
@@ -116,6 +116,16 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 }
 
 var sharedFiles = []string{"scripts/lib/budget-config.sh", "scripts/sync-opencode.sh", "scripts/adversarial-review.sh", "eval/runners/mock.sh", "eval/runners/example-harness.sh", "eval/runners/claude.sh", "eval/runners/codex.sh", "eval/runners/opencode.sh", ".githooks/pre-push", "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/events.sh", "scripts/lib/color.sh", "scripts/lib/hookspath.sh", "scripts/lib/timing.sh", "scripts/citation-lint.sh", "scripts/selftest/run.sh", "scripts/factory-init.sh", "scripts/prereq-check.sh", "scripts/pre-push-check.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh", "scripts/harness-structural-eval.sh", "scripts/golden-task-eval.sh", "scripts/hooks/test-edit-denial.sh", "scripts/hooks/commit-message-lint.sh", "scripts/hooks/decision-log-gate.sh", "scripts/hooks/diff-aware-check.sh", "scripts/hooks/direct-main-push-block.sh", "scripts/hooks/pending-lessons-push-block.sh", "scripts/hooks/loop-close-check.sh", "scripts/hooks/shared-script-enforcement.sh", "scripts/hooks/hook-existence-check.sh", "scripts/hooks/wiki-lint.sh", "scripts/hooks/workflow-lint.sh", "scripts/hooks/copy-manifest-check.sh", "scripts/hooks/gate-instrumentation-check.sh"}
+
+// Retain the typed fixed error while exposing only bounded cleanup evidence.
+// docs/adr/0102-parallel-go-qualification.md:118.
+func ownershipDiagnostic(err error) error {
+	var ownership *native.OwnershipError
+	if errors.As(err, &ownership) {
+		return fmt.Errorf("native cleanup evidence (%s): %w", ownership.SafeDiagnostic(), err)
+	}
+	return err
+}
 
 type proof struct {
 	root        string

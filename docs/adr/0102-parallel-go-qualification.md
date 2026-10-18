@@ -105,3 +105,26 @@ Its official release and tag identity were fetched 2026-10-18 UTC at
 https://github.com/actions/upload-artifact/releases/tag/v7.0.2 before wiring.
 Missing reports warn if setup failed before execution; the original runner status
 still fails the job. Successful base and handoff runs must produce their reports.
+
+## Hosted qualification failure diagnostics
+
+The first head's hosted macOS handoff report retained two failures with only
+`native process ownership is unconfirmed`, during installed-proof Git fixture
+preparation. Linux and the full local macOS handoff passed. The report does not
+identify a signal, reap, pipe-drain or terminal-group failure, so no root cause
+or safe process-policy correction is established by that evidence.
+
+Before another diagnostic qualification, preserve the fixed OwnershipError.Error
+message, typed identity and PID. Add a safe diagnostic accessor recording only
+the failed cleanup phase, PID, numeric/unknown syscall classifications, reap and
+drain booleans, and the last group observation. Do not expose command arguments,
+paths, environment, child output or arbitrary underlying error messages. At the
+installed-proof boundary, wrap this safe evidence and the fixed gate/setup step
+while retaining errors.As access to OwnershipError.
+
+Retain the exact short-circuit order, five-second shared cleanup deadline,
+20-millisecond group polling, ESRCH requirement and signal-error refusal. Do not
+retry commands, ignore EPERM, add watchdog headroom or treat a rerun as root-cause
+closure. Independent fault criteria must establish diagnostic accuracy and
+privacy before implementation. These diagnostics grant no execution, cleanup,
+publication or migration authority.

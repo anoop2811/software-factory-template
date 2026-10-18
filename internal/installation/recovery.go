@@ -18,11 +18,11 @@ import (
 // Recovery observes fresh images and actual entries; serialized records are never grants.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:223.
 func buildTransitionPlan(ctx context.Context, root string, request Request, record journal, reverse bool) (result plan, returned error) {
-	reference, err := reference(ctx, request.Profile)
+	image, err := staging.Inspect(ctx, request.Source)
 	if err != nil {
 		return result, err
 	}
-	image, err := staging.Inspect(ctx, request.Source)
+	reference, err := predecessor(ctx, request, image)
 	if err != nil {
 		return result, err
 	}
@@ -78,6 +78,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		originals[entry.Path] = entry
 	}
 	result = plan{image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
+	result.reference = reference
 	if request.Source.Local {
 		result.proposal.Authentication = "local-source"
 	}
@@ -143,12 +144,11 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		var beforeData []byte
 		if original.Before != nil {
-			raw, mode, known, err := reference.original(ctx, row.Path, request.Inputs)
+			projected, matched, err := reference.matching(ctx, row.Path, original.Before, request.Inputs)
 			if err != nil {
 				return result, err
 			}
-			projected := bytesImage(raw, mode)
-			if !known || !imageEqual(projected, original.Before, false) {
+			if !matched {
 				return result, conflict("recorded before-image is not a qualified baseline selection")
 			}
 			saved, binary, err := observe(ctx, tree, ".factory/backups/"+record.MigrationID+"/assets/"+row.Path, leafLimit(row.Path))
@@ -243,13 +243,14 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		Root          string
 		Request       Request
 		Archive       string
+		BeforeArchive string
 		JournalPlan   string
 		Manifest      *Image
 		Actions       []Action
 		State         []Issue
 		Parents       []installationfs.Directory
 		ObservedState []stateObservation
-	}{root, request, image.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state})
+	}{root, request, image.ArchiveSHA256, reference.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state})
 	if err != nil {
 		return result, err
 	}
@@ -322,7 +323,7 @@ func (owner *transaction) validateLegacy(ctx context.Context) error {
 	if err := owner.validateLegacyState(ctx); err != nil {
 		return err
 	}
-	reference, err := reference(ctx, owner.request.Profile)
+	reference, err := predecessor(ctx, owner.request, owner.planned.image)
 	if err != nil {
 		return err
 	}
@@ -340,11 +341,11 @@ func (owner *transaction) validateLegacy(ctx context.Context) error {
 			}
 			continue
 		}
-		raw, mode, known, err := reference.original(ctx, action.Path, owner.request.Inputs)
+		expected, _, known, err := reference.expected(ctx, action.Path, owner.request.Inputs)
 		if err != nil {
 			return err
 		}
-		if !known || !imageEqual(actual, bytesImage(raw, mode), false) {
+		if !known || !imageEqual(actual, expected, false) {
 			return conflict("restored legacy installation is incomplete")
 		}
 	}

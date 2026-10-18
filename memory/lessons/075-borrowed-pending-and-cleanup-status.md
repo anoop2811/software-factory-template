@@ -26,3 +26,14 @@ correction. Exact commands/output are recorded in Decision 95 of
 docs/DECISION_LOG.md; canon is
 docs/adr/0096-interrupted-publication-recovery.md:291. The refinement covers both
 branches while retaining cancellation and typed ownership evidence.
+
+Follow-up provenance: observed 2026-10-18 UTC through the public candidate
+upgrade criterion in acceptance/release_installation_test.go:559. A canceled
+private ignore rule preserved a prepared journal and concrete recovery inputs,
+but the process returned 1 instead of policy-refusal status 2 because deliberate
+cache retention was represented as a cleanup error. The independent RED ran
+`go test -race -count=1 -timeout=7m -v ./acceptance -ginkgo.focus='preserves policy-refusal status while retaining prepared recovery inputs' -ginkgo.no-color -ginkgo.fail-on-empty`:
+`0 Passed | 1 Failed`, package `124.138s`. The refined contract is
+in docs/adr/0101-go-release-handoff.md:579: report retained input locations
+separately from actual cleanup failures. This is a source regression, not a
+released customer incident.

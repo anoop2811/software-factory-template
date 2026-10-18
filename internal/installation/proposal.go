@@ -1,7 +1,6 @@
 package installation
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,7 +9,6 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/staging"
 	"github.com/anoop2811/software-factory-template/internal/transition"
-	"golang.org/x/sys/unix"
 	"sort"
 )
 
@@ -21,6 +19,7 @@ type plan struct {
 	before       map[string][]byte
 	rootIdentity Identity
 	request      Request
+	reference    baseline
 }
 
 // Propose is read-only; imported archive bytes establish neither origin nor custody.
@@ -44,11 +43,11 @@ func Propose(ctx context.Context, root string, request Request) (result Proposal
 	return planned.proposal, nil
 }
 func buildPlan(ctx context.Context, path string, request Request) (result plan, returned error) {
-	reference, err := reference(ctx, request.Profile)
+	image, err := staging.Inspect(ctx, request.Source)
 	if err != nil {
 		return result, err
 	}
-	image, err := staging.Inspect(ctx, request.Source)
+	reference, err := predecessor(ctx, request, image)
 	if err != nil {
 		return result, err
 	}
@@ -76,7 +75,7 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 		authentication = "local-source"
 	}
 	proposal := Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: authentication, Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}
-	result = plan{proposal: proposal, image: image, payload: map[string][]byte{}, before: map[string][]byte{}, rootIdentity: id, request: request}
+	result = plan{proposal: proposal, image: image, payload: map[string][]byte{}, before: map[string][]byte{}, rootIdentity: id, request: request, reference: reference}
 	seen := map[string]bool{}
 	for _, role := range roles {
 		if err := ctx.Err(); err != nil {
@@ -126,9 +125,9 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 			after = before
 		}
 		if before != nil {
-			raw, mode, known, recognitionErr := reference.original(ctx, role.Path, request.Inputs)
-			recognized := recognitionErr == nil && known && before.Mode == unix.S_IFREG|mode && bytes.Equal(data, raw)
-			if role.Path == ".factory-version" {
+			_, recognized, recognitionErr := reference.matching(ctx, role.Path, before, request.Inputs)
+			recognized = recognitionErr == nil && recognized
+			if role.Path == ".factory-version" && request.Profile != "go-hybrid-v1" {
 				recognized = false
 			}
 			switch {
@@ -154,6 +153,7 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 		result.payload[role.Path] = afterData
 		result.proposal.Actions = append(result.proposal.Actions, Action{role.Path, role.Source, action, reason, role.Required, before, after})
 	}
+	qualifyLegacyMarker(ctx, &result, reference)
 	control, err := descriptorBytes(image, result.proposal.Actions)
 	if err != nil {
 		return plan{}, err
@@ -188,18 +188,27 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 	if parentErr != nil {
 		return plan{}, parentErr
 	}
+	sourceBinding, beforeBinding := request.Source, request.Before
+	if request.Candidate {
+		// New private transport paths cannot invalidate consent to unchanged bytes.
+		// Authentication is still repeated in Begin. docs/adr/0101-go-release-handoff.md:318.
+		sourceBinding = releaseBinding(sourceBinding)
+		beforeBinding = releaseBinding(beforeBinding)
+	}
 	binding := struct {
 		Root                         string
 		Identity                     Identity
 		Profile                      string
+		Candidate                    bool
 		Inputs                       map[string]string
 		ArchiveSHA256                string
+		BeforeArchiveSHA256          string
 		Source, Before               staging.Options
 		Rollback, Recover, Direction string
 		Actions                      []Action
 		Parents                      []installationfs.Directory
 		State                        []stateObservation
-	}{path, id, request.Profile, request.Inputs, image.ArchiveSHA256, request.Source, request.Before, request.Rollback, request.Recover, request.Direction, result.proposal.Actions, parents, state}
+	}{path, id, request.Profile, request.Candidate, request.Inputs, image.ArchiveSHA256, reference.ArchiveSHA256, sourceBinding, beforeBinding, request.Rollback, request.Recover, request.Direction, result.proposal.Actions, parents, state}
 	encoded, err := json.Marshal(binding)
 	if err != nil {
 		return plan{}, err
@@ -207,6 +216,56 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 	digest := sha256.Sum256(encoded)
 	result.proposal.ProposalDigest = hex.EncodeToString(digest[:])
 	return result, ctx.Err()
+}
+
+// A marker is replaceable only after every other required observed asset has
+// independently qualified; a matching marker never bootstraps ownership.
+// docs/adr/0101-go-release-handoff.md:304.
+func qualifyLegacyMarker(ctx context.Context, planned *plan, reference baseline) {
+	if reference.Profile == "go-hybrid-v1" {
+		return
+	}
+	for _, issue := range planned.proposal.Blockers {
+		if issue.Path != ".factory-version" {
+			return
+		}
+	}
+	independentAsset := false
+	for _, action := range planned.proposal.Actions {
+		if action.Path != ".factory-version" && action.Before != nil && (action.Action == "replace" || action.Action == "retire") {
+			independentAsset = true
+			break
+		}
+	}
+	if !independentAsset {
+		return
+	}
+	for index := range planned.proposal.Actions {
+		action := &planned.proposal.Actions[index]
+		if action.Path != ".factory-version" || action.Before == nil {
+			continue
+		}
+		if _, matched, err := reference.matching(ctx, action.Path, action.Before, planned.request.Inputs); err != nil || !matched {
+			continue
+		}
+		action.Action, action.Reason = "replace", "whole independently qualified legacy profile and canonical marker"
+		action.After = bytesImage(planned.payload[action.Path], 0644)
+		filter := func(issues []Issue) []Issue {
+			result := make([]Issue, 0, len(issues))
+			for _, issue := range issues {
+				if issue.Path != ".factory-version" {
+					result = append(result, issue)
+				}
+			}
+			return result
+		}
+		planned.proposal.Blockers = filter(planned.proposal.Blockers)
+		planned.proposal.Conflicts = filter(planned.proposal.Conflicts)
+	}
+}
+
+func releaseBinding(value staging.Options) staging.Options {
+	return staging.Options{Version: value.Version, Revision: value.Revision, Target: value.Target, Installation: true}
 }
 
 func proposeTransition(ctx context.Context, root string, request Request) (result Proposal, returned error) {

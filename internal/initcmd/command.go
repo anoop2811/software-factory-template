@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/installedproof"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/anoop2811/software-factory-template/internal/reviewlanecmd"
@@ -24,12 +25,16 @@ import (
 // Run initializes a target from the explicit source layout, retaining installed
 // shell assets and the named external boundaries. docs/adr/0085-go-native-init.md:17.
 func Run(parent context.Context, args []string, templateRoot string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return runCommand(parent, args, templateRoot, environment, stdin, stdout, stderr, nil)
+}
+
+func runCommand(parent context.Context, args []string, templateRoot string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer, selected *qualified) int {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	broken := make(chan os.Signal, 1)
 	signal.Notify(broken, syscall.SIGPIPE)
 	defer signal.Stop(broken)
-	err := run(ctx, args, templateRoot, environment, stdin, stdout, stderr)
+	err := run(ctx, args, templateRoot, environment, stdin, stdout, stderr, selected)
 	if err == nil {
 		return 0
 	}
@@ -45,6 +50,9 @@ func Run(parent context.Context, args []string, templateRoot string, environment
 		message = "initialization canceled"
 	}
 	_, _ = fmt.Fprintln(stderr, "factory-init: "+message)
+	if selected != nil && selected.started {
+		fmt.Fprintf(stderr, "factory-init: incomplete initialization at %s; keep the project and .factory/runtime-publication.pending evidence.\nReview generated files and adjacent .factory-backup.* copies before manually reconciling this attempt. Remove the pending barrier only after the intended installation is complete. No automatic initializer rollback has run.\n", selected.target)
+	}
 	var usage *usageFailure
 	if errors.As(err, &usage) {
 		return 2
@@ -54,7 +62,7 @@ func Run(parent context.Context, args []string, templateRoot string, environment
 
 var errDeclined = errors.New("initialization declined")
 
-func run(ctx context.Context, args []string, templateRoot string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (returned error) {
+func run(ctx context.Context, args []string, templateRoot string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer, selected *qualified) (returned error) {
 	o, err := parseArguments(args)
 	if err != nil {
 		return err
@@ -85,6 +93,11 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 	if target != nil {
 		defer target.root.Close()
 	}
+	if selected != nil {
+		if err := requireFresh(ctx, target); err != nil {
+			return err
+		}
+	}
 	reader, cleanup, interactive, err := promptInput(ctx, stdin, stdout)
 	if err != nil {
 		return err
@@ -114,6 +127,12 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 	plan, err := buildPlan(ctx, source, target, o, values)
 	if err != nil {
 		return err
+	}
+	if selected != nil {
+		plan, err = selected.overlay(ctx, target, plan, values)
+		if err != nil {
+			return err
+		}
 	}
 	if err := preflightGit(ctx, target, environment); err != nil {
 		return err
@@ -179,6 +198,13 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 		}
 		defer target.root.Close()
 	}
+	if selected != nil {
+		finish, err := selected.begin(ctx, target, plan, environment)
+		if err != nil {
+			return err
+		}
+		defer func() { returned = errors.Join(returned, finish(context.WithoutCancel(ctx))) }()
+	}
 	for _, directory := range directoriesToCreate {
 		parent, _, err := target.parent(ctx, directory+"/directory", true)
 		if err != nil {
@@ -187,6 +213,9 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 		_ = parent.Close()
 	}
 	for _, a := range plan {
+		if selected != nil && (a.path == ".factory-version" || a.path == ".gitignore") {
+			continue
+		}
 		if err := target.publish(ctx, a); err != nil {
 			return err
 		}
@@ -197,8 +226,14 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 	if err := packMessages(ctx, stdout, o, values); err != nil {
 		return err
 	}
-	if err := externalStages(ctx, targetPath, values, o, initializedEnvironment(environment, values, targetPath), stdout, stderr); err != nil {
+	if err := externalStages(ctx, targetPath, values, o, initializedEnvironment(environment, values, targetPath), stdout, stderr, selected != nil); err != nil {
 		return err
+	}
+	if selected != nil {
+		if err := selected.activate(ctx, target, plan, environment); err != nil {
+			return err
+		}
+		return setupMessage(ctx, stdout, o, values)
 	}
 	return nil
 }
@@ -244,7 +279,7 @@ func createTarget(ctx context.Context, path string) (*tree, error) {
 	}
 	return &tree{root: file, path: path}, nil
 }
-func externalStages(ctx context.Context, target string, v map[string]string, o options, environment map[string]string, stdout, stderr io.Writer) error {
+func externalStages(ctx context.Context, target string, v map[string]string, o options, environment map[string]string, stdout, stderr io.Writer, goSelected bool) error {
 	stage := func(root string, argv []string, suppressErrors bool) (bool, error) {
 		result, err := native.ExecuteCommand(ctx, root, argv, environment, 10*time.Minute)
 		if ctx.Err() != nil {
@@ -311,13 +346,27 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	if err := output.WriteEvent(ctx, stdout, []byte("\n=== Post-install attestation: break/fix self-test of installed gates ===\n")); err != nil {
 		return err
 	}
-	ok, err = stage(target, []string{"./scripts/selftest/run.sh"}, false)
+	if goSelected {
+		err = installedproof.Run(ctx, target, stdout)
+		ok = err == nil
+	} else {
+		ok, err = stage(target, []string{"./scripts/selftest/run.sh"}, false)
+	}
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return errors.New("INSTALL NOT VERIFIED — a gate failed its break/fix proof. Do not rely on enforcement until this passes")
 	}
+	if !goSelected {
+		if err := setupMessage(ctx, stdout, o, v); err != nil {
+			return err
+		}
+	}
+	return reviewlanecmd.ExecuteNonInteractive(ctx, []string{"pending"}, target, target, environment, stdout, stderr)
+}
+
+func setupMessage(ctx context.Context, stdout io.Writer, o options, v map[string]string) error {
 	message := "factory-init: gates proven. Install a language pack to arm the\ntest-edit hook and check command: re-run with --pack go,typescript,java.\n"
 	if len(o.packs) > 0 {
 		message = "factory-init: gates proven and armed for: " + strings.Join(o.packs, " ") + ". Commit when ready.\n"
@@ -325,6 +374,5 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	if err := output.WriteEvent(ctx, stdout, []byte(message+"\n=== Setup complete ===\n\nNext steps:\n  1. Run prereq-check:    ./scripts/prereq-check.sh\n  2. Sync adapters:       make sync-harnesses\n  3. Start opencode:      opencode\n  4. Review AGENTS.md and edit the Project section for your project\n  5. Add your protected code to "+v["PROTECTED_PATH"]+"/\n  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push\n  7. Check health anytime: ./factory doctor\n\nfactory.yaml saved — one config file, parsed and never executed.\n")); err != nil {
 		return err
 	}
-	err = reviewlanecmd.ExecuteNonInteractive(ctx, []string{"pending"}, target, target, environment, stdout, stderr)
-	return err
+	return nil
 }

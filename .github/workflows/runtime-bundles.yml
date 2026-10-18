@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+# docs/adr/0101-go-release-handoff.md:608 — release builds are never superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   bundle:
     strategy:
@@ -43,6 +48,9 @@ jobs:
         with:
           go-version: '1.27.2'
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tools/security/go.sum
       - name: Provision developer dependencies
         run: go mod download
       - name: Build committed source, stage the archive and test its executable
@@ -85,6 +93,9 @@ jobs:
           binary="$staged/$version/$TARGET/bin/factory-runtime"
           FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
             -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
+          # Publish the qualified V2 binary; consumers authenticate it before execution.
+          # docs/adr/0101-go-release-handoff.md:80.
+          cp "$binary" "$output/factory-bootstrap"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: runtime-${{ matrix.artifact }}
@@ -99,5 +110,6 @@ jobs:
           path: |
             ${{ runner.temp }}/installation-image-bundle/factory-runtime.tar.gz
             ${{ runner.temp }}/installation-image-bundle/SHA256SUMS
+            ${{ runner.temp }}/installation-image-bundle/factory-bootstrap
           if-no-files-found: error
           retention-days: 7

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
 // ErrInvalidRequest distinguishes malformed operands from failed verification.
@@ -54,7 +56,21 @@ func Stage(ctx context.Context, options Options) (result Result, err error) {
 	if err != nil {
 		return Result{}, err
 	}
+	workspaceIdentity, err := os.Lstat(workspace)
+	if err != nil {
+		return Result{}, err
+	}
 	defer func() {
+		var ownership *native.OwnershipError
+		if errors.As(err, &ownership) {
+			err = fmt.Errorf("preserve unresolved verifier workspace %s: %w", workspace, err)
+			return
+		}
+		current, inspectErr := os.Lstat(workspace)
+		if inspectErr != nil || !os.SameFile(workspaceIdentity, current) {
+			err = errors.Join(err, inspectErr, errors.New("staging workspace changed; cleanup refused"))
+			return
+		}
 		cleanupErr := os.RemoveAll(workspace)
 		if options.Installation {
 			err = errors.Join(err, cleanupErr)

@@ -18,6 +18,7 @@ type Request struct {
 	Profile, MigrationID, Confirmation, Rollback, Recover, Direction string
 	Inputs                                                           map[string]string
 	Quiescent                                                        bool
+	Candidate                                                        bool
 }
 type role struct {
 	Source, Path, Operation, Generator, Mode, Reason string

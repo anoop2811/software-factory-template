@@ -12,6 +12,8 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installationimage"
 	"io"
 	"strings"
+
+	"github.com/anoop2811/software-factory-template/internal/staging"
 )
 
 // Raw immutable blobs are recognition evidence only, never execution fallback.
@@ -21,11 +23,93 @@ import (
 var referenceData embed.FS
 
 type baseline struct {
-	Profile     string                    `json:"profile"`
-	Revision    string                    `json:"revision"`
-	Catalog     []installationimage.Asset `json:"catalog"`
-	Blobs       map[string][]byte         `json:"blobs"`
-	Substituted []string                  `json:"substituted"`
+	Profile       string                    `json:"profile"`
+	Revision      string                    `json:"revision"`
+	Catalog       []installationimage.Asset `json:"catalog"`
+	Blobs         map[string][]byte         `json:"blobs"`
+	Substituted   []string                  `json:"substituted"`
+	Expected      map[string]*Image         `json:"-"`
+	ArchiveSHA256 string                    `json:"-"`
+	Runtime       *staging.Inspection       `json:"-"`
+}
+
+// A predecessor uses a closed supported generation recipe, never saved code.
+// docs/adr/0101-go-release-handoff.md:275, docs/adr/0101-go-release-handoff.md:285.
+func predecessor(ctx context.Context, request Request, after staging.Inspection) (baseline, error) {
+	if request.Profile != "go-hybrid-v1" {
+		return reference(ctx, request.Profile)
+	}
+	if request.Before.Target != request.Source.Target || request.Before.Archive == "" {
+		return baseline{}, conflict("Go predecessor requires its exact qualified image")
+	}
+	before, err := staging.Inspect(ctx, request.Before)
+	if err != nil {
+		return baseline{}, err
+	}
+	// Conservative V1 closure: changes to a generator, transformation, mode/hash
+	// helper or descriptor schema require an independently supported next recipe.
+	for _, path := range []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go"} {
+		old, oldOK := before.Assets[path]
+		current, currentOK := after.Assets[path]
+		if !oldOK || !currentOK || !bytes.Equal(old, current) {
+			return baseline{}, conflict("unsupported Go predecessor generation recipe; preserve the existing installation")
+		}
+	}
+	selection, err := Selection(ctx, before, request.Inputs)
+	if err != nil {
+		return baseline{}, err
+	}
+	result := baseline{Profile: request.Profile, Revision: before.Manifest.SourceRevision, Blobs: map[string][]byte{}, Expected: map[string]*Image{}, ArchiveSHA256: before.ArchiveSHA256, Runtime: &before}
+	for _, entry := range selection {
+		result.Blobs[entry.Path] = entry.Data
+		expected := bytesImage(entry.Data, uint32(entry.Mode))
+		if entry.Runtime {
+			expected.SHA256, expected.Bytes = before.Runtime.SHA256, before.BinaryBytes
+		}
+		result.Expected[entry.Path] = expected
+	}
+	return result, nil
+}
+
+func (reference baseline) expected(ctx context.Context, path string, inputs map[string]string) (*Image, []byte, bool, error) {
+	if reference.Expected != nil {
+		image, known := reference.Expected[path]
+		return image, reference.Blobs[path], known, ctx.Err()
+	}
+	raw, mode, known, err := reference.original(ctx, path, inputs)
+	if err != nil || !known {
+		return nil, raw, known, err
+	}
+	return bytesImage(raw, mode), raw, true, nil
+}
+
+// matching qualifies exact before-images, including the two historical legacy
+// marker spellings. Marker matching alone never establishes profile ownership.
+// docs/adr/0101-go-release-handoff.md:465.
+func (reference baseline) matching(ctx context.Context, path string, observed *Image, inputs map[string]string) (*Image, bool, error) {
+	expected, _, known, err := reference.expected(ctx, path, inputs)
+	if err != nil || !known {
+		return expected, false, err
+	}
+	if imageEqual(observed, expected, false) {
+		return expected, true, nil
+	}
+	if path != ".factory-version" || reference.Expected != nil || len(reference.Revision) != 40 || (reference.Profile != "v0.1.6" && reference.Profile != "bash-baseline") {
+		return expected, false, nil
+	}
+	refs := []string{"main"}
+	if reference.Profile == "v0.1.6" {
+		refs = append(refs, reference.Profile)
+	}
+	for _, ref := range refs {
+		for _, revision := range []string{reference.Revision, reference.Revision[:7]} {
+			marker := bytesImage([]byte("ref="+ref+"\ncommit="+revision+"\n"), 0644)
+			if imageEqual(observed, marker, false) {
+				return marker, true, nil
+			}
+		}
+	}
+	return expected, false, ctx.Err()
 }
 
 func reference(ctx context.Context, profile string) (baseline, error) {
@@ -80,6 +164,13 @@ func reference(ctx context.Context, profile string) (baseline, error) {
 	return result, nil
 }
 func (reference baseline) original(ctx context.Context, path string, inputs map[string]string) ([]byte, uint32, bool, error) {
+	if path == ".factory-version" {
+		ref := reference.Profile
+		if ref == "bash-baseline" {
+			ref = "main"
+		}
+		return []byte("ref=" + ref + "\ncommit=" + reference.Revision + "\n"), 0644, true, ctx.Err()
+	}
 	raw, found := reference.Blobs[path]
 	if !found {
 		return nil, 0, false, nil

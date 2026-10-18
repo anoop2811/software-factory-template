@@ -32,6 +32,7 @@ type transaction struct {
 	journalImage                  *Image
 	pending                       *installationfs.File
 	stageTree                     *installationfs.Tree
+	beforeStageTree               *installationfs.Tree
 	stageRoot                     string
 	scratch                       string
 	scratchIdentity               os.FileInfo
@@ -162,6 +163,21 @@ func beginWith(ctx context.Context, root string, request Request, operations com
 	owner.stageTree, err = installationfs.Open(ctx, owner.stageRoot)
 	if err != nil {
 		return nil, err
+	}
+	if request.Profile == "go-hybrid-v1" {
+		before := request.Before
+		before.Installation, before.Output = true, filepath.Join(owner.scratch, "predecessor")
+		qualified, err := staging.Stage(ctx, before)
+		if err != nil {
+			return nil, err
+		}
+		if qualified.SHA256 != owner.planned.reference.ArchiveSHA256 {
+			return nil, conflict("Go predecessor image changed after proposal")
+		}
+		owner.beforeStageTree, err = installationfs.Open(ctx, filepath.Join(qualified.Root, before.Version, before.Target))
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Fresh authentication and staging are required even for completed rollback.
 	// docs/adr/0098-whole-installation-upgrade-and-rollback.md:122.
@@ -336,7 +352,7 @@ func (capability *Capability) Complete(ctx context.Context) error {
 			}
 		}
 	}
-	if !reverse {
+	if !reverse || owner.request.Profile == "go-hybrid-v1" {
 		if _, err := installedlayout.Validate(ctx, owner.tree, nil); err != nil {
 			return err
 		}
@@ -397,6 +413,9 @@ func (owner *transaction) close(ctx context.Context) error {
 	}
 	if owner.stageTree != nil {
 		errs = append(errs, owner.stageTree.Close())
+	}
+	if owner.beforeStageTree != nil {
+		errs = append(errs, owner.beforeStageTree.Close())
 	}
 	if owner.tree != nil {
 		errs = append(errs, owner.tree.Close())
@@ -468,8 +487,15 @@ func (owner *transaction) applyRow(ctx context.Context, action Action, reverse b
 				return err
 			}
 		}
-	case action.Path == ".factory/bin/factory-runtime" && !reverse:
-		if err := owner.publishBinaryWith(ctx, owner.tree, action.Path, current, owner.preparedSaver(action.Path)); err != nil {
+	case action.Path == ".factory/bin/factory-runtime":
+		source, image := owner.stageTree, owner.planned.image
+		if reverse {
+			if owner.beforeStageTree == nil || owner.planned.reference.Runtime == nil {
+				return conflict("qualified predecessor runtime is unavailable")
+			}
+			source, image = owner.beforeStageTree, *owner.planned.reference.Runtime
+		}
+		if err := publishRuntime(ctx, source, image, owner.tree, action.Path, current, owner.preparedSaver(action.Path)); err != nil {
 			return err
 		}
 	default:
@@ -496,11 +522,8 @@ func (owner *transaction) applyRow(ctx context.Context, action Action, reverse b
 	}
 	return owner.save(ctx)
 }
-func (owner *transaction) publishBinary(ctx context.Context, tree *installationfs.Tree, path string, expected *Image) error {
-	return owner.publishBinaryWith(ctx, tree, path, expected, nil)
-}
-func (owner *transaction) publishBinaryWith(ctx context.Context, tree *installationfs.Tree, path string, expected *Image, onPrepared func(context.Context, *Image) error) (returned error) {
-	source, err := owner.stageTree.OpenFile(ctx, "bin/factory-runtime", 256<<20)
+func publishRuntime(ctx context.Context, sourceTree *installationfs.Tree, image staging.Inspection, tree *installationfs.Tree, path string, expected *Image, onPrepared func(context.Context, *Image) error) (returned error) {
+	source, err := sourceTree.OpenFile(ctx, "bin/factory-runtime", 256<<20)
 	if err != nil {
 		return err
 	}
@@ -509,13 +532,13 @@ func (owner *transaction) publishBinaryWith(ctx context.Context, tree *installat
 	if err != nil {
 		return err
 	}
-	stage, err := filepublish.PrepareReader(ctx, parent.Root, ".installation-stage-", source.File, owner.planned.image.BinaryBytes, owner.planned.image.Runtime.SHA256, 0700)
+	stage, err := filepublish.PrepareReader(ctx, parent.Root, ".installation-stage-", source.File, image.BinaryBytes, image.Runtime.SHA256, 0700)
 	if err != nil {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, stage.Cleanup()) }()
 	if onPrepared != nil {
-		if err := preparedObservation(ctx, stage, &Image{Type: "regular", Mode: 0100700, SHA256: owner.planned.image.Runtime.SHA256, Bytes: owner.planned.image.BinaryBytes}, onPrepared); err != nil {
+		if err := preparedObservation(ctx, stage, &Image{Type: "regular", Mode: 0100700, SHA256: image.Runtime.SHA256, Bytes: image.BinaryBytes}, onPrepared); err != nil {
 			return err
 		}
 	}

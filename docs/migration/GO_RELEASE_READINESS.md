@@ -20,8 +20,10 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Transition exclusion, live restoration, durable publication and interrupted
   recovery source engines are qualified and merged.
 
-These components do not establish a complete installed Go upgrade. The shipped
-factory launcher and ordinary upgrade still use the script installation.
+The opt-in whole-installation consumer can select an installed Go runtime. The
+default source launcher, bare bootstrap and source upgrade still select the script
+installation until the release gates pass. Explicit candidate delivery is described
+in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Required release gates
 
@@ -39,9 +41,12 @@ factory launcher and ordinary upgrade still use the script installation.
 - [x] Public upgrade, explicit rollback and interrupted recovery reuse that
       transaction and independently qualified images; later edits and unsupported
       predecessor state remain preserved conflicts.
-- [ ] Complete remaining factory-owned orchestration and adapter/dependency audit.
+- [x] Complete remaining factory-owned orchestration and adapter/dependency audit.
       Preserve required public/sourceable paths as thin adapters. Intentional
       validation gates, product build files and native host formats remain.
+      [PR #126](https://github.com/anoop2811/software-factory-template/pull/126/checks)
+      merged after all sixteen checks passed, including a
+      [completed adversarial review of its final source head](https://github.com/anoop2811/software-factory-template/pull/126#issuecomment-6244742505).
 - [ ] Init/install/bootstrap and normal upgrade select a verified packaged Go
       runtime without requiring Go or Python for shipped factory behavior.
 - [ ] Retire only unchanged, explicitly owned/adopted obsolete implementations
@@ -86,11 +91,10 @@ PR #125 merged on 2026-10-17 after all fifteen reported checks passed. It adds
 the opt-in go-hybrid-v1 whole upgrade, rollback and interrupted-recovery paths
 specified in docs/adr/0098-whole-installation-upgrade-and-rollback.md:14. This
 closes those three source prerequisites above; default bootstrap and replacement
-release gates remain open. The advisory model review skipped the oversized diff
+release gates remain open. For PR #125, the advisory model review skipped the oversized diff
 and Copilot had no quota, so neither is claimed as completed model review.
 
-The remaining orchestration implementation and its qualification are tracked in
-[ORCHESTRATION.md](ORCHESTRATION.md). Keep its release checkbox open until its
-source checks, independent review and hosted CI have completed. Do not count a
+The completed orchestration implementation and its qualification are tracked in
+[ORCHESTRATION.md](ORCHESTRATION.md). Do not count a
 new interface, inventory or review correction as another source-plan package.
 The fixed denominator remains thirty; no new percentage is inferred here.

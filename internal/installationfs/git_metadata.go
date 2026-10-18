@@ -12,7 +12,7 @@ import (
 // docs/adr/0101-go-release-handoff.md:493.
 func RequireNoGitMetadata(ctx context.Context, path string) error {
 	if !filepath.IsAbs(path) {
-		return errors.New("Git metadata inspection requires an absolute project path")
+		return errors.New("git metadata inspection requires an absolute project path")
 	}
 	for {
 		if err := ctx.Err(); err != nil {

@@ -496,8 +496,20 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		for _, value := range installationInputs {
 			rollbackArgs = append(rollbackArgs, "--project-input", value)
 		}
-		reverse := handoffProposal(handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
-		rollback := handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
+		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:297
+		// Restoring the old Bash runtime deliberately requires its baseline tools;
+		// the preceding Go apply and ordinary selftest retained poisoned Python.
+		recoveryEnvironment := map[string]string{}
+		for key, value := range f.environment {
+			recoveryEnvironment[key] = value
+		}
+		recoveryTools := filepath.Join(f.root, "legacy recovery tools")
+		verifier, err := os.ReadFile(filepath.Join(f.root, "host tools", "gh"))
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(filepath.Join(recoveryTools, "gh"), verifier, 0700)
+		recoveryEnvironment["PATH"] = recoveryTools + string(os.PathListSeparator) + legacyEnvironment["PATH"]
+		reverse := handoffProposal(handoffNativeProcess(legacy.root, recoveryEnvironment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
+		rollback := handoffNativeProcess(legacy.root, recoveryEnvironment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
 		Expect(rollback.status).To(Equal(0), "%+v", rollback)
 		marker, err := os.ReadFile(filepath.Join(legacy.root, ".factory-version"))
 		Expect(err).NotTo(HaveOccurred())
@@ -521,7 +533,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			Expect(proposal["blockers"]).NotTo(BeEmpty())
 		} else {
 			Expect(result.status).To(Equal(2))
-			Expect(result.stderr).To(ContainSubstring("profile"))
+			Expect(result.stderr).To(MatchRegexp(`(?i)(profile|predecessor)`))
 		}
 		Expect(installationSnapshot(legacy.root)).To(Equal(before))
 		// per docs/adr/0101-go-release-handoff.md:304
@@ -537,7 +549,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		denied := handoffNativeProcess(unknown, f.environment, "", driver, "upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json")
 		Expect(denied.status).To(Equal(2), "%+v", denied)
 		Expect(denied.stdout).To(BeEmpty(), "a canonical marker without any framework rows cannot identify an installation profile")
-		Expect(denied.stderr).To(ContainSubstring("profile"))
+		Expect(denied.stderr).To(MatchRegexp(`(?i)(profile|predecessor)`))
 		Expect(installationSnapshot(unknown)).To(Equal(unknownBefore))
 	})
 

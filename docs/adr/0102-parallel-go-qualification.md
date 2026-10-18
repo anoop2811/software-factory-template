@@ -142,3 +142,25 @@ value through the recipe environment and quoted shell expansion, including space
 and literal quotes; do not interpolate it into executable shell source. Both JSON
 and JUnit operands must designate the exact requested group-specific paths.
 Establish a failing literal-path regression before changing this transport.
+
+## Detached-init Git failure evidence
+
+Final-head macOS handoff qualification retained one init failure containing only
+`cannot prepare isolated ignore proof`. Its actual test body took 7.15 seconds;
+the 151.98-second criterion duration includes 144.83 seconds of group preparation.
+The caller preserves native errors but discards unsuccessful result metadata.
+The generic message therefore does not establish a process-ownership failure;
+a nonzero Git exit or the existing five-second command deadline remains possible.
+
+Before another qualification, add bounded failure evidence to the detached-init
+Git proof boundaries: fixed stage and allowlisted outcome, numeric exit status/PID
+and elapsed duration, confirmation flags and existing typed ownership evidence when
+available. Preserve original error identity and fixed message prefix. Never expose
+paths, arguments, environment or captured stdout/stderr. Share the formatter across
+these proof boundaries. Require independent real-process refusal/privacy criteria
+before implementation. Keep all deadlines, refusal conditions and cleanup policy.
+
+Diagnostic stages are `git-init`, `git-boundary`, `git-ls-files` and
+`git-check-ignore`. Fields are `outcome`, `exit` (numeric or unavailable), `pid`,
+`elapsed_seconds`, `exit_confirmed` and `ownership_unconfirmed`. Outcome is a known
+native enum value or `unknown`; no caller-controlled text enters these fields.

@@ -128,3 +128,8 @@ retry commands, ignore EPERM, add watchdog headroom or treat a rerun as root-cau
 closure. Independent fault criteria must establish diagnostic accuracy and
 privacy before implementation. These diagnostics grant no execution, cleanup,
 publication or migration authority.
+
+Decision 102's [ADR 0103](0103-darwin-natural-exit-reconciliation.md) subsequently
+refines only unconditional Darwin EPERM refusal after an already-reaped natural
+exit. Its explicit terminal proof and negative controls supersede that one part
+of this initial diagnostic contract; all other safeguards remain.

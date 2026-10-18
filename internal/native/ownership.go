@@ -20,6 +20,7 @@ type ownershipEvidence struct {
 	phase                          string
 	signalErrno                    string
 	reaped, exitConfirmed, drained bool
+	reapedBeforeSignal             bool
 	group                          groupObservation
 }
 
@@ -34,9 +35,9 @@ func (e *OwnershipError) SafeDiagnostic() string {
 		return fmt.Sprintf("pid=%d reason=unavailable", e.ProcessPID)
 	}
 	evidence := e.evidence
-	return fmt.Sprintf("pid=%d phase=%s signal_errno=%s reaped=%t exit_confirmed=%t drained=%t group_state=%s group_errno=%s",
+	return fmt.Sprintf("pid=%d phase=%s signal_errno=%s reaped=%t exit_confirmed=%t drained=%t group_state=%s group_errno=%s reaped_before_signal=%t",
 		e.ProcessPID, evidence.phase, evidence.signalErrno, evidence.reaped,
-		evidence.exitConfirmed, evidence.drained, evidence.group.state, evidence.group.errno)
+		evidence.exitConfirmed, evidence.drained, evidence.group.state, evidence.group.errno, evidence.reapedBeforeSignal)
 }
 
 func safeErrno(err error) string {

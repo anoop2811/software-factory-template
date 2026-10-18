@@ -4422,3 +4422,15 @@ ownership failures during installed-proof preparation. ADR 0102's qualification
 addendum permits bounded, private cleanup diagnostics before another diagnostic
 run, preserving the fixed typed error, cleanup order, deadlines and fail-closed
 policy. A passing rerun alone does not establish the cause or close this failure.
+
+## Decision 102 (2026-10-18 UTC): require positive terminal proof for Darwin exit reconciliation
+
+Hosted qualification captured EPERM from group signaling after reported reap and
+pipe drainage. ADR 0103 records the independent kernel probe and authoritative
+XNU source before implementation. For Darwin natural completion only, an already
+reaped leader and drained workers may proceed from EPERM to an explicit group
+ESRCH observation within the existing deadline. No unresolved group, pre-reap
+termination, timeout, interruption, overflow or unknown signal error may use this
+path. Preserve the real exit code and fixed typed diagnostics. Independent RED,
+negative controls, full-source review and protected-path human review precede
+merge; no successful rerun substitutes for the required terminal proof.

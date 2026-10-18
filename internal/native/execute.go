@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -293,6 +294,7 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	}
 	// Termination is required even after ordinary leader exit, before pipe drainage.
 	// docs/adr/0068-go-native-harness-execution.md:122.
+	reapedBeforeSignal := reaped
 	signalErr := ops.signalGroup(result.ProcessPID)
 	_ = pipes.inputW.Close()
 	cleanupCtx, finishCleanup := context.WithTimeout(context.Background(), ops.waitLimit)
@@ -343,15 +345,22 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if len(result.Stdout) > options.limit {
 		result.Outcome = "output_limit"
 	}
-	// Preserve cleanup's original short-circuit order and observation deadline.
-	// docs/adr/0102-parallel-go-qualification.md:125.
+	// Keep the cleanup order outside the bounded natural-exit exception.
+	// docs/adr/0103-darwin-natural-exit-reconciliation.md:31.
 	evidence := ownershipEvidence{
 		signalErrno: safeErrno(signalErr), reaped: reaped,
 		exitConfirmed: result.ExitConfirmed, drained: drained,
-		group: groupObservation{state: "not_observed", errno: "none"},
+		reapedBeforeSignal: reapedBeforeSignal,
+		group:              groupObservation{state: "not_observed", errno: "none"},
 	}
+	// Darwin can report EPERM for a group whose reaped members disappeared.
+	// Only positive terminal proof may reconcile a normal, uncancelled exit.
+	// docs/adr/0103-darwin-natural-exit-reconciliation.md:31.
+	reconcileDarwinExit := runtime.GOOS == "darwin" && errors.Is(signalErr, syscall.EPERM) &&
+		reapedBeforeSignal && result.Outcome == "completed" && result.ExitConfirmed && drained &&
+		command.ProcessState != nil && command.ProcessState.Exited() && ctx.Err() == nil
 	switch {
-	case signalErr != nil:
+	case signalErr != nil && !reconcileDarwinExit:
 		evidence.phase = "signal"
 	case !result.ExitConfirmed:
 		evidence.phase = "reap"
@@ -362,6 +371,8 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		stopped, evidence.group = groupStopped(cleanupCtx, result.ProcessPID)
 		if !stopped {
 			evidence.phase = "group"
+		} else if reconcileDarwinExit && ctx.Err() != nil {
+			evidence.phase = "signal"
 		}
 	}
 	if evidence.phase != "" {

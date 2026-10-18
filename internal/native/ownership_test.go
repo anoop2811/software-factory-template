@@ -33,6 +33,7 @@ var _ = Describe("Native ownership uncertainty", func() {
 	// per docs/adr/0068-go-native-harness-execution.md:44
 	// per docs/adr/0102-parallel-go-qualification.md:117
 	// per docs/adr/0102-parallel-go-qualification.md:125
+	// per docs/adr/0103-darwin-natural-exit-reconciliation.md:42
 	DescribeTable("preserves typed uncertainty after deterministic cleanup-report failure", func(boundary string) {
 		root, err := os.MkdirTemp("", "factory-native-ownership-")
 		Expect(err).NotTo(HaveOccurred())
@@ -48,7 +49,7 @@ var _ = Describe("Native ownership uncertainty", func() {
 				if boundary == "signal_unknown" {
 					return errors.New("PRIVATE_SIGNAL_FAILURE " + root)
 				}
-				return fmt.Errorf("PRIVATE_SIGNAL_FAILURE %s: %w", root, syscall.EPERM)
+				return fmt.Errorf("PRIVATE_SIGNAL_FAILURE %s: %w", root, syscall.EACCES)
 			}
 		} else {
 			original := ops.wait
@@ -76,14 +77,14 @@ var _ = Describe("Native ownership uncertainty", func() {
 			Expect(result.ExitConfirmed).To(BeTrue())
 		}
 		Expect(string(result.Stdout)).To(Equal("PRIVATE_CHILD_OUTPUT"))
-		phase, errno := "signal", fmt.Sprint(int(syscall.EPERM))
+		phase, errno := "signal", fmt.Sprint(int(syscall.EACCES))
 		switch boundary {
 		case "wait":
 			phase, errno = "reap", "none"
 		case "signal_unknown":
 			errno = "unknown"
 		}
-		Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=%s signal_errno=%s reaped=true exit_confirmed=%t drained=true group_state=not_observed group_errno=none", pid, phase, errno, result.ExitConfirmed)), "diagnostics must contain only the actual failed cleanup phase and allowlisted facts")
+		Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=%s signal_errno=%s reaped=true exit_confirmed=%t drained=true group_state=not_observed group_errno=none reaped_before_signal=true", pid, phase, errno, result.ExitConfirmed)), "diagnostics must contain only the actual failed cleanup phase and allowlisted facts")
 		Expect(ownershipDiagnostic(&OwnershipError{ProcessPID: pid})).To(Equal(fmt.Sprintf("pid=%d reason=unavailable", pid)), "externally constructed errors have no supervisor observation to invent")
 	}, Entry("group signaling report", "signal"), Entry("leader reap report", "wait"), Entry("unknown group signaling report remains private", "signal_unknown"))
 })
@@ -138,6 +139,6 @@ var _ = Describe("Native incomplete capture ownership", func() {
 		Expect(ownership.ProcessPID).To(Equal(result.ProcessPID))
 		Expect(result.OwnershipUnconfirmed).To(BeTrue())
 		Expect(result.Outcome).NotTo(Equal("completed"))
-		Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=pipe_drain signal_errno=none reaped=true exit_confirmed=true drained=false group_state=not_observed group_errno=none", result.ProcessPID)))
+		Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=pipe_drain signal_errno=none reaped=true exit_confirmed=true drained=false group_state=not_observed group_errno=none reaped_before_signal=true", result.ProcessPID)))
 	})
 })

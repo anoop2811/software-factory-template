@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
@@ -28,13 +29,16 @@ func projectRoot(ctx context.Context, environment map[string]string) (string, er
 		}
 	}
 	env["LC_ALL"] = "C"
-	child, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	result, err := native.ExecuteCommandBounded(child, current, []string{"git", "rev-parse", "--show-toplevel"}, env, 64<<10, 64<<10)
+	// A normal nonzero Git status is data, not a process-supervision failure.
+	// docs/adr/0101-go-release-handoff.md:490.
+	result, err := native.ExecuteCommand(ctx, current, []string{"git", "rev-parse", "--show-toplevel"}, env, 5*time.Second)
 	if err != nil || result.ExitCode == nil || !result.ExitConfirmed || result.OwnershipUnconfirmed {
 		return "", errors.Join(err, errors.New("cannot resolve project Git boundary"))
 	}
 	if *result.ExitCode == 128 && strings.HasPrefix(string(result.Stderr), "fatal: not a git repository") {
+		if err := installationfs.RequireNoGitMetadata(ctx, current); err != nil {
+			return "", err
+		}
 		return current, nil
 	}
 	if *result.ExitCode != 0 {

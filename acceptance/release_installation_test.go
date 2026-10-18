@@ -260,6 +260,12 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(runtimeBytes).To(Equal(image.binary))
 		ordinary := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
+		// per docs/adr/0101-go-release-handoff.md:490
+		beforePreview := installationSnapshot(target)
+		next := handoffPreview(f, driver, target)
+		Expect(next["profile"]).To(Equal("go-hybrid-v1"))
+		Expect(next["blockers"]).To(BeEmpty())
+		Expect(installationSnapshot(target)).To(Equal(beforePreview), "ordinary no-Git preview remains read-only")
 		// per docs/adr/0101-go-release-handoff.md:154
 		direct := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "scripts/factory-budget.sh"), "--help")
 		Expect(direct.status).To(Equal(0), "%+v", direct)
@@ -363,6 +369,13 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	DescribeTable("previews a real legacy upgrade without low-level image or profile operands or project writes", func(profile string) {
 		f, driver := handoffNativeFixture(image)
 		legacy := legacyFixture(profile)
+		// per docs/adr/0101-go-release-handoff.md:467
+		ref := profile
+		if ref == "bash-baseline" {
+			ref = "main"
+		}
+		fullMarker := []byte("ref=" + ref + "\ncommit=" + image.references[profile].revision + "\n")
+		writeFixture(filepath.Join(legacy.root, ".factory-version"), fullMarker, 0644)
 		caller := legacy.root
 		if profile == "v0.1.6" {
 			caller = filepath.Join(legacy.root, "application", "nested")
@@ -374,11 +387,33 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		var proposal map[string]any
 		Expect(json.Unmarshal([]byte(result.stdout), &proposal)).To(Succeed())
 		Expect(proposal["profile"]).To(Equal(profile))
+		Expect(proposal["blockers"]).To(BeEmpty())
 		Expect(proposal["proposal_digest"]).To(MatchRegexp("^[a-f0-9]{64}$"))
 		Expect(proposal["actions"]).NotTo(BeEmpty())
 		Expect(installationSnapshot(legacy.root)).To(Equal(before))
 		_, err := os.Lstat(filepath.Join(f.records, "forbidden-tool"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
+		// per docs/adr/0101-go-release-handoff.md:471
+		for _, changed := range []struct {
+			body []byte
+			mode os.FileMode
+		}{
+			{[]byte("ref=" + ref + "\ncommit=0000000\n"), 0644},
+			{[]byte("ref=" + ref + "\ncommit=" + image.references[profile].revision[:8] + "\n"), 0644},
+			{[]byte("ref=another-release\ncommit=" + image.references[profile].revision[:7] + "\n"), 0644},
+			{fullMarker, 0755},
+		} {
+			writeFixture(filepath.Join(legacy.root, ".factory-version"), changed.body, changed.mode)
+			Expect(os.Chmod(filepath.Join(legacy.root, ".factory-version"), changed.mode)).To(Succeed())
+			observed := installationSnapshot(legacy.root)
+			denied := handoffNativeProcess(caller, f.environment, "", driver, "upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json")
+			if denied.status == 0 {
+				Expect(handoffProposal(denied)["blockers"]).NotTo(BeEmpty(), "changed historical marker must never gain baseline ownership")
+			} else {
+				Expect(denied.status).To(Equal(2), "%+v", denied)
+			}
+			Expect(installationSnapshot(legacy.root)).To(Equal(observed))
+		}
 	}, Entry("v0.1.6", "v0.1.6"), Entry("Bash baseline", "bash-baseline"))
 
 	// per docs/adr/0101-go-release-handoff.md:246
@@ -405,9 +440,27 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:163
 	// per docs/adr/0101-go-release-handoff.md:318
-	DescribeTable("applies a confirmed legacy proposal after its acquisition directory is removed", func(profile string) {
+	// per docs/adr/0101-go-release-handoff.md:467
+	// per docs/adr/0101-go-release-handoff.md:475
+	DescribeTable("applies a confirmed historical short-marker legacy proposal and restores its original marker", func(profile string) {
 		f, driver := handoffNativeFixture(image)
 		legacy := legacyFixture(profile)
+		repository, err := filepath.Abs("..")
+		Expect(err).NotTo(HaveOccurred())
+		reference := image.references[profile]
+		// Run the frozen upgrade writer itself against its actual pinned Git
+		// object, rather than inventing the legacy marker in this evaluator.
+		for _, args := range [][]string{{"init", "--quiet", legacy.source}, {"-C", legacy.source, "fetch", "--quiet", "--no-tags", repository, reference.revision}, {"-C", legacy.source, "update-ref", "HEAD", reference.revision}} {
+			git := imageProcess(repository, nil, "git", args...)
+			Expect(git.status).To(Equal(0), "%+v", git)
+		}
+		ref := "main"
+		legacyEnvironment := map[string]string{"PATH": filepath.Join(filepath.Dir(legacy.source), "external tools") + string(os.PathListSeparator) + os.Getenv("PATH")}
+		upgraded := imageProcess(legacy.root, legacyEnvironment, "bash", filepath.Join(legacy.root, "scripts/factory-upgrade.sh"), "--source", legacy.source, "--ref", ref)
+		Expect(upgraded.status).To(Equal(0), "%+v", upgraded)
+		originalMarker, err := os.ReadFile(filepath.Join(legacy.root, ".factory-version"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(originalMarker)).To(Equal("ref=" + ref + "\ncommit=" + reference.revision[:7] + "\n"))
 		readme := []byte("private application documentation\n")
 		writeFixture(filepath.Join(legacy.root, "README.md"), readme, 0600)
 		proposal := handoffPreview(f, driver, legacy.root)
@@ -433,6 +486,24 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
 		_, err = os.Lstat(filepath.Join(f.records, "forbidden-tool"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
+		migrations, err := filepath.Glob(filepath.Join(legacy.root, ".factory/installation-transactions/candidate-*.json"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(migrations).To(HaveLen(1))
+		migration := strings.TrimSuffix(filepath.Base(migrations[0]), ".json")
+		roots := filepath.Join(f.root, "operator-trusted-root.jsonl")
+		writeFixture(roots, []byte("independently obtained fixture roots\n"), 0600)
+		rollbackArgs := []string{"upgrade", "--installation", "--source", image.archivePath, "--profile", profile, "--version", handoffVersion, "--revision", image.revision, "--target", runtime.GOOS + "/" + runtime.GOARCH, "--attestation", filepath.Join(f.environment["HANDOFF_ASSETS"], "runtime-attestations.jsonl"), "--trusted-root", roots, "--rollback", migration}
+		for _, value := range installationInputs {
+			rollbackArgs = append(rollbackArgs, "--project-input", value)
+		}
+		reverse := handoffProposal(handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
+		rollback := handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
+		Expect(rollback.status).To(Equal(0), "%+v", rollback)
+		marker, err := os.ReadFile(filepath.Join(legacy.root, ".factory-version"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(marker).To(Equal(originalMarker), "rollback must restore exact checked short-marker bytes")
+		restored := imageProcess(legacy.root, legacyEnvironment, "bash", filepath.Join(legacy.root, "scripts/selftest/run.sh"))
+		Expect(restored.status).To(Equal(0), "%+v", restored)
 	}, Entry("v0.1.6", "v0.1.6"), Entry("Bash baseline", "bash-baseline"))
 
 	// per docs/adr/0101-go-release-handoff.md:163
@@ -453,6 +524,21 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			Expect(result.stderr).To(ContainSubstring("profile"))
 		}
 		Expect(installationSnapshot(legacy.root)).To(Equal(before))
+		// per docs/adr/0101-go-release-handoff.md:304
+		// per docs/adr/0101-go-release-handoff.md:500
+		unknown := filepath.Join(f.cwd, "marker-only-project")
+		configuration, err := os.ReadFile(filepath.Join(legacy.root, "factory.yaml"))
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(filepath.Join(unknown, "factory.yaml"), configuration, 0644)
+		writeFixture(filepath.Join(unknown, ".factory-version"), []byte("ref=v0.1.6\ncommit="+image.references["v0.1.6"].revision+"\n"), 0644)
+		git := imageProcess(unknown, nil, "git", "init", "--quiet")
+		Expect(git.status).To(Equal(0), "%+v", git)
+		unknownBefore := installationSnapshot(unknown)
+		denied := handoffNativeProcess(unknown, f.environment, "", driver, "upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json")
+		Expect(denied.status).To(Equal(2), "%+v", denied)
+		Expect(denied.stdout).To(BeEmpty(), "a canonical marker without any framework rows cannot identify an installation profile")
+		Expect(denied.stderr).To(ContainSubstring("profile"))
+		Expect(installationSnapshot(unknown)).To(Equal(unknownBefore))
 	})
 
 	// per docs/adr/0101-go-release-handoff.md:318
@@ -574,6 +660,20 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		proposal := handoffPreview(f, driver, installed.root)
 		changed := bytes.Clone(beforeArchive)
 		if change == "recipe" {
+			// per docs/adr/0101-go-release-handoff.md:485
+			descriptorPath := filepath.Join(installed.root, ".factory/installation.current")
+			original, err := os.ReadFile(descriptorPath)
+			Expect(err).NotTo(HaveOccurred())
+			info, err := os.Stat(descriptorPath)
+			Expect(err).NotTo(HaveOccurred())
+			moving := bytes.Replace(original, []byte(`"v9.8.0"`), []byte(`"main"`), 1)
+			Expect(moving).NotTo(Equal(original))
+			writeFixture(descriptorPath, moving, info.Mode().Perm())
+			invalid := handoffNativeProcess(installed.root, f.environment, "", driver, "upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json")
+			Expect(invalid.status).NotTo(Equal(0), "%+v", invalid)
+			Expect(strings.Join(handoffRecorded(f, "api"), " ")).NotTo(ContainSubstring("refs/tags/main"), "untrusted predecessor release must be refused before gh lookup")
+			Expect(handoffRecorded(f, "release-view")).NotTo(ContainElement("main"))
+			writeFixture(descriptorPath, original, info.Mode().Perm())
 			changed = handoffRewriteAsset(beforeArchive, "internal/installedlayout/layout.go", func(body []byte) []byte {
 				return append(body, []byte("\n// a different predecessor schema collaborator\n")...)
 			})
@@ -601,7 +701,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	DescribeTable("recovers an actually interrupted Go-to-Go transaction with distinct before and after executables", func(direction string) {
 		f, driver, installed := goFixture()
 		proposal := handoffPreview(f, driver, installed.root)
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 		cmd := handoffCommand(ctx, installed.root, f.environment, "", driver, "upgrade", "--go-candidate", handoffVersion, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -629,7 +729,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		})
 		migration := ""
 		pending := filepath.Join(installed.root, ".factory/runtime-publication.pending")
-		Eventually(func() bool {
+		observe := func() bool {
 			select {
 			case err := <-finished:
 				waited = true
@@ -670,7 +770,17 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			}
 			migration = strings.TrimSuffix(filepath.Base(paths[0]), ".json")
 			return true
-		}, 30*time.Second, time.Millisecond).Should(BeTrue(), "must witness actual published rows under pending before interruption")
+		}
+		// Native preflight proof has its own bounded preparation phase; the
+		// observed race build was still in native-gate-proof after 30 seconds.
+		Eventually(func() bool {
+			if observe() {
+				return true
+			}
+			return strings.Contains(lastPhase, "phase=applying ")
+		}, 80*time.Second, time.Millisecond).Should(BeTrue(), "must finish bounded preparation before the publication witness: %s", lastPhase)
+		_, _ = fmt.Fprintf(GinkgoWriter, "preparation reached publication after %s; %s\n", time.Since(started), lastPhase)
+		Eventually(observe, 5*time.Second, time.Millisecond).Should(BeTrue(), "must witness actual published rows under pending before interruption")
 		_, _ = fmt.Fprintf(GinkgoWriter, "actual crash witness after %s; %s\n", time.Since(started), lastPhase)
 		Expect(syscall.Kill(cmd.Process.Pid, syscall.SIGSTOP)).To(Succeed())
 		Expect(syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)).To(Succeed())

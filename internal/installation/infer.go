@@ -78,7 +78,7 @@ func InferCandidate(ctx context.Context, root string, source staging.Options, ov
 		}
 		score := 0
 		for _, action := range proposal.Actions {
-			if action.Action == "replace" || action.Action == "retire" {
+			if action.Path != ".factory-version" && (action.Action == "replace" || action.Action == "retire") {
 				score++
 			}
 		}

@@ -185,8 +185,12 @@ candidate_install() {
   FACTORY_RELEASE_DIR=$candidate_dir
   export FACTORY_RELEASE_DIR
   # Keep this parent alive to remove its private handoff after the native child.
-  "$candidate_dir/$candidate_raw" "$@" <&0 &
+  # Dash resets asynchronous stdin before a self-duplication; save it first.
+  # docs/adr/0101-go-release-handoff.md:508.
+  exec 9<&0
+  "$candidate_dir/$candidate_raw" "$@" <&9 9<&- &
   candidate_child=$!
+  exec 9<&-
   candidate_status=0
   wait "$candidate_child" || candidate_status=$?
   candidate_child=

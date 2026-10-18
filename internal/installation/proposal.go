@@ -125,8 +125,8 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 			after = before
 		}
 		if before != nil {
-			expected, _, known, recognitionErr := reference.expected(ctx, role.Path, request.Inputs)
-			recognized := recognitionErr == nil && known && imageEqual(before, expected, false)
+			_, recognized, recognitionErr := reference.matching(ctx, role.Path, before, request.Inputs)
+			recognized = recognitionErr == nil && recognized
 			if role.Path == ".factory-version" && request.Profile != "go-hybrid-v1" {
 				recognized = false
 			}
@@ -230,13 +230,22 @@ func qualifyLegacyMarker(ctx context.Context, planned *plan, reference baseline)
 			return
 		}
 	}
-	expected, _, known, err := reference.expected(ctx, ".factory-version", planned.request.Inputs)
-	if err != nil || !known {
+	independentAsset := false
+	for _, action := range planned.proposal.Actions {
+		if action.Path != ".factory-version" && action.Before != nil && (action.Action == "replace" || action.Action == "retire") {
+			independentAsset = true
+			break
+		}
+	}
+	if !independentAsset {
 		return
 	}
 	for index := range planned.proposal.Actions {
 		action := &planned.proposal.Actions[index]
-		if action.Path != ".factory-version" || action.Before == nil || !imageEqual(action.Before, expected, false) {
+		if action.Path != ".factory-version" || action.Before == nil {
+			continue
+		}
+		if _, matched, err := reference.matching(ctx, action.Path, action.Before, planned.request.Inputs); err != nil || !matched {
 			continue
 		}
 		action.Action, action.Reason = "replace", "whole independently qualified legacy profile and canonical marker"

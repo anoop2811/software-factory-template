@@ -100,11 +100,11 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 			reason = issue.Reason
 		}
 		if saved.Before != nil && saved.Action != "retain" {
-			expected, _, known, err := reference.expected(ctx, row.Path, request.Inputs)
+			_, matched, err := reference.matching(ctx, row.Path, saved.Before, request.Inputs)
 			if err != nil {
 				return result, err
 			}
-			if !known || !imageEqual(saved.Before, expected, false) {
+			if !matched {
 				return result, conflict("preparation before selection is not qualified baseline")
 			}
 		}

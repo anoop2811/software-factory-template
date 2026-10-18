@@ -144,11 +144,11 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		var beforeData []byte
 		if original.Before != nil {
-			projected, _, known, err := reference.expected(ctx, row.Path, request.Inputs)
+			projected, matched, err := reference.matching(ctx, row.Path, original.Before, request.Inputs)
 			if err != nil {
 				return result, err
 			}
-			if !known || !imageEqual(projected, original.Before, false) {
+			if !matched {
 				return result, conflict("recorded before-image is not a qualified baseline selection")
 			}
 			saved, binary, err := observe(ctx, tree, ".factory/backups/"+record.MigrationID+"/assets/"+row.Path, leafLimit(row.Path))

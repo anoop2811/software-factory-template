@@ -44,6 +44,11 @@ func (a *acquired) close() error {
 // Acquisition authenticates independent inputs before closed-world staging.
 // docs/adr/0101-go-release-handoff.md:94, docs/adr/0101-go-release-handoff.md:119.
 func acquire(ctx context.Context, tag string, environment map[string]string) (result *acquired, returned error) {
+	// Installed predecessor versions are untrusted hints too.
+	// docs/adr/0101-go-release-handoff.md:485.
+	if !validTag(tag) {
+		return nil, errors.New("invalid candidate tag")
+	}
 	target := runtime.GOOS + "/" + runtime.GOARCH
 	switch target {
 	case "linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64":

@@ -40,8 +40,11 @@ func requireFresh(ctx context.Context, target *tree) error {
 	for _, path := range []string{"factory", "factory.yaml", "factory.config", ".factory", ".factory-version"} {
 		var stat unix.Stat_t
 		err := unix.Fstatat(int(target.root.Fd()), path, &stat, unix.AT_SYMLINK_NOFOLLOW)
-		if !errors.Is(err, unix.ENOENT) {
+		if err == nil {
 			return errors.New("candidate init requires a fresh factory; use upgrade for an existing installation")
+		}
+		if !errors.Is(err, unix.ENOENT) {
+			return errors.Join(err, errors.New("candidate init cannot inspect factory metadata: "+path))
 		}
 	}
 	return ctx.Err()
@@ -193,7 +196,7 @@ func checkPrivateIgnore(ctx context.Context, target *tree, environment map[strin
 		return errors.Join(err, errors.New("cannot inspect installation Git boundary"))
 	}
 	if *result.ExitCode == 128 && strings.HasPrefix(string(result.Stderr), "fatal: not a git repository") {
-		if err := noGitMetadata(target.path); err != nil {
+		if err := installationfs.RequireNoGitMetadata(ctx, target.path); err != nil {
 			return err
 		}
 		return proveIgnoreRules(ctx, data, environment)
@@ -202,20 +205,6 @@ func checkPrivateIgnore(ctx context.Context, target *tree, environment map[strin
 		return errors.New("installation Git boundary is unavailable")
 	}
 	return checkIgnoredPaths(ctx, target.path, environment)
-}
-
-// Exit 128 alone includes broken Git metadata and operational failures.
-func noGitMetadata(path string) error {
-	for {
-		if _, err := os.Lstat(filepath.Join(path, ".git")); !errors.Is(err, os.ErrNotExist) {
-			return errors.Join(err, errors.New("git metadata exists or cannot be inspected; detached ignore proof refused"))
-		}
-		parent := filepath.Dir(path)
-		if parent == path {
-			return nil
-		}
-		path = parent
-	}
 }
 
 func checkIgnoredPaths(ctx context.Context, root string, environment map[string]string) error {

@@ -204,28 +204,37 @@ var _ = Describe("Authenticated candidate shell bootstrap", func() {
 	})
 
 	// per docs/adr/0101-go-release-handoff.md:455
+	// per docs/adr/0101-go-release-handoff.md:508
 	It("keeps piped installer source out of candidate stdin while preserving file-mode typed input", func() {
-		for _, piped := range []bool{false, true} {
-			f := handoffBootstrap("Linux", "x86_64", "linux-amd64", "")
-			capture := "#!/bin/sh\n/bin/dd bs=256 count=1 > \"$HANDOFF_RECORD_DIR/bootstrap-stdin\" 2>/dev/null\n" + strings.TrimPrefix(string(f.raw), "#!/bin/sh\n")
-			writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+handoffVersion+"-"+f.target), []byte(capture), 0600)
-			input := "literal typed input\n"
-			args := []string{f.installer, "init", "--go-candidate", handoffVersion}
-			if piped {
-				source, err := os.ReadFile(f.installer)
+		interpreters := []string{"/bin/sh"}
+		if _, err := os.Stat("/bin/dash"); err == nil {
+			interpreters = append(interpreters, "/bin/dash")
+		} else {
+			Expect(os.IsNotExist(err)).To(BeTrue())
+		}
+		for _, interpreter := range interpreters {
+			for _, piped := range []bool{false, true} {
+				f := handoffBootstrap("Linux", "x86_64", "linux-amd64", "")
+				capture := "#!/bin/sh\n/bin/dd bs=256 count=1 > \"$HANDOFF_RECORD_DIR/bootstrap-stdin\" 2>/dev/null\n" + strings.TrimPrefix(string(f.raw), "#!/bin/sh\n")
+				writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+handoffVersion+"-"+f.target), []byte(capture), 0600)
+				input := "literal typed input\n"
+				args := []string{f.installer, "init", "--go-candidate", handoffVersion}
+				if piped {
+					source, err := os.ReadFile(f.installer)
+					Expect(err).NotTo(HaveOccurred())
+					input = string(source)
+					args = []string{"-s", "--", "init", "--go-candidate", handoffVersion}
+				}
+				// The exec helper supplies pipe stdin and captured, non-TTY output.
+				result := handoffNativeProcess(f.cwd, f.environment, input, interpreter, args...)
+				Expect(result.status).To(Equal(0), "%s piped=%t: %+v", interpreter, piped, result)
+				actual, err := os.ReadFile(filepath.Join(f.records, "bootstrap-stdin"))
 				Expect(err).NotTo(HaveOccurred())
-				input = string(source)
-				args = []string{"-s", "--", "init", "--go-candidate", handoffVersion}
-			}
-			// The exec helper supplies pipe stdin and captured, non-TTY output.
-			result := handoffNativeProcess(f.cwd, f.environment, input, "/bin/sh", args...)
-			Expect(result.status).To(Equal(0), "%+v", result)
-			actual, err := os.ReadFile(filepath.Join(f.records, "bootstrap-stdin"))
-			Expect(err).NotTo(HaveOccurred())
-			if piped {
-				Expect(actual).To(BeEmpty(), "verified code must not receive unread installer source as user answers")
-			} else {
-				Expect(string(actual)).To(Equal(input), "executing an installer file must preserve the caller's literal stdin")
+				if piped {
+					Expect(actual).To(BeEmpty(), "verified code must not receive unread installer source as user answers")
+				} else {
+					Expect(string(actual)).To(Equal(input), "executing an installer file with %s must preserve the caller's literal stdin", interpreter)
+				}
 			}
 		}
 	})

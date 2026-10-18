@@ -83,6 +83,35 @@ func (reference baseline) expected(ctx context.Context, path string, inputs map[
 	return bytesImage(raw, mode), raw, true, nil
 }
 
+// matching qualifies exact before-images, including the two historical legacy
+// marker spellings. Marker matching alone never establishes profile ownership.
+// docs/adr/0101-go-release-handoff.md:465.
+func (reference baseline) matching(ctx context.Context, path string, observed *Image, inputs map[string]string) (*Image, bool, error) {
+	expected, _, known, err := reference.expected(ctx, path, inputs)
+	if err != nil || !known {
+		return expected, false, err
+	}
+	if imageEqual(observed, expected, false) {
+		return expected, true, nil
+	}
+	if path != ".factory-version" || reference.Expected != nil || len(reference.Revision) != 40 || (reference.Profile != "v0.1.6" && reference.Profile != "bash-baseline") {
+		return expected, false, nil
+	}
+	refs := []string{"main"}
+	if reference.Profile == "v0.1.6" {
+		refs = append(refs, reference.Profile)
+	}
+	for _, ref := range refs {
+		for _, revision := range []string{reference.Revision, reference.Revision[:7]} {
+			marker := bytesImage([]byte("ref="+ref+"\ncommit="+revision+"\n"), 0644)
+			if imageEqual(observed, marker, false) {
+				return marker, true, nil
+			}
+		}
+	}
+	return expected, false, ctx.Err()
+}
+
 func reference(ctx context.Context, profile string) (baseline, error) {
 	if profile != "v0.1.6" && profile != "bash-baseline" {
 		return baseline{}, conflict("installation profile requires a qualified predecessor")

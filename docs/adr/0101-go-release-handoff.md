@@ -461,3 +461,53 @@ piped answers when the installer is invoked from a file and retain the native
 initializer's existing terminal handling. Do not guess from the script name or
 discard a legitimate answer stream. Pair a piped-source nonterminal regression
 with the existing file-invocation input control.
+
+## Historical version-marker compatibility
+
+The pinned legacy upgrade writers use `git rev-parse --short HEAD` and default to
+`ref=main`. For the independently proven v0.1.6 and Bash baseline profiles, retain
+the exact forty-character canonical marker and recognize its historical default
+seven-character commit spelling. The short spelling must equal the pinned
+revision's prefix. Accept `main` for both legacy profiles and the explicit
+`v0.1.6` tag for that profile, with exact fields, newlines and regular-file mode.
+This does not accept arbitrary abbreviations, changed markers, custom refs or a
+marker as ownership evidence by itself.
+
+Use one baseline matching rule for forward recognition, preparation recovery and
+fresh qualification of saved before-images. Rollback restores the exact original
+short bytes from the checked recovery set; it must not normalize or rewrite the
+user's previous marker while claiming exact restoration. Pair normal public
+upgrade of the historical marker with full-marker and changed-marker controls,
+then observe rollback and ordinary restored health checks.
+
+## Internal release hints and project discovery
+
+Apply the same explicit tag grammar and moving-alias rejection at the acquisition
+boundary for every caller, including an untrusted predecessor version read from
+an installed descriptor. A descriptor is an identity hint; it cannot bypass public
+tag validation or trigger transport with a value the public selector would refuse.
+
+Use the existing bounded process API that reports an ordinary nonzero Git status
+without conflating it with process failure. Resolve a valid repository's ancestor
+root from nested working directories while isolating redirected Git environment.
+For an ordinary nonrepository, keep the physical caller directory only after the
+same independent ancestor-metadata absence proof used by fresh initialization.
+Keep that filesystem proof shared. Missing Git, corrupt metadata, unsafe output,
+timeout or unconfirmed process ownership remain errors. This discovery fallback
+does not create Git metadata or relax installation mutation/ignore requirements.
+An installed fresh project outside Git can obtain a read-only candidate preview.
+
+Version markers do not contribute to automatic legacy profile scoring. Before
+qualifying a legacy marker, require at least one other observed framework asset
+that independently matches the pinned profile, in addition to the existing
+required-asset blocker checks. Absent rows planned for creation are not observed
+ownership evidence. Apply the same rule with an explicitly supplied low-level
+profile; a marker by itself never turns an unrelated project into a recognized
+legacy installation.
+
+Preserve candidate stdin through a descriptor duplicated in the foreground before
+starting the asynchronous child. Dash can replace background fd 0 with `/dev/null`
+before a self-duplication `<&0`; use the saved descriptor explicitly, then close
+the auxiliary descriptor in both child and parent. Keep both file-answer and
+piped-source controls under the host `sh` and Dash when available. This adds no
+new adopter dependency or input-discarding fallback.

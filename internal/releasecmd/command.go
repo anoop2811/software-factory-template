@@ -47,13 +47,19 @@ func Run(parent context.Context, verb string, args []string, environment map[str
 		return 2
 	}
 	if help {
-		fmt.Fprintf(stdout, "Usage: factory %s [args] --go-candidate TAG\n\nSelect one authenticated official Go release candidate.\n", verb)
-		if verb == "upgrade" {
-			fmt.Fprintln(stdout, "Options: --dry-run --json --confirm DIGEST --quiescent")
-		}
+		fmt.Fprint(stdout, Usage(verb))
 		return 0
 	}
 	return execute(ctx, verb, option, environment, stdin, stdout, stderr)
+}
+
+// Usage keeps installed and explicit-selector help on the same public contract.
+// docs/adr/0101-go-release-handoff.md:543.
+func Usage(verb string) string {
+	if verb == "init" {
+		return "Usage: factory init [TARGET] --go-candidate TAG [--pack PACKS]\n\nSelect one authenticated official Go release candidate.\n"
+	}
+	return "Usage: factory upgrade --go-candidate TAG [options]\n\nSelect one authenticated official Go release candidate.\nOptions: --dry-run --json --confirm DIGEST --quiescent --project-input KEY=VALUE\nJSON is preview-only; omit --json when confirming.\n"
 }
 
 func parse(verb string, args []string) (options, bool, error) {
@@ -113,8 +119,15 @@ func parse(verb string, args []string) (options, bool, error) {
 	if err := command.Execute(); err != nil {
 		return result, false, err
 	}
-	if !help && (result.dryRun && (result.confirmation != "" || result.quiescent) || result.quiescent != (result.confirmation != "") || result.json && result.confirmation != "" || result.confirmation != "" && (len(result.confirmation) != 64 || strings.Trim(result.confirmation, "0123456789abcdef") != "")) {
-		return result, false, errors.New("invalid candidate consent")
+	if !help {
+		confirmed := result.confirmation != ""
+		previewMutation := result.dryRun && (confirmed || result.quiescent)
+		missingExclusion := result.quiescent != confirmed
+		confirmedJSON := result.json && confirmed
+		invalidDigest := confirmed && (len(result.confirmation) != 64 || strings.Trim(result.confirmation, "0123456789abcdef") != "")
+		if previewMutation || missingExclusion || confirmedJSON || invalidDigest {
+			return result, false, errors.New("invalid candidate consent")
+		}
 	}
 	return result, help, nil
 }

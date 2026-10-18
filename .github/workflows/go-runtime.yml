@@ -51,12 +51,14 @@ jobs:
         run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base
 
   go-runtime-installation:
+    name: go-runtime-${{ matrix.group }} (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        group: [installation, release-handoff]
     runs-on: ${{ matrix.os }}
-    # docs/adr/0098-whole-installation-upgrade-and-rollback.md:530 — parallel qualification.
+    # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
@@ -86,4 +88,4 @@ jobs:
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=installation
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }}

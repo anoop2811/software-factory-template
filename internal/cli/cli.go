@@ -264,7 +264,7 @@ func Run(ctx context.Context, args []string) int {
 					// docs/adr/0101-go-release-handoff.md:435.
 					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
 						if len(forwarded) == 1 && (forwarded[0] == "--help" || forwarded[0] == "-h") {
-							fmt.Fprintln(os.Stdout, "Usage: factory init [TARGET] --go-candidate TAG [--pack PACKS]")
+							fmt.Fprint(os.Stdout, releasecmd.Usage("init"))
 						} else {
 							fmt.Fprintln(os.Stderr, "factory init: select an authenticated Go release with factory init [TARGET] --go-candidate TAG")
 							status = 2

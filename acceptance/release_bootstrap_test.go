@@ -158,7 +158,7 @@ func handoffOwnedGroup(group int) []string {
 var _ = Describe("Authenticated candidate shell bootstrap", func() {
 	// per docs/adr/0101-go-release-handoff.md:80
 	// per docs/adr/0101-go-release-handoff.md:94
-	DescribeTable("authenticates the exact host subject before the first executable call", func(osName, architecture, target string) {
+	DescribeTable("authenticates each simulated reported-host mapping before the first executable call", func(osName, architecture, target string) {
 		f := handoffBootstrap(osName, architecture, target, "")
 		result := imageProcess(f.cwd, f.environment, "/bin/sh", f.installer, "init", "--go-candidate", handoffVersion, "--pack", "none")
 		Expect(result.status).To(Equal(0), "%+v", result)
@@ -190,7 +190,7 @@ var _ = Describe("Authenticated candidate shell bootstrap", func() {
 		Expect(string(acquired)).NotTo(BeEmpty())
 		_, err = os.Lstat(string(acquired))
 		Expect(os.IsNotExist(err)).To(BeTrue(), "the shell must clean its private handoff after the child exits")
-	}, Entry("Linux amd64", "Linux", "x86_64", "linux-amd64"), Entry("Linux arm64", "Linux", "aarch64", "linux-arm64"), Entry("Darwin amd64", "Darwin", "x86_64", "darwin-amd64"), Entry("Darwin arm64", "Darwin", "arm64", "darwin-arm64"))
+	}, Entry("simulated Linux amd64 report", "Linux", "x86_64", "linux-amd64"), Entry("simulated Linux arm64 report", "Linux", "aarch64", "linux-arm64"), Entry("simulated Darwin amd64 report", "Darwin", "x86_64", "darwin-amd64"), Entry("simulated Darwin arm64 report", "Darwin", "arm64", "darwin-arm64"))
 
 	// per docs/adr/0101-go-release-handoff.md:40
 	It("forwards upgrade proposal arguments as literal argv including values with spaces", func() {

@@ -37,7 +37,12 @@ func authenticate(ctx context.Context, options Options, workspace string) error 
 		if err == nil {
 			err = errors.New("trusted verifier did not complete successfully")
 		}
-		return fmt.Errorf("GitHub attestation verification: %w: stdout=%q stderr=%q", errors.Join(err, ctx.Err()), result.Stdout, result.Stderr)
+		exit := "unavailable"
+		if result.ExitCode != nil {
+			exit = fmt.Sprint(*result.ExitCode)
+		}
+		// docs/adr/0101-go-release-handoff.md:534 — preserve observed rejection details.
+		return fmt.Errorf("GitHub attestation verification: %w (outcome=%s exit=%s exit_confirmed=%t ownership_unconfirmed=%t): stdout=%q stderr=%q", errors.Join(err, ctx.Err()), result.Outcome, exit, result.ExitConfirmed, result.OwnershipUnconfirmed, result.Stdout, result.Stderr)
 	}
 	return nil
 }

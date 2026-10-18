@@ -528,3 +528,48 @@ must reject a canceled private rule, while complete rules must pass. The current
 public overlay appends mandatory rules, so the observed proof-isolation defect
 is not evidence of an exposed installed project. Reuse the existing public
 fresh-initialization acceptance criteria for activation behavior.
+
+## Review closure and qualification headroom
+
+Report failure to make the authenticated handoff executable with contextual stderr,
+and retain the primary filesystem error. Verifier rejection diagnostics must
+include the observed outcome, exit status (or its absence), exit confirmation and
+ownership confirmation while retaining bounded, separated output and primary
+cancellation/ownership causes. These diagnostics grant no fallback or execution
+authority. Existing low-impact wording changes reuse meaningful rejection controls;
+an independent public verifier-failure assertion must first fail on the missing
+status, then pass after the correction.
+
+Keep candidate initializer help in one shared formatter used by both installed
+and explicit-selector entrypoints. Describe JSON as preview-only and preserve the
+existing consent truth table while naming its component policies. Represent each
+release asset together with its size bound rather than passing parallel slices.
+A missing internal GitHub operation must return an error instead of indexing an
+empty operand list. These refinements do not change supported tags, trust roots,
+confirmation identities, validation bounds or defaults.
+
+`FACTORY_RELEASE_DIR` is an internal transport hint written by the shell bootstrap
+and native authenticated handoff. Its directory contains the three named release
+inputs and `revision`; the native producer supplies its pinned `inputs` directory.
+It is not an offline installation option. The consumer resolves the current
+official release identity again, pins regular-file snapshots and independently
+authenticates both subjects with newly acquired roots. Imported paths, revision
+text and saved receipts never grant authority.
+
+The observed final-head macOS installation acceptance took 1487.396 seconds
+against its 1500-second allowance ([PR128 job117587416705](https://github.com/anoop2811/software-factory-template/actions/runs/39097686104/job/117587416705), 2026-10-18 UTC).
+Split its existing 103 criteria into the 78 earlier installation criteria and the
+25 release-handoff criteria. Keep the existing base group, add the explicit
+`release-handoff` group, and have `all` run all three groups. Run each group on
+Linux and macOS with the unchanged 25-minute test/30-minute job allowances.
+Independent scheduler acceptance must discover actual Ginkgo criteria, prove the
+three groups are nonempty, disjoint and exhaustive, and preserve a zero-selection
+failure control. Changes to the number of criteria must update the independent
+census; never skip a criterion, relax an assertion or extend an application timeout
+to fit this CI partition.
+
+Clarify simulated host-mapping labels without removing platform-selection cases,
+state that release consumers authenticate the published raw executable, and refresh
+lesson citations against the final source. Review-report responses must enumerate
+each finding as corrected, refuted with complete-source evidence, or intentionally
+preserved; a completed model run alone is not approval.

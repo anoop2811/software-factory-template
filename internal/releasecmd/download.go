@@ -9,10 +9,17 @@ import (
 	"time"
 )
 
+// Each fixed release subject carries its own bound; callers cannot misalign slices.
+// docs/adr/0101-go-release-handoff.md:545.
+type releaseAsset struct {
+	name     string
+	maxBytes int64
+}
+
 // Observe file growth while the existing native supervisor owns the downloader.
 // Final pinned snapshots independently enforce the exact input limits again.
 // docs/adr/0101-go-release-handoff.md:119.
-func boundedDownload(parent context.Context, directory string, names []string, limits []int64, run func(context.Context) error) error {
+func boundedDownload(parent context.Context, directory string, assets []releaseAsset, run func(context.Context) error) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	stop := make(chan struct{})
@@ -29,14 +36,14 @@ func boundedDownload(parent context.Context, directory string, names []string, l
 				result <- ctx.Err()
 				return
 			case <-ticker.C:
-				for index, name := range names {
-					info, err := os.Lstat(filepath.Join(directory, name))
+				for _, asset := range assets {
+					info, err := os.Lstat(filepath.Join(directory, asset.name))
 					if errors.Is(err, os.ErrNotExist) {
 						continue
 					}
-					if err != nil || !info.Mode().IsRegular() || info.Size() > limits[index] {
+					if err != nil || !info.Mode().IsRegular() || info.Size() > asset.maxBytes {
 						cancel()
-						result <- errors.Join(err, fmt.Errorf("downloaded candidate asset exceeds its regular-file bound: %s", name))
+						result <- errors.Join(err, fmt.Errorf("downloaded candidate asset exceeds its regular-file bound: %s", asset.name))
 						return
 					}
 				}

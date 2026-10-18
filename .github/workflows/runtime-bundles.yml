@@ -85,7 +85,7 @@ jobs:
           binary="$staged/$version/$TARGET/bin/factory-runtime"
           FACTORY_BUNDLE_BINARY="$binary" go test -count=1 ./acceptance \
             -ginkgo.no-color -ginkgo.focus='Packaged runtime conformance'
-          # Authenticate this exact qualified V2 binary before bootstrap execution.
+          # Publish the qualified V2 binary; consumers authenticate it before execution.
           # docs/adr/0101-go-release-handoff.md:80.
           cp "$binary" "$output/factory-bootstrap"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

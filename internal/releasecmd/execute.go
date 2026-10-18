@@ -187,6 +187,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 		return 1
 	}
 	if err := os.Chmod(candidate.raw, 0700); err != nil { // #nosec G302 -- This exact owner-only executable was authenticated against the pinned official release before chmod.
+		fmt.Fprintln(stderr, "factory candidate: cannot make authenticated handoff executable: "+err.Error())
 		return 1
 	}
 	env := withoutCache(environment)
@@ -194,6 +195,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	args := append([]string{candidate.raw, verb, "--go-candidate", option.tag}, option.args...)
 	root, err := os.Getwd()
 	if err != nil {
+		fmt.Fprintln(stderr, "factory candidate: cannot resolve handoff working directory: "+err.Error())
 		return 1
 	}
 	var result native.Execution

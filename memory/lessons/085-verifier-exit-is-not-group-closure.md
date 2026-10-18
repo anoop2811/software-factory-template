@@ -12,7 +12,7 @@ Unconfirmed closure retains private evidence and reports the primary failure.
 
 Provenance: observed 2026-10-18 through independent separate-process-group probes
 of bootstrap failure and compiled Stage cancellation. The regressions and healthy
-controls are acceptance/release_bootstrap_test.go:280 and
-acceptance/release_bootstrap_test.go:320. Their production boundaries are
+controls are acceptance/release_bootstrap_test.go:326 and
+acceptance/release_bootstrap_test.go:366. Their production boundaries are
 install.sh:111 and internal/staging/authentication.go:35. These tests include
 descendants with open and closed streams and preserve an unrelated process group.

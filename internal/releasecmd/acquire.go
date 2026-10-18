@@ -84,6 +84,9 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	}
 	env["GH_HOST"], env["GH_PROMPT_DISABLED"] = "github.com", "1"
 	gh := func(parent context.Context, limit int, args ...string) ([]byte, error) {
+		if len(args) == 0 {
+			return nil, errors.New("missing trusted GitHub operation")
+		}
 		child, cancel := context.WithTimeout(parent, 2*time.Minute)
 		defer cancel()
 		value, err := native.ExecuteCommandBounded(child, directory, append([]string{"gh"}, args...), env, limit, 64<<10)
@@ -111,12 +114,11 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 		return nil, errors.New("candidate release is unavailable")
 	}
 	assetTarget := strings.ReplaceAll(target, "/", "-")
-	raw := "factory-bootstrap-" + tag + "-" + assetTarget
-	archive := "factory-installation-" + tag + "-" + assetTarget + ".tar.gz"
-	names := []string{raw, archive, "runtime-attestations.jsonl"}
-	limits := []int64{256 << 20, 128 << 20, 16 << 20}
+	raw := releaseAsset{name: "factory-bootstrap-" + tag + "-" + assetTarget, maxBytes: 256 << 20}
+	archive := releaseAsset{name: "factory-installation-" + tag + "-" + assetTarget + ".tar.gz", maxBytes: 128 << 20}
+	assets := []releaseAsset{raw, archive, {name: "runtime-attestations.jsonl", maxBytes: 16 << 20}}
 	if source := environment["FACTORY_RELEASE_DIR"]; source != "" {
-		if err := importCache(ctx, source, directory, names, limits); err != nil {
+		if err := importCache(ctx, source, directory, assets); err != nil {
 			return nil, err
 		}
 		// The shell-resolved revision is a hint only; a moved tag cannot replace it.
@@ -126,11 +128,11 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 		}
 	} else {
 		args := []string{"release", "download", tag, "--repo", officialRepository}
-		for _, name := range names {
-			args = append(args, "--pattern", name)
+		for _, asset := range assets {
+			args = append(args, "--pattern", asset.name)
 		}
 		args = append(args, "--dir", directory)
-		if err := boundedDownload(ctx, directory, names, limits, func(child context.Context) error { _, err := gh(child, 64<<10, args...); return err }); err != nil {
+		if err := boundedDownload(ctx, directory, assets, func(child context.Context) error { _, err := gh(child, 64<<10, args...); return err }); err != nil {
 			return nil, err
 		}
 	}
@@ -139,7 +141,7 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	if err := os.Mkdir(input, 0700); err != nil {
 		return nil, err
 	}
-	if err := importCache(ctx, directory, input, names, limits); err != nil {
+	if err := importCache(ctx, directory, input, assets); err != nil {
 		return nil, err
 	}
 	roots, err := gh(ctx, 16<<20, "attestation", "trusted-root")
@@ -156,30 +158,30 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	// Bind each official subject name as well as its exact bytes. The generic
 	// staging verifier retains its existing offline contract.
 	// docs/adr/0101-go-release-handoff.md:448.
-	authenticate := func(name string, limit int64) (string, error) {
-		digest, err := digestFile(ctx, filepath.Join(input, name), limit)
+	authenticate := func(asset releaseAsset) (string, error) {
+		digest, err := digestFile(ctx, filepath.Join(input, asset.name), asset.maxBytes)
 		if err != nil {
 			return "", err
 		}
-		query := fmt.Sprintf(`any(.[]; any(.verificationResult.statement.subject[]; .name == %q and .digest.sha256 == %q))`, name, digest)
-		verified, err := gh(ctx, 256, "attestation", "verify", filepath.Join(input, name), "--repo", officialRepository,
+		query := fmt.Sprintf(`any(.[]; any(.verificationResult.statement.subject[]; .name == %q and .digest.sha256 == %q))`, asset.name, digest)
+		verified, err := gh(ctx, 256, "attestation", "verify", filepath.Join(input, asset.name), "--repo", officialRepository,
 			"--signer-workflow", officialRepository+"/.github/workflows/runtime-release.yml", "--source-digest", sha,
 			"--source-ref", "refs/tags/"+tag, "--bundle", filepath.Join(input, "runtime-attestations.jsonl"),
 			"--custom-trusted-root", rootPath, "--deny-self-hosted-runners", "--format", "json", "--jq", query)
 		if err != nil || string(verified) != "true\n" {
-			return "", errors.Join(err, fmt.Errorf("candidate subject authentication failed: %s", name))
+			return "", errors.Join(err, fmt.Errorf("candidate subject authentication failed: %s", asset.name))
 		}
 		return digest, nil
 	}
-	digest, err := authenticate(raw, limits[0])
+	digest, err := authenticate(raw)
 	if err != nil {
 		return nil, err
 	}
-	archiveDigest, err := authenticate(archive, limits[1])
+	archiveDigest, err := authenticate(archive)
 	if err != nil {
 		return nil, err
 	}
-	a.options = staging.Options{Archive: filepath.Join(input, archive), Version: tag, Revision: sha, Target: target,
+	a.options = staging.Options{Archive: filepath.Join(input, archive.name), Version: tag, Revision: sha, Target: target,
 		Output: filepath.Join(directory, "stage"), Attestation: filepath.Join(input, "runtime-attestations.jsonl"), TrustedRoot: rootPath, Installation: true}
 	staged, err := staging.Stage(ctx, a.options)
 	if err != nil {
@@ -192,7 +194,7 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	if a.image.ArchiveSHA256 != staged.SHA256 || staged.SHA256 != archiveDigest || a.image.Runtime.SHA256 != digest {
 		return nil, errors.New("candidate image disagrees with authenticated bootstrap")
 	}
-	a.raw, a.digest = filepath.Join(input, raw), digest
+	a.raw, a.digest = filepath.Join(input, raw.name), digest
 	a.staged = filepath.Join(staged.Root, tag, target)
 	if err := os.WriteFile(filepath.Join(input, "revision"), []byte(sha+"\n"), 0600); err != nil {
 		return nil, err
@@ -200,7 +202,7 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	return a, nil
 }
 
-func importCache(ctx context.Context, source, destination string, names []string, limits []int64) (returned error) {
+func importCache(ctx context.Context, source, destination string, assets []releaseAsset) (returned error) {
 	tree, err := installationfs.Open(ctx, source)
 	if err != nil {
 		return err
@@ -211,12 +213,12 @@ func importCache(ctx context.Context, source, destination string, names []string
 		return err
 	}
 	defer func() { returned = errors.Join(returned, root.Close()) }()
-	for index, name := range names {
-		file, err := tree.OpenFile(ctx, name, limits[index])
+	for _, asset := range assets {
+		file, err := tree.OpenFile(ctx, asset.name, asset.maxBytes)
 		if err != nil {
 			return err
 		}
-		digest, _, err := file.Digest(ctx, limits[index])
+		digest, _, err := file.Digest(ctx, asset.maxBytes)
 		if err == nil {
 			err = file.Rewind(ctx)
 		}
@@ -225,7 +227,7 @@ func importCache(ctx context.Context, source, destination string, names []string
 		}
 		stage, err := filepublish.PrepareReader(ctx, root, ".release-input-", file.File, file.Metadata().Size, digest, 0600)
 		if err == nil {
-			err = errors.Join(file.Check(ctx), stage.PublishNoReplace(ctx, name), stage.Cleanup())
+			err = errors.Join(file.Check(ctx), stage.PublishNoReplace(ctx, asset.name), stage.Cleanup())
 		}
 		if err = errors.Join(err, file.Close()); err != nil {
 			return err

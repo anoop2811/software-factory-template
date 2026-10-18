@@ -16,6 +16,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 )
@@ -27,22 +28,24 @@ const sourceGateBaselineCommit = "d60b200ac3a221520d183fca8c7738a5cf2bfdbb"
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
 var sourceGateCases = []struct {
-	Package      string `json:"package"`
-	Name         string `json:"name"`
-	Installation bool   `json:"installation"`
+	Package string `json:"package"`
+	Name    string `json:"name"`
+	Group   string `json:"group"`
 }{
-	{"./acceptance", "Go factory command acceptance Whole installation upgrade public interface serves help", true},
-	{"./acceptance", "Go factory command acceptance Whole installation upgrade empty mode operands rejects empty", true},
-	{"./acceptance", "Go factory command acceptance Whole installation upgrade semantic consumer recovers interruption", true},
-	{"./acceptance", "Go factory command acceptance Installed runtime root separation reports events", true},
-	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes accepts library", true},
-	{"./acceptance", "Go factory command acceptance Native Go report core renders events", false},
-	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade", false},
-	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", false},
-	{"./acceptance", "Go factory command acceptance Installed runtime root separational unrelated behavior", false},
-	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes-extra unrelated", false},
-	{"./internal/native", "Native ownership collaborator acceptance Native inherited terminal job control returns shell prompt", false},
-	{"./internal/installation", "Whole installation observation causes Installation post-apply descriptor identity rejects foreign inode", false},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade public interface serves help", "installation"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade empty mode operands rejects empty", "installation"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade semantic consumer recovers interruption", "installation"},
+	{"./acceptance", "Go factory command acceptance Installed runtime root separation reports events", "installation"},
+	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes accepts library", "installation"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initializes a real selected Go installation", "release-handoff"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff recovers interrupted selection", "release-handoff"},
+	{"./acceptance", "Go factory command acceptance Native Go report core renders events", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff", "base"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", "base"},
+	{"./acceptance", "Go factory command acceptance Installed runtime root separational unrelated behavior", "base"},
+	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes-extra unrelated", "base"},
+	{"./internal/native", "Native ownership collaborator acceptance Native inherited terminal job control returns shell prompt", "base"},
+	{"./internal/installation", "Whole installation observation causes Installation post-apply descriptor identity rejects foreign inode", "base"},
 }
 
 // This executable evaluates the actual Make recipe's package/focus/skip operands
@@ -62,12 +65,15 @@ if args and args[0]=='test':
  focus=operand('-ginkgo.focus');skip=operand('-ginkgo.skip')
  record['focus']=focus;record['skip']=skip
  record['group']='installation' if focus else 'base' if skip else 'unpartitioned'
+ selected_groups=set()
  packages=[value for value in args[1:] if value.startswith('./')]
  with open(os.environ['SOURCE_GATE_CASES']) as source:cases=json.load(source)
  for case in cases:
   included='./...' in packages or case['package'] in packages
   if included and (not focus or re.search(focus,case['name'])) and (not skip or not re.search(skip,case['name'])):
    record['selected'].append(case['package']+' :: '+case['name'])
+   selected_groups.add(case['group'])
+ if focus and selected_groups=={'release-handoff'}:record['group']='release-handoff'
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
 if args and args[0]=='list':print(os.getcwd())
 if args and args[0]=='build' and '-o' in args:
@@ -186,10 +192,10 @@ func sourceGateTests(calls []sourceGateCall) []sourceGateCall {
 	return tests
 }
 
-func sourceGateExpected(installation bool) []string {
+func sourceGateExpected(group string) []string {
 	expected := []string{}
 	for _, row := range sourceGateCases {
-		if row.Installation == installation {
+		if row.Group == group {
 			expected = append(expected, row.Package+" :: "+row.Name)
 		}
 	}
@@ -201,11 +207,12 @@ func sourceGateExpected(installation bool) []string {
 // the current Make recipe. Dry-run skips node execution, including BeforeSuite,
 // so none of the slow installation/gate/model work runs recursively.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
-func sourceGateNativeDiscovery(call sourceGateCall) (status, selected, total int) {
+func sourceGateNativeDiscovery(call sourceGateCall) (status, selected, total int, identities []string) {
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	args := []string{"test", "-race", "-count=1", "-timeout=25m", "-run=^TestAcceptance$", "./acceptance", "-ginkgo.dry-run", "-ginkgo.no-color", "-v"}
+	reportPath := filepath.Join(GinkgoT().TempDir(), "ginkgo-discovery.json")
+	args := []string{"test", "-race", "-count=1", "-timeout=25m", "-run=^TestAcceptance$", "./acceptance", "-ginkgo.dry-run", "-ginkgo.no-color", "-ginkgo.json-report=" + reportPath, "-v"}
 	if call.Focus != "" {
 		args = append(args, "-ginkgo.focus="+call.Focus)
 	}
@@ -232,26 +239,41 @@ func sourceGateNativeDiscovery(call sourceGateCall) (status, selected, total int
 	Expect(err).NotTo(HaveOccurred())
 	total, err = strconv.Atoi(counts[0][2])
 	Expect(err).NotTo(HaveOccurred())
+	if selected > 0 {
+		body, err := os.ReadFile(reportPath)
+		Expect(err).NotTo(HaveOccurred())
+		var reports []types.Report
+		Expect(json.Unmarshal(body, &reports)).To(Succeed())
+		Expect(reports).To(HaveLen(1))
+		for _, spec := range reports[0].SpecReports {
+			if spec.LeafNodeType == types.NodeTypeIt && spec.State.Is(types.SpecStatePassed) {
+				identities = append(identities, fmt.Sprintf("%s %s :: %s:%d", reports[0].SuiteDescription, spec.FullText(), filepath.Base(spec.LeafNodeLocation.FileName), spec.LeafNodeLocation.LineNumber))
+			}
+		}
+		Expect(identities).To(HaveLen(selected), "actual report identities must agree with native discovery's summary")
+	}
 	_, _ = fmt.Fprintf(GinkgoWriter, "actual native discovery args=%q; status=%d; selected=%d; total=%d; output=%q\n", args, status, selected, total, output)
-	return status, selected, total
+	return status, selected, total, identities
 }
 
-func sourceGateAssertPartition(call sourceGateCall, installation bool) {
+func sourceGateAssertPartition(call sourceGateCall, group string) {
 	GinkgoHelper()
-	Expect(call.Args).To(ContainElements("-race", "-count=1", "-timeout=25m"))
-	Expect(call.Selected).To(ConsistOf(sourceGateExpected(installation)))
-	if installation {
-		Expect(call.Args).To(ContainElement("./acceptance"))
-		Expect(call.Args).NotTo(ContainElement("./..."))
-		Expect(call.Focus).NotTo(BeEmpty())
-		Expect(call.Skip).To(BeEmpty())
-		Expect(call.Group).To(Equal("installation"))
-		Expect(call.Args).To(ContainElement("-ginkgo.fail-on-empty"))
-	} else {
+	Expect(call.Args).To(ContainElements("-race", "-count=1", "-timeout=25m", "-ginkgo.fail-on-empty"))
+	Expect(call.Selected).To(ConsistOf(sourceGateExpected(group)))
+	Expect(call.Group).To(Equal(group))
+	if group == "base" {
 		Expect(call.Args).To(ContainElement("./..."))
 		Expect(call.Skip).NotTo(BeEmpty())
 		Expect(call.Focus).To(BeEmpty())
-		Expect(call.Group).To(Equal("base"))
+	} else {
+		Expect(call.Args).To(ContainElement("./acceptance"))
+		Expect(call.Args).NotTo(ContainElement("./..."))
+		Expect(call.Focus).NotTo(BeEmpty())
+		if group == "installation" {
+			Expect(call.Skip).NotTo(BeEmpty(), "the shared installation family must exclude its separately qualified handoff criteria")
+		} else {
+			Expect(call.Skip).To(BeEmpty())
+		}
 	}
 }
 
@@ -261,47 +283,17 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:549
 	// per docs/adr/0099-native-factory-orchestration.md:155
-	It("executes disjoint base and installation criteria with the same selector while retaining every source quality stage", func() {
-		selectors := []string{}
-		captured := []struct {
-			group   string
-			calls   []sourceGateCall
-			quality []string
-		}{}
-		for _, group := range []string{"base", "installation"} {
+	// per docs/adr/0101-go-release-handoff.md:560
+	It("executes disjoint base installation and release-handoff criteria while retaining every source quality stage", func() {
+		callsByGroup := map[string]sourceGateCall{}
+		for _, group := range []string{"base", "installation", "release-handoff"} {
 			fixture := sourceGateMakeFixture()
 			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, nil)
 			Expect(status).To(Equal(0))
 			tests := sourceGateTests(calls)
 			Expect(tests).To(HaveLen(1))
-			captured = append(captured, struct {
-				group   string
-				calls   []sourceGateCall
-				quality []string
-			}{group, calls, quality})
-		}
-		negativeStatus, negativeCount, negativeTotal := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
-		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
-		Expect(negativeCount).To(Equal(0))
-		Expect(negativeTotal).To(Equal(2950))
-		baseStatus, baseCount, baseTotal := sourceGateNativeDiscovery(sourceGateTests(captured[0].calls)[0])
-		installationStatus, installationCount, installationTotal := sourceGateNativeDiscovery(sourceGateTests(captured[1].calls)[0])
-		Expect(installationStatus).To(Equal(0))
-		Expect(baseStatus).To(Equal(0))
-		Expect(installationTotal).To(Equal(2950))
-		Expect(baseTotal).To(Equal(installationTotal))
-		Expect(installationCount).To(Equal(103), "actual pinned Ginkgo must select every installation criterion; a mock-only success is insufficient")
-		Expect(baseCount).To(Equal(2847))
-		Expect(baseCount + installationCount).To(Equal(baseTotal))
-		for _, observed := range captured {
-			group, calls, quality := observed.group, observed.calls, observed.quality
-			tests := sourceGateTests(calls)
-			sourceGateAssertPartition(tests[0], group == "installation")
-			if group == "base" {
-				selectors = append(selectors, tests[0].Skip)
-			} else {
-				selectors = append(selectors, tests[0].Focus)
-			}
+			sourceGateAssertPartition(tests[0], group)
+			callsByGroup[group] = tests[0]
 			Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
 			commands := []string{}
 			for _, call := range calls {
@@ -309,12 +301,37 @@ var _ = Describe("Go source qualification scheduling", func() {
 			}
 			Expect(commands).To(ContainElements("list", "vet", "build"))
 		}
-		Expect(selectors[0]).To(Equal(selectors[1]))
+		negativeStatus, negativeCount, negativeTotal, _ := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
+		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
+		Expect(negativeCount).To(Equal(0))
+		Expect(negativeTotal).To(Equal(2951))
+		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
+		Expect(allStatus).To(Equal(0))
+		Expect(allCount).To(Equal(allTotal))
+		Expect(allTotal).To(Equal(2951))
+		expectedCounts := map[string]int{"base": 2848, "installation": 78, "release-handoff": 25}
+		seen, union := map[string]bool{}, []string{}
+		for _, group := range []string{"base", "installation", "release-handoff"} {
+			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
+			Expect(status).To(Equal(0), group)
+			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
+			Expect(total).To(Equal(allTotal))
+			for _, identity := range identities {
+				_, duplicate := seen[identity]
+				Expect(duplicate).To(BeFalse(), "actual criterion appeared in two partitions: %s", identity)
+				seen[identity] = true
+			}
+			union = append(union, identities...)
+		}
+		sort.Strings(union)
+		sort.Strings(allIdentities)
+		Expect(union).To(Equal(allIdentities), "three real discovered identity sets must be disjoint and exhaustive")
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
-	DescribeTable("attempts the complete two-partition union and propagates either partition failure", func(selection, failing string) {
+	// per docs/adr/0101-go-release-handoff.md:560
+	DescribeTable("attempts the complete three-partition union and propagates every partition failure", func(selection, failing string) {
 		fixture := sourceGateMakeFixture()
 		script := "make go-runtime-source-check"
 		if selection != "default" {
@@ -322,18 +339,25 @@ var _ = Describe("Go source qualification scheduling", func() {
 		}
 		status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
 		tests := sourceGateTests(calls)
-		Expect(tests).To(HaveLen(2), "all must attempt both partitions even after the first failure")
-		sourceGateAssertPartition(tests[0], false)
-		sourceGateAssertPartition(tests[1], true)
-		Expect(tests[0].Skip).To(Equal(tests[1].Focus))
-		union := append(append([]string{}, tests[0].Selected...), tests[1].Selected...)
-		Expect(union).To(ConsistOf(append(sourceGateExpected(false), sourceGateExpected(true)...)))
+		Expect(tests).To(HaveLen(3), "all must attempt all three partitions even after any earlier failure")
+		seen, union, expected := map[string]bool{}, []string{}, []string{}
+		for _, call := range tests {
+			Expect(seen).NotTo(HaveKey(call.Group))
+			seen[call.Group] = true
+			sourceGateAssertPartition(call, call.Group)
+			union = append(union, call.Selected...)
+			expected = append(expected, sourceGateExpected(call.Group)...)
+		}
+		Expect(seen).To(HaveKey("base"))
+		Expect(seen).To(HaveKey("installation"))
+		Expect(seen).To(HaveKey("release-handoff"))
+		Expect(union).To(ConsistOf(expected))
 		if failing == "" {
 			Expect(status).To(Equal(0))
 		} else {
 			Expect(status).NotTo(Equal(0), "a real selected runner failure must reach Make's exit status")
 		}
-	}, Entry("absent group defaults to the healthy complete union", "default", ""), Entry("explicit all keeps the complete union", "all", ""), Entry("base failure still attempts installation and fails", "all", "base"), Entry("installation failure fails the default union", "default", "installation"))
+	}, Entry("absent group defaults to the healthy complete union", "default", ""), Entry("explicit all keeps the complete union", "all", ""), Entry("base failure still attempts installation and fails", "all", "base"), Entry("installation failure fails the default union", "default", "installation"), Entry("release-handoff failure fails the complete union", "all", "release-handoff"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:529
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
@@ -341,7 +365,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		fixture := sourceGateMakeFixture()
 		status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + group})
 		Expect(status).NotTo(Equal(0))
-		Expect(sourceGateTests(calls)).To(BeEmpty(), "invalid group cannot become all, base or installation work")
+		Expect(sourceGateTests(calls)).To(BeEmpty(), "invalid group cannot become any scheduled qualification work")
 	}, Entry("unknown group", "unrecognized"), Entry("explicit empty group", ""))
 })
 
@@ -361,7 +385,10 @@ type sourceGateWorkflowJob struct {
 	Strategy struct {
 		FailFast *bool `yaml:"fail-fast"`
 		Matrix   struct {
-			OS []string `yaml:"os"`
+			OS      []string         `yaml:"os"`
+			Group   []string         `yaml:"group"`
+			Include []map[string]any `yaml:"include"`
+			Exclude []map[string]any `yaml:"exclude"`
 		} `yaml:"matrix"`
 	} `yaml:"strategy"`
 	Steps []sourceGateWorkflowStep `yaml:"steps"`
@@ -373,7 +400,8 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:562
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
-	It("preserves existing OS check names and pinned setup while scheduling installation independently on every same platform", func() {
+	// per docs/adr/0101-go-release-handoff.md:560
+	It("preserves OS check names and pinned setup while scheduling all three groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
 		baselineBytes, err := baselineCommand.Output()
@@ -406,29 +434,42 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		for identifier, job := range candidate.Jobs {
 			Expect(job.RunsOn).To(Equal(original.RunsOn))
 			Expect(job.Timeout).To(Equal(30))
-			Expect(job.Strategy).To(Equal(original.Strategy))
+			Expect(job.Strategy.FailFast).To(Equal(original.Strategy.FailFast))
+			Expect(job.Strategy.Matrix.OS).To(Equal(original.Strategy.Matrix.OS))
+			Expect(job.Strategy.Matrix.Include).To(BeEmpty())
+			Expect(job.Strategy.Matrix.Exclude).To(BeEmpty(), "no platform/group pair may be silently skipped")
 			Expect(job.Needs).To(BeNil(), "matrix partitions must be independently scheduled")
+			groups := []string{"base"}
 			if identifier == "go-runtime" {
 				Expect(job.Name).To(Equal(original.Name), "existing display/check names cannot change")
+				Expect(job.Strategy.Matrix.Group).To(BeEmpty())
+			} else {
+				Expect(identifier).To(Equal("go-runtime-installation"))
+				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
+				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff"))
+				groups = job.Strategy.Matrix.Group
 			}
 			Expect(job.Steps).To(HaveLen(len(original.Steps)))
 			Expect(job.Steps[:len(job.Steps)-1]).To(Equal(original.Steps[:len(original.Steps)-1]), "checkout, Go/Python setup, interpreter qualification and every tool pin must remain unchanged")
 			runner := job.Steps[len(job.Steps)-1]
 			Expect(runner.Name).To(Equal(original.Steps[len(original.Steps)-1].Name))
-			environment := []string{}
-			for key, value := range job.Env {
-				environment = append(environment, key+"="+value)
+			for _, group := range groups {
+				environment := []string{}
+				for key, value := range job.Env {
+					environment = append(environment, key+"="+strings.ReplaceAll(value, "${{ matrix.group }}", group))
+				}
+				for key, value := range runner.Env {
+					environment = append(environment, key+"="+strings.ReplaceAll(value, "${{ matrix.group }}", group))
+				}
+				fixture := sourceGateMakeFixture()
+				script := strings.ReplaceAll(runner.Run, "${{ matrix.group }}", group)
+				status, calls, quality := sourceGateRun(fixture, script, environment)
+				Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed in the scheduler fixture", identifier, group)
+				tests := sourceGateTests(calls)
+				Expect(tests).To(HaveLen(1))
+				sourceGateAssertPartition(tests[0], group)
+				Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
 			}
-			for key, value := range runner.Env {
-				environment = append(environment, key+"="+value)
-			}
-			fixture := sourceGateMakeFixture()
-			status, calls, quality := sourceGateRun(fixture, runner.Run, environment)
-			Expect(status).To(Equal(0), "actual %s workflow recipe failed in the scheduler fixture", identifier)
-			tests := sourceGateTests(calls)
-			Expect(tests).To(HaveLen(1))
-			sourceGateAssertPartition(tests[0], identifier != "go-runtime")
-			Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
 		}
 	})
 })

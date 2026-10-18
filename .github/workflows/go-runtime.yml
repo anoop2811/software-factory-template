@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# docs/adr/0101-go-release-handoff.md:608 — supersede PR runs only.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   go-runtime:
     strategy:
@@ -29,6 +34,9 @@ jobs:
         with:
           go-version: '1.27.2'
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tools/security/go.sum
       # per docs/adr/0072-go-budget-argument-compatibility.md:137
       - name: Install qualified Python interpreter
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -42,7 +50,19 @@ jobs:
       - name: Confirm qualified Python interpreter
         run: |
           python3 -c "import sys; print(sys.version); assert sys.version_info[:3] == (3, 12, 14)"
+      # docs/adr/0101-go-release-handoff.md:595 — setup only; checks always run.
+      - name: Restore pinned quality tools
+        id: quality-tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/factory-quality-tools
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+      - name: Add pinned quality tools to PATH
+        run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools
+        if: steps.quality-tools.outputs.cache-hit != 'true'
+        env:
+          GOBIN: ${{ runner.temp }}/factory-quality-tools
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
@@ -69,6 +89,9 @@ jobs:
         with:
           go-version: '1.27.2'
           cache: true
+          cache-dependency-path: |
+            go.sum
+            tools/security/go.sum
       # per docs/adr/0072-go-budget-argument-compatibility.md:137
       - name: Install qualified Python interpreter
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -82,7 +105,19 @@ jobs:
       - name: Confirm qualified Python interpreter
         run: |
           python3 -c "import sys; print(sys.version); assert sys.version_info[:3] == (3, 12, 14)"
+      # docs/adr/0101-go-release-handoff.md:595 — setup only; checks always run.
+      - name: Restore pinned quality tools
+        id: quality-tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/factory-quality-tools
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+      - name: Add pinned quality tools to PATH
+        run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools
+        if: steps.quality-tools.outputs.cache-hit != 'true'
+        env:
+          GOBIN: ${{ runner.temp }}/factory-quality-tools
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec

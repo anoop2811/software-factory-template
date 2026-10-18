@@ -32,13 +32,18 @@ type acquired struct {
 
 func (a *acquired) close() error {
 	if a.retain {
-		return fmt.Errorf("preserve private candidate recovery evidence at %s", a.directory)
+		return nil
 	}
 	info, err := os.Lstat(a.directory)
 	if err != nil || !os.SameFile(info, a.identity) {
 		return errors.Join(err, errors.New("candidate cache changed; cleanup refused"))
 	}
 	return os.RemoveAll(a.directory)
+}
+
+// docs/adr/0101-go-release-handoff.md:579 — retention is not cleanup failure.
+func (a *acquired) preservationNotice() string {
+	return fmt.Sprintf("preserve private candidate recovery evidence at %s", a.directory)
 }
 
 // Acquisition authenticates independent inputs before closed-world staging.
@@ -74,6 +79,9 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 			var ownership *native.OwnershipError
 			if errors.As(returned, &ownership) {
 				a.retain = true
+			}
+			if a.retain {
+				returned = errors.Join(returned, errors.New(a.preservationNotice()))
 			}
 			returned = errors.Join(returned, a.close())
 		}

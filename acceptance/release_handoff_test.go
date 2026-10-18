@@ -48,7 +48,7 @@ var _ = Describe("Authenticated release candidate public handoff", func() {
 		root, cwd, marker := handoffSurfaceFixture()
 		before := nativeInitArtifacts(cwd)
 		cases := [][]string{
-			{"--go-candidate"}, {"--go-candidate="}, {"--go-candidate", "main"},
+			{"--go-candidate"}, {"--go-candidate="}, {"--go-candidate", "main"}, {"--go-candidate", strings.Repeat("v", 129)},
 			{"--go-candidate", handoffVersion, "--go-candidate", handoffVersion},
 			{"--go-candidate", handoffVersion, "--source", root},
 			{"--go-candidate", handoffVersion, "--ref", "main"},

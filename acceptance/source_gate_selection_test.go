@@ -75,6 +75,10 @@ if args and args[0]=='test':
    selected_groups.add(case['group'])
  if focus and selected_groups=={'release-handoff'}:record['group']='release-handoff'
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
+if 'install' in args:
+ package=args[-1].split('@',1)[0];name=package.rsplit('/',1)[-1]
+ target=pathlib.Path(os.environ['GOBIN'])/name;target.parent.mkdir(parents=True,exist_ok=True)
+ target.write_text("#!/bin/sh\nprintf '%s\\n' 'cached:"+name+"' >> \"$SOURCE_GATE_QUALITY_LOG\"\n");target.chmod(0o700)
 if args and args[0]=='list':print(os.getcwd())
 if args and args[0]=='build' and '-o' in args:
  pathlib.Path(operand('-o')).write_bytes(b'test-owned inert build receipt\n')
@@ -151,7 +155,18 @@ func sourceGateRun(fixture sourceGateFixture, script string, extraEnvironment []
 	defer cancel()
 	command := exec.CommandContext(ctx, "bash", "-c", script) // #nosec G204 G702 -- reviewed source Make/CI recipe, executed only in the evaluator's inert tools fixture.
 	command.Dir = fixture.root
-	command.Env = append(append([]string{}, fixture.environment...), extraEnvironment...)
+	overridden := map[string]bool{}
+	for _, entry := range extraEnvironment {
+		key, _, _ := strings.Cut(entry, "=")
+		overridden[key] = true
+	}
+	for _, entry := range fixture.environment {
+		key, _, _ := strings.Cut(entry, "=")
+		if !overridden[key] {
+			command.Env = append(command.Env, entry)
+		}
+	}
+	command.Env = append(command.Env, extraEnvironment...)
 	output, err := command.CombinedOutput()
 	Expect(ctx.Err()).NotTo(HaveOccurred(), "source scheduler fixture timed out: %s", output)
 	status := 0
@@ -304,12 +319,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal, _ := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		Expect(negativeTotal).To(Equal(2951))
+		Expect(negativeTotal).To(Equal(2952))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(2951))
-		expectedCounts := map[string]int{"base": 2848, "installation": 78, "release-handoff": 25}
+		Expect(allTotal).To(Equal(2952))
+		expectedCounts := map[string]int{"base": 2848, "installation": 78, "release-handoff": 26}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -370,6 +385,8 @@ var _ = Describe("Go source qualification scheduling", func() {
 })
 
 type sourceGateWorkflowStep struct {
+	ID   string            `yaml:"id"`
+	If   string            `yaml:"if"`
 	Name string            `yaml:"name"`
 	Uses string            `yaml:"uses"`
 	With map[string]any    `yaml:"with"`
@@ -409,10 +426,28 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		candidateBytes, err := os.ReadFile("../.github/workflows/go-runtime.yml")
 		Expect(err).NotTo(HaveOccurred())
 		var baseline, candidate struct {
-			Jobs map[string]sourceGateWorkflowJob `yaml:"jobs"`
+			Jobs        map[string]sourceGateWorkflowJob `yaml:"jobs"`
+			Concurrency struct {
+				Group  string `yaml:"group"`
+				Cancel string `yaml:"cancel-in-progress"`
+			} `yaml:"concurrency"`
 		}
 		Expect(yaml.Unmarshal(baselineBytes, &baseline)).To(Succeed())
 		Expect(yaml.Unmarshal(candidateBytes, &candidate)).To(Succeed())
+		// per docs/adr/0101-go-release-handoff.md:608
+		for _, path := range []string{"../.github/workflows/go-runtime.yml", "../.github/workflows/runtime-bundles.yml"} {
+			body, err := os.ReadFile(path)
+			Expect(err).NotTo(HaveOccurred())
+			var workflow struct {
+				Concurrency struct {
+					Group  string `yaml:"group"`
+					Cancel string `yaml:"cancel-in-progress"`
+				} `yaml:"concurrency"`
+			}
+			Expect(yaml.Unmarshal(body, &workflow)).To(Succeed())
+			Expect(workflow.Concurrency.Group).To(Equal("${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"), "only PRs may share a workflow/ref concurrency key")
+			Expect(workflow.Concurrency.Cancel).To(Equal("${{ github.event_name == 'pull_request' }}"), "main and called releases must never be canceled")
+		}
 		Expect(baseline.Jobs).To(HaveKey("go-runtime"))
 		Expect(candidate.Jobs).To(HaveKey("go-runtime"), "existing required matrix check names must retain their job identifier")
 		Expect(candidate.Jobs).To(HaveLen(2), "installation needs its own parallel OS matrix rather than the exhausted single job")
@@ -422,6 +457,8 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		Expect(original.Steps[1].Uses).To(Equal("actions/setup-go@v7.0.0"))
 		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
 		original.Steps[1].With["go-version"] = "1.27.2"
+		// per docs/adr/0101-go-release-handoff.md:606
+		original.Steps[1].With["cache-dependency-path"] = "go.sum\ntools/security/go.sum\n"
 		Expect(original.Steps[4].Name).To(Equal("Install pinned quality tools"))
 		oldLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
 		newLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"
@@ -449,26 +486,92 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff"))
 				groups = job.Strategy.Matrix.Group
 			}
-			Expect(job.Steps).To(HaveLen(len(original.Steps)))
-			Expect(job.Steps[:len(job.Steps)-1]).To(Equal(original.Steps[:len(original.Steps)-1]), "checkout, Go/Python setup, interpreter qualification and every tool pin must remain unchanged")
-			runner := job.Steps[len(job.Steps)-1]
+			// per docs/adr/0101-go-release-handoff.md:597
+			Expect(job.Steps).To(HaveLen(len(original.Steps) + 2))
+			cache, pathStep, install := sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}
+			normalized := []sourceGateWorkflowStep{}
+			for _, step := range job.Steps {
+				switch {
+				case strings.HasPrefix(step.Uses, "actions/cache@"):
+					Expect(cache.Uses).To(BeEmpty())
+					cache = step
+				case strings.Contains(step.Run, "$GITHUB_PATH"):
+					Expect(pathStep.Run).To(BeEmpty())
+					pathStep = step
+				default:
+					if step.Name == "Install pinned quality tools" {
+						install = step
+						step.If, step.Env = "", nil
+					}
+					normalized = append(normalized, step)
+				}
+			}
+			Expect(cache.Uses).To(Equal("actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"))
+			Expect(cache.ID).To(Equal("quality-tools"))
+			Expect(cache.If).To(BeEmpty())
+			Expect(cache.With).To(HaveLen(2), "no broad restore prefix may impersonate an exact qualified cache hit")
+			Expect(cache.With["path"]).To(Equal("${{ runner.temp }}/factory-quality-tools"))
+			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
+			Expect(pathStep.If).To(BeEmpty(), "PATH must be configured on cold and warm runs")
+			Expect(pathStep.Run).NotTo(BeEmpty())
+			Expect(install.If).To(Equal("steps.quality-tools.outputs.cache-hit != 'true'"))
+			Expect(install.Env).To(Equal(map[string]string{"GOBIN": "${{ runner.temp }}/factory-quality-tools"}))
+			Expect(normalized).To(HaveLen(len(original.Steps)))
+			Expect(normalized[:len(normalized)-1]).To(Equal(original.Steps[:len(original.Steps)-1]), "only reviewed cache setup exceptions may change checkout, Go/Python setup, interpreter qualification and exact tool pins")
+			runner := normalized[len(normalized)-1]
+			Expect(runner.If).To(BeEmpty(), "a cache hit never skips source qualification")
 			Expect(runner.Name).To(Equal(original.Steps[len(original.Steps)-1].Name))
 			for _, group := range groups {
-				environment := []string{}
-				for key, value := range job.Env {
-					environment = append(environment, key+"="+strings.ReplaceAll(value, "${{ matrix.group }}", group))
+				for _, warm := range []bool{false, true} {
+					fixture := sourceGateMakeFixture()
+					toolDirectory, pathFile := filepath.Join(fixture.root, "factory-quality-tools"), filepath.Join(fixture.root, "github-path")
+					environment := []string{"RUNNER_TEMP=" + fixture.root, "GITHUB_PATH=" + pathFile}
+					expand := func(value string) string {
+						value = strings.ReplaceAll(value, "${{ matrix.group }}", group)
+						return strings.ReplaceAll(value, "${{ runner.temp }}", fixture.root)
+					}
+					for key, value := range job.Env {
+						environment = append(environment, key+"="+expand(value))
+					}
+					status, _, _ := sourceGateRun(fixture, pathStep.Run, environment)
+					Expect(status).To(Equal(0))
+					pathReceipt, err := os.ReadFile(pathFile)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(pathReceipt)).To(Equal(toolDirectory+"\n"), "actual PATH step must select the dedicated directory on both cache outcomes")
+					if warm {
+						for _, name := range []string{"golangci-lint", "gosec", "govulncheck"} {
+							writeFixture(filepath.Join(toolDirectory, name), []byte("#!/bin/sh\nprintf '%s\\n' 'cached:"+name+"' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"), 0700)
+						}
+					} else {
+						installEnvironment := append([]string{}, environment...)
+						for key, value := range install.Env {
+							installEnvironment = append(installEnvironment, key+"="+expand(value))
+						}
+						status, _, _ := sourceGateRun(fixture, install.Run, installEnvironment)
+						Expect(status).To(Equal(0))
+					}
+					for key, value := range runner.Env {
+						environment = append(environment, key+"="+expand(value))
+					}
+					environment = append(environment, "PATH="+toolDirectory+string(os.PathListSeparator)+filepath.Join(fixture.root, "tools")+string(os.PathListSeparator)+os.Getenv("PATH"))
+					status, calls, quality := sourceGateRun(fixture, expand(runner.Run), environment)
+					Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed with warm=%t", identifier, group, warm)
+					tests := sourceGateTests(calls)
+					Expect(tests).To(HaveLen(1))
+					sourceGateAssertPartition(tests[0], group)
+					Expect(quality).To(ContainElements("gofmt", "dialect", "cached:golangci-lint", "cached:gosec", "cached:govulncheck"), "restored executables must still perform every qualification stage")
+					installCalls := [][]string{}
+					for _, call := range calls {
+						if len(call.Args) > 0 && (call.Args[0] == "install" || call.Args[0] == "-C") {
+							installCalls = append(installCalls, call.Args)
+						}
+					}
+					if warm {
+						Expect(installCalls).To(BeEmpty())
+					} else {
+						Expect(installCalls).To(Equal([][]string{{"install", "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"}, {"-C", "tools/security", "install", "-mod=readonly", "github.com/securego/gosec/v2/cmd/gosec"}, {"install", "golang.org/x/vuln/cmd/govulncheck@v1.7.0"}}))
+					}
 				}
-				for key, value := range runner.Env {
-					environment = append(environment, key+"="+strings.ReplaceAll(value, "${{ matrix.group }}", group))
-				}
-				fixture := sourceGateMakeFixture()
-				script := strings.ReplaceAll(runner.Run, "${{ matrix.group }}", group)
-				status, calls, quality := sourceGateRun(fixture, script, environment)
-				Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed in the scheduler fixture", identifier, group)
-				tests := sourceGateTests(calls)
-				Expect(tests).To(HaveLen(1))
-				sourceGateAssertPartition(tests[0], group)
-				Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
 			}
 		}
 	})

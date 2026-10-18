@@ -263,11 +263,13 @@ var _ = Describe("Authenticated candidate shell bootstrap", func() {
 	}, Entry("download", "download-fail"), Entry("roots", "roots-fail"), Entry("verification denial", "authentication-fail"), Entry("renamed other subject", "wrong-subject"), Entry("malformed verifier output", "malformed-verification"), Entry("incomplete release assets", "missing-image"))
 
 	// per docs/adr/0101-go-release-handoff.md:40
-	It("does not treat a selector alone or a conflicting source selection as installation consent", func() {
-		for _, args := range [][]string{{"--go-candidate", handoffVersion}, {"init", "--go-candidate", handoffVersion, "--ref", "main"}} {
+	// per docs/adr/0101-go-release-handoff.md:593
+	It("refuses invalid candidate consent and malformed tags before acquisition", func() {
+		for _, args := range [][]string{{"--go-candidate", handoffVersion}, {"init", "--go-candidate", handoffVersion, "--ref", "main"}, {"init", "--go-candidate"}, {"init", "--go-candidate", strings.Repeat("v", 129)}} {
 			f := handoffBootstrap("Linux", "x86_64", "linux-amd64", "")
 			result := imageProcess(f.cwd, f.environment, "/bin/sh", append([]string{f.installer}, args...)...)
 			Expect(result.status).To(Equal(2), "%+v", result)
+			Expect(result.stderr).To(ContainSubstring("candidate"), "refused candidate arguments need a diagnostic: %q", args)
 			_, err := os.Lstat(f.marker)
 			Expect(os.IsNotExist(err)).To(BeTrue())
 			_, err = os.Lstat(filepath.Join(f.records, "trace"))

@@ -24,12 +24,7 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
 		return 1
 	}
-	defer func() {
-		if err := candidate.close(); err != nil {
-			fmt.Fprintln(stderr, "factory candidate: "+err.Error())
-			status = 1
-		}
-	}()
+	defer func() { status = candidate.finish(stderr, status) }()
 	digest, err := currentDigest(ctx)
 	if ctx.Err() != nil {
 		fmt.Fprintln(stderr, "factory candidate: candidate handoff canceled")
@@ -61,12 +56,7 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 			fmt.Fprintln(stderr, "factory candidate: predecessor acquisition failed: "+err.Error())
 			return 1
 		}
-		defer func() {
-			if err := previous.close(); err != nil {
-				fmt.Fprintln(stderr, "factory candidate: predecessor cleanup failed")
-				status = 1
-			}
-		}()
+		defer func() { status = previous.finish(stderr, status) }()
 		if previous.options.Revision != request.Before.Revision || previous.options.Target != request.Source.Target {
 			fmt.Fprintln(stderr, "factory candidate: predecessor release identity changed")
 			return 2
@@ -114,6 +104,19 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	}
 	fmt.Fprintln(stderr, "factory candidate: installation completed")
 	return 0
+}
+
+// docs/adr/0101-go-release-handoff.md:579 — report retention without changing
+// the operation's classified status; only actual cleanup failure overrides it.
+func (a *acquired) finish(stderr io.Writer, status int) int {
+	if a.retain {
+		fmt.Fprintln(stderr, "factory candidate: "+a.preservationNotice())
+	}
+	if err := a.close(); err != nil {
+		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
+		return 1
+	}
+	return status
 }
 
 // A partial transaction keeps its authenticated inputs and an executable path

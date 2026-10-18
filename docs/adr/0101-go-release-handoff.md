@@ -573,3 +573,49 @@ state that release consumers authenticate the published raw executable, and refr
 lesson citations against the final source. Review-report responses must enumerate
 each finding as corrected, refuted with complete-source evidence, or intentionally
 preserved; a completed model run alone is not approval.
+
+## Preserve policy-refusal status when retaining recovery inputs
+
+A durable prepared transaction can be refused by a later effective-ignore check.
+For example, a valid legacy tree can contain its mandatory runtime ignore rule
+followed by a negating rule. Keep the transaction journal and authenticated inputs
+for reconciliation, and preserve the installation layer's policy-refusal status
+2. Intentional retention is a successful cleanup decision, not a cleanup failure.
+Print the retained cache location separately; an actual cleanup or ownership
+failure still returns operational status 1. Acquisition failures that retain an
+unconfirmed process's inputs must continue to include the retained location with
+their original error. Share finalization for candidate and predecessor inputs.
+
+An independent public acceptance criterion must first observe the incorrect
+status 1, then require status 2, the retained journal and private inputs, and
+recovery guidance after the correction. Keep the existing real cleanup and
+interrupted-recovery controls. Reuse the existing malformed-selector controls to
+require a diagnostic when a shell candidate tag exceeds its 128-byte limit.
+
+## Cache pinned CI tools without caching qualification results
+
+The six jobs in [run39101755312](https://github.com/anoop2811/software-factory-template/actions/runs/39101755312)
+spent 87, 88 and 89 seconds installing quality tools on Linux and 92, 137 and 139
+seconds on macOS (observed 2026-10-18 UTC from job step timestamps). Cache only the
+three pinned tool executables in a dedicated directory, keyed by runner OS,
+architecture, the pinned Go version and the workflow/security-module dependency
+files. An exact cache hit may skip installation; a miss must install the same
+pins. Add the directory to PATH in both cases, and continue running formatting,
+dialect, vet, race acceptance, build, lint and both security scanners in all six
+jobs. Cached executables are setup data, never a qualification result. Preserve
+all check names, platform coverage, group selection and timeouts.
+
+Include both module checksum files in setup-go's existing dependency/build cache
+identity. Cancel superseded pull-request runs of the Go qualification and native
+bundle workflows with workflow-specific concurrency groups. Main-branch and
+called release builds must finish without automatic cancellation. Do not cache
+live vulnerability database results or add an alternate execution path for the
+trusted adversarial review client. Real warm-cache latency remains an observed
+hosted-run measurement, not a promised saving.
+
+Use the existing pinned actions/cache v6.1.0 (released 2026-06-26), confirmed at
+[its official release](https://github.com/actions/cache/releases/tag/v6.1.0),
+commit `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`. The cache inputs and exact-hit
+output follow [the action's official contract](https://github.com/actions/cache/blob/v6.1.0/action.yml).
+The dependency identity follows [setup-go's official caching contract](https://github.com/actions/setup-go/blob/v7.0.0/README.md#caching-dependency-files-and-build-outputs),
+and cancellation follows [GitHub's concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).

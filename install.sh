@@ -29,7 +29,7 @@ candidate_install() {
     ''|*[!a-zA-Z0-9._+-]*|[!a-zA-Z0-9]*|[mM][aA][iI][nN]|[hH][eE][aA][dD]|[lL][aA][tT][eE][sS][tT]|[cC][uU][rR][rR][eE][nN][tT])
       printf '%s\n' 'install: invalid candidate tag' >&2; exit 2 ;;
   esac
-  [ "$candidate_pending" -eq 0 ] && [ "${#candidate_tag}" -le 128 ] || exit 2
+  [ "$candidate_pending" -eq 0 ] && [ "${#candidate_tag}" -le 128 ] || { printf '%s\n' 'install: invalid candidate tag' >&2; exit 2; }
   if [ "$candidate_help" -eq 1 ]; then
     printf '%s\n' 'Usage: install.sh init|upgrade [args] --go-candidate TAG'
     exit 0

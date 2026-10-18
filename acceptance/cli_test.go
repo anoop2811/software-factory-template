@@ -96,7 +96,9 @@ func writeFixture(path string, contents []byte, mode os.FileMode) {
 	Expect(os.WriteFile(path, contents, mode)).To(Succeed()) // #nosec G703 -- fixture callers supply test-owned temporary paths, including deliberate path-traversal cases; no external request selects this destination.
 }
 
-func fixture() (string, string) {
+// Bare directories keep component-only fixtures independent without copying CLI
+// executables they never invoke. per docs/adr/0102-parallel-go-qualification.md:51
+func fixtureDirectories() (string, string) {
 	GinkgoHelper()
 	temp, err := os.MkdirTemp("", "factory acceptance ")
 	Expect(err).NotTo(HaveOccurred())
@@ -106,10 +108,22 @@ func fixture() (string, string) {
 	Expect(err).NotTo(HaveOccurred())
 	root := filepath.Join(temp, "factory root with spaces")
 	cwd := filepath.Join(temp, "separate adopter cwd")
+	Expect(os.MkdirAll(root, 0755)).To(Succeed())
 	Expect(os.MkdirAll(cwd, 0755)).To(Succeed())
+	return root, cwd
+}
+
+func fixture() (string, string) {
+	GinkgoHelper()
+	root, cwd := fixtureDirectories()
+	writeCLIExecutables(root)
+	return root, cwd
+}
+
+func writeCLIExecutables(root string) {
+	GinkgoHelper()
 	writeFixture(filepath.Join(root, "factory"), candidateBinary, 0755)
 	writeFixture(filepath.Join(root, "legacy-factory"), legacyDispatcher, 0755)
-	return root, cwd
 }
 
 func invoke(root, cwd, executable, input string, args ...string) cliResult {

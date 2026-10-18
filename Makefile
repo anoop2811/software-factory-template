@@ -27,6 +27,10 @@ adversarial-review-selftest:
 GO_RUNTIME_TEST_TIMEOUT ?= 25m
 # docs/adr/0101-go-release-handoff.md:559 — complete test partitions with headroom.
 GO_RUNTIME_TEST_GROUP ?= all
+# docs/adr/0102-parallel-go-qualification.md:27 — bounded worker execution.
+GO_RUNTIME_TEST_PROCS ?= 2
+GO_RUNTIME_REPORT_DIR ?=
+export GO_RUNTIME_REPORT_DIR
 
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
@@ -38,6 +42,8 @@ go-runtime-check:
 go-runtime-source-check:
 	@case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff) ;; \
 		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation or release-handoff" >&2; exit 2 ;; esac
+	@case "$(GO_RUNTIME_TEST_PROCS)" in 1|2) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_PROCS must be 1 or 2" >&2; exit 2 ;; esac
 	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
 	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
@@ -55,15 +61,33 @@ go-runtime-source-check:
 # behavior remains in the pack rather than a second factory implementation.
 	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"
 	go vet ./...
+# docs/adr/0102-parallel-go-qualification.md:27 — preserve packages and fresh tests.
 	@GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
 		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
 		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; \
+		run_acceptance() { \
+			GO_REPORT_GROUP="$$1"; shift; \
+			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
+				--procs="$(GO_RUNTIME_TEST_PROCS)" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
+				--keep-going --fail-on-empty --no-color "$$@"; \
+			if [ -n "$$GO_RUNTIME_REPORT_DIR" ]; then \
+				mkdir -p "$$GO_RUNTIME_REPORT_DIR" || return 1; \
+				set -- "$$@" --json-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.json" \
+					--junit-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.xml"; \
+			fi; \
+			"$$@" ./acceptance -- -test.count=1 -test.timeout="$(GO_RUNTIME_TEST_TIMEOUT)"; \
+		}; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|base) \
-			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./... -ginkgo.skip="$$GO_INSTALLATION_FAMILIES" -ginkgo.fail-on-empty || GO_BASE_TEST_STATUS=$$? ;; esac; \
+			GO_ALL_PACKAGES="$$(go list ./...)" || exit 1; \
+			GO_OTHER_PACKAGES="$$(printf '%s\n' "$$GO_ALL_PACKAGES" | sed '\|^github.com/anoop2811/software-factory-template/acceptance$$|d')"; \
+			if [ -n "$$GO_OTHER_PACKAGES" ]; then \
+				go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) $$GO_OTHER_PACKAGES -ginkgo.fail-on-empty || GO_BASE_TEST_STATUS=$$?; \
+			else echo "go-runtime-check: expected non-acceptance Go packages" >&2; GO_BASE_TEST_STATUS=1; fi; \
+			run_acceptance base --skip="$$GO_INSTALLATION_FAMILIES" || GO_BASE_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
 			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.skip="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|release-handoff) \
-			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
+			run_acceptance release-handoff --focus="$$GO_RELEASE_HANDOFF_FAMILY" || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
 		if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
 		if [ "$$GO_INSTALLATION_TEST_STATUS" -ne 0 ]; then exit "$$GO_INSTALLATION_TEST_STATUS"; fi; \
 		exit "$$GO_RELEASE_HANDOFF_TEST_STATUS"

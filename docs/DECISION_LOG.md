@@ -4403,3 +4403,34 @@ actual installed evidence and a closed supported generator recipe, never descrip
 trust or executing predecessor code. Candidate confirmation binds fresh release
 identities and archive digests rather than random acquisition paths, while retaining
 all project observations, explicit consent and fresh authentication under exclusion.
+
+
+## Decision 101 (2026-10-18 UTC): parallelize Go acceptance without reducing qualification
+
+After merged PR #128, the user approved priorities 1, 2 and 3 from the CI audit.
+ADR 0102 records the contract before implementation: bounded two-process Ginkgo
+execution for base and independent handoff scenarios, lean component fixtures,
+per-spec reports and measured final-head timings. Preserve the complete criterion
+inventory, all non-acceptance Go packages, Linux/macOS qualification, race/fresh-run
+checks, failure propagation, source/image identity and crash/recovery assertions.
+Keep the existing test/job allowances, runtime behavior and all quality stages.
+Independent scheduler RED precedes runner wiring. Source cache redesign and
+quality-stage consolidation remain outside this authorized slice.
+
+The first hosted macOS handoff report exposed two undifferentiated native
+ownership failures during installed-proof preparation. ADR 0102's qualification
+addendum permits bounded, private cleanup diagnostics before another diagnostic
+run, preserving the fixed typed error, cleanup order, deadlines and fail-closed
+policy. A passing rerun alone does not establish the cause or close this failure.
+
+## Decision 102 (2026-10-18 UTC): require positive terminal proof for Darwin exit reconciliation
+
+Hosted qualification captured EPERM from group signaling after reported reap and
+pipe drainage. ADR 0103 records the independent kernel probe and authoritative
+XNU source before implementation. For Darwin natural completion only, an already
+reaped leader and drained workers may proceed from EPERM to an explicit group
+ESRCH observation within the existing deadline. No unresolved group, pre-reap
+termination, timeout, interruption, overflow or unknown signal error may use this
+path. Preserve the real exit code and fixed typed diagnostics. Independent RED,
+negative controls, full-source review and protected-path human review precede
+merge; no successful rerun substitutes for the required terminal proof.

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -20,7 +22,10 @@ var _ = Describe("Native process group completion proof", func() {
 	// per docs/adr/0093-runtime-transition-guard.md:201
 	// per specs/001-go-runtime-conversion.md:314
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:634
-	DescribeTable("distinguishes group termination acknowledgement from the actual end of detached-pipe ownership", func(acknowledgeOnly bool) {
+	// per docs/adr/0102-parallel-go-qualification.md:117
+	// per docs/adr/0102-parallel-go-qualification.md:125
+	// per docs/adr/0103-darwin-natural-exit-reconciliation.md:55
+	DescribeTable("distinguishes group termination acknowledgement from the actual end of detached-pipe ownership", func(acknowledgeOnly, reportEPERM bool) {
 		root := GinkgoT().TempDir()
 		executable, err := os.Executable()
 		Expect(err).NotTo(HaveOccurred())
@@ -59,6 +64,9 @@ var _ = Describe("Native process group completion proof", func() {
 			Expect(group).To(Equal(pid), "the surviving process belongs to the actual native-owned group")
 			Expect(syscall.Kill(descendant, 0)).To(Succeed())
 			if acknowledgeOnly {
+				if reportEPERM {
+					return fmt.Errorf("PRIVATE_SIGNAL_FAILURE: %w", syscall.EPERM)
+				}
 				return nil // Acknowledged delivery deliberately does not establish group disappearance.
 			}
 			err = originalSignal(pid)
@@ -79,6 +87,14 @@ var _ = Describe("Native process group completion proof", func() {
 			var ownership *OwnershipError
 			Expect(errors.As(err, &ownership)).To(BeTrue(), "signal acknowledgement plus a completed leader cannot prove the actual child group stopped")
 			Expect(ownership.ProcessPID).To(Equal(leader))
+			phase, errno, groupState := "group", "none", "present"
+			if reportEPERM {
+				errno = fmt.Sprint(int(syscall.EPERM))
+				if runtime.GOOS != "darwin" {
+					phase, groupState = "signal", "not_observed"
+				}
+			}
+			Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=%s signal_errno=%s reaped=true exit_confirmed=true drained=true group_state=%s group_errno=none reaped_before_signal=true", leader, phase, errno, groupState)), "real group survival must remain distinct from signal or pipe uncertainty")
 			Expect(result.OwnershipUnconfirmed).To(BeTrue())
 			Expect(result.Outcome).NotTo(Equal("completed"))
 		} else {
@@ -86,5 +102,5 @@ var _ = Describe("Native process group completion proof", func() {
 			Expect(result.OwnershipUnconfirmed).To(BeFalse())
 			Expect(result.Outcome).To(Equal("completed"))
 		}
-	}, Entry("acknowledged signal leaves a real same-group descendant executing", true), Entry("actual group termination is a successful paired control", false))
+	}, Entry("acknowledged signal leaves a real same-group descendant executing", true, false), Entry("EPERM cannot authorize a real surviving descendant", true, true), Entry("actual group termination is a successful paired control", false, false))
 })

@@ -196,7 +196,7 @@ func checkPrivateIgnore(ctx context.Context, target *tree, environment map[strin
 	}
 	result, err := native.ExecuteCommand(ctx, target.path, []string{"git", "rev-parse", "--is-inside-work-tree"}, ignoreEnvironment(environment, target.path), 5*time.Second)
 	if err != nil || result.ExitCode == nil || !result.ExitConfirmed || result.OwnershipUnconfirmed {
-		return errors.Join(err, errors.New("cannot inspect installation Git boundary"))
+		return ignoreProofFailure("git-boundary", "cannot inspect installation Git boundary", result, err)
 	}
 	if *result.ExitCode == 128 && strings.HasPrefix(string(result.Stderr), "fatal: not a git repository") {
 		if err := installationfs.RequireNoGitMetadata(ctx, target.path); err != nil {
@@ -205,7 +205,7 @@ func checkPrivateIgnore(ctx context.Context, target *tree, environment map[strin
 		return proveIgnoreRules(ctx, data, environment)
 	}
 	if *result.ExitCode != 0 || string(result.Stdout) != "true\n" {
-		return errors.New("installation Git boundary is unavailable")
+		return ignoreProofFailure("git-boundary", "installation Git boundary is unavailable", result, err)
 	}
 	return checkIgnoredPaths(ctx, target.path, environment)
 }
@@ -215,7 +215,11 @@ func checkIgnoredPaths(ctx context.Context, root string, environment map[string]
 		for _, argv := range [][]string{{"git", "ls-files", "--", path}, {"git", "check-ignore", "--no-index", "-q", "--", path}} {
 			result, err := native.ExecuteCommand(ctx, root, argv, ignoreEnvironment(environment, root), 5*time.Second)
 			if err != nil || result.ExitCode == nil || *result.ExitCode != 0 || !result.ExitConfirmed || result.OwnershipUnconfirmed || len(result.Stdout) != 0 {
-				return errors.Join(err, errors.New("private installation data must be untracked and effectively ignored"))
+				stage := "git-ls-files"
+				if argv[1] == "check-ignore" {
+					stage = "git-check-ignore"
+				}
+				return ignoreProofFailure(stage, "private installation data must be untracked and effectively ignored", result, err)
 			}
 		}
 	}
@@ -246,7 +250,7 @@ func proveIgnoreRules(ctx context.Context, data []byte, environment map[string]s
 	}
 	result, err := native.ExecuteCommand(ctx, root, []string{"git", "init", "--quiet"}, ignoreEnvironment(environment, root), 5*time.Second)
 	if err != nil || result.ExitCode == nil || *result.ExitCode != 0 {
-		return errors.Join(err, errors.New("cannot prepare isolated ignore proof"))
+		return ignoreProofFailure("git-init", "cannot prepare isolated ignore proof", result, err)
 	}
 	return checkIgnoredPaths(ctx, root, environment)
 }

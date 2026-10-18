@@ -67,8 +67,17 @@ jobs:
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+      # docs/adr/0102-parallel-go-qualification.md:27 — preserve all qualification.
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
+      - name: Retain acceptance outcomes and timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-runtime-base-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/factory-go-reports/
+          if-no-files-found: warn
+          retention-days: 7
 
   go-runtime-installation:
     name: go-runtime-${{ matrix.group }} (${{ matrix.os }})
@@ -122,5 +131,14 @@ jobs:
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+      # docs/adr/0102-parallel-go-qualification.md:32 — isolated handoff groups.
       - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }}
+        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
+      - name: Retain acceptance outcomes and timings
+        if: always() && matrix.group == 'release-handoff'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/factory-go-reports/
+          if-no-files-found: warn
+          retention-days: 7

@@ -201,48 +201,63 @@ func handoffRecoveryOperands(image handoffReleaseImage, f handoffBootstrapFixtur
 	return args
 }
 
-var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, func() {
-	var image handoffReleaseImage
-	var beforeBinary, beforeArchive []byte
-	var prepared map[string]installationFixtureData
+// Each independently scheduled ordered group owns its images and templates.
+// The helper runs only in BeforeAll, so discovery performs no preparation.
+// per docs/adr/0102-parallel-go-qualification.md:58
+type handoffScenarioFixtures struct {
+	image                       handoffReleaseImage
+	beforeBinary, beforeArchive []byte
+	prepared                    map[string]installationFixtureData
+}
+
+func handoffPrepareScenarioFixtures() handoffScenarioFixtures {
+	GinkgoHelper()
+	fixtures := handoffScenarioFixtures{image: handoffBuildImage()}
+	beforePath := filepath.Join(fixtures.image.work, "compiled-predecessor")
+	build := []string{"build", "-ldflags=-buildid=handoff-before", "-o", beforePath, "./cmd/factory"}
+	if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
+		build = append([]string{"build", "-race"}, build[1:]...)
+	}
+	Expect(imageProcess(filepath.Join(fixtures.image.work, "exact-source"), nil, "go", build...).status).To(Equal(0))
+	var err error
+	fixtures.beforeBinary, err = os.ReadFile(beforePath)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(fixtures.beforeBinary).NotTo(Equal(fixtures.image.binary), "independently built predecessor must have distinct bytes")
+	fixtures.beforeArchive = handoffImageBinary(fixtures.image, fixtures.beforeBinary, "v9.8.0")
+	fixtures.prepared = map[string]installationFixtureData{}
+	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
+		fixtures.prepared[profile] = installationLegacyFixture(fixtures.image.binary, fixtures.image.references[profile], fixtures.image.archivePath, fixtures.image.revision)
+	}
+	return fixtures
+}
+
+func (fixtures handoffScenarioFixtures) legacyFixture(profile string) installationFixtureData {
+	GinkgoHelper()
+	return installationCloneLegacyFixture(fixtures.image.binary, fixtures.prepared[profile])
+}
+
+func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, string, installationFixtureData) {
+	GinkgoHelper()
+	f, driver := handoffNativeFixture(fixtures.image)
+	legacy := fixtures.legacyFixture("bash-baseline")
+	legacy.archive = filepath.Join(filepath.Dir(legacy.root), "before-go-image.tar.gz")
+	writeFixture(legacy.archive, fixtures.beforeArchive, 0600)
+	installationApply(legacy, "qualified-prior-go")
+	assets := f.environment["HANDOFF_ASSETS"]
+	writeFixture(filepath.Join(assets, "factory-installation-v9.8.0-"+f.target+".tar.gz"), fixtures.beforeArchive, 0600)
+	writeFixture(filepath.Join(assets, "factory-bootstrap-v9.8.0-"+f.target), fixtures.beforeBinary, 0600)
+	return f, driver, legacy
+}
+
+var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
+	var fixtures handoffScenarioFixtures
 	BeforeAll(func() {
-		image = handoffBuildImage()
-		beforePath := filepath.Join(image.work, "compiled-predecessor")
-		build := []string{"build", "-ldflags=-buildid=handoff-before", "-o", beforePath, "./cmd/factory"}
-		if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
-			build = append([]string{"build", "-race"}, build[1:]...)
-		}
-		Expect(imageProcess(filepath.Join(image.work, "exact-source"), nil, "go", build...).status).To(Equal(0))
-		var err error
-		beforeBinary, err = os.ReadFile(beforePath)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(beforeBinary).NotTo(Equal(image.binary), "independently built predecessor must have distinct bytes")
-		beforeArchive = handoffImageBinary(image, beforeBinary, "v9.8.0")
-		prepared = map[string]installationFixtureData{}
-		for _, profile := range []string{"v0.1.6", "bash-baseline"} {
-			prepared[profile] = installationLegacyFixture(image.binary, image.references[profile], image.archivePath, image.revision)
-		}
+		fixtures = handoffPrepareScenarioFixtures()
 	})
-	legacyFixture := func(profile string) installationFixtureData {
-		GinkgoHelper()
-		return installationCloneLegacyFixture(image.binary, prepared[profile])
-	}
-	goFixture := func() (handoffBootstrapFixture, string, installationFixtureData) {
-		GinkgoHelper()
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("bash-baseline")
-		legacy.archive = filepath.Join(filepath.Dir(legacy.root), "before-go-image.tar.gz")
-		writeFixture(legacy.archive, beforeArchive, 0600)
-		installationApply(legacy, "qualified-prior-go")
-		assets := f.environment["HANDOFF_ASSETS"]
-		writeFixture(filepath.Join(assets, "factory-installation-v9.8.0-"+f.target+".tar.gz"), beforeArchive, 0600)
-		writeFixture(filepath.Join(assets, "factory-bootstrap-v9.8.0-"+f.target), beforeBinary, 0600)
-		return f, driver, legacy
-	}
 
 	// per docs/adr/0101-go-release-handoff.md:148
 	It("initializes a real selected Go installation from the authenticated complete image", func() {
-		f, driver := handoffNativeFixture(image)
+		f, driver := handoffNativeFixture(fixtures.image)
 		target := filepath.Join(f.cwd, "new governed project")
 		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
 		Expect(result.status).To(Equal(0), "%+v", result)
@@ -252,12 +267,12 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(json.Unmarshal(data, &descriptor)).To(Succeed())
 		Expect(descriptor["kind"]).To(Equal("go-hybrid-v1"))
 		Expect(descriptor["version"]).To(Equal(handoffVersion))
-		Expect(descriptor["revision"]).To(Equal(image.revision))
+		Expect(descriptor["revision"]).To(Equal(fixtures.image.revision))
 		_, err = os.Lstat(filepath.Join(target, ".git"))
 		Expect(os.IsNotExist(err)).To(BeTrue(), "candidate init must preserve the existing no-git-init behavior")
 		runtimeBytes, err := os.ReadFile(filepath.Join(target, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(runtimeBytes).To(Equal(image.binary))
+		Expect(runtimeBytes).To(Equal(fixtures.image.binary))
 		ordinary := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
 		// per docs/adr/0101-go-release-handoff.md:490
@@ -295,14 +310,14 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:80
 	// per docs/adr/0101-go-release-handoff.md:154
 	DescribeTable("crosses the authenticated executable handoff into a real Go installation", func(entry string) {
-		f, _ := handoffNativeFixture(image)
+		f, _ := handoffNativeFixture(fixtures.image)
 		target := filepath.Join(f.cwd, "handoff-project")
 		var program string
 		args := []string{"init", target, "--go-candidate", handoffVersion, "--pack", "none"}
 		if entry == "shell" {
 			program, args = "/bin/sh", append([]string{f.installer}, args...)
 		} else {
-			Expect(candidateBinary).NotTo(Equal(image.binary), "the caller must differ from the authenticated candidate so a real executable handoff is necessary")
+			Expect(candidateBinary).NotTo(Equal(fixtures.image.binary), "the caller must differ from the authenticated candidate so a real executable handoff is necessary")
 			// The existing trusted caller need not live in an acquisition-style
 			// private parent. Its bytes cannot authenticate the downloaded child.
 			// per docs/adr/0101-go-release-handoff.md:119
@@ -317,7 +332,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(result.status).To(Equal(0), "%+v", result)
 		runtimeBytes, err := os.ReadFile(filepath.Join(target, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(runtimeBytes).To(Equal(image.binary))
+		Expect(runtimeBytes).To(Equal(fixtures.image.binary))
 		ordinary := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
 		trace, err := os.ReadFile(filepath.Join(f.records, "trace"))
@@ -329,8 +344,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:262
 	It("keeps a failed fresh native proof incomplete behind pending admission", func() {
-		f, driver := handoffNativeFixture(image)
-		broken := handoffRewriteAsset(image.archive, "scripts/hooks/test-edit-denial.sh", func([]byte) []byte { return []byte("#!/bin/sh\nexit 0\n") })
+		f, driver := handoffNativeFixture(fixtures.image)
+		broken := handoffRewriteAsset(fixtures.image.archive, "scripts/hooks/test-edit-denial.sh", func([]byte) []byte { return []byte("#!/bin/sh\nexit 0\n") })
 		writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-installation-"+handoffVersion+"-"+f.target+".tar.gz"), broken, 0600)
 		target := filepath.Join(f.cwd, "failed-proof-project")
 		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
@@ -351,7 +366,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:353
 	It("refuses corrupt existing Git metadata before publishing private initialization assets", func() {
-		f, driver := handoffNativeFixture(image)
+		f, driver := handoffNativeFixture(fixtures.image)
 		target := filepath.Join(f.cwd, "invalid-git-project")
 		writeFixture(filepath.Join(target, ".git"), []byte("not a valid Git directory indirection\n"), 0600)
 		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
@@ -367,14 +382,14 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:163
 	DescribeTable("previews a real legacy upgrade without low-level image or profile operands or project writes", func(profile string) {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture(profile)
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture(profile)
 		// per docs/adr/0101-go-release-handoff.md:467
 		ref := profile
 		if ref == "bash-baseline" {
 			ref = "main"
 		}
-		fullMarker := []byte("ref=" + ref + "\ncommit=" + image.references[profile].revision + "\n")
+		fullMarker := []byte("ref=" + ref + "\ncommit=" + fixtures.image.references[profile].revision + "\n")
 		writeFixture(filepath.Join(legacy.root, ".factory-version"), fullMarker, 0644)
 		caller := legacy.root
 		if profile == "v0.1.6" {
@@ -399,8 +414,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			mode os.FileMode
 		}{
 			{[]byte("ref=" + ref + "\ncommit=0000000\n"), 0644},
-			{[]byte("ref=" + ref + "\ncommit=" + image.references[profile].revision[:8] + "\n"), 0644},
-			{[]byte("ref=another-release\ncommit=" + image.references[profile].revision[:7] + "\n"), 0644},
+			{[]byte("ref=" + ref + "\ncommit=" + fixtures.image.references[profile].revision[:8] + "\n"), 0644},
+			{[]byte("ref=another-release\ncommit=" + fixtures.image.references[profile].revision[:7] + "\n"), 0644},
 			{fullMarker, 0755},
 		} {
 			writeFixture(filepath.Join(legacy.root, ".factory-version"), changed.body, changed.mode)
@@ -418,8 +433,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:246
 	It("authenticates imported release bytes then declines fresh init without publishing an installed selection", func() {
-		f, driver := handoffNativeFixture(image)
-		cache := handoffImport(image, f)
+		f, driver := handoffNativeFixture(fixtures.image)
+		cache := handoffImport(fixtures.image, f)
 		before := installationSnapshot(cache)
 		target := filepath.Join(f.cwd, "declined-project")
 		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("n"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
@@ -443,11 +458,11 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:467
 	// per docs/adr/0101-go-release-handoff.md:475
 	DescribeTable("applies a confirmed historical short-marker legacy proposal and restores its original marker", func(profile string) {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture(profile)
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture(profile)
 		repository, err := filepath.Abs("..")
 		Expect(err).NotTo(HaveOccurred())
-		reference := image.references[profile]
+		reference := fixtures.image.references[profile]
 		// Run the frozen upgrade writer itself against its actual pinned Git
 		// object, rather than inventing the legacy marker in this evaluator.
 		for _, args := range [][]string{{"init", "--quiet", legacy.source}, {"-C", legacy.source, "fetch", "--quiet", "--no-tags", repository, reference.revision}, {"-C", legacy.source, "update-ref", "HEAD", reference.revision}} {
@@ -492,7 +507,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		migration := strings.TrimSuffix(filepath.Base(migrations[0]), ".json")
 		roots := filepath.Join(f.root, "operator-trusted-root.jsonl")
 		writeFixture(roots, []byte("independently obtained fixture roots\n"), 0600)
-		rollbackArgs := []string{"upgrade", "--installation", "--source", image.archivePath, "--profile", profile, "--version", handoffVersion, "--revision", image.revision, "--target", runtime.GOOS + "/" + runtime.GOARCH, "--attestation", filepath.Join(f.environment["HANDOFF_ASSETS"], "runtime-attestations.jsonl"), "--trusted-root", roots, "--rollback", migration}
+		rollbackArgs := []string{"upgrade", "--installation", "--source", fixtures.image.archivePath, "--profile", profile, "--version", handoffVersion, "--revision", fixtures.image.revision, "--target", runtime.GOOS + "/" + runtime.GOARCH, "--attestation", filepath.Join(f.environment["HANDOFF_ASSETS"], "runtime-attestations.jsonl"), "--trusted-root", roots, "--rollback", migration}
 		for _, value := range installationInputs {
 			rollbackArgs = append(rollbackArgs, "--project-input", value)
 		}
@@ -520,8 +535,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:163
 	It("preserves a customized required launcher as an explicit conflict", func() {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("v0.1.6")
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture("v0.1.6")
 		custom := []byte("#!/bin/sh\nprintf customized-factory\n")
 		writeFixture(filepath.Join(legacy.root, "factory"), custom, 0755)
 		before := installationSnapshot(legacy.root)
@@ -542,7 +557,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		configuration, err := os.ReadFile(filepath.Join(legacy.root, "factory.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(unknown, "factory.yaml"), configuration, 0644)
-		writeFixture(filepath.Join(unknown, ".factory-version"), []byte("ref=v0.1.6\ncommit="+image.references["v0.1.6"].revision+"\n"), 0644)
+		writeFixture(filepath.Join(unknown, ".factory-version"), []byte("ref=v0.1.6\ncommit="+fixtures.image.references["v0.1.6"].revision+"\n"), 0644)
 		git := imageProcess(unknown, nil, "git", "init", "--quiet")
 		Expect(git.status).To(Equal(0), "%+v", git)
 		unknownBefore := installationSnapshot(unknown)
@@ -556,8 +571,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:579
 	// per docs/adr/0101-go-release-handoff.md:588
 	It("preserves policy-refusal status while retaining prepared recovery inputs", func() {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("v0.1.6")
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture("v0.1.6")
 		launcher, err := os.ReadFile(filepath.Join(legacy.root, "factory"))
 		Expect(err).NotTo(HaveOccurred())
 		ignore, err := os.ReadFile(filepath.Join(legacy.root, ".gitignore"))
@@ -598,7 +613,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		recoveryRuntime := filepath.Join(cache, "stage", handoffVersion, runtime.GOOS, runtime.GOARCH, "bin/factory-runtime")
 		recoveryBinary, err := os.ReadFile(recoveryRuntime)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(recoveryBinary).To(Equal(image.binary))
+		Expect(recoveryBinary).To(Equal(fixtures.image.binary))
 		Expect(result.stderr).To(ContainSubstring("Recovery preview (no changes):"))
 		Expect(result.stderr).To(ContainSubstring(migration))
 		Expect(result.stderr).To(ContainSubstring(recoveryRuntime))
@@ -613,8 +628,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:318
 	It("refuses confirmation after a project observation changes", func() {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("v0.1.6")
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture("v0.1.6")
 		proposal := handoffPreview(f, driver, legacy.root)
 		writeFixture(filepath.Join(legacy.root, "scripts/hooks/test-edit-denial.sh"), []byte("#!/bin/sh\n# deliberate later user edit\nexit 0\n"), 0755)
 		before := installationSnapshot(legacy.root)
@@ -625,8 +640,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:318
 	It("refuses confirmation after the immutable release identity changes", func() {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("v0.1.6")
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture("v0.1.6")
 		proposal := handoffPreview(f, driver, legacy.root)
 		f.environment["HANDOFF_REVISION"] = strings.Repeat("9", 40)
 		before := installationSnapshot(legacy.root)
@@ -637,8 +652,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:337
 	It("reauthenticates a confirmed release before any project mutation", func() {
-		f, driver := handoffNativeFixture(image)
-		legacy := legacyFixture("v0.1.6")
+		f, driver := handoffNativeFixture(fixtures.image)
+		legacy := fixtures.legacyFixture("v0.1.6")
 		proposal := handoffPreview(f, driver, legacy.root)
 		f.environment["HANDOFF_SCENARIO"] = "authentication-fail"
 		before := installationSnapshot(legacy.root)
@@ -651,8 +666,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:119
 	// per docs/adr/0101-go-release-handoff.md:133
 	DescribeTable("treats imported candidate files as untrusted transport rather than installation authority", func(change string) {
-		f, driver := handoffNativeFixture(image)
-		cache := handoffImport(image, f)
+		f, driver := handoffNativeFixture(fixtures.image)
+		cache := handoffImport(fixtures.image, f)
 		rawName := "factory-bootstrap-" + handoffVersion + "-" + f.target
 		archiveName := "factory-installation-" + handoffVersion + "-" + f.target + ".tar.gz"
 		switch change {
@@ -660,7 +675,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			writeFixture(filepath.Join(cache, "revision"), []byte(strings.Repeat("8", 40)+"\n"), 0600)
 		case "symlink":
 			Expect(os.Remove(filepath.Join(cache, archiveName))).To(Succeed())
-			Expect(os.Symlink(image.archivePath, filepath.Join(cache, archiveName))).To(Succeed())
+			Expect(os.Symlink(fixtures.image.archivePath, filepath.Join(cache, archiveName))).To(Succeed())
 		case "raw":
 			writeFixture(filepath.Join(cache, rawName), []byte("#!/bin/sh\nexit 0\n"), 0600)
 		case "archive":
@@ -677,7 +692,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:246
 	DescribeTable("refuses fresh initialization over existing installation metadata", func(path string) {
-		f, driver := handoffNativeFixture(image)
+		f, driver := handoffNativeFixture(fixtures.image)
 		target := filepath.Join(f.cwd, "existing-project")
 		writeFixture(filepath.Join(target, path), []byte("existing operator-owned metadata\n"), 0600)
 		before := installationSnapshot(target)
@@ -686,11 +701,18 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(result.stderr).To(ContainSubstring("upgrade"))
 		Expect(installationSnapshot(target)).To(Equal(before))
 	}, Entry("legacy version marker", ".factory-version"), Entry("private Go descriptor", ".factory/installation.current"))
+})
+
+var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, Label("handoff-go-recovery"), func() {
+	var fixtures handoffScenarioFixtures
+	BeforeAll(func() {
+		fixtures = handoffPrepareScenarioFixtures()
+	})
 
 	// per docs/adr/0101-go-release-handoff.md:171
 	// per docs/adr/0101-go-release-handoff.md:179
 	It("uses authenticated predecessor evidence for an installed Go-to-Go upgrade and completed rollback", func() {
-		f, driver, legacy := goFixture()
+		f, driver, legacy := fixtures.goFixture()
 		installedDriver := filepath.Join(legacy.root, "factory")
 		proposal := handoffPreview(f, installedDriver, legacy.root)
 		Expect(proposal["profile"]).To(Equal("go-hybrid-v1"))
@@ -700,25 +722,25 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
 		actual, err := os.ReadFile(filepath.Join(legacy.root, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(actual).To(Equal(image.binary))
+		Expect(actual).To(Equal(fixtures.image.binary))
 		migrations, err := filepath.Glob(filepath.Join(legacy.root, ".factory/installation-transactions/candidate-*.json"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(migrations).To(HaveLen(1))
 		migration := strings.TrimSuffix(filepath.Base(migrations[0]), ".json")
-		rollbackArgs := append(handoffRecoveryOperands(image, f, legacy.archive), "--rollback", migration)
+		rollbackArgs := append(handoffRecoveryOperands(fixtures.image, f, legacy.archive), "--rollback", migration)
 		reverse := handoffProposal(handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
 		// per docs/adr/0101-go-release-handoff.md:333
-		changedBefore := bytes.Clone(beforeArchive)
+		changedBefore := bytes.Clone(fixtures.beforeArchive)
 		changedBefore[4] ^= 1 // valid gzip MTIME change, same decompressed qualified image
 		writeFixture(legacy.archive, changedBefore, 0600)
 		changedReverse := handoffProposal(handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
 		Expect(changedReverse["proposal_digest"]).NotTo(Equal(reverse["proposal_digest"]), "reverse confirmation must bind freshly observed predecessor archive bytes")
-		writeFixture(legacy.archive, beforeArchive, 0600)
+		writeFixture(legacy.archive, fixtures.beforeArchive, 0600)
 		rollback := handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
 		Expect(rollback.status).To(Equal(0), "%+v", rollback)
 		actual, err = os.ReadFile(filepath.Join(legacy.root, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(actual).To(Equal(beforeBinary), "reverse must restore the distinct authenticated predecessor executable")
+		Expect(actual).To(Equal(fixtures.beforeBinary), "reverse must restore the distinct authenticated predecessor executable")
 		ordinary = handoffNativeProcess(legacy.root, f.environment, "", filepath.Join(legacy.root, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
 	})
@@ -726,9 +748,9 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:285
 	// per docs/adr/0101-go-release-handoff.md:318
 	DescribeTable("requalifies predecessor recipe and archive evidence for each candidate request", func(change string) {
-		f, driver, installed := goFixture()
+		f, driver, installed := fixtures.goFixture()
 		proposal := handoffPreview(f, driver, installed.root)
-		changed := bytes.Clone(beforeArchive)
+		changed := bytes.Clone(fixtures.beforeArchive)
 		if change == "recipe" {
 			// per docs/adr/0101-go-release-handoff.md:485
 			descriptorPath := filepath.Join(installed.root, ".factory/installation.current")
@@ -744,7 +766,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			Expect(strings.Join(handoffRecorded(f, "api"), " ")).NotTo(ContainSubstring("refs/tags/main"), "untrusted predecessor release must be refused before gh lookup")
 			Expect(handoffRecorded(f, "release-view")).NotTo(ContainElement("main"))
 			writeFixture(descriptorPath, original, info.Mode().Perm())
-			changed = handoffRewriteAsset(beforeArchive, "internal/installedlayout/layout.go", func(body []byte) []byte {
+			changed = handoffRewriteAsset(fixtures.beforeArchive, "internal/installedlayout/layout.go", func(body []byte) []byte {
 				return append(body, []byte("\n// a different predecessor schema collaborator\n")...)
 			})
 		} else {
@@ -769,7 +791,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:179
 	DescribeTable("recovers an actually interrupted Go-to-Go transaction with distinct before and after executables", func(direction string) {
-		f, driver, installed := goFixture()
+		f, driver, installed := fixtures.goFixture()
 		proposal := handoffPreview(f, driver, installed.root)
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
@@ -859,15 +881,15 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(interruptionError).To(HaveOccurred())
 		_, err := os.Lstat(pending)
 		Expect(err).NotTo(HaveOccurred())
-		recoveryArgs := append(handoffRecoveryOperands(image, f, installed.archive), "--recover", migration, "--direction", direction)
+		recoveryArgs := append(handoffRecoveryOperands(fixtures.image, f, installed.archive), "--recover", migration, "--direction", direction)
 		recovery := handoffProposal(handoffNativeProcess(installed.root, f.environment, "", driver, append(recoveryArgs, "--dry-run", "--json")...))
 		result := handoffNativeProcess(installed.root, f.environment, "", driver, append(recoveryArgs, "--confirm", recovery["proposal_digest"].(string), "--quiescent")...)
 		Expect(result.status).To(Equal(0), "%+v", result)
 		actual, err := os.ReadFile(filepath.Join(installed.root, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
-		expected := image.binary
+		expected := fixtures.image.binary
 		if direction == "reverse" {
-			expected = beforeBinary
+			expected = fixtures.beforeBinary
 		}
 		Expect(actual).To(Equal(expected), "recovery direction must select the exact qualified executable")
 		_, err = os.Lstat(pending)

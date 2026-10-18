@@ -7,22 +7,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 )
 
-// OwnershipError preserves the PID when termination or reap is unconfirmed.
-// docs/adr/0068-go-native-harness-execution.md:44.
-type OwnershipError struct{ ProcessPID int }
-
-func (e *OwnershipError) Error() string { return "native process ownership is unconfirmed" }
-
 type processOps struct {
-	signalGroup func(int) error
-	wait        func(*exec.Cmd) error
-	waitLimit   time.Duration
+	signalGroup  func(int) error
+	observeGroup func(context.Context, int) (bool, groupObservation)
+	wait         func(*exec.Cmd) error
+	waitLimit    time.Duration
 }
 
 func defaultProcessOps() processOps {
@@ -34,7 +30,8 @@ func defaultProcessOps() processOps {
 			}
 			return err
 		},
-		wait: func(command *exec.Cmd) error { return command.Wait() }, waitLimit: 5 * time.Second,
+		observeGroup: groupStopped,
+		wait:         func(command *exec.Cmd) error { return command.Wait() }, waitLimit: 5 * time.Second,
 	}
 }
 
@@ -299,6 +296,7 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	}
 	// Termination is required even after ordinary leader exit, before pipe drainage.
 	// docs/adr/0068-go-native-harness-execution.md:122.
+	reapedBeforeSignal := reaped
 	signalErr := ops.signalGroup(result.ProcessPID)
 	_ = pipes.inputW.Close()
 	cleanupCtx, finishCleanup := context.WithTimeout(context.Background(), ops.waitLimit)
@@ -349,12 +347,42 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	if len(result.Stdout) > options.limit {
 		result.Outcome = "output_limit"
 	}
-	if signalErr != nil || !result.ExitConfirmed || !drained || !groupStopped(cleanupCtx, result.ProcessPID) {
+	// Keep the cleanup order outside the bounded natural-exit exception.
+	// docs/adr/0103-darwin-natural-exit-reconciliation.md:31.
+	evidence := ownershipEvidence{
+		signalErrno: safeErrno(signalErr), reaped: reaped,
+		exitConfirmed: result.ExitConfirmed, drained: drained,
+		reapedBeforeSignal: reapedBeforeSignal,
+		group:              groupObservation{state: "not_observed", errno: "none"},
+	}
+	// Darwin can report EPERM for a group whose reaped members disappeared.
+	// Only positive terminal proof may reconcile a normal, uncancelled exit.
+	// docs/adr/0103-darwin-natural-exit-reconciliation.md:31.
+	reconcileDarwinExit := runtime.GOOS == "darwin" && errors.Is(signalErr, syscall.EPERM) &&
+		reapedBeforeSignal && result.Outcome == "completed" && result.ExitConfirmed && drained &&
+		command.ProcessState != nil && command.ProcessState.Exited() && ctx.Err() == nil
+	switch {
+	case signalErr != nil && !reconcileDarwinExit:
+		evidence.phase = "signal"
+	case !result.ExitConfirmed:
+		evidence.phase = "reap"
+	case !drained:
+		evidence.phase = "pipe_drain"
+	default:
+		var stopped bool
+		stopped, evidence.group = ops.observeGroup(cleanupCtx, result.ProcessPID)
+		if !stopped {
+			evidence.phase = "group"
+		} else if reconcileDarwinExit && ctx.Err() != nil {
+			evidence.phase = "signal"
+		}
+	}
+	if evidence.phase != "" {
 		result.OwnershipUnconfirmed = true
 		if result.Outcome == "completed" {
 			result.Outcome = "failed"
 		}
-		return result, &OwnershipError{ProcessPID: result.ProcessPID}
+		return result, &OwnershipError{ProcessPID: result.ProcessPID, evidence: &evidence}
 	}
 	if result.Outcome == "completed" && result.ExitCode != nil && *result.ExitCode != 0 {
 		result.Outcome = "failed"
@@ -364,21 +392,28 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 
 // Acknowledged termination and leader reap do not prove descendant exit.
 // Share the existing cleanup deadline: docs/adr/0093-runtime-transition-guard.md:195.
-func groupStopped(ctx context.Context, pid int) bool {
+func groupStopped(ctx context.Context, pid int) (bool, groupObservation) {
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
+	observation := groupObservation{state: "not_observed", errno: "none"}
 	for ctx.Err() == nil {
 		err := syscall.Kill(-pid, 0)
+		observation.errno = safeErrno(err)
 		if errors.Is(err, syscall.ESRCH) {
-			return ctx.Err() == nil
+			observation.state = "absent"
+			return ctx.Err() == nil, observation
+		}
+		observation.state = "present"
+		if err != nil {
+			observation.state = "inspection_error"
 		}
 		select {
 		case <-ctx.Done():
-			return false
+			return false, observation
 		case <-ticker.C:
 		}
 	}
-	return false
+	return false, observation
 }
 
 func contextOutcome(err error) string {

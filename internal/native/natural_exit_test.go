@@ -164,3 +164,66 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 		}
 	}, Entry("failed publication signals before reap", "publication"), Entry("cancellation before reap", "cancel"), Entry("timeout before reap", "timeout"), Entry("cancellation after prior reap", "late-cancel"), Entry("externally signalled leader", "signalled"), Entry("unknown actual exit report", "unknown-exit"), Entry("unfinished capture after reap", "unfinished-capture"), Entry("expired shared cleanup allowance", "expired-cleanup"), Entry("output overflow before reap", "overflow"))
 })
+
+var _ = Describe("Darwin post-observation cancellation", func() {
+	// per docs/adr/0103-darwin-natural-exit-reconciliation.md:38
+	// per docs/adr/0103-darwin-natural-exit-reconciliation.md:56
+	DescribeTable("rechecks the execution context after real terminal group absence", func(cancelAfterAbsence bool) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		plan := Plan{Harness: "opencode", Role: "reviewer", Root: GinkgoT().TempDir(), Argv: []string{"/bin/sh", "-c", "printf PRIVATE_RESULT; exit 0"}, Environment: map[string]string{}}
+		ops := defaultProcessOps()
+		waited := make(chan struct{})
+		originalWait := ops.wait
+		ops.wait = func(command *exec.Cmd) error { err := originalWait(command); close(waited); return err }
+		signals, observations := 0, 0
+		ops.signalGroup = func(pid int) error {
+			signals++
+			Expect(waited).To(BeClosed(), "the normal leader must be genuinely reaped before the signal report")
+			Expect(syscall.Kill(pid, 0)).To(Equal(syscall.ESRCH))
+			return fmt.Errorf("PRIVATE_SIGNAL_FAILURE: %w", syscall.EPERM)
+		}
+		originalObserver := ops.observeGroup
+		ops.observeGroup = func(cleanup context.Context, pid int) (bool, groupObservation) {
+			observations++
+			stopped, observation := originalObserver(cleanup, pid)
+			Expect(stopped).To(BeTrue(), "the test must obtain real terminal absence, never a fabricated success")
+			Expect(observation.state).To(Equal("absent"))
+			Expect(observation.errno).To(Equal(fmt.Sprint(int(syscall.ESRCH))))
+			Expect(cleanup.Err()).NotTo(HaveOccurred(), "real ESRCH must be observed within the unchanged cleanup deadline")
+			Expect(ctx.Err()).NotTo(HaveOccurred(), "execution must remain live until the real absence observation")
+			if cancelAfterAbsence {
+				cancel()
+			}
+			return stopped, observation
+		}
+		result, err := execute(ctx, plan, time.Second, func(context.Context, int) error { return nil }, ops)
+		Expect(signals).To(Equal(1))
+		Expect(result.ExitConfirmed).To(BeTrue())
+		Expect(result.ExitCode).NotTo(BeNil())
+		Expect(*result.ExitCode).To(BeZero())
+		Expect(string(result.Stdout)).To(Equal("PRIVATE_RESULT"))
+		if runtime.GOOS != "darwin" {
+			Expect(observations).To(BeZero(), "non-Darwin signal errors remain ineligible for reconciliation")
+			var ownership *OwnershipError
+			Expect(errors.As(err, &ownership)).To(BeTrue())
+			Expect(result.OwnershipUnconfirmed).To(BeTrue())
+		} else {
+			Expect(observations).To(Equal(1), "the per-invocation seam must wrap exactly the real observation")
+			if cancelAfterAbsence {
+				Expect(ctx.Err()).To(Equal(context.Canceled))
+				var ownership *OwnershipError
+				Expect(errors.As(err, &ownership)).To(BeTrue(), "cancellation after real ESRCH must still retain typed ownership uncertainty")
+				Expect(ownership.ProcessPID).To(Equal(result.ProcessPID))
+				Expect(result.OwnershipUnconfirmed).To(BeTrue())
+				Expect(result.Outcome).To(Equal("failed"))
+				Expect(ownershipDiagnostic(ownership)).To(Equal(fmt.Sprintf("pid=%d phase=signal signal_errno=%d reaped=true exit_confirmed=true drained=true group_state=absent group_errno=%d reaped_before_signal=true", result.ProcessPID, int(syscall.EPERM), int(syscall.ESRCH))))
+			} else {
+				Expect(ctx.Err()).NotTo(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result.OwnershipUnconfirmed).To(BeFalse())
+				Expect(result.Outcome).To(Equal("completed"))
+			}
+		}
+	}, Entry("cancellation immediately after actual ESRCH refuses reconciliation", true), Entry("a live execution context accepts the same real ESRCH proof", false))
+})

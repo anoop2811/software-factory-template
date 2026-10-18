@@ -4,7 +4,7 @@ A final `reaped=true` result does not establish whether reap happened before a
 failed signal or during subsequent cleanup. Capture the state at the decision
 point as well as the final state; otherwise a precise errno can still leave the
 causal ordering ambiguous. The native diagnostic records `reaped_before_signal`
-at `internal/native/execute.go:297` and formats only bounded safe evidence.
+at `internal/native/execute.go:299` and formats only bounded safe evidence.
 
 Darwin group EPERM is not proof of an active permission denial or of absence.
 Apple's group-signal implementation excludes zombie members and returns EPERM

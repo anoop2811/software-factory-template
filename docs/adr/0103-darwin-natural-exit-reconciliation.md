@@ -65,3 +65,10 @@ replace any regression with a weaker assertion merely to obtain green CI.
 The new path requires independent full-source review and final-head Linux/macOS
 qualification. A green run does not prove every possible Darwin race eliminated;
 the stated safety result is the exact positive terminal proof, not a timing guess.
+
+Exercise cancellation after the successful absence observation independently of
+cancellation before admission. A private per-invocation process observer defaults
+to the unchanged real group observer; the test wraps that observer, requires its
+actual positive absence proof, then cancels the execution context before returning.
+Removing the post-observation cancellation guard must make this control fail.
+This introduces no external configuration or additional process authority.

@@ -15,9 +15,10 @@ import (
 )
 
 type processOps struct {
-	signalGroup func(int) error
-	wait        func(*exec.Cmd) error
-	waitLimit   time.Duration
+	signalGroup  func(int) error
+	observeGroup func(context.Context, int) (bool, groupObservation)
+	wait         func(*exec.Cmd) error
+	waitLimit    time.Duration
 }
 
 func defaultProcessOps() processOps {
@@ -29,7 +30,8 @@ func defaultProcessOps() processOps {
 			}
 			return err
 		},
-		wait: func(command *exec.Cmd) error { return command.Wait() }, waitLimit: 5 * time.Second,
+		observeGroup: groupStopped,
+		wait:         func(command *exec.Cmd) error { return command.Wait() }, waitLimit: 5 * time.Second,
 	}
 }
 
@@ -368,7 +370,7 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		evidence.phase = "pipe_drain"
 	default:
 		var stopped bool
-		stopped, evidence.group = groupStopped(cleanupCtx, result.ProcessPID)
+		stopped, evidence.group = ops.observeGroup(cleanupCtx, result.ProcessPID)
 		if !stopped {
 			evidence.phase = "group"
 		} else if reconcileDarwinExit && ctx.Err() != nil {

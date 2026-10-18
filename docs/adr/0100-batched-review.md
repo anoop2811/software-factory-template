@@ -49,9 +49,9 @@ and private; never store secrets or reasoning.
 Run serially. One deadline includes backoff and all
 batches. Preserve REVIEW_MAX_TOKENS (configured 32768), model,
 reasoning and provider selection. Before each network attempt reserve
-the response cap and request bytes. Reservations are
-allowances, not actual usage or billing guarantees.
-Report actual usage separately; unknown stays null.
+the response cap and request bytes before sending.
+Top-level usage counts current-run calls; cached batch usage is historical.
+Any unknown attempted-call usage makes the total null; known batch values remain.
 
 | Environment / Actions variable | Default | Range |
 |---|---|---|

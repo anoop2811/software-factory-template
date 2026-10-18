@@ -62,8 +62,8 @@ func ciReviewWorkflowEntries() []TableEntry {
 }
 
 var _ = Describe("Budgeted review workflow security and publication", func() {
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:112
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:116
+	// per docs/adr/0100-batched-review.md:112
+	// per docs/adr/0100-batched-review.md:116
 	It("publishes a safe legacy timeout reason without copying private provider stderr", func() {
 		workflow := ciReviewLoadWorkflow("packs/review-lane/review-pr.yml")
 		var script string
@@ -94,8 +94,8 @@ var _ = Describe("Budgeted review workflow security and publication", func() {
 		Expect(string(body)).NotTo(ContainSubstring("PRIVATE_"))
 		Expect(string(body)).To(ContainSubstring("timed out"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:83
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:117
+	// per docs/adr/0100-batched-review.md:83
+	// per docs/adr/0100-batched-review.md:117
 	DescribeTable("keeps executable checkout trusted and scopes credentials to review steps", func(path string) {
 		workflow := ciReviewLoadWorkflow(path)
 		Expect(workflow.On).To(HaveKey("pull_request_target"))
@@ -130,8 +130,8 @@ var _ = Describe("Budgeted review workflow security and publication", func() {
 		}
 		Expect(checkouts).To(Equal(1))
 	}, ciReviewWorkflowEntries())
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:103
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:112
+	// per docs/adr/0100-batched-review.md:103
+	// per docs/adr/0100-batched-review.md:112
 	DescribeTable("passes revision and artifact arguments literally to the shared native adapter", func(path string) {
 		step := ciReviewNativeStep(ciReviewLoadWorkflow(path))
 		for _, exitCode := range []string{"0", "37"} {
@@ -178,7 +178,7 @@ var _ = Describe("Budgeted review workflow security and publication", func() {
 			Expect(string(bridge)).To(BeEmpty(), "public batch adapter must not inherit the legacy bridge protocol")
 		}
 	}, ciReviewWorkflowEntries())
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:85
+	// per docs/adr/0100-batched-review.md:85
 	DescribeTable("retains findings on failure and restores only dedicated completed-batch cache artifacts", func(path string) {
 		workflow := ciReviewLoadWorkflow(path)
 		artifacts, restores, saves := 0, 0, 0

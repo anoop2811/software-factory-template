@@ -11,7 +11,7 @@ import (
 )
 
 var _ = Describe("Budgeted batched adversarial review routing", func() {
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:68
+	// per docs/adr/0100-batched-review.md:68
 	It("keeps the default strict provider and exact model without enabling fallback", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -24,7 +24,7 @@ var _ = Describe("Budgeted batched adversarial review routing", func() {
 		Expect(request["model"]).To(Equal("fixture/model"))
 		Expect(request["provider"]).To(Equal(map[string]any{"order": []any{"deepinfra"}, "allow_fallbacks": false, "require_parameters": true}))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:68
+	// per docs/adr/0100-batched-review.md:68
 	It("allows only the explicitly approved same-model fallback providers under both price ceilings", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -49,7 +49,7 @@ var _ = Describe("Budgeted batched adversarial review routing", func() {
 		Expect(prompt).To(Equal(0.5))
 		Expect(completion).To(Equal(1.5))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:68
+	// per docs/adr/0100-batched-review.md:68
 	DescribeTable("rejects fallback without a valid bounded routing and price policy before HTTP", func(environment []string) {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))

@@ -71,7 +71,7 @@ func ciReviewInput(count int) ([]ciReviewFile, string) {
 
 // The proxy routes only the two production HTTPS destinations to a test-owned
 // certificate. It cannot silently permit a configurable service endpoint.
-// per docs/adr/0100-budgeted-batched-adversarial-review.md:106
+// per docs/adr/0100-batched-review.md:106
 func ciReviewFixture(cwd string, scenario ciReviewScenario) *ciReviewService {
 	GinkgoHelper()
 	if scenario.files == nil {
@@ -262,8 +262,8 @@ func ciReviewNoSuccess(service *ciReviewService) {
 }
 
 var _ = Describe("Hosted budgeted adversarial review", func() {
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:103
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:113
+	// per docs/adr/0100-batched-review.md:103
+	// per docs/adr/0100-batched-review.md:113
 	It("reviews the exact current head and publishes a separate successful completion check", func() {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{})
@@ -305,7 +305,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		}
 		Expect(metadata).To(BeNumerically(">=", 3))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:108
+	// per docs/adr/0100-batched-review.md:108
 	It("binds a manual rerun without an expected head to the initial current head", func() {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{})
@@ -319,7 +319,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(comments).To(HaveLen(1))
 		Expect(ciReviewJSON(comments[0])["body"]).To(ContainSubstring(ciReviewHead))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:107
+	// per docs/adr/0100-batched-review.md:107
 	DescribeTable("refuses unsupported or mismatched pull requests without model calls", func(kind string) {
 		root, cwd := fixture()
 		scenario := ciReviewScenario{}
@@ -342,7 +342,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "api.github.com", http.MethodPost, "/repos/fixture/project/issues/7/comments")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	}, Entry("fork", "fork"), Entry("nondefault target", "nondefault target"), Entry("wrong trusted base", "wrong trusted base"), Entry("closed", "closed"), Entry("wrong expected head", "wrong expected head"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:109
+	// per docs/adr/0100-batched-review.md:109
 	It("rechecks downloaded data before spending model requests", func() {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{headChangeAt: 2})
@@ -352,7 +352,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "api.github.com", http.MethodPost, "/repos/fixture/project/issues/7/comments")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:110
+	// per docs/adr/0100-batched-review.md:110
 	It("withholds stale findings and success if the head changes during generation", func() {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{headChangeAt: 3})
@@ -362,7 +362,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "api.github.com", http.MethodPost, "/repos/fixture/project/issues/7/comments")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:111
+	// per docs/adr/0100-batched-review.md:111
 	It("flattens all manifest pages and covers the final file", func() {
 		root, cwd := fixture()
 		files, diff := ciReviewInput(101)
@@ -385,8 +385,8 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(counts["files_reviewed"]).To(Equal(float64(101)))
 		Expect(string(data)).To(ContainSubstring("internal/sample/file100.go"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:111
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:31
+	// per docs/adr/0100-batched-review.md:111
+	// per docs/adr/0100-batched-review.md:31
 	DescribeTable("refuses incomplete GitHub coverage before model calls", func(kind string) {
 		root, cwd := fixture()
 		files, diff := ciReviewInput(1)
@@ -402,7 +402,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "openrouter.ai", http.MethodPost, "/api/v1/chat/completions")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	}, Entry("manifest count", "manifest count"), Entry("truncated diff", "truncated diff"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:116
+	// per docs/adr/0100-batched-review.md:116
 	DescribeTable("missing credentials never imply a completed model review", func(key string) {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{})
@@ -411,7 +411,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "openrouter.ai", http.MethodPost, "/api/v1/chat/completions")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	}, Entry("GitHub", "GITHUB_TOKEN"), Entry("OpenRouter", "REVIEW_API_KEY"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:112
+	// per docs/adr/0100-batched-review.md:112
 	DescribeTable("sanitizes GitHub preparation failures without creating success", func(path string, code int) {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{failurePath: path, failureStatus: code})
@@ -421,7 +421,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "openrouter.ai", http.MethodPost, "/api/v1/chat/completions")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	}, Entry("metadata forbidden", "/repos/fixture/project/pulls/7", http.StatusForbidden), Entry("files unavailable", "/repos/fixture/project/pulls/7/files", http.StatusBadGateway))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:112
+	// per docs/adr/0100-batched-review.md:112
 	It("refuses a GitHub redirect instead of following it with credentials", func() {
 		root, cwd := fixture()
 		service := ciReviewFixture(cwd, ciReviewScenario{failurePath: "/repos/fixture/project/pulls/7", failureStatus: http.StatusFound, failureLocation: "https://api.github.com/repos/fixture/project/redirect-target"})
@@ -431,8 +431,8 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(ciReviewRequests(service, "openrouter.ai", http.MethodPost, "/api/v1/chat/completions")).To(BeEmpty())
 		ciReviewNoSuccess(service)
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:113
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:72
+	// per docs/adr/0100-batched-review.md:113
+	// per docs/adr/0100-batched-review.md:72
 	DescribeTable("fails the completion check when generation does not complete", func(kind string) {
 		root, cwd := fixture()
 		scenario := ciReviewScenario{}
@@ -453,7 +453,7 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 			Expect(ciReviewJSON(request)["body"]).NotTo(ContainSubstring("Safe findings"))
 		}
 	}, Entry("provider error", "provider error"), Entry("interrupted stream", "interrupted stream"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:115
+	// per docs/adr/0100-batched-review.md:115
 	It("labels long findings as an excerpt with the complete run artifact link", func() {
 		root, cwd := fixture()
 		finding := strings.Repeat("Detailed finding with evidence.\n", 2400)
@@ -476,8 +476,8 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(full)).To(ContainSubstring(finding))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:89
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:113
+	// per docs/adr/0100-batched-review.md:89
+	// per docs/adr/0100-batched-review.md:113
 	It("cancels an active model request without publishing completed coverage", func() {
 		root, cwd := fixture()
 		started, release := make(chan struct{}, 1), make(chan struct{})

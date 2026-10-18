@@ -20,12 +20,12 @@ Developers inspect coverage; maintainers control spend and reuse matching work.
 ## 4. Acceptance Criteria
 
 Validate inputs, budgets, cache, failures and publication independently:
-docs/adr/0100-budgeted-batched-adversarial-review.md:89.
+docs/adr/0100-batched-review.md:89.
 
 ## 5. Functional Requirements
 
 The shared Go command reviews complete diff/manifest inputs:
-docs/adr/0100-budgeted-batched-adversarial-review.md:23.
+docs/adr/0100-batched-review.md:23.
 
 ## 6. Non-Functional Requirements
 
@@ -34,12 +34,12 @@ Bound cost; isolate credentials; preserve three harnesses without new modules.
 ## 7. Data Model
 
 Revision/coverage/usage schema:
-docs/adr/0100-budgeted-batched-adversarial-review.md:76.
+docs/adr/0100-batched-review.md:76.
 
 ## 8. API Contract
 
 Cobra and existing strict transport; limits/routing:
-docs/adr/0100-budgeted-batched-adversarial-review.md:49.
+docs/adr/0100-batched-review.md:49.
 
 ## 9. Out of Scope
 

@@ -190,9 +190,9 @@ repository_default_provider() {
 # These source constraints do not prove GitHub runtime execution.
 # Read the explicit scaffold layout fail-closed; identity/cache data may name the
 # PR head, but executable code stays on the trusted base.
-# docs/adr/0100-budgeted-batched-adversarial-review.md:83.
+# docs/adr/0100-batched-review.md:83.
 trusted_workflow_guard() {
-  local workflow="$1" guard checkout runs head_uses unsafe_head_uses
+  local workflow="$1" guard checkout runs head_uses unsafe_head_uses allowed_head_uses
   guard="$(sed -n '/^  review:$/,/^    runs-on:/s/^    if: //p' "$workflow")"
   if [ "$guard" != "(github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch) || (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))" ]; then
     printf 'unexpected privileged-job guard: %s\n' "$workflow" >&2
@@ -242,9 +242,20 @@ trusted_workflow_guard() {
     active && NF && $0 !~ /^          / { active = 0 }
     active { print }
   ' "$workflow")"
-  unsafe_head_uses="$(printf '%s\n' "$runs" | grep 'EXPECTED_HEAD' |
-    grep -vxF -e '          if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi' \
-      -e '          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \' || true)"
+  # Exact inert uses only, including literal jq programs that mention $head.
+  IFS= read -r -d '' allowed_head_uses <<'IDENTITY_ARGUMENTS' || :
+          if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
+          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \
+            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and ($head == "" or .head.sha == $head)' \
+          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$head" \
+            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and .head.sha == $head' \
+          jq -n --arg status "$status" --arg repository "$REPO" --arg base "$EXPECTED_BASE" --arg head "$head" \
+            '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
+            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+IDENTITY_ARGUMENTS
+  unsafe_head_uses="$(printf '%s\n' "$runs" |
+    grep -E 'EXPECTED_HEAD|\$\{?head([^[:alnum:]_]|$)' |
+    grep -vxF -f <(printf '%s\n' "$allowed_head_uses") || true)"
   [ -z "$unsafe_head_uses" ] || {
     printf 'head identity used outside literal identity arguments: %s\n' "$workflow" >&2
     return 1
@@ -258,7 +269,7 @@ trusted_base_guard() {
 
     # Negative controls retain the old untrusted-checkout/missing-guard checks
     # and cover the newly permitted manual-dispatch and data-only head paths.
-    for mutation in missing-guard untrusted-checkout missing-default-target unguarded-dispatch persisted-credentials execute-head-expression execute-head-variable; do
+    for mutation in missing-guard untrusted-checkout missing-default-target unguarded-dispatch persisted-credentials execute-head-expression execute-head-variable checkout-derived-head; do
       case "$mutation" in
         missing-guard) sed '/^    if: /d' "$workflow" ;;
         untrusted-checkout) sed 's/ref: \${{ github.event.pull_request.base.sha || github.sha }}/ref: ${{ github.event.pull_request.head.sha }}/' "$workflow" ;;
@@ -270,6 +281,9 @@ trusted_base_guard() {
 ' "$workflow" ;;
         execute-head-variable) sed '/^        run: |$/a\
           git checkout "$EXPECTED_HEAD"
+' "$workflow" ;;
+        checkout-derived-head) sed '/^        run: |$/a\
+          git checkout "$head"
 ' "$workflow" ;;
       esac > "$FIXTURE/unsafe-workflow.yml"
       if trusted_workflow_guard "$FIXTURE/unsafe-workflow.yml" >/dev/null 2>&1; then

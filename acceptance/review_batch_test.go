@@ -140,7 +140,7 @@ func batchServer(cwd string) *reviewService {
 }
 
 var _ = Describe("Budgeted batched adversarial review", func() {
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:23
+	// per docs/adr/0100-batched-review.md:23
 	It("plans deterministically offline with exact revision identity and private artifacts", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"internal/a.go", "internal/a_test.go"}, 12))
@@ -171,7 +171,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(reports[0]).To(Equal(reports[1]))
 		Expect(service.observed()).To(BeEmpty())
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:29
+	// per docs/adr/0100-batched-review.md:29
 	DescribeTable("rejects incomplete or contradictory coverage before contacting a provider", func(kind string) {
 		root, cwd := fixture()
 		input := batchAdded([]string{"src/a.go"}, 3)
@@ -222,7 +222,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(result.status).NotTo(Equal(0))
 		Expect(service.observed()).To(BeEmpty())
 	}, Entry("manifest omits diff file", "missing file"), Entry("duplicate manifest filename", "duplicate manifest"), Entry("empty diff for manifest", "missing diff"), Entry("truncated final hunk", "missing hunk line"), Entry("API statistics disagree", "wrong additions"), Entry("hunk counts disagree", "hunk count"), Entry("diff file absent from manifest", "undeclared file"), Entry("traversal path", "unsafe path"), Entry("repeated file section", "duplicate diff"), Entry("invalid base SHA", "bad base"), Entry("invalid repository", "bad repository"), Entry("malformed manifest", "malformed manifest"), Entry("missing manifest", "missing manifest"), Entry("over 3000 files", "too many files"), Entry("over eight MiB diff", "input limit"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:29
+	// per docs/adr/0100-batched-review.md:29
 	It("uses the full diff rather than a truncated optional API patch", func() {
 		root, cwd := fixture()
 		input := batchInput{
@@ -238,7 +238,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(batchReadReport(out)["status"]).To(Equal("complete"))
 		Expect(service.observed()).To(HaveLen(1))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:29
+	// per docs/adr/0100-batched-review.md:29
 	It("reviews Git-produced filenames with spaces and tab-terminated patch markers", func() {
 		root, cwd := fixture()
 		durableGit(cwd, "init", "-q")
@@ -256,7 +256,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(batchReadReport(out)["status"]).To(Equal("complete"))
 		Expect(service.observed()).To(HaveLen(1))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:29
+	// per docs/adr/0100-batched-review.md:29
 	It("reviews both Git type-change sections under the single changed-file manifest entry", func() {
 		root, cwd := fixture()
 		durableGit(cwd, "init", "-q")
@@ -284,7 +284,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(prompts.String()).To(ContainSubstring("120000"))
 		Expect(prompts.String()).To(ContainSubstring("+target"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:31
+	// per docs/adr/0100-batched-review.md:31
 	It("accepts paired mode changes but refuses a truncated metadata-only diff before calls", func() {
 		root, cwd := fixture()
 		input := batchInput{"diff --git a/mode.txt b/mode.txt\nold mode 100644\nnew mode 100755\n", []batchFile{{Filename: "mode.txt", Status: "modified"}}}
@@ -298,7 +298,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(result.status).NotTo(Equal(0))
 		Expect(service.observed()).To(BeEmpty())
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:32
+	// per docs/adr/0100-batched-review.md:32
 	It("reviews a diff beyond the former 200000-byte skip with explicit complete coverage", func() {
 		root, cwd := fixture()
 		input := batchAdded([]string{"one.go", "two.go", "three.go", "four.go", "five.go"}, 450)
@@ -316,7 +316,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(counts["batches_completed"]).To(Equal(counts["batches_planned"]))
 		Expect(len(service.observed())).To(BeNumerically(">", 1))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:33
+	// per docs/adr/0100-batched-review.md:33
 	It("fragments an oversized single hunk without dropping its beginning or end", func() {
 		root, cwd := fixture()
 		input := batchAdded([]string{"one.go"}, 150)
@@ -344,7 +344,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		}
 		Expect(report["status"]).To(Equal("complete"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:34
+	// per docs/adr/0100-batched-review.md:34
 	It("keeps binary-only changes explicitly uncovered rather than green", func() {
 		root, cwd := fixture()
 		input := batchInput{"diff --git a/image.bin b/image.bin\nnew file mode 100644\nindex 0000000..1111111\nBinary files /dev/null and b/image.bin differ\n", []batchFile{{Filename: "image.bin", Status: "added"}}}
@@ -359,7 +359,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(batchCounts(report)["files_reviewed"]).To(Equal(float64(0)))
 		Expect(service.observed()).To(BeEmpty())
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:44
+	// per docs/adr/0100-batched-review.md:44
 	DescribeTable("does not overwrite existing output or follow output/cache symlinks", func(kind string) {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -392,7 +392,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(data)).To(Equal("retained"))
 	}, Entry("existing output directory", "existing"), Entry("linked output directory", "output link"), Entry("linked output ancestor", "parent link"), Entry("linked cache directory", "cache link"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:49
+	// per docs/adr/0100-batched-review.md:49
 	DescribeTable("reserves each HTTP attempt against run-wide quotas", func(kind string, wantCalls int) {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go", "b.go"}, 45))
@@ -430,7 +430,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(budget["input_bytes_reserved"]).To(BeNumerically("<=", budget["max_input_bytes"]))
 		Expect(result.stdout + result.stderr).NotTo(ContainSubstring("PRIVATE_PROVIDER_DETAIL"))
 	}, Entry("request allowance", "requests", 1), Entry("response reservation allowance", "tokens", 1), Entry("input reservation allowance", "input", 0), Entry("batch allowance", "batches", 0), Entry("retry consumes the same request allowance", "retry", 1))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:71
+	// per docs/adr/0100-batched-review.md:71
 	It("retries an initial 429 within the same reservation budget", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -451,7 +451,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(batchBudget(report)["requests_used"]).To(Equal(float64(2)))
 		Expect(batchBudget(report)["response_tokens_reserved"]).To(Equal(float64(2048)))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:72
+	// per docs/adr/0100-batched-review.md:72
 	DescribeTable("does not publish or retry ambiguous stream findings", func(stream string) {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -472,7 +472,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(string(data)).NotTo(ContainSubstring("Safe findings"))
 		Expect(string(data)).NotTo(ContainSubstring("PRIVATE_REASONING"))
 	}, Entry("EOF before DONE", strings.Split(reviewComplete, "data: [DONE]")[0]), Entry("response token exhaustion", strings.ReplaceAll(reviewComplete, `"stop"`, `"length"`)), Entry("provider failure after content", strings.Replace(reviewComplete, "data: [DONE]", "data: {\"error\":{\"message\":\"PRIVATE_REASONING\"}}\n\ndata: [DONE]", 1)))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:54
+	// per docs/adr/0100-batched-review.md:54
 	It("keeps unreported usage null and reserves rather than invents actual token usage", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -486,7 +486,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		batches := report["batches"].([]any)
 		Expect(batches[0]).To(HaveKeyWithValue("usage", BeNil()))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:54
+	// per docs/adr/0100-batched-review.md:54
 	It("preserves real provider usage separately from allowance reservations", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -500,7 +500,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(usage["total_tokens"]).To(Equal(float64(20)))
 		Expect(usage["cost"]).To(Equal(0.0001))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:54
+	// per docs/adr/0100-batched-review.md:54
 	It("keeps explicitly null provider cost unknown instead of reporting zero spend", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -517,7 +517,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		batch := report["batches"].([]any)[0].(map[string]any)
 		Expect(batch["usage"].(map[string]any)["cost"]).To(BeNil())
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:54
+	// per docs/adr/0100-batched-review.md:54
 	It("does not report incomplete per-batch usage fields as complete aggregate spend", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 45))
@@ -540,7 +540,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(usage["cost"]).To(BeNil(), "one batch's known cost cannot describe the whole review")
 		Expect(usage["prompt_tokens"]).To(BeNil(), "missing accounting fields remain unknown")
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:38
+	// per docs/adr/0100-batched-review.md:38
 	It("reuses authenticated successful batches across a new head while reporting the new identity", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 2))
@@ -560,7 +560,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(batchCounts(report)["batches_cached"]).To(Equal(float64(1)))
 		Expect(batchBudget(report)["requests_used"]).To(Equal(float64(0)))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:38
+	// per docs/adr/0100-batched-review.md:38
 	DescribeTable("does not reuse a result with a changed authenticated identity", func(kind string) {
 		root, cwd := fixture()
 		lines := 2
@@ -599,7 +599,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(len(service.observed())).To(BeNumerically(">", 1))
 		Expect(batchCounts(batchReadReport(out))["batches_cached"]).To(Equal(float64(0)))
 	}, Entry("changed patch bytes", "body"), Entry("changed shared context", "context"), Entry("different model", "model"), Entry("different base", "base"), Entry("different policy limits", "policy"), Entry("different HMAC key", "key"))
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:41
+	// per docs/adr/0100-batched-review.md:41
 	It("rejects tampered cached findings and obtains a fresh real response", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 2))
@@ -639,7 +639,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(data)).NotTo(ContainSubstring("Forged review"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:43
+	// per docs/adr/0100-batched-review.md:43
 	It("does not cache incomplete streams as successful review coverage", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 2))
@@ -659,7 +659,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(service.observed()).To(HaveLen(2))
 		Expect(batchCounts(batchReadReport(out))["batches_cached"]).To(Equal(float64(0)))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:44
+	// per docs/adr/0100-batched-review.md:44
 	It("reads immutable diff inputs without changing their bytes or permissions", func() {
 		root, cwd := fixture()
 		input := batchAdded([]string{"a.go"}, 2)
@@ -681,7 +681,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 			Expect(info.Mode().Perm()).To(Equal(os.FileMode(0400)))
 		}
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:43
+	// per docs/adr/0100-batched-review.md:43
 	It("does not trust a linked successful cache entry or change its external target", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 2))
@@ -722,8 +722,8 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(retained).To(Equal(original))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:76
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:54
+	// per docs/adr/0100-batched-review.md:76
+	// per docs/adr/0100-batched-review.md:54
 	It("reports partial coverage when a later batch fails after one real completion", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go", "b.go"}, 45))
@@ -758,7 +758,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(limitedReport["usage"].(map[string]any)["cost"]).To(Equal(0.25))
 		Expect(service.observed()).To(HaveLen(3))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:49
+	// per docs/adr/0100-batched-review.md:49
 	It("honors the total deadline during Retry-After instead of extending the run", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))
@@ -774,7 +774,7 @@ var _ = Describe("Budgeted batched adversarial review", func() {
 		Expect(service.observed()).To(HaveLen(1))
 		Expect(batchReadReport(out)["status"]).To(Equal("failed"))
 	})
-	// per docs/adr/0100-budgeted-batched-adversarial-review.md:89
+	// per docs/adr/0100-batched-review.md:89
 	It("cancels a live request on SIGTERM and preserves an incomplete report", func() {
 		root, cwd := fixture()
 		batchWriteInput(cwd, batchAdded([]string{"a.go"}, 1))

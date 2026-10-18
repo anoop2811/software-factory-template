@@ -48,7 +48,7 @@ var indexPattern = regexp.MustCompile(`^index [a-f0-9]{4,64}\.\.[a-f0-9]{4,64}( 
 var similarityPattern = regexp.MustCompile(`^(dis)?similarity index ([0-9]|[1-9][0-9]|100)%$`)
 
 // Both independent inputs must agree before any provider receives data.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:29.
+// docs/adr/0100-batched-review.md:29.
 func readInputs(ctx context.Context, o options) ([]fileDiff, error) {
 	raw, err := fileinput.Read(ctx, o.files, inputLimit)
 	if err != nil || !utf8.Valid(raw) {

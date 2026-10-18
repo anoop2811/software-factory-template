@@ -31,7 +31,7 @@ type metrics struct {
 }
 
 // Options lets a caller share one budget and deadline across review requests.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:49.
+// docs/adr/0100-batched-review.md:49.
 type Options struct {
 	APIKey         string
 	TimeoutSeconds int
@@ -67,7 +67,7 @@ func Run(ctx context.Context, input io.Reader, output, diagnostics io.Writer) er
 
 // RunWithOptions preserves strict streaming admission while admitting each
 // actual attempt through the caller's run-wide budget.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:68.
+// docs/adr/0100-batched-review.md:68.
 func RunWithOptions(ctx context.Context, input io.Reader, output, diagnostics io.Writer, options Options) error {
 	m := &metrics{start: time.Now()}
 	defer m.report(diagnostics, "summary")

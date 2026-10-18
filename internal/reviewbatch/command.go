@@ -17,7 +17,7 @@ import (
 )
 
 // Run returns success only for an offline plan or complete exact-commit coverage.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:76.
+// docs/adr/0100-batched-review.md:76.
 func Run(parent context.Context, args []string, environment map[string]string, stdout, stderr io.Writer) int {
 	o, err := parseOptions(args, stderr)
 	if err != nil {

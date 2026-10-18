@@ -21,7 +21,7 @@ import (
 )
 
 // Pin each directory descriptor and reject linked ancestors before mutation.
-// Untrusted filenames never select an artifact name. docs/adr/0100-budgeted-batched-adversarial-review.md:44.
+// Untrusted filenames never select an artifact name. docs/adr/0100-batched-review.md:44.
 func privateDirectory(name string, exclusive bool) (*os.Root, error) {
 	for _, component := range strings.Split(name, string(os.PathSeparator)) {
 		if component == ".." {

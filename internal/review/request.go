@@ -96,7 +96,7 @@ func prepare(ctx context.Context, input io.Reader) ([]byte, error) {
 }
 
 // Explicit same-model fallback cannot widen the approved provider set or price.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:68.
+// docs/adr/0100-batched-review.md:68.
 func validProvider(raw json.RawMessage) bool {
 	var fields map[string]json.RawMessage
 	var order []string

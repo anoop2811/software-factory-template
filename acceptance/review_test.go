@@ -41,7 +41,7 @@ type reviewService struct {
 
 // Both streaming and hosted adapters retain real HTTPS hostname validation and
 // an explicit CONNECT destination allowlist through the same test transport.
-// per docs/adr/0100-budgeted-batched-adversarial-review.md:106
+// per docs/adr/0100-batched-review.md:106
 func reviewTLSProxy(cwd string, allowedHosts []string, respond http.Handler) (string, string) {
 	GinkgoHelper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

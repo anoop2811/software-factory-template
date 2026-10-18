@@ -133,7 +133,7 @@ func Run(ctx context.Context, args []string) int {
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
 				// Trusted CI and local callers share one bounded Go review engine.
-				// docs/adr/0100-budgeted-batched-adversarial-review.md:23.
+				// docs/adr/0100-batched-review.md:23.
 				if name == "review-batch" {
 					ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 					defer stop()

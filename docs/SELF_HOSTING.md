@@ -50,14 +50,11 @@ The model's opinion is not a required merge gate.
 
 ### Budgeted batch review
 
-Trusted-base `factory review-batch github` reviews bounded batches with authenticated
-cache reuse. `factory review-batch --plan` is offline. [ADR 0100](adr/0100-budgeted-batched-adversarial-review.md)
-defines limits and opt-in routing; account/key limits remain the monetary backstop.
-
-**Adversarial review coverage** requires complete current-head coverage; findings
-stay advisory. Seven-day artifacts show gaps. Rerun via Actions > Adversarial review.
-Generated workflows opt in with a trusted absolute `REVIEW_GO_CLIENT` and model;
-otherwise legacy skips/failures exit nonzero. PR-head code never receives keys.
+[ADR 0100](adr/0100-batched-review.md) documents the shared
+`factory review-batch github` command, offline `--plan`, authenticated cache,
+limits and opt-in routing. Coverage succeeds only for complete current-head work;
+findings stay advisory. Rerun through Actions > Adversarial review.
+Generated workflows need a trusted absolute `REVIEW_GO_CLIENT` to opt in.
 
 ### Legacy single-diff compatibility runner
 

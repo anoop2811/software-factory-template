@@ -1,5 +1,5 @@
 // Package reviewci coordinates fixed-endpoint GitHub data and model coverage.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:103.
+// docs/adr/0100-batched-review.md:103.
 package reviewci
 
 import (
@@ -59,7 +59,7 @@ type client struct {
 }
 
 // Run never checks out PR content or executes a path supplied by its diff.
-// docs/adr/0100-budgeted-batched-adversarial-review.md:106.
+// docs/adr/0100-batched-review.md:106.
 func Run(ctx context.Context, args []string, environment map[string]string, stdout, stderr io.Writer) int {
 	var o options
 	flags := pflag.NewFlagSet("review-batch github", pflag.ContinueOnError)

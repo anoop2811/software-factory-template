@@ -37,7 +37,7 @@ type ciReviewFile struct {
 }
 
 type ciReviewScenario struct {
-	headChangeAt                              int
+	headChangeAt, baseChangeAt                int
 	head, base, branch, headRepository, state string
 	changedFiles                              int
 	files                                     []ciReviewFile
@@ -150,11 +150,14 @@ func ciReviewFixture(cwd string, scenario ciReviewScenario) *ciReviewService {
 			w.Header().Set("Content-Type", "text/plain")
 			_, _ = io.WriteString(w, scenario.diff)
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/fixture/project/pulls/7":
-			head := scenario.head
+			head, base := scenario.head, scenario.base
 			if scenario.headChangeAt > 0 && metadata >= scenario.headChangeAt {
 				head = ciReviewOther
 			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"number": 7, "state": scenario.state, "changed_files": scenario.changedFiles, "base": map[string]any{"sha": scenario.base, "ref": scenario.branch, "repo": map[string]any{"full_name": "fixture/project"}}, "head": map[string]any{"sha": head, "repo": map[string]any{"full_name": scenario.headRepository}}})
+			if scenario.baseChangeAt > 0 && metadata >= scenario.baseChangeAt {
+				base = ciReviewOther
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"number": 7, "state": scenario.state, "changed_files": scenario.changedFiles, "base": map[string]any{"sha": base, "ref": scenario.branch, "repo": map[string]any{"full_name": "fixture/project"}}, "head": map[string]any{"sha": head, "repo": map[string]any{"full_name": scenario.headRepository}}})
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/fixture/project/pulls/7/files":
 			page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 			if page == 0 {
@@ -306,18 +309,24 @@ var _ = Describe("Hosted budgeted adversarial review", func() {
 		Expect(metadata).To(BeNumerically(">=", 3))
 	})
 	// per docs/adr/0100-batched-review.md:108
-	It("binds a manual rerun without an expected head to the initial current head", func() {
-		root, cwd := fixture()
-		service := ciReviewFixture(cwd, ciReviewScenario{})
-		out := filepath.Join(cwd, "manual-report")
-		result := ciReviewRun(root, cwd, out, service, nil, nil)
-		Expect(result.status).To(Equal(0), result.stderr)
-		completed := ciReviewRequests(service, "api.github.com", http.MethodPatch, "/repos/fixture/project/check-runs/741")
-		Expect(completed).To(HaveLen(1))
-		Expect(ciReviewJSON(completed[0])["conclusion"]).To(Equal("success"))
-		comments := ciReviewRequests(service, "api.github.com", http.MethodPost, "/repos/fixture/project/issues/7/comments")
-		Expect(comments).To(HaveLen(1))
-		Expect(ciReviewJSON(comments[0])["body"]).To(ContainSubstring(ciReviewHead))
+	It("binds manual reruns to valid initial revisions and refuses subsequent base changes", func() {
+		for _, scenario := range []ciReviewScenario{{base: ciReviewOther}, {base: "invalid"}, {baseChangeAt: 2}} {
+			root, cwd := fixture()
+			service := ciReviewFixture(cwd, scenario)
+			out := filepath.Join(cwd, "manual-report")
+			result := ciReviewRun(root, cwd, out, service, []string{"--expected-base", ""}, nil)
+			if scenario.base == ciReviewOther {
+				Expect(result.status).To(Equal(0), result.stderr)
+				report := batchReadReport(out)
+				Expect(report["base"]).To(Equal(ciReviewOther))
+				Expect(report["head"]).To(Equal(ciReviewHead))
+				Expect(report["status"]).To(Equal("complete"))
+			} else {
+				Expect(result.status).NotTo(Equal(0))
+				Expect(ciReviewRequests(service, "openrouter.ai", http.MethodPost, "/api/v1/chat/completions")).To(BeEmpty())
+				ciReviewNoSuccess(service)
+			}
+		}
 	})
 	// per docs/adr/0100-batched-review.md:107
 	DescribeTable("refuses unsupported or mismatched pull requests without model calls", func(kind string) {

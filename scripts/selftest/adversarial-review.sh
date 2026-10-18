@@ -246,7 +246,7 @@ trusted_workflow_guard() {
   IFS= read -r -d '' allowed_head_uses <<'IDENTITY_ARGUMENTS' || :
           if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
           jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \
-            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and ($head == "" or .head.sha == $head)' \
+            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and ($base == "" or .base.sha == $base) and ($head == "" or .head.sha == $head)' \
           jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$head" \
             '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and .head.sha == $head' \
           jq -n --arg status "$status" --arg repository "$REPO" --arg base "$EXPECTED_BASE" --arg head "$head" \

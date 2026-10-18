@@ -5,9 +5,9 @@ Date: 2026-10-17
 
 ## Context
 
-The user approved bounded review and required this change
-to receive model review. PR #126's 395692-byte diff exceeded the 200000-byte
-guard before any provider call; PR #124 received a completed model review.
+User approval requires real model review of this change.
+PR #126: 395692 bytes exceeded the 200000-byte guard.
+No provider call ran. PR #124 received a completed review.
 Evidence: https://github.com/anoop2811/software-factory-template/pull/126#issuecomment-6236988356
 and https://github.com/anoop2811/software-factory-template/pull/124#issuecomment-6031211962.
 PR #126 stays separate; this repair branches from trusted main.
@@ -22,7 +22,7 @@ command for Codex, Claude Code and OpenCode; no new dependency.
 
 Add Cobra `factory review-batch --diff FILE --files FILE --base SHA --head SHA
 --repository OWNER/REPO --output DIR [--cache DIR] [--plan]`. Inputs are literal
-data; create a private output directory with report.json and review.md.
+data; create private output with report.json and review.md.
 Plan mode makes no model calls. Root config loading
 reuses config.ExportPlan and its environment/model precedence.
 
@@ -53,7 +53,7 @@ the response cap and request bytes before sending.
 Top-level usage counts current-run calls; cached batch usage is historical.
 Any unknown attempted-call usage makes the total null; known batch values remain.
 
-| Environment / Actions variable | Default | Range |
+| Variable | Default | Range |
 |---|---|---|
 | REVIEW_BATCH_BYTES | 60000 | 4096..100000 patch bytes |
 | REVIEW_MAX_BATCHES | 16 | 1..64 |
@@ -92,7 +92,7 @@ context. Run review-diamond correctness/security/tests, verification,
 deterministic dedupe and synthesis. Observe real model review of the final
 change; fix actionable findings and re-review corrections.
 
-Authoritative APIs fetched 2026-10-17 before implementation:
+Authoritative APIs fetched 2026-10-17:
 https://openrouter.ai/docs/guides/routing/provider-selection
 https://openrouter.ai/docs/api_reference/errors-and-debugging
 https://docs.github.com/en/actions/reference/security/secure-use
@@ -100,13 +100,13 @@ https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28
 
 ## Shared hosted adapter
 
-`factory review-batch github --pr NUMBER --repository OWNER/REPO --expected-base
-SHA [--expected-head SHA] --output DIR [--cache DIR]` retrieves GitHub data,
+`factory review-batch github --pr NUMBER --repository OWNER/REPO
+[--expected-base SHA] [--expected-head SHA] --output DIR [--cache DIR]` retrieves data,
 checks revisions, calls the batch engine, posts findings and a separate
 check in Go. GITHUB_TOKEN goes only to fixed api.github.com endpoints;
 REVIEW_API_KEY only to OpenRouter. Accept same-repo PRs into the
-default branch; base must match checkout. Bind optional head
-from initial metadata for manual dispatch. Recheck metadata
+default branch. Bind omitted base/head from initial metadata for dispatch;
+executable checkout stays trusted event-base/default-branch code. Recheck metadata
 after diff/manifest reads and before publication. Reject stale work.
 Match file count to changed_files; bound pagination.
 Never execute PR data. Keep unsafe redirects and raw error logging

@@ -4344,6 +4344,8 @@ oracles. A Go rewrite of those reference implementations would remove evidence.
 
 ## Decision 99 (2026-10-17 UTC): make adversarial review bounded and explicit
 
-User-approved contract: ADR 0100. Require independent Ginkgo/Gomega TDD and real
-model review of the final diff. Never execute PR-head code with secrets.
+User-approved ADR 0100 requires independent Ginkgo/Gomega TDD and model review.
+Never execute PR-head code with secrets.
 PR #126 stays separate, with ADR 0099 and Decision 98 reserved.
+
+Manual reruns bind recorded PR revisions separately from trusted code provenance.

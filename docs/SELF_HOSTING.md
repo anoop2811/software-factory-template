@@ -66,7 +66,8 @@ to a decimal value from 1024 through 32768; the caller value wins. An explicitly
 empty `REVIEW_MAX_TOKENS` overrides YAML and uses the shared 8192-token default.
 Leave the environment variable unset to use the configured YAML cap. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
-or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
+or incomplete reviews. Legacy skips/failures exit nonzero; findings stay advisory.
+OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
 
 Set the GitHub Actions repository **variable** `REVIEW_TIMEOUT_SECONDS` to a

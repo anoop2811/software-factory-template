@@ -66,12 +66,12 @@ func Run(ctx context.Context, args []string, environment map[string]string, stdo
 	flags.SetOutput(io.Discard)
 	flags.IntVar(&o.pr, "pr", 0, "same-repository pull request number")
 	flags.StringVar(&o.repository, "repository", "", "owner/repository")
-	flags.StringVar(&o.base, "expected-base", "", "trusted checked-out base revision")
+	flags.StringVar(&o.base, "expected-base", "", "expected base, or bind initial metadata")
 	flags.StringVar(&o.head, "expected-head", "", "expected head, or bind current metadata")
 	flags.StringVar(&o.output, "output", "", "new private result directory")
 	flags.StringVar(&o.cache, "cache", "", "authenticated review cache directory")
 	if flags.Parse(args) != nil || flags.NArg() != 0 || o.pr < 1 || o.pr > 1000000000 ||
-		!repositoryPattern.MatchString(o.repository) || !revisionPattern.MatchString(o.base) ||
+		!repositoryPattern.MatchString(o.repository) || (o.base != "" && !revisionPattern.MatchString(o.base)) ||
 		(o.head != "" && !revisionPattern.MatchString(o.head)) || o.output == "" {
 		fmt.Fprintln(stderr, "review-batch github: invalid arguments")
 		return 2
@@ -145,7 +145,7 @@ func (c client) metadata(ctx context.Context, o options, branch string) (pull, e
 	}
 	var p pull
 	if json.Unmarshal(data, &p) != nil || p.Number != o.pr || p.State != "open" || p.ChangedFiles < 0 || p.ChangedFiles > 3000 ||
-		p.Base.Ref != branch || p.Base.SHA != o.base || !revisionPattern.MatchString(p.Head.SHA) ||
+		p.Base.Ref != branch || !revisionPattern.MatchString(p.Base.SHA) || (o.base != "" && p.Base.SHA != o.base) || !revisionPattern.MatchString(p.Head.SHA) ||
 		(o.head != "" && p.Head.SHA != o.head) ||
 		!strings.EqualFold(p.Head.Repo.FullName, o.repository) || !strings.EqualFold(p.Base.Repo.FullName, o.repository) {
 		return pull{}, errors.New("stale or unsupported pull request identity")
@@ -170,6 +170,7 @@ func (c client) run(ctx context.Context, o options, environment map[string]strin
 		return err
 	}
 	o.head = p.Head.SHA
+	o.base = p.Base.SHA
 	link := "https://github.com/" + o.repository + "/actions"
 	if runID := environment["GITHUB_RUN_ID"]; len(runID) > 0 && len(runID) < 25 && strings.Trim(runID, "0123456789") == "" {
 		link += "/runs/" + runID

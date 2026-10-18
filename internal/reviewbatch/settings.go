@@ -1,5 +1,5 @@
 // Package reviewbatch provides bounded, exact-revision adversarial review.
-// docs/adr/0100-batched-review.md:16.
+// docs/adr/0100-batched-review.md:17.
 package reviewbatch
 
 import (

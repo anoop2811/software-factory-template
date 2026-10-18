@@ -5,7 +5,7 @@ name: Adversarial review
 # exact coverage; a posted skip or failure never counts as a completed review.
 # Trusted base code handles PR content only as data. Never execute PR-head code
 # with this workflow's write token or provider key.
-# Contract: docs/adr/0100-batched-review.md:102.
+# Contract: docs/adr/0100-batched-review.md:103.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]

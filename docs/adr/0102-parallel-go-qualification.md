@@ -133,3 +133,12 @@ Decision 102's [ADR 0103](0103-darwin-natural-exit-reconciliation.md) subsequent
 refines only unconditional Darwin EPERM refusal after an already-reaped natural
 exit. Its explicit terminal proof and negative controls supersede that one part
 of this initial diagnostic contract; all other safeguards remain.
+
+## Literal local report paths
+
+A review probe found that a report directory containing literal double quotes
+was silently written under a different name. Preserve the complete configured
+value through the recipe environment and quoted shell expansion, including spaces
+and literal quotes; do not interpolate it into executable shell source. Both JSON
+and JUnit operands must designate the exact requested group-specific paths.
+Establish a failing literal-path regression before changing this transport.

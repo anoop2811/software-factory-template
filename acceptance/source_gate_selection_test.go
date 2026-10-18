@@ -386,9 +386,10 @@ var _ = Describe("Go source qualification scheduling", func() {
 		}
 		// per docs/adr/0102-parallel-go-qualification.md:29
 		// per docs/adr/0102-parallel-go-qualification.md:44
+		// per docs/adr/0102-parallel-go-qualification.md:139
 		for _, workers := range []string{"1", "2"} {
 			fixture := sourceGateMakeFixture()
-			reports := filepath.Join(fixture.root, "reports with spaces")
+			reports := filepath.Join(fixture.root, `reports "quoted" with spaces`)
 			status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_PROCS=" + workers, "GO_RUNTIME_REPORT_DIR=" + reports})
 			Expect(status).To(Equal(0))
 			sourceGateAssertInternal(calls, true)

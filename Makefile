@@ -30,6 +30,7 @@ GO_RUNTIME_TEST_GROUP ?= all
 # docs/adr/0102-parallel-go-qualification.md:27 — bounded worker execution.
 GO_RUNTIME_TEST_PROCS ?= 2
 GO_RUNTIME_REPORT_DIR ?=
+export GO_RUNTIME_REPORT_DIR
 
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
@@ -69,10 +70,10 @@ go-runtime-source-check:
 			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
 				--procs="$(GO_RUNTIME_TEST_PROCS)" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
 				--keep-going --fail-on-empty --no-color "$$@"; \
-			if [ -n "$(GO_RUNTIME_REPORT_DIR)" ]; then \
-				mkdir -p "$(GO_RUNTIME_REPORT_DIR)" || return 1; \
-				set -- "$$@" --json-report="$(GO_RUNTIME_REPORT_DIR)/$$GO_REPORT_GROUP.json" \
-					--junit-report="$(GO_RUNTIME_REPORT_DIR)/$$GO_REPORT_GROUP.xml"; \
+			if [ -n "$$GO_RUNTIME_REPORT_DIR" ]; then \
+				mkdir -p "$$GO_RUNTIME_REPORT_DIR" || return 1; \
+				set -- "$$@" --json-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.json" \
+					--junit-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.xml"; \
 			fi; \
 			"$$@" ./acceptance -- -test.count=1 -test.timeout="$(GO_RUNTIME_TEST_TIMEOUT)"; \
 		}; \

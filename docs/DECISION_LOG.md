@@ -4341,3 +4341,11 @@ safety/cleanup or coverage finding. Hosted CI must qualify this new commit;
 the earlier 15-green head does not establish that. Python stays provisioned for
 remaining fixtures and actual supported legacy/cross-language compatibility
 oracles. A Go rewrite of those reference implementations would remove evidence.
+
+## Decision 99 (2026-10-17 UTC): make adversarial review bounded and explicit
+
+User-approved ADR 0100 requires independent Ginkgo/Gomega TDD and model review.
+Never execute PR-head code with secrets.
+PR #126 stays separate, with ADR 0099 and Decision 98 reserved.
+
+Manual reruns bind recorded PR revisions separately from trusted code provenance.

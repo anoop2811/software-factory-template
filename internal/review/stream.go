@@ -196,6 +196,9 @@ func (s *streamState) event(data []byte) error {
 		if json.Unmarshal(event.Usage, &usage) != nil || usage == nil {
 			return streamFailure("invalid review stream")
 		}
+		s.metrics.mu.Lock()
+		s.metrics.usage = append(json.RawMessage(nil), event.Usage...)
+		s.metrics.mu.Unlock()
 	}
 	if len(event.Choices) == 0 {
 		if !nonnull(event.Usage) {

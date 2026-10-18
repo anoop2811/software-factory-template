@@ -1,113 +1,173 @@
 name: Adversarial review
 
-# Advisory first-pass review on pull requests. It is NEVER a required check:
-# a model's opinion is not a computational control. The gates block; this advises.
-#
-# Why pull_request_target: posting a review comment needs write permission, which
-# pull_request does not grant on a fork. That token is dangerous, so the boundary
-# below is the whole point of this file:
-#
-#   1. same-repo PRs targeting the default branch only; forks and other target
-#      branches never drive a job holding this token;
-#   2. the workflow and scripts come from the default branch BASE commit, never
-#      the PR head, so a PR cannot edit the thing that reviews it;
-#   3. the PR diff is fetched as DATA through the API and passed to a model.
-#      Nothing from the PR head is executed, sourced, or run as a build.
-#
-# Installed by factory-init only when the review lane is enabled, because a
-# disabled pull_request_target workflow sitting in a repository is an invitation
-# to switch on something nobody read.
-
+# Model findings are advisory. The separate optional completion check records
+# exact coverage; a posted skip or failure never counts as a completed review.
+# Trusted base code handles PR content only as data. Never execute PR-head code
+# with this workflow's write token or provider key.
+# Contract: docs/adr/0100-batched-review.md:103.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Same-repository pull request number to review
+        required: true
+        type: string
 
 permissions:
   contents: read
   pull-requests: write
+  checks: write
 
 concurrency:
-  group: adversarial-review-${{ github.event.pull_request.number }}
+  group: adversarial-review-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   review:
-    # The boundary. Only same-repo PRs into the default branch get this token.
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch
+    # Manual dispatch must also execute the trusted default branch. The Go
+    # adapter independently validates repository, target branch and exact refs.
+    if: (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == github.event.repository.default_branch) || (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      PR: ${{ github.event.pull_request.number }}
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
       REPO: ${{ github.repository }}
-      # Cap the diff: a huge PR would blow the context window and the budget, and
-      # a review of a truncated diff would be a review of something else.
-      MAX_DIFF_BYTES: 200000
+      EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
     steps:
-      # Pin the trusted pull_request_target checkout to an immutable commit.
-      # Resolved from the official v7.0.1 release/tag API on 2026-09-06;
-      # release date 2026-07-20. docs/adr/0052-self-hosted-adversarial-review.md:46.
       - name: Check out the base commit (trusted — never the PR head)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
 
-      - name: Fetch the PR diff as data
+      # A trusted absolute binary is an explicit adopter opt-in. Enabling the
+      # lane alone never installs Go or builds commands from an adopter's repo.
+      - name: Select the explicitly configured review client
+        id: client
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_GO_CLIENT: ${{ vars.REVIEW_GO_CLIENT }}
         run: |
-          gh api "repos/$REPO/pulls/$PR" \
-            -H "Accept: application/vnd.github.v3.diff" > pr.diff
-          SIZE=$(wc -c < pr.diff | tr -d ' ')
-          echo "diff bytes: $SIZE"
-          if [ "$SIZE" -gt "$MAX_DIFF_BYTES" ]; then
-            echo "too-large" > review-skip
+          if [ -z "$REVIEW_GO_CLIENT" ]; then
+            echo 'mode=legacy' >> "$GITHUB_OUTPUT"
+          else
+            case "$REVIEW_GO_CLIENT" in /*) ;; *) echo 'REVIEW_GO_CLIENT must be an absolute trusted executable.' >&2; exit 1 ;; esac
+            [ -x "$REVIEW_GO_CLIENT" ] || { echo 'Configured review client is not executable.' >&2; exit 1; }
+            echo 'mode=go' >> "$GITHUB_OUTPUT"
           fi
+
+      # Official https://github.com/actions/cache/releases/tag/v6.1.0
+      - name: Restore authenticated completed batches
+        if: steps.client.outputs.mode == 'go'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/factory-review-cache
+          key: factory-review-v1-${{ runner.os }}-${{ github.sha }}-${{ github.event.pull_request.number || inputs.pr }}-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            factory-review-v1-${{ runner.os }}-${{ github.sha }}-${{ github.event.pull_request.number || inputs.pr }}-
 
       - name: Review
-        if: hashFiles('review-skip') == ''
+        id: review
+        if: steps.client.outputs.mode == 'go'
         env:
-          REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS }}
-          REVIEW_GO_CLIENT: ${{ vars.REVIEW_GO_CLIENT }}
-          REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
+          REVIEW_GO_CLIENT: ${{ vars.REVIEW_GO_CLIENT }}
+          REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES != '' && vars.REVIEW_HTTP_RETRIES || '1' }}
+          REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS != '' && vars.REVIEW_TIMEOUT_SECONDS || '1200' }}
+          REVIEW_BATCH_BYTES: ${{ vars.REVIEW_BATCH_BYTES != '' && vars.REVIEW_BATCH_BYTES || '60000' }}
+          REVIEW_MAX_BATCHES: ${{ vars.REVIEW_MAX_BATCHES != '' && vars.REVIEW_MAX_BATCHES || '16' }}
+          REVIEW_MAX_REQUESTS: ${{ vars.REVIEW_MAX_REQUESTS != '' && vars.REVIEW_MAX_REQUESTS || '16' }}
+          REVIEW_TOTAL_MAX_TOKENS: ${{ vars.REVIEW_TOTAL_MAX_TOKENS != '' && vars.REVIEW_TOTAL_MAX_TOKENS || '524288' }}
+          REVIEW_TOTAL_INPUT_BYTES: ${{ vars.REVIEW_TOTAL_INPUT_BYTES != '' && vars.REVIEW_TOTAL_INPUT_BYTES || '2097152' }}
+          REVIEW_FALLBACK_PROVIDERS: ${{ vars.REVIEW_FALLBACK_PROVIDERS }}
+          REVIEW_MAX_PROMPT_PRICE: ${{ vars.REVIEW_MAX_PROMPT_PRICE }}
+          REVIEW_MAX_COMPLETION_PRICE: ${{ vars.REVIEW_MAX_COMPLETION_PRICE }}
         run: |
-          if [ -z "${REVIEW_API_KEY:-}" ]; then
-            {
-              echo "The repository secret __REVIEW_API_KEY_SECRET__ is not set."
-              echo ""
-              echo "Add it in Settings → Secrets and variables → Actions, or disable"
-              echo "the lane with \`./factory review-lane disable\`."
-            } > review.md
-            exit 0
-          fi
-          set -o pipefail
-          if ! ./scripts/adversarial-review.sh pr.diff 2>&1 > review.md | tee review.err; then
-            {
-              echo "The review could not run, so this PR has **not** been reviewed by a model."
-              echo ""
-              echo '```'
-              cat review.err
-              echo '```'
-            } > review.md
-          fi
+          args=(review-batch github --pr "$PR" --repository "$REPO"
+            --expected-base "$EXPECTED_BASE" --output "$RUNNER_TEMP/factory-review-output"
+            --cache "$RUNNER_TEMP/factory-review-cache")
+          if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
+          FACTORY_BRIDGE_PROTOCOL='' "$REVIEW_GO_CLIENT" "${args[@]}"
 
-      - name: Post the review
+      # Explicit compatibility path for adopters that have not installed the
+      # Go client. Only this path retains the old single-request size boundary.
+      - name: Review legacy (no batch coverage)
+        if: steps.client.outputs.mode == 'legacy'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
+          REVIEW_GO_CLIENT: ''
+          REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS != '' && vars.REVIEW_TIMEOUT_SECONDS || '1200' }}
+          REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES != '' && vars.REVIEW_HTTP_RETRIES || '1' }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          MAX_DIFF_BYTES: 200000
         run: |
-          if [ -f review-skip ]; then
-            printf '%s\n' \
-              "_Adversarial review skipped: the diff is larger than ${MAX_DIFF_BYTES} bytes._" \
-              "" \
-              "Splitting the change would let it be reviewed — and would be easier for a human too." > review.md
+          case "$PR" in ''|*[!0-9]*) echo 'Invalid pull request number.' >&2; exit 1 ;; esac
+          gh api "repos/$REPO/pulls/$PR" > "$RUNNER_TEMP/factory-review-initial.json"
+          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \
+            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and ($base == "" or .base.sha == $base) and ($head == "" or .head.sha == $head)' \
+            "$RUNNER_TEMP/factory-review-initial.json" > /dev/null
+          EXPECTED_BASE=$(jq -r '.base.sha' "$RUNNER_TEMP/factory-review-initial.json")
+          head=$(jq -r '.head.sha' "$RUNNER_TEMP/factory-review-initial.json")
+          gh api "repos/$REPO/pulls/$PR" -H 'Accept: application/vnd.github.v3.diff' > "$RUNNER_TEMP/factory-review.diff"
+          mkdir "$RUNNER_TEMP/factory-review-output"
+          review="$RUNNER_TEMP/factory-review-output/review.md"
+          size=$(wc -c < "$RUNNER_TEMP/factory-review.diff" | tr -d ' ')
+          status=failed
+          if [ "$size" -gt "$MAX_DIFF_BYTES" ]; then
+            status=skipped
+            printf 'Legacy review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
+          elif [ -z "$REVIEW_API_KEY" ]; then
+            printf 'Model review did not run: repository secret __REVIEW_API_KEY_SECRET__ is missing.\n' > "$review"
+          elif ./scripts/adversarial-review.sh "$RUNNER_TEMP/factory-review.diff" > "$review" 2> "$RUNNER_TEMP/factory-review-legacy.err" && [ -s "$review" ]; then
+            status=complete
+          else
+            printf 'Legacy model review failed; this pull request has not received a completed model review.\n' > "$review"
+            # Publish only fixed classifications; provider stderr can contain secrets.
+            while IFS= read -r reason; do
+              case "$reason" in
+                'adversarial-review: request timed out.'|'adversarial-review: transport failure.'|'adversarial-review: HTTP request failed.'|'adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length).')
+                  printf '\n%s\n' "$reason" >> "$review" ;;
+                'adversarial-review: the model returned no review'*)
+                  printf '\nThe provider returned no completed review.\n' >> "$review" ;;
+              esac
+            done < "$RUNNER_TEMP/factory-review-legacy.err"
           fi
-          [ -s review.md ] || echo "_No review output._" > review.md
+          # Bind the posted finding to the same revisions used for its input.
+          gh api "repos/$REPO/pulls/$PR" > "$RUNNER_TEMP/factory-review-current.json"
+          jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$head" \
+            '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and .head.sha == $head' \
+            "$RUNNER_TEMP/factory-review-current.json" > /dev/null
+          jq -n --arg status "$status" --arg repository "$REPO" --arg base "$EXPECTED_BASE" --arg head "$head" \
+            '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
+            > "$RUNNER_TEMP/factory-review-output/report.json"
           {
-            echo "## Adversarial review (advisory)"
-            echo ""
-            cat review.md
-            echo ""
-            echo "<sub>Advisory only — never a required check. A model's opinion is not a computational control; the gates are. Disable with \`./factory review-lane disable\`.</sub>"
-          } > comment.md
-          gh pr comment "$PR" --repo "$REPO" --body-file comment.md
+            printf '## Legacy adversarial review (advisory): %s\n\n' "$status"
+            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+            cat "$review"
+          } > "$RUNNER_TEMP/factory-review-comment.md"
+          gh pr comment "$PR" --repo "$REPO" --body-file "$RUNNER_TEMP/factory-review-comment.md"
+          # Posting an incomplete notice must not turn the review workflow green.
+          [ "$status" = complete ]
+
+      - name: Save authenticated completed batches
+        if: always() && steps.client.outputs.mode == 'go' && steps.review.outcome != 'skipped'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/factory-review-cache
+          key: factory-review-v1-${{ runner.os }}-${{ github.sha }}-${{ github.event.pull_request.number || inputs.pr }}-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Official https://github.com/actions/upload-artifact/releases/tag/v7.0.2
+      - name: Retain exact-commit coverage and findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: adversarial-review-${{ github.event.pull_request.number || inputs.pr }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/factory-review-output/report.json
+            ${{ runner.temp }}/factory-review-output/review.md
+          if-no-files-found: warn
+          retention-days: 7

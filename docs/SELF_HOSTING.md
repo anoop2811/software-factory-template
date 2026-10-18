@@ -45,9 +45,20 @@ runner defaults to OpenRouter; no native harness model setting is needed.
 Add the key through GitHub Settings > Secrets and variables > Actions. Never
 commit it. After the workflow is merged, same-repository PR open/update/reopen
 events targeting the default branch fetch the diff as data and post an advisory
-review using trusted base scripts. Fork PRs and other base branches are excluded. The model's opinion is not a required merge gate.
+review using trusted base code. Fork PRs and other base branches are excluded.
+The model's opinion is not a required merge gate.
 
-The lane permits one HTTP request per run, a 200000-byte diff, a 1200-second
+### Budgeted batch review
+
+[ADR 0100](adr/0100-batched-review.md) documents the shared
+`factory review-batch github` command, offline `--plan`, authenticated cache,
+limits and opt-in routing. Coverage succeeds only for complete current-head work;
+findings stay advisory. Rerun through Actions > Adversarial review.
+Generated workflows need a trusted absolute `REVIEW_GO_CLIENT` to opt in.
+
+### Legacy single-diff compatibility runner
+
+The legacy runner permits one HTTP request per run, a 200000-byte diff, a 1200-second
 total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
 The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
@@ -55,7 +66,8 @@ to a decimal value from 1024 through 32768; the caller value wins. An explicitly
 empty `REVIEW_MAX_TOKENS` overrides YAML and uses the shared 8192-token default.
 Leave the environment variable unset to use the configured YAML cap. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
-or incomplete reviews. OpenRouter's routing and billing remain provider-owned;
+or incomplete reviews. Legacy skips/failures exit nonzero; findings stay advisory.
+OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
 
 Set the GitHub Actions repository **variable** `REVIEW_TIMEOUT_SECONDS` to a

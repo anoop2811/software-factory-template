@@ -280,15 +280,15 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		Expect(negativeTotal).To(Equal(2655))
+		Expect(negativeTotal).To(Equal(2743))
 		baseStatus, baseCount, baseTotal := sourceGateNativeDiscovery(sourceGateTests(captured[0].calls)[0])
 		installationStatus, installationCount, installationTotal := sourceGateNativeDiscovery(sourceGateTests(captured[1].calls)[0])
 		Expect(installationStatus).To(Equal(0))
 		Expect(baseStatus).To(Equal(0))
-		Expect(installationTotal).To(Equal(2655))
+		Expect(installationTotal).To(Equal(2743))
 		Expect(baseTotal).To(Equal(installationTotal))
 		Expect(installationCount).To(Equal(76), "actual pinned Ginkgo must select every installation criterion; a mock-only success is insufficient")
-		Expect(baseCount).To(Equal(2579))
+		Expect(baseCount).To(Equal(2667))
 		Expect(baseCount + installationCount).To(Equal(baseTotal))
 		for _, observed := range captured {
 			group, calls, quality := observed.group, observed.calls, observed.quality

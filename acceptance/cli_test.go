@@ -142,6 +142,10 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 				// per docs/adr/0090-go-native-config-migration.md:154
 				// per docs/adr/0092-go-recovery-restoration-planning.md:106
 				expected.stdout = strings.Replace(expected.stdout, oldFooter, "Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.", 1)
+				// per docs/adr/0100-batched-review.md:23
+				const reviewLaneHelp = "  review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)\n"
+				Expect(strings.Count(expected.stdout, reviewLaneHelp)).To(Equal(1))
+				expected.stdout = strings.Replace(expected.stdout, reviewLaneHelp, "  review-batch Review complete PR diffs in bounded, budgeted model batches\n"+reviewLaneHelp, 1)
 				lines := strings.SplitAfter(expected.stdout, "\n")
 				for index, line := range lines {
 					if line == "              touches your factory.yaml, content, or customized files\n" {

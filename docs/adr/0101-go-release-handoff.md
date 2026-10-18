@@ -511,3 +511,20 @@ before a self-duplication `<&0`; use the saved descriptor explicitly, then close
 the auxiliary descriptor in both child and parent. Keep both file-answer and
 piped-source controls under the host `sh` and Dash when available. This adds no
 new adopter dependency or input-discarding fallback.
+
+## Ignore-proof configuration isolation
+
+The detached ignore proof must derive its decisions from the supplied root rules,
+not a user or system excludes file. After removing inherited Git redirection,
+explicitly set `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` to the platform null
+device for its Git commands. Use the same confined verifier environment for
+actual-worktree checks; local repository configuration and actual tracked paths
+remain effective. This prevents global configuration from supplying missing
+privacy rules without modifying the adopter configuration.
+
+Add an independently authored real-Git collaborator regression pairing identical
+planned rules under a global excludes override and a clean configuration. Both
+must reject a canceled private rule, while complete rules must pass. The current
+public overlay appends mandatory rules, so the observed proof-isolation defect
+is not evidence of an exposed installed project. Reuse the existing public
+fresh-initialization acceptance criteria for activation behavior.

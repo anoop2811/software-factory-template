@@ -182,6 +182,9 @@ var privatePaths = []string{".factory/bin/factory-runtime", ".factory/assets/sca
 func ignoreEnvironment(environment map[string]string, root string) map[string]string {
 	env := childEnvironment(environment, root)
 	delete(env, "GIT_CEILING_DIRECTORIES")
+	// docs/adr/0101-go-release-handoff.md:515 — prove local rules, not global excludes.
+	env["GIT_CONFIG_GLOBAL"] = os.DevNull
+	env["GIT_CONFIG_SYSTEM"] = os.DevNull
 	env["LC_ALL"] = "C"
 	return env
 }

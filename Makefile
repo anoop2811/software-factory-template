@@ -45,15 +45,15 @@ go-runtime-check:
 
 go-runtime-source-check:
 	@set -e; \
-		GO_WORKER_PLAN="$$(go run -mod=readonly ./internal/qualification/cmd/worker-count)" || exit $$?; \
-		set -- $$GO_WORKER_PLAN; test "$$#" -eq 2; \
-		GO_BASE_TEST_PROCS="$$1"; GO_HANDOFF_TEST_PROCS="$$2"; \
 	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff) ;; \
 		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation or release-handoff" >&2; exit 2 ;; esac; \
 	test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }; \
 	test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
 		{ echo "go-runtime-check: required candidate CLI, shim or acceptance sources are missing" >&2; exit 1; }; \
+		GO_WORKER_PLAN="$$(go run -mod=readonly ./internal/qualification/cmd/worker-count)" || exit $$?; \
+		set -- $$GO_WORKER_PLAN; test "$$#" -eq 2; \
+		GO_BASE_TEST_PROCS="$$1"; GO_HANDOFF_TEST_PROCS="$$2"; \
 	sh -n runtime/shell/readers.sh; \
 	bash -n runtime/shell/config.sh; \
 	sh -n runtime/shell/helpers.sh; \

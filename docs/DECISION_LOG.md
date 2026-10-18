@@ -4443,3 +4443,9 @@ defines automatic CPU/memory budgets, a configurable cap, explicit reproducible
 overrides and a two-group ceiling for release handoff. It preserves complete
 qualification and adds no installed CLI or dependency. Go is already pinned to
 1.27.2; no fictitious version upgrade or unmeasured timing improvement is claimed.
+
+Review refinement for Decision 103: retain the cheap group, module-identity and
+required-source guards before compiling the private worker helper. The exact
+helper plan is the dispatch oracle for every selected partition; a bounds-only
+check is insufficient to detect an accidentally clipped automatic worker count.
+Independent fixture mutations establish the negative controls before the change.

@@ -108,3 +108,21 @@ The real worker proof retains exact-once receipts, JSON/JUnit outcomes and failu
 propagation. The root census remains 2,955 criteria, partitioned 2,851 base,
 78 installation and 26 handoff. Complete Linux/macOS CI qualification and timing
 comparison are pending when this implementation record is written.
+
+
+### Review refinement
+
+Preserve the existing cheap group, module-identity and required-source preflights
+before compiling the private helper. The helper still executes once, before
+syntax, vet, tests and other qualification stages. Acceptance records the actual
+helper stdout and requires each base/handoff invocation to match that exact plan;
+range checks remain additional bounds. Fixture-only mutations must catch clipped
+base and handoff dispatch as well as late group validation.
+
+RAN the final combined review follow-up:
+`go test -race -count=1 -timeout=4m ./acceptance -ginkgo.focus='Go source qualification' -ginkgo.no-color -ginkgo.fail-on-empty`
+returned `ok github.com/anoop2811/software-factory-template/acceptance 43.463s`.
+The independent fixture-only base=2 and handoff=1 mutations failed their exact
+plan comparisons, and late invalid-group validation produced two expected RED
+failures before preflight was moved. `golangci-lint run --config packs/go/.golangci.yml ./...`
+returned `0 issues.` after the combined changes.

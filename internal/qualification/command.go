@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Run emits one plan for Make; settings never become shell source.
+// Run emits one plan for Make; worker settings never become shell source.
 // docs/adr/0104-adaptive-qualification-workers.md:36.
 func Run(args []string, environment map[string]string, stdout, stderr io.Writer) int {
 	requested, present := environment["GO_RUNTIME_TEST_PROCS"]

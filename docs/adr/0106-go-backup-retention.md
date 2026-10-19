@@ -67,16 +67,16 @@ and cannot make an incomplete set restorable.
 including a held set, after the same fresh ownership and alternate-recovery proofs.
 These standalone modes cannot combine with apply, rollback, recovery or source
 selection. Reject malformed/repeated/ambiguous operands before legacy dispatch;
-use Cobra. Standalone controls emit one JSON report on stdout; diagnostics use
-stderr. Preserve exit 0 success, 2 invalid/ineligible/conflicting input and
-1 operational/incomplete cleanup. Source-built/local images never auto-expire.
+use Cobra. Completed controls and incomplete cleanup emit one JSON report on stdout.
+Invalid/preflight refusals use stderr without a report. Preserve exit 0 success,
+2 invalid/ineligible/conflicting input and 1 operational/incomplete cleanup. Local images never auto-expire.
 
 Reports identify every retained/removed set, reason and next action, with file and
 byte totals. Holds, edits, unsupported/unknown records, links, foreign ownership,
 unsafe paths, tracked or no-longer-ignored recovery and unavailable proofs remain
 explicit exceptions. Healthy installation plus failed pruning is cleanup
 incomplete, not failed activation or silent success. Runtime accounting, loops,
-application/configuration files and customization remain untouched.
+application/configuration files and customization remain untouched. Preserve pending recovery inputs before diagnostic output, even when that output fails.
 
 ## Confined durable deletion
 

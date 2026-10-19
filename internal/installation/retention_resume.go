@@ -20,8 +20,11 @@ func validateRemainingRetention(ctx context.Context, tree *installationfs.Tree, 
 		absentAllowed := i < progress.Next || i == progress.Next && progress.Intent
 		if row.Directory != nil {
 			actual, err := tree.Stat(ctx, row.Path)
-			if errors.Is(err, os.ErrNotExist) && absentAllowed {
-				continue
+			if errors.Is(err, os.ErrNotExist) {
+				if absentAllowed {
+					continue
+				}
+				return conflict("retention directory disappeared without a durable prior intent")
 			}
 			if err != nil {
 				return err

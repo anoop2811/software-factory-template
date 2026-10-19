@@ -102,7 +102,7 @@ func RunBackup(parent context.Context, args []string, environment map[string]str
 		return 2
 	}
 	if help {
-		if err := output.WriteEvent(ctx, stdout, []byte("Usage: factory upgrade --keep-backup MIGRATION_ID\n       factory upgrade --prune-backup MIGRATION_ID\n\nStandalone controls emit one JSON report. Pruning authenticates historical images and preserves the immediately preceding usable recovery.\n")); err != nil {
+		if err := output.WriteEvent(ctx, stdout, []byte("Usage: factory upgrade --keep-backup MIGRATION_ID\n       factory upgrade --prune-backup MIGRATION_ID\n\nCompleted controls and incomplete cleanup emit one JSON report. Invalid/preflight refusals use stderr without a report. Pruning authenticates historical images and preserves the immediately preceding usable recovery.\n")); err != nil {
 			return 1
 		}
 		return 0

@@ -103,14 +103,16 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	}
 	request.MigrationID = "candidate-" + proposal.ProposalDigest[:24]
 	retention, applyErr := installation.ApplyRetaining(ctx, root, request, references.resolve)
+	// Preserve pending recovery custody even if the diagnostic stream fails.
+	// docs/adr/0106-go-backup-retention.md:79.
+	if applyErr != nil && !installation.CleanupIncomplete(applyErr) {
+		reportRecovery(root, request, candidate, previous, stderr)
+	}
 	if reportErr := output.WriteEvent(context.WithoutCancel(ctx), stderr, []byte(installation.RetentionDiagnosticReport(retention))); reportErr != nil {
 		return 1
 	}
 	if applyErr != nil {
 		fmt.Fprintln(stderr, "factory candidate: "+applyErr.Error())
-		if !installation.CleanupIncomplete(applyErr) {
-			reportRecovery(root, request, candidate, previous, stderr)
-		}
 		return installation.ErrorStatus(applyErr)
 	}
 	fmt.Fprintln(stderr, "factory candidate: installation completed")

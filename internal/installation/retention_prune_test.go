@@ -204,6 +204,51 @@ var _ = Describe("Installation backup prune interruption component", func() {
 		Expect(statErr).NotTo(HaveOccurred(), "remaining recovery metadata must be preserved")
 	})
 
+	// per docs/adr/0106-go-backup-retention.md:94
+	It("classifies a future missing directory without durable intent as a preserved conflict", func() {
+		fixture := newPruneComponentFixture()
+		rows, err := retentionRows(fixture.snapshot)
+		Expect(err).NotTo(HaveOccurred())
+		firstDirectory := -1
+		for index, row := range rows {
+			if row.Directory != nil {
+				firstDirectory = index
+				break
+			}
+		}
+		Expect(firstDirectory).To(BeNumerically(">", 0))
+		preceding := rows[firstDirectory-1]
+		Expect(preceding.Image).NotTo(BeNil())
+		interrupted := errors.New("test interruption before the first directory intent")
+		journalBefore, err := os.ReadFile(fixture.absolute(journalPath(fixture.snapshot.ID)))
+		Expect(err).NotTo(HaveOccurred())
+		_, _, err = executeRetentionPrune(context.Background(), fixture.tree, fixture.snapshot, "component-newer", retentionPruneOps{afterStep: func(_ context.Context, path string) error {
+			if path == preceding.Path {
+				return interrupted
+			}
+			return nil
+		}})
+		Expect(errors.Is(err, interrupted)).To(BeTrue(), "%v", err)
+		fixture.reopen()
+		progress := fixture.progress()
+		Expect(progress.Next).To(Equal(firstDirectory - 1))
+		Expect(progress.Intent).To(BeTrue(), "only the preceding file has deletion intent")
+		_, err = os.Lstat(fixture.absolute(preceding.Path))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "the interruption follows the actual last-file unlink")
+		Expect(os.Remove(fixture.absolute(rows[firstDirectory].Path))).To(Succeed(), "the future directory is really empty")
+		fixture.reopen()
+		progressBefore, err := os.ReadFile(fixture.absolute(retentionProgressPath))
+		Expect(err).NotTo(HaveOccurred())
+		refusal := validateRemainingRetention(context.Background(), fixture.tree, fixture.progress())
+		Expect(refusal).To(HaveOccurred())
+		Expect(os.ReadFile(fixture.absolute(retentionProgressPath))).To(Equal(progressBefore), "refusal cannot advance deletion intent")
+		Expect(os.ReadFile(fixture.absolute(journalPath(fixture.snapshot.ID)))).To(Equal(journalBefore))
+		for _, path := range []string{"factory", "scripts/factory-report.sh"} {
+			Expect(os.ReadFile(fixture.absolute(path))).To(Equal([]byte("saved predecessor " + path + "\n")))
+		}
+		Expect(ErrorStatus(refusal)).To(Equal(2), "missing future directories are policy conflicts, not operational failures")
+	})
+
 	// per docs/adr/0106-go-backup-retention.md:95
 	It("refuses reoccupation of a durably completed deletion even with identical bytes", func() {
 		fixture := newPruneComponentFixture()

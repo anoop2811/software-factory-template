@@ -49,8 +49,9 @@ This also accepts a held older set, but only after freshly authenticating the
 current and historical release images and independently proving a usable alternate
 recovery. It refuses the current/sole immediately preceding recovery and any
 unqualified selection. The controls are standalone; do not combine them with source
-selection, apply, rollback or recovery flags. They emit a single JSON report on
-stdout without requiring `--json`.
+selection, apply, rollback or recovery flags. Completed controls and incomplete
+cleanup emit a single JSON report on stdout without requiring `--json`. Invalid
+arguments and preflight refusals use stderr without emitting a report.
 
 An unavailable historical release or verifier prevents deletion. No local receipt,
 completion label or saved checksum substitutes for fresh source ownership proof.
@@ -113,3 +114,19 @@ runners and passed; an isolated local hold/prune retry is recorded separately.
 [Hosted source qualification](https://github.com/anoop2811/software-factory-template/actions/runs/39185206183)
 and [advisory review](https://github.com/anoop2811/software-factory-template/pull/132#issuecomment-6257705743)
 are tied to the head above. Final-head CI remains required before merge.
+
+A subsequent review found two additional error-path defects. Recovery input custody
+is now preserved before attempting diagnostic output, so an unwritable stderr
+cannot discard inputs needed by a pending installation. A bounded external compiler
+overlay with controlled acquisition/apply collaborators observed both legacy and
+Go-predecessor cases fail before correction and pass afterward. It exercises the
+real execution/finalization path and filesystem caches, not a new full authenticated
+upgrade. Observed command `go test -race -overlay=/private/tmp/factory-pr132-diagnostic-yjcpm5rt/overlay.json ./internal/releasecmd -count=1 -v -ginkgo.no-color`:
+`2 Passed | 0 Failed`. The overlay introduces no shipped fault switch.
+
+Unexpected absence of a future directory without durable intent now returns
+conflict status 2, while other I/O errors retain operational status 1. The new
+independent real-filesystem regression first observed status 1, then passed with
+status 2 while progress, journal and active files remained unchanged. Observed
+command `go test -race -count=1 -timeout=90s -v ./internal/installation ./internal/installationfs -ginkgo.no-color -ginkgo.fail-on-empty`:
+installation `29 Passed | 0 Failed`; installationfs `10 Passed | 0 Failed`.

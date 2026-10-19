@@ -216,13 +216,18 @@ func PruneBackup(ctx context.Context, root, id string, resolver RetentionResolve
 		}
 		progress = &value
 		if value.Snapshot.ID == id && value.Phase == "completed" {
-			entry, err := tree.Stat(ctx, backupBase(id))
-			_ = entry
-			if !errors.Is(err, os.ErrNotExist) {
+			_, err := tree.Stat(ctx, backupBase(id))
+			if err == nil {
 				return report, conflict("completed backup identifier is occupied again")
 			}
+			if !errors.Is(err, os.ErrNotExist) {
+				return report, err
+			}
 			journalImage, _, err := observe(ctx, tree, journalPath(id), journalLimit)
-			if err != nil || journalImage != nil {
+			if err != nil {
+				return report, err
+			}
+			if journalImage != nil {
 				return report, conflict("completed backup journal is occupied again")
 			}
 			report.Status = "completed"

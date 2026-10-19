@@ -83,5 +83,33 @@ idempotent and does not recreate deleted backups.
 ## Qualification
 
 The independent public criteria first observed RED for the missing installed hold
-command and accumulation of A and B recovery after C. The focused green evidence,
-complete source gates and review results will be recorded after they run.
+command and accumulation of A and B recovery after C. Both initial criteria subsequently passed. PR #132 at `011d47b` passed all
+18 hosted checks, including complete source gates on Linux/macOS and all four
+native bundle targets. Its completed advisory model review covered 28/28 files,
+39/39 fragments and 4/4 batches. Coverage is not approval; independent verification
+confirmed one minor I/O classification issue, corrected in the follow-up commit.
+
+Observed commands and output:
+
+- `go test -race -count=1 -timeout=90s -v ./internal/installation ./internal/installationfs -ginkgo.no-color -ginkgo.fail-on-empty`:
+  installation `28 Passed | 0 Failed`; installationfs `10 Passed | 0 Failed`.
+- `./scripts/selftest/run.sh`: `217 passed, 0 failed, 0 skipped`.
+- Hosted `make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=release-handoff GO_RUNTIME_TEST_PROCS=auto`:
+  `44 Passed | 0 Failed` on Linux and macOS, including authenticated rollback to B
+  after A removal and both internally coherent forged-alternate refusals.
+- The complete discovered census is `2992 = 2851 + 97 + 44`. Existing platform-specific
+  base-suite skips remain distinct from selected criteria; no gate was removed.
+
+The follow-up error probe uses an external compiler overlay, not a shipped fault
+flag: after real completed pruning, an injected `syscall.EIO` from either the backup
+stat or journal observation originally returned status 2 and lost its cause.
+The corrected code returns status 1 with `errors.Is(err, syscall.EIO) == true`.
+The same two-case race probe passed: `2 Passed | 0 Failed`.
+
+A local run that overlapped all three source groups encountered one installed-proof
+timeout. It is not counted as a local full-suite pass. Hosted suites ran on separate
+runners and passed; an isolated local hold/prune retry is recorded separately.
+
+[Hosted source qualification](https://github.com/anoop2811/software-factory-template/actions/runs/39185206183)
+and [advisory review](https://github.com/anoop2811/software-factory-template/pull/132#issuecomment-6257705743)
+are tied to the head above. Final-head CI remains required before merge.

@@ -52,9 +52,12 @@ in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 - [ ] Retire only unchanged, explicitly owned/adopted obsolete implementations
       after compatible Go activation. Backups are inert and ignored; unknown,
       edited, held or unsafe entries are individually reported and preserved.
-- [ ] Later distinct successful forward releases prune eligible older recovery
+- [x] Later distinct successful forward releases prune eligible older recovery
       sets while keeping the immediately preceding usable installation. Same-release
       retries, rollback and local builds never advance retention.
+      Source implementation and qualification are in [PR #132](https://github.com/anoop2811/software-factory-template/pull/132)
+      and [BACKUP_RETENTION.md](BACKUP_RETENTION.md). This source gate does not claim
+      human merge, default selection or release publication.
 - [ ] Packaged acceptance passes natively on Linux amd64/arm64 and macOS amd64/arm64
       at the approved minimum operating systems, including actual release authenticity.
 - [ ] Complete the mandatory manual adopter pilot and record its project,

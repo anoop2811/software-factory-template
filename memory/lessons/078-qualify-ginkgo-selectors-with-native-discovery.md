@@ -11,3 +11,13 @@ focus/skip counts with the pinned runner's dry-run. Also retain a real empty
 selection failure control. The shared selector and qualification contract live
 in docs/adr/0098-whole-installation-upgrade-and-rollback.md:543. Dry-run counts
 prove selection only; they do not prove execution of the selected behaviors.
+
+Observed 2026-10-19 via the published-release selection dry-run: the broad
+`Published release qualification` focus selected four ordinary workflow criteria
+without any live scenario. A build tag and `fail-on-empty` were insufficient when
+another container satisfied the focus. The live-only full namespace now has a
+five-criterion discovery check and a Go overlay removing its registration must
+fail with zero selected criteria. See
+acceptance/published_release_workflow_test.go:287 and
+.github/workflows/published-release-qualification.yml:133. These controls qualify
+selection, not a published release's behavior or authenticity.

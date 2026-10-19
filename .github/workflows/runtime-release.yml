@@ -63,3 +63,14 @@ jobs:
           done
           cp "$BUNDLE" release/runtime-attestations.jsonl
           gh release upload "$VERSION" release/* --repo "$GITHUB_REPOSITORY"
+
+  qualify:
+    # The published event precedes upload; qualify only after attest/upload.
+    # docs/adr/0107-published-release-qualification.md:29.
+    needs: attest
+    permissions:
+      contents: read
+    uses: ./.github/workflows/published-release-qualification.yml
+    with:
+      tag: ${{ github.event.release.tag_name }}
+      revision: ${{ github.sha }}

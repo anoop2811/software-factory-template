@@ -4474,3 +4474,19 @@ Keep the existing generation recipe compatible and reuse native exclusion,
 verification, publication and confined filesystem primitives. Outside-in
 Ginkgo/Gomega RED precedes implementation; independent review and hosted
 qualification precede human merge. No default cutover or release is claimed.
+
+
+## Decision 106 (2026-10-19 UTC): qualify published attested release candidates through the public installer
+
+After merged PR #132, the user authorized the next release milestone: actual
+published-release qualification, rather than another locally staged bundle pass.
+[ADR 0107](adr/0107-published-release-qualification.md) records the contract before
+workflow implementation. Reuse existing authenticated acquisition and migration
+engines in an opt-in native Ginkgo lane for fresh init, both genuine supported
+Bash predecessors, state/customization preservation, inert ignored backups,
+rollback and witnessed interrupted recovery. A trusted manual/reusable workflow
+runs after asset upload with read-only permissions and exact tag/source identity.
+Keep live per-target evidence separate from hermetic source checks, preserve the
+approved minimum-OS gate and record any macOS 14 qualification gap explicitly.
+Independent RED precedes wiring; no new CLI, dependency version, default cutover,
+pilot completion, release publication or platform success is claimed by the lane.

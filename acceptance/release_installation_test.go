@@ -92,7 +92,7 @@ func handoffNativeProcess(cwd string, environment map[string]string, input, prog
 }
 
 func handoffCommand(ctx context.Context, cwd string, environment map[string]string, input, program string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, program, args...) // #nosec G204 -- independently built fixture executable and literal public operands; no shell.
+	cmd := exec.CommandContext(ctx, program, args...) // #nosec G204 G702 -- acceptance-owned executable and literal public operands; published callers independently authenticate release bytes before invocation, with no shell.
 	cmd.Dir = cwd
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")

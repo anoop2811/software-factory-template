@@ -582,7 +582,42 @@ func installationApply(fixture installationFixtureData, migration string) {
 	args := append(fixture.arguments(), "--migration-id", migration, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
 	out := installationMutationCommand(fixture.driver, fixture.root, fixture.sentinel, args...)
 	Expect(out.status).To(Equal(0), "healthy complete installation activation failed: %+v", out)
-	Expect(out.stderr).To(BeEmpty())
+	// per docs/adr/0106-go-backup-retention.md:73
+	Expect(out.stderr).To(HavePrefix("factory retention: "))
+	Expect(out.stderr).To(HaveSuffix("\n"))
+	Expect(strings.Split(strings.TrimSuffix(out.stderr, "\n"), "\n")).To(HaveLen(1), "successful local apply must emit exactly its checked retention report, with no extra diagnostics")
+	report := retentionApplyReport(out)
+	Expect(report.Mode).To(Equal("retention-apply"))
+	Expect(report.Status).To(Equal("completed"))
+	Expect(report.Advanced).To(BeFalse(), "local source images never advance release expiry")
+	Expect(report.RemovedSets).To(Equal(0))
+	Expect(report.RemovedFiles).To(Equal(int64(0)))
+	Expect(report.RemovedBytes).To(Equal(int64(0)))
+	ids := retentionBackupIDs(fixture.root)
+	Expect(report.RetainedSets).To(Equal(len(ids)))
+	reported := []string{}
+	var knownFiles, knownBytes int64
+	allKnown := true
+	for _, id := range ids {
+		row := retentionSet(report, id)
+		Expect(row.Action).To(BeElementOf("retain", "held"))
+		reported = append(reported, row.MigrationID)
+		if row.Files == nil || row.Bytes == nil {
+			Expect(row.Files).To(BeNil())
+			Expect(row.Bytes).To(BeNil())
+			allKnown = false
+			continue
+		}
+		files, size := retentionCounts(fixture.root, id)
+		Expect(*row.Files).To(Equal(files))
+		Expect(*row.Bytes).To(Equal(size))
+		knownFiles += files
+		knownBytes += size
+	}
+	Expect(report.Sets).To(HaveLen(len(reported)))
+	Expect(report.RetainedFiles).To(Equal(knownFiles))
+	Expect(report.RetainedBytes).To(Equal(knownBytes))
+	Expect(report.CountsKnown).To(Equal(allKnown))
 	_, err := os.Lstat(fixture.sentinel)
 	Expect(os.IsNotExist(err)).To(BeTrue(), "whole consumer executed legacy upgrade")
 }
@@ -838,6 +873,33 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			}
 		}
 		Expect(installationSnapshot(installed.root)).To(Equal(installed.before))
+		// Detached source operands retain their literal filename even when it
+		// spells another native mode. The attached spelling is a healthy control.
+		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:56
+		// per docs/adr/0106-go-backup-retention.md:133
+		archiveBytes, err := os.ReadFile(installed.archive)
+		Expect(err).NotTo(HaveOccurred())
+		type sourceObservation struct {
+			name               string
+			attached, detached cliResult
+		}
+		observations := []sourceObservation{}
+		for _, name := range []string{"--keep-backup", "--prune-backup"} {
+			writeFixture(filepath.Join(installed.root, name), archiveBytes, 0600)
+			before := installationSnapshot(installed.root)
+			tail := append(append([]string{}, installed.arguments()[3:]...), "--dry-run", "--json")
+			attached := installationCommand(installed.driver, installed.root, installed.sentinel, append([]string{"--installation", "--source=" + name}, tail...)...)
+			detached := installationCommand(installed.driver, installed.root, installed.sentinel, append([]string{"--installation", "--source", name}, tail...)...)
+			Expect(installationSnapshot(installed.root)).To(Equal(before), "both source spellings must remain read-only")
+			observations = append(observations, sourceObservation{name, attached, detached})
+		}
+		for _, observed := range observations {
+			Expect(observed.attached.status).To(Equal(0), "healthy attached %s source: %+v", observed.name, observed.attached)
+			control := installationDecodeProposal(observed.attached)
+			Expect(control["blockers"]).To(BeEmpty())
+			Expect(observed.detached.status).To(Equal(0), "detached %s is a filename, not a backup-control selection: %+v", observed.name, observed.detached)
+			Expect(installationDecodeProposal(observed.detached)).To(Equal(control))
+		}
 	}, Entry("v0.1.6 genuine installation", "v0.1.6"), Entry("bash baseline genuine installation", "bash-baseline"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:19

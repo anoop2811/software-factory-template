@@ -33,19 +33,20 @@ type checkRecord struct {
 	OwnershipUnconfirmed bool   `json:"ownership_unconfirmed"`
 }
 type journal struct {
-	SchemaVersion int            `json:"schema_version"`
-	Kind          string         `json:"kind"`
-	MigrationID   string         `json:"migration_id"`
-	Purpose       string         `json:"purpose"`
-	Direction     string         `json:"direction"`
-	Phase         string         `json:"phase"`
-	Profile       string         `json:"profile"`
-	Target        string         `json:"target"`
-	PlanDigest    string         `json:"plan_digest"`
-	Entries       []journalEntry `json:"entries"`
-	Checks        []checkRecord  `json:"checks"`
-	Outcome       string         `json:"outcome"`
-	Pending       *Image         `json:"pending"`
+	SchemaVersion    int            `json:"schema_version"`
+	Kind             string         `json:"kind"`
+	MigrationID      string         `json:"migration_id"`
+	Purpose          string         `json:"purpose"`
+	Direction        string         `json:"direction"`
+	Phase            string         `json:"phase"`
+	Profile          string         `json:"profile"`
+	Target           string         `json:"target"`
+	PlanDigest       string         `json:"plan_digest"`
+	Entries          []journalEntry `json:"entries"`
+	Checks           []checkRecord  `json:"checks"`
+	Outcome          string         `json:"outcome"`
+	Pending          *Image         `json:"pending"`
+	RetentionReceipt *Image         `json:"retention_receipt,omitempty"`
 }
 type backupManifest struct {
 	SchemaVersion int            `json:"schema_version"`
@@ -169,7 +170,7 @@ func leafLimit(path string) int64 {
 	if path == ".factory/bin/factory-runtime" {
 		return 256 << 20
 	}
-	if strings.HasSuffix(path, "installation.manifest") || strings.Contains(path, "installation-transactions/") {
+	if strings.HasSuffix(path, "installation.manifest") || strings.HasSuffix(path, "/retention.json") || path == retentionProgressPath || strings.Contains(path, "installation-transactions/") {
 		return journalLimit
 	}
 	return 1 << 20

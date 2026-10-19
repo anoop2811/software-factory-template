@@ -262,8 +262,16 @@ func preview(ctx context.Context, option options, stdout, stderr io.Writer) int 
 		root, err = filepath.EvalSymlinks(root)
 	}
 	var proposal installation.Proposal
+	var report any
 	if err == nil {
-		proposal, err = installation.Propose(ctx, root, request(option))
+		if option.rollback != "" || option.recover != "" {
+			proposal, err = installation.Propose(ctx, root, request(option))
+			report = proposal
+		} else {
+			var retaining installation.RetentionProposal
+			retaining, err = installation.ProposeRetaining(ctx, root, request(option), nil)
+			proposal, report = retaining.Proposal, retaining
+		}
 	}
 	if err != nil {
 		message := "cannot inspect installation proposal"
@@ -275,10 +283,15 @@ func preview(ctx context.Context, option options, stdout, stderr io.Writer) int 
 	}
 	var data []byte
 	if option.json {
-		data, err = json.Marshal(proposal)
+		data, err = json.Marshal(report)
 		data = append(data, '\n')
 	} else {
 		data = []byte(fmt.Sprintf("installation profile=%s target=%s authentication=%s\nproposal_digest=%s\nactions=%d blockers=%d\n", proposal.Profile, proposal.Target, proposal.Authentication, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers)))
+	}
+	if !option.json {
+		if retaining, ok := report.(installation.RetentionProposal); ok {
+			data = append(data, installation.RetentionDiagnosticReport(retaining.Retention)...)
+		}
 	}
 	if err == nil {
 		err = output.WriteEvent(ctx, stdout, data)
@@ -298,7 +311,15 @@ func apply(ctx context.Context, option options, stderr io.Writer) int {
 		root, err = filepath.EvalSymlinks(root)
 	}
 	if err == nil {
-		err = installation.Apply(ctx, root, request(option))
+		if option.rollback != "" || option.recover != "" {
+			err = installation.Apply(ctx, root, request(option))
+		} else {
+			var retention installation.RetentionReport
+			retention, err = installation.ApplyRetaining(ctx, root, request(option), nil)
+			if writeErr := output.WriteEvent(context.WithoutCancel(ctx), stderr, []byte(installation.RetentionDiagnosticReport(retention))); writeErr != nil {
+				return diagnostic(ctx, stderr, "cannot write installation retention report", 1)
+			}
+		}
 	}
 	if err == nil {
 		return 0

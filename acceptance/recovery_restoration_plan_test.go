@@ -227,9 +227,17 @@ var _ = Describe("Read-only recovery restoration planning admission", func() {
 	DescribeTable("preserves detached legacy value ownership even when it resembles a native marker", func(option, value string) {
 		binary, root, _ := durableRecoveryFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
-		args := []string{option, value}
-		out := publicCommand(binary, root, "upgrade", args, nil)
-		Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		// Keep all original recovery-marker controls and exercise both new words
+		// as literal source/ref operands rather than selecting standalone controls.
+		// per docs/adr/0091-durable-local-recovery-creation.md:192
+		// per docs/adr/0106-go-backup-retention.md:133
+		for _, literal := range []string{value, "--keep-backup", "--prune-backup"} {
+			args := []string{option, literal}
+			before := assessmentTree(root)
+			out := publicCommand(binary, root, "upgrade", args, nil)
+			Expect(assessmentTree(root)).To(Equal(before))
+			Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		}
 	}, Entry("source planning-like value", "--source", "--plan-restore"), Entry("ref planning-like value", "--ref", "--plan-restore"), Entry("source creation-like value", "--source", "--create-backup"), Entry("ref creation-like value", "--ref", "--create-backup"))
 
 	// per docs/adr/0092-go-recovery-restoration-planning.md:38

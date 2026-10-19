@@ -39,7 +39,7 @@ func run(ctx context.Context, args []string) (status int) {
 	}
 	if physical {
 		// Whole routes acquire EX directly; never upgrade a retained shared lease.
-		if len(args) > 1 && args[0] == "upgrade" && (installationcmd.Claimed(args[1:]) || releasecmd.Claimed(args[1:])) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
+		if len(args) > 1 && args[0] == "upgrade" && (installationcmd.Claimed(args[1:]) || releasecmd.Claimed(args[1:]) || releasecmd.BackupClaimed(args[1:])) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
 			return cli.Run(ctx, args)
 		}
 		selected, err := installedlayout.Open(ctx, root, expected)

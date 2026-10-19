@@ -4461,3 +4461,16 @@ boundary cases, independent pre-execution input oracles, criterion inventory,
 race settings, compiled subprocesses and publication/refusal assertions.
 Measure before and after under CI's harness-race policy; no whole-workflow
 speedup or new Go API benefit is inferred from a local focused measurement.
+
+
+## Decision 105 (2026-10-19 UTC): retain one usable predecessor and prune qualified older backups
+
+After merged PR #131, implement the approved release-blocking backup lifecycle
+in AC 4.5/4.6 and FR-033/034 of the Go conversion specification.
+[ADR 0106](adr/0106-go-backup-retention.md) defines automatic forward-release
+retention, explicit holds/pruning, fresh ownership and alternate-recovery proofs,
+preview binding, bounded durable cleanup and transparent exceptions before code.
+Keep the existing generation recipe compatible and reuse native exclusion,
+verification, publication and confined filesystem primitives. Outside-in
+Ginkgo/Gomega RED precedes implementation; independent review and hosted
+qualification precede human merge. No default cutover or release is claimed.

@@ -71,7 +71,12 @@ Partial initialization reports its target and pending evidence, without claiming
 automatic rollback. Preserve that evidence and reconcile the reported state before
 removing a pending barrier.
 
-The bare installer and existing source/ref defaults remain unchanged. Automatic
-later-release backup retention, actual release authentication on all four targets,
-the mandatory adopter pilot and default cutover remain tracked in
-[GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
+Candidate preview also reports [backup retention](BACKUP_RETENTION.md), including
+held and preserved exceptions. A successful later forward release keeps its usable
+predecessor recovery and prunes only qualified older sets. Standalone controls are
+`./factory upgrade --keep-backup MIGRATION_ID` and
+`./factory upgrade --prune-backup MIGRATION_ID`.
+
+The bare installer and existing source/ref defaults remain unchanged. Actual
+release authentication on all four targets, the mandatory adopter pilot and default
+cutover remain tracked in [GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).

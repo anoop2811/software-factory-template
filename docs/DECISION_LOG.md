@@ -4449,3 +4449,15 @@ required-source guards before compiling the private worker helper. The exact
 helper plan is the dispatch oracle for every selected partition; a bounds-only
 check is insufficient to detect an accidentally clipped automatic worker count.
 Independent fixture mutations establish the negative controls before the change.
+
+
+## Decision 104 (2026-10-19 UTC): reduce installation fixture compression work
+
+After merged PR #130, continue the measured CI optimization work with
+[ADR 0105](adr/0105-installation-fixture-compression.md). Use faster compression
+only for the aggregate-wire test fixture and avoid recompressing successful
+staging inputs solely to obtain an expected digest. Preserve the full real
+boundary cases, independent pre-execution input oracles, criterion inventory,
+race settings, compiled subprocesses and publication/refusal assertions.
+Measure before and after under CI's harness-race policy; no whole-workflow
+speedup or new Go API benefit is inferred from a local focused measurement.

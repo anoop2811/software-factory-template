@@ -317,12 +317,16 @@ var _ = Describe("G1 complete installation source images", Ordered, ContinueOnFa
 	}
 	assertStageSuccess := func(entries []stageEntry, label string) string {
 		GinkgoHelper()
-		archive, destination := writeArchive(label, entries), output(label+"-staged")
+		// per docs/adr/0105-installation-fixture-compression.md:25
+		archiveBytes := stageArchive(entries)
+		expectedDigest := fmt.Sprintf("%x", sha256.Sum256(archiveBytes))
+		archive, destination := output(label+".tar.gz"), output(label+"-staged")
+		writeFixture(archive, archiveBytes, 0600)
 		result := imageProcess(work, nil, stager, stageArgs(archive, destination, revision, true)...)
 		Expect(result.status).To(Equal(0), result.stderr)
 		var summary map[string]string
 		Expect(json.Unmarshal([]byte(result.stdout), &summary)).To(Succeed())
-		Expect(summary).To(Equal(map[string]string{"version": version, "revision": revision, "target": target, "root": destination, "sha256": fmt.Sprintf("%x", sha256.Sum256(stageArchive(entries))), "authentication": "local-source"}))
+		Expect(summary).To(Equal(map[string]string{"version": version, "revision": revision, "target": target, "root": destination, "sha256": expectedDigest, "authentication": "local-source"}))
 		imageAssertTree(destination, entries, true)
 		_, err := os.Lstat(marker)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "staging executed or followed source image data")
@@ -756,7 +760,9 @@ var _ = Describe("G1 complete installation source images", Ordered, ContinueOnFa
 		Expect(reader.Close()).To(Succeed())
 		for _, excess := range []int64{0, 1} {
 			var buffer bytes.Buffer
-			gz := gzip.NewWriter(&buffer)
+			// per docs/adr/0105-installation-fixture-compression.md:19
+			gz, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+			Expect(err).NotTo(HaveOccurred())
 			_, err = gz.Write(raw)
 			Expect(err).NotTo(HaveOccurred())
 			remaining := int64(321<<20) + excess - int64(len(raw))

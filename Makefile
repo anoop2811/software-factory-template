@@ -27,10 +27,14 @@ adversarial-review-selftest:
 GO_RUNTIME_TEST_TIMEOUT ?= 25m
 # docs/adr/0101-go-release-handoff.md:559 — complete test partitions with headroom.
 GO_RUNTIME_TEST_GROUP ?= all
-# docs/adr/0102-parallel-go-qualification.md:27 — bounded worker execution.
-GO_RUNTIME_TEST_PROCS ?= 2
+# docs/adr/0104-adaptive-qualification-workers.md:22 — resource-aware workers.
+GO_RUNTIME_TEST_PROCS ?= auto
+GO_RUNTIME_TEST_MAX_PROCS ?= 4
+# Freeze raw settings before export: reject Make functions as literal data.
+override GO_RUNTIME_TEST_PROCS := $(value GO_RUNTIME_TEST_PROCS)
+override GO_RUNTIME_TEST_MAX_PROCS := $(value GO_RUNTIME_TEST_MAX_PROCS)
 GO_RUNTIME_REPORT_DIR ?=
-export GO_RUNTIME_REPORT_DIR
+export GO_RUNTIME_REPORT_DIR GO_RUNTIME_TEST_PROCS GO_RUNTIME_TEST_MAX_PROCS
 
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
@@ -40,35 +44,35 @@ go-runtime-check:
 	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
 
 go-runtime-source-check:
-	@case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff) ;; \
-		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation or release-handoff" >&2; exit 2 ;; esac
-	@case "$(GO_RUNTIME_TEST_PROCS)" in 1|2) ;; \
-		*) echo "go-runtime-check: GO_RUNTIME_TEST_PROCS must be 1 or 2" >&2; exit 2 ;; esac
-	@test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
-		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }
-	@test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
-		{ echo "go-runtime-check: required candidate CLI, shim or acceptance sources are missing" >&2; exit 1; }
-	sh -n runtime/shell/readers.sh
-	bash -n runtime/shell/config.sh
-	sh -n runtime/shell/helpers.sh
-	@git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
-		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }
-	@GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
+	@set -e; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation or release-handoff" >&2; exit 2 ;; esac; \
+	test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
+		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }; \
+	test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
+		{ echo "go-runtime-check: required candidate CLI, shim or acceptance sources are missing" >&2; exit 1; }; \
+		GO_WORKER_PLAN="$$(go run -mod=readonly ./internal/qualification/cmd/worker-count)" || exit $$?; \
+		set -- $$GO_WORKER_PLAN; test "$$#" -eq 2; \
+		GO_BASE_TEST_PROCS="$$1"; GO_HANDOFF_TEST_PROCS="$$2"; \
+	sh -n runtime/shell/readers.sh; \
+	bash -n runtime/shell/config.sh; \
+	sh -n runtime/shell/helpers.sh; \
+	git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
+		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }; \
+	GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
 		UNFORMATTED="$$(printf '%s\n' "$$GO_DIRS" | while IFS= read -r GO_DIR; do gofmt -l "$$GO_DIR" || exit 1; done)" || exit 1; \
-		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }
-# The canonical pack gate expects its installed scripts/hooks path in argv[0].
-# Source it with that path so it scans this repository, not packs/go; all gate
-# behavior remains in the pack rather than a second factory implementation.
-	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"
-	go vet ./...
-# docs/adr/0102-parallel-go-qualification.md:27 — preserve packages and fresh tests.
-	@GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
+		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }; \
+	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"; \
+	go vet ./...; \
+	GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
 		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
 		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; \
 		run_acceptance() { \
 			GO_REPORT_GROUP="$$1"; shift; \
+			GO_ACCEPTANCE_PROCS="$$GO_BASE_TEST_PROCS"; \
+			if [ "$$GO_REPORT_GROUP" = release-handoff ]; then GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS"; fi; \
 			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
-				--procs="$(GO_RUNTIME_TEST_PROCS)" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
+				--procs="$$GO_ACCEPTANCE_PROCS" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
 				--keep-going --fail-on-empty --no-color "$$@"; \
 			if [ -n "$$GO_RUNTIME_REPORT_DIR" ]; then \
 				mkdir -p "$$GO_RUNTIME_REPORT_DIR" || return 1; \

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -56,7 +57,51 @@ var _=Describe("Whole installation upgrade release candidate handoff",func(){
 // per docs/adr/0102-parallel-go-qualification.md:44
 var _ = Describe("Go source qualification worker execution", func() {
 	// per docs/adr/0102-parallel-go-qualification.md:78
+	// per docs/adr/0104-adaptive-qualification-workers.md:62
 	It("executes one and two actual workers with exact-once reports and propagates a real worker failure", func() {
+		// per docs/adr/0104-adaptive-qualification-workers.md:42
+		// Exercise the compiled detector in children, without mutating this worker's runtime.
+		detect := func(settings ...string) (string, string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			command := exec.CommandContext(ctx, sourceGateBuildWorkerHelper()) // #nosec G204 -- cached independently built private helper.
+			for _, entry := range os.Environ() {
+				key, _, _ := strings.Cut(entry, "=")
+				if !strings.HasPrefix(key, "GO_RUNTIME_TEST_") && key != "GOMAXPROCS" && key != "GODEBUG" {
+					command.Env = append(command.Env, entry)
+				}
+			}
+			command.Env = append(command.Env, "GO_RUNTIME_TEST_PROCS=auto", "GO_RUNTIME_TEST_MAX_PROCS=4")
+			command.Env = append(command.Env, settings...)
+			var stdout, stderr strings.Builder
+			command.Stdout, command.Stderr = &stdout, &stderr
+			err := command.Run()
+			Expect(ctx.Err()).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred(), "actual detector: %s", stderr.String())
+			return stdout.String(), stderr.String()
+		}
+		stdout, stderr := detect("GOMAXPROCS=1")
+		Expect(stdout).To(Equal("1 1\n"))
+		Expect(stderr).To(ContainSubstring("cpus=1"))
+		if runtime.GOOS == "linux" {
+			for _, value := range []string{"0", "00", "+0", "-1", "invalid", "1,containermaxprocs=0"} {
+				stdout, stderr = detect("GODEBUG=containermaxprocs=" + value)
+				Expect(stdout).To(Equal("1 1\n"))
+				Expect(stderr).To(ContainSubstring("cpus=1"))
+			}
+			_, enabled := detect("GODEBUG=containermaxprocs=1")
+			_, finalEnabled := detect("GODEBUG=containermaxprocs=0,containermaxprocs=1")
+			cpuField := func(diagnostic string) string {
+				for _, field := range strings.Fields(diagnostic) {
+					if strings.HasPrefix(field, "cpus=") {
+						return field
+					}
+				}
+				Fail("actual detector must report its CPU count")
+				return ""
+			}
+			Expect(cpuField(finalEnabled)).To(Equal(cpuField(enabled)), "the final duplicate runtime setting takes precedence")
+		}
 		root := GinkgoT().TempDir()
 		for _, path := range []string{"go.mod", "go.sum"} {
 			body, err := os.ReadFile(filepath.Join("..", path))
@@ -65,11 +110,11 @@ var _ = Describe("Go source qualification worker execution", func() {
 		}
 		writeFixture(filepath.Join(root, "acceptance/worker_test.go"), []byte(sourceGateWorkerSuite), 0600)
 		for _, run := range []struct {
-			group, workers, failure string
-		}{{"base", "1", ""}, {"base", "2", ""}, {"release-handoff", "2", ""}, {"release-handoff", "2", "handoff-0"}} {
+			group, requested, workers, failure string
+		}{{"base", "1", "1", ""}, {"base", "3", "3", ""}, {"release-handoff", "3", "2", ""}, {"release-handoff", "2", "2", "handoff-0"}} {
 			fixture := sourceGateMakeFixture()
 			reportDirectory := filepath.Join(fixture.root, "reports")
-			status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + run.group, "GO_RUNTIME_TEST_PROCS=" + run.workers, "GO_RUNTIME_REPORT_DIR=" + reportDirectory})
+			status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + run.group, "GO_RUNTIME_TEST_PROCS=" + run.requested, "GO_RUNTIME_REPORT_DIR=" + reportDirectory})
 			Expect(status).To(Equal(0))
 			tests := sourceGateTests(calls)
 			Expect(tests).To(HaveLen(1))

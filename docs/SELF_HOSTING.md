@@ -34,6 +34,32 @@ This tracked hook blocks direct pushes to main; it does not run the whole
 pre-push suite. The full command above and CI provide the broader checks.
 Client hooks can be disabled, so they do not replace GitHub branch protection.
 
+## Qualification workers
+
+The factory source checks select Ginkgo workers from runner CPU and memory
+budgets, capped at four by default. Selection is logged, and JSON/JUnit artifacts
+retain the actual worker count and per-criterion timing. Installation stays
+serial; release handoff uses at most two workers for its two ordered groups.
+The private selection helper is not another installed factory command.
+
+```sh
+# Automatic selection with the default cap.
+make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base
+# Reproducible worker count for a controlled comparison.
+make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=3
+# Permit a higher automatic cap on a suitably provisioned machine.
+make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_MAX_PROCS=6
+```
+
+Both settings accept canonical positive integers through 32; explicit worker
+counts must fit the cap. `GO_RUNTIME_TEST_PROCS=auto` is the default. Explicit
+counts override the automatic CPU/memory budgets, so increase them deliberately.
+In GitHub Actions, repository variable `GO_RUNTIME_TEST_MAX_PROCS` changes the cap
+without editing the workflow. Empty local settings and malformed values fail;
+unknown resources select one worker. More workers are not a measured speedup
+until the complete qualification run demonstrates it. See
+[ADR 0104](adr/0104-adaptive-qualification-workers.md) for budgets and probe limits.
+
 ## Adversarial CI review
 
 The source repository opts into the same `factory review-lane` capability

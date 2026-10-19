@@ -54,7 +54,7 @@ var sourceGateCases = []struct {
 // either partition. It does not execute product tests, builds, models or downloads.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
 const sourceGateRecordingGo = `#!/usr/bin/env python3
-import json,os,pathlib,re,sys
+import json,os,pathlib,re,subprocess,sys
 args=sys.argv[1:]
 record={'args':args,'selected':[],'group':''}
 module='github.com/anoop2811/software-factory-template'
@@ -66,6 +66,14 @@ def operand(*names):
  return ''
 with open(os.environ['SOURCE_GATE_CASES']) as source:cases=json.load(source)
 is_runner=bool(args and args[0]=='run' and 'github.com/onsi/ginkgo/v2/ginkgo' in args)
+is_helper=bool(args and args[0]=='run' and './internal/qualification/cmd/worker-count' in args)
+if is_helper:
+ record['group']='worker-plan'
+ record['requested']=os.environ.get('GO_RUNTIME_TEST_PROCS','')
+ record['maximum']=os.environ.get('GO_RUNTIME_TEST_MAX_PROCS','')
+ helper=subprocess.run([os.environ['SOURCE_GATE_WORKER_HELPER']],capture_output=True,check=False)
+ record['plan']=helper.stdout.decode('utf-8')
+
 if args and (args[0]=='test' or is_runner):
  focus=operand('-ginkgo.focus','--focus');skip=operand('-ginkgo.skip','--skip')
  record['focus']=focus;record['skip']=skip
@@ -80,6 +88,8 @@ if args and (args[0]=='test' or is_runner):
  if './...' not in packages and './acceptance' not in packages:record['group']='internal'
  if focus and selected_groups=={'release-handoff'}:record['group']='release-handoff'
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
+if is_helper:
+ sys.stdout.buffer.write(helper.stdout);sys.stderr.buffer.write(helper.stderr);sys.exit(helper.returncode)
 if 'install' in args:
  package=args[-1].split('@',1)[0];name=package.rsplit('/',1)[-1]
  target=pathlib.Path(os.environ['GOBIN'])/name;target.parent.mkdir(parents=True,exist_ok=True)
@@ -107,11 +117,28 @@ type sourceGateFixture struct {
 }
 
 type sourceGateCall struct {
-	Args     []string `json:"args"`
-	Selected []string `json:"selected"`
-	Group    string   `json:"group"`
-	Focus    string   `json:"focus"`
-	Skip     string   `json:"skip"`
+	Args      []string `json:"args"`
+	Selected  []string `json:"selected"`
+	Group     string   `json:"group"`
+	Focus     string   `json:"focus"`
+	Skip      string   `json:"skip"`
+	Requested string   `json:"requested"`
+	Maximum   string   `json:"maximum"`
+	Plan      string   `json:"plan"`
+}
+
+var sourceGateWorkerHelperPath string
+
+// per docs/adr/0104-adaptive-qualification-workers.md:18
+func sourceGateBuildWorkerHelper() string {
+	GinkgoHelper()
+	if _, err := os.Stat(sourceGateWorkerHelperPath); os.IsNotExist(err) {
+		build := exec.Command("go", "build", "-o", sourceGateWorkerHelperPath, "./internal/qualification/cmd/worker-count") // #nosec G204 -- fixed private package and suite-owned output path.
+		build.Dir = ".."
+		output, err := build.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), "private worker helper setup: %s", output)
+	}
+	return sourceGateWorkerHelperPath
 }
 
 func sourceGateMakeFixture() sourceGateFixture {
@@ -157,6 +184,7 @@ func sourceGateMakeFixture() sourceGateFixture {
 		"GIT_DIR="+strings.TrimSpace(string(gitDirectory)), "GIT_WORK_TREE="+root,
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 		"SOURCE_GATE_CASES="+filepath.Join(root, "cases.json"),
+		"SOURCE_GATE_WORKER_HELPER="+sourceGateBuildWorkerHelper(),
 		"SOURCE_GATE_GO_LOG="+fixture.goLog, "SOURCE_GATE_QUALITY_LOG="+fixture.qualityLog,
 	)
 	return fixture
@@ -213,7 +241,7 @@ func sourceGateRun(fixture sourceGateFixture, script string, extraEnvironment []
 func sourceGateTests(calls []sourceGateCall) []sourceGateCall {
 	tests := []sourceGateCall{}
 	for _, call := range calls {
-		if len(call.Args) > 0 && (call.Args[0] == "test" || call.Args[0] == "run") && call.Group != "internal" {
+		if len(call.Args) > 0 && (call.Args[0] == "test" || call.Args[0] == "run") && call.Group != "internal" && call.Group != "worker-plan" {
 			tests = append(tests, call)
 		}
 	}
@@ -321,6 +349,48 @@ func sourceGateAssertInternal(calls []sourceGateCall, required bool) {
 	Expect(internal[0].Args).NotTo(ContainElements("./...", "./acceptance", "github.com/anoop2811/software-factory-template/acceptance"))
 }
 
+// per docs/adr/0104-adaptive-qualification-workers.md:36
+func sourceGateAssertWorkerPlan(calls []sourceGateCall, requested, maximum string) {
+	GinkgoHelper()
+	plans := []sourceGateCall{}
+	for _, call := range calls {
+		if call.Group == "worker-plan" {
+			plans = append(plans, call)
+		}
+	}
+	Expect(plans).To(HaveLen(1), "one early helper probe selects both worker counts")
+	Expect(plans[0].Args).To(Equal([]string{"run", "-mod=readonly", "./internal/qualification/cmd/worker-count"}))
+	Expect(plans[0].Requested).To(Equal(requested), "worker settings must cross as literal environment data")
+	Expect(plans[0].Maximum).To(Equal(maximum))
+	fields := strings.Fields(plans[0].Plan)
+	Expect(fields).To(HaveLen(2), "record the actual compiled helper output before Make consumes it")
+	base, err := strconv.Atoi(fields[0])
+	Expect(err).NotTo(HaveOccurred())
+	handoff, err := strconv.Atoi(fields[1])
+	Expect(err).NotTo(HaveOccurred())
+	Expect(plans[0].Plan).To(Equal(fmt.Sprintf("%d %d\n", base, handoff)), "the helper protocol is one canonical line")
+	limit, err := strconv.Atoi(maximum)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(base).To(BeNumerically(">=", 1))
+	Expect(base).To(BeNumerically("<=", limit))
+	Expect(handoff).To(Equal(min(base, 2)))
+	if requested != "auto" {
+		workers, err := strconv.Atoi(requested)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(base).To(Equal(workers))
+	}
+	for _, call := range sourceGateTests(calls) {
+		expected := base
+		if call.Group == "installation" {
+			continue
+		}
+		if call.Group == "release-handoff" {
+			expected = handoff
+		}
+		Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(strconv.Itoa(expected)), "%s dispatch must use the exact real helper plan %q", call.Group, plans[0].Plan)
+	}
+}
+
 func sourceGateAssertPartition(call sourceGateCall, group string) {
 	GinkgoHelper()
 	Expect(call.Selected).To(ConsistOf(sourceGateExpected(group)))
@@ -337,7 +407,14 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(len(call.Args)).To(BeNumerically(">=", 3))
 		Expect(call.Args[:3]).To(Equal([]string{"run", "-mod=readonly", "github.com/onsi/ginkgo/v2/ginkgo"}))
 		Expect(call.Args).To(ContainElements("--race", "--timeout=25m", "--fail-on-empty", "--keep-going", "--no-color", "--", "-test.count=1", "-test.timeout=25m"))
-		Expect(sourceGateOperand(call.Args, "--procs")).To(BeElementOf("1", "2"))
+		workers, err := strconv.Atoi(sourceGateOperand(call.Args, "--procs"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(workers).To(BeNumerically(">=", 1))
+		workerLimit := 32
+		if group == "release-handoff" {
+			workerLimit = 2
+		}
+		Expect(workers).To(BeNumerically("<=", workerLimit))
 	}
 	if group == "base" {
 		Expect(call.Skip).NotTo(BeEmpty())
@@ -372,9 +449,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 			}
 			sourceGateAssertPartition(tests[0], group)
 			sourceGateAssertInternal(calls, group == "base")
+			sourceGateAssertWorkerPlan(calls, "auto", "4")
 			callsByGroup[group] = tests[0]
 			if group != "installation" {
-				Expect(sourceGateOperand(tests[0].Args, "--procs")).To(Equal("2"), "local default matches the two-worker CI execution")
+				workers, err := strconv.Atoi(sourceGateOperand(tests[0].Args, "--procs"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(workers).To(BeNumerically("<=", 4), "automatic default cannot exceed its configured default cap")
 				Expect(sourceGateOperand(tests[0].Args, "--json-report")).To(BeEmpty(), "reports remain an explicit local option")
 			}
 			Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
@@ -387,18 +467,23 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0102-parallel-go-qualification.md:29
 		// per docs/adr/0102-parallel-go-qualification.md:44
 		// per docs/adr/0102-parallel-go-qualification.md:139
-		for _, workers := range []string{"1", "2"} {
+		for _, workers := range []string{"1", "2", "3"} {
 			fixture := sourceGateMakeFixture()
 			reports := filepath.Join(fixture.root, `reports "quoted" with spaces`)
 			status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_PROCS=" + workers, "GO_RUNTIME_REPORT_DIR=" + reports})
 			Expect(status).To(Equal(0))
 			sourceGateAssertInternal(calls, true)
+			sourceGateAssertWorkerPlan(calls, workers, "4")
 			for _, call := range sourceGateTests(calls) {
 				sourceGateAssertPartition(call, call.Group)
 				if call.Group == "installation" {
 					continue
 				}
-				Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(workers))
+				expected := workers
+				if call.Group == "release-handoff" && workers == "3" {
+					expected = "2"
+				}
+				Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(expected))
 				for _, report := range []struct{ flag, suffix string }{{"--json-report", ".json"}, {"--junit-report", ".xml"}} {
 					path := filepath.Join(reports, call.Group+report.suffix)
 					Expect(sourceGateOperand(call.Args, report.flag)).To(Equal(path), "each group receives an independent literal report path")
@@ -443,6 +528,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			script += " GO_RUNTIME_TEST_GROUP=all"
 		}
 		status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
+		sourceGateAssertWorkerPlan(calls, "auto", "4")
 		tests := sourceGateTests(calls)
 		Expect(tests).To(HaveLen(3), "all must attempt all three partitions even after any earlier failure")
 		sourceGateAssertInternal(calls, true)
@@ -466,13 +552,34 @@ var _ = Describe("Go source qualification scheduling", func() {
 	}, Entry("absent group defaults to the healthy complete union", "default", ""), Entry("explicit all keeps the complete union", "all", ""), Entry("base failure still attempts installation and fails", "all", "base"), Entry("internal package failure still attempts every acceptance partition", "all", "internal"), Entry("installation failure fails the default union", "default", "installation"), Entry("release-handoff failure fails the complete union", "all", "release-handoff"))
 
 	// per docs/adr/0102-parallel-go-qualification.md:29
+	// per docs/adr/0104-adaptive-qualification-workers.md:36
 	It("refuses invalid worker selection before any qualification work", func() {
-		for _, workers := range []string{"", "0", "3", "-1", "auto", "1; exit 0"} {
-			fixture := sourceGateMakeFixture()
-			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_PROCS=" + workers})
-			Expect(status).NotTo(Equal(0), "invalid workers %q must be refused", workers)
-			Expect(calls).To(BeEmpty(), "invalid workers %q cannot start Go work", workers)
-			Expect(quality).To(BeEmpty(), "invalid workers %q cannot start quality work", workers)
+		for _, setting := range []string{"GO_RUNTIME_TEST_PROCS", "GO_RUNTIME_TEST_MAX_PROCS"} {
+			for _, value := range []string{"", "0", "33", "-1", "01", " 2", "1; exit 0", "$(shell touch WITNESS)"} {
+				for _, argument := range []bool{false, true} {
+					// GNU Make parses leading assignment whitespace before export; the environment path tests it literally.
+					if argument && strings.HasPrefix(value, " ") {
+						continue
+					}
+					fixture := sourceGateMakeFixture()
+					witness := filepath.Join(fixture.root, "worker-setting-was-executed")
+					literal := strings.ReplaceAll(value, "WITNESS", witness)
+					script, environment := "make go-runtime-source-check", []string{setting + "=" + literal}
+					if argument {
+						// The shell expands only a quoted environment operand; Make receives literal argv.
+						script = "make go-runtime-source-check \"$SOURCE_GATE_LITERAL_SETTING\""
+						environment = []string{"SOURCE_GATE_LITERAL_SETTING=" + setting + "=" + literal}
+					}
+					status, calls, quality := sourceGateRun(fixture, script, environment)
+					Expect(status).NotTo(Equal(0), "invalid setting %s=%q must be refused", setting, literal)
+					Expect(calls).To(HaveLen(1), "only the real private helper may execute while validating malformed settings")
+					Expect(calls[0].Group).To(Equal("worker-plan"))
+					Expect(calls[0].Args).To(Equal([]string{"run", "-mod=readonly", "./internal/qualification/cmd/worker-count"}), "literal values cross the environment, never executable shell operands")
+					Expect(quality).To(BeEmpty())
+					_, err := os.Lstat(witness)
+					Expect(os.IsNotExist(err)).To(BeTrue(), "Make must not expand $(shell ...) before the helper refuses it")
+				}
+			}
 		}
 	})
 
@@ -482,6 +589,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		fixture := sourceGateMakeFixture()
 		status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + group})
 		Expect(status).NotTo(Equal(0))
+		Expect(calls).To(BeEmpty(), "invalid group must be refused before invoking even the Go worker-plan helper")
 		Expect(sourceGateTests(calls)).To(BeEmpty(), "invalid group cannot become any scheduled qualification work")
 	}, Entry("unknown group", "unrecognized"), Entry("explicit empty group", ""))
 })
@@ -640,8 +748,14 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					fixture := sourceGateMakeFixture()
 					toolDirectory, pathFile := filepath.Join(fixture.root, "factory-quality-tools"), filepath.Join(fixture.root, "github-path")
 					environment := []string{"RUNNER_TEMP=" + fixture.root, "GITHUB_PATH=" + pathFile}
+					// per docs/adr/0104-adaptive-qualification-workers.md:54
+					workerLimit := "4"
+					if warm {
+						workerLimit = "1"
+					}
 					expand := func(value string) string {
 						value = strings.ReplaceAll(value, "${{ matrix.group }}", group)
+						value = strings.ReplaceAll(value, "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}", workerLimit)
 						return strings.ReplaceAll(value, "${{ runner.temp }}", fixture.root)
 					}
 					for key, value := range job.Env {
@@ -670,12 +784,20 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					environment = append(environment, "PATH="+toolDirectory+string(os.PathListSeparator)+filepath.Join(fixture.root, "tools")+string(os.PathListSeparator)+os.Getenv("PATH"))
 					status, calls, quality := sourceGateRun(fixture, expand(runner.Run), environment)
 					Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed with warm=%t", identifier, group, warm)
+					sourceGateAssertWorkerPlan(calls, "auto", workerLimit)
 					tests := sourceGateTests(calls)
 					Expect(tests).To(HaveLen(1))
 					sourceGateAssertPartition(tests[0], group)
 					sourceGateAssertInternal(calls, group == "base")
 					if group != "installation" {
-						Expect(sourceGateOperand(tests[0].Args, "--procs")).To(Equal("2"), "both CI platforms explicitly select two workers")
+						workers, err := strconv.Atoi(sourceGateOperand(tests[0].Args, "--procs"))
+						Expect(err).NotTo(HaveOccurred())
+						limit, err := strconv.Atoi(workerLimit)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(workers).To(BeNumerically("<=", limit), "both CI platforms use automatic selection under the repository cap")
+						if warm {
+							Expect(workers).To(Equal(1), "repository cap one must reach the actual CI runner")
+						}
 						Expect(sourceGateOperand(tests[0].Args, "--json-report")).To(Equal(filepath.Join(fixture.root, "factory-go-reports", group+".json")))
 						Expect(sourceGateOperand(tests[0].Args, "--junit-report")).To(Equal(filepath.Join(fixture.root, "factory-go-reports", group+".xml")))
 					}

@@ -127,3 +127,14 @@ transaction journal. Unsafe/unreadable totals are null. Aggregate removed_sets,
 removed_files and removed_bytes count confirmed removals; retained_sets,
 retained_files and retained_bytes sum known retained observations. counts_known
 is false when any retained count is unknown.
+
+## Existing operand ownership
+
+Explicit candidate and whole-installation selectors retain their existing parsers
+before standalone backup dispatch. Those parsers reject actual conflicting control
+flags, while preserving flags used as scalar values. A detached legacy `--source`
+or `--ref` consumes its next operand even when that operand is literally
+`--keep-backup` or `--prune-backup`; attached values retain the same meaning.
+Share the established legacy marker-claim rule with recovery controls rather than
+introducing a second argument grammar. Independent compiled read-only and exact
+legacy-forwarding regressions must observe RED before this compatibility correction.

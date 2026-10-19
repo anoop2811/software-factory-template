@@ -130,3 +130,15 @@ independent real-filesystem regression first observed status 1, then passed with
 status 2 while progress, journal and active files remained unchanged. Observed
 command `go test -race -count=1 -timeout=90s -v ./internal/installation ./internal/installationfs -ginkgo.no-color -ginkgo.fail-on-empty`:
 installation `29 Passed | 0 Failed`; installationfs `10 Passed | 0 Failed`.
+
+A further compatibility review reproduced a valid detached source archive named
+`--keep-backup` or `--prune-backup` being mistaken for a standalone control.
+The attached spelling produced a healthy preview. Explicit selectors now retain
+their own parsers; backup and recovery controls share the established legacy
+source/ref operand rule. Independent permanent public criteria observed
+`0 Passed | 6 Failed` before correction. The extended existing criteria preserve
+the census and all original controls. Observed command
+`go test -race -count=1 -timeout=5m -v ./acceptance -ginkgo.focus='proposes a complete read-only installation from actual legacy init|preserves detached legacy value ownership even when it resembles a native marker|Whole installation upgrade backup retention controls|claims an independent marker after a marker-valued legacy operand' -ginkgo.no-color -ginkgo.fail-on-empty`:
+`27 Passed | 0 Failed` in 109.175 seconds. Both genuine legacy profiles, exact
+legacy forwarding, all 19 malformed standalone controls and independent marker
+ownership passed; source previews left project files unchanged.

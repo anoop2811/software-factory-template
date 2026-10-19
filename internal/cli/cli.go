@@ -154,16 +154,22 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
-				// Standalone backup controls reserve malformed requests before any
-				// candidate acquisition or installed admission. docs/adr/0106-go-backup-retention.md:63.
-				if name == "upgrade" && releasecmd.BackupClaimed(forwarded) {
-					status = releasecmd.RunBackup(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
-					return nil
-				}
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
 				if (name == "init" || name == "upgrade") && releasecmd.Claimed(forwarded) {
 					status = releasecmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
+				// Whole-installation markers own malformed requests before older routes.
+				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:33.
+				if name == "upgrade" && installationcmd.Claimed(forwarded) {
+					status = installationcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+					return nil
+				}
+				// Standalone controls reserve malformed requests before legacy dispatch,
+				// after explicit selectors own their values. docs/adr/0106-go-backup-retention.md:133.
+				if name == "upgrade" && releasecmd.BackupClaimed(forwarded) {
+					status = releasecmd.RunBackup(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					return nil
 				}
 				// Trusted CI and local callers share one bounded Go review engine.
@@ -306,12 +312,6 @@ func Run(ctx context.Context, args []string) int {
 						}
 						return nil
 					}
-				}
-				// Whole-installation markers own malformed requests before older routes.
-				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:33.
-				if name == "upgrade" && installationcmd.Claimed(forwarded) {
-					status = installationcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
-					return nil
 				}
 				// Recovery markers reserve handling before preview and legacy dispatch.
 				// docs/adr/0091-durable-local-recovery-creation.md:25.

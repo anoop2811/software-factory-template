@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/assessment"
+	"github.com/anoop2811/software-factory-template/internal/commandargs"
 	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
@@ -33,17 +34,7 @@ func Claimed(args []string) bool {
 }
 
 func claimed(args []string, marker string) bool {
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == "--source" || arg == "--ref" {
-			i++
-			continue
-		}
-		if arg == marker || strings.HasPrefix(arg, marker+"=") {
-			return true
-		}
-	}
-	return false
+	return commandargs.LegacyUpgradeMarker(args, marker)
 }
 
 // Run owns the strict creation grammar, bounded reporting and safe diagnostics.

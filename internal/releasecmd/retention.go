@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/commandargs"
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
@@ -22,12 +23,7 @@ import (
 // BackupClaimed reserves standalone controls before installed or legacy dispatch.
 // docs/adr/0106-go-backup-retention.md:63.
 func BackupClaimed(args []string) bool {
-	for _, arg := range args {
-		if arg == "--keep-backup" || strings.HasPrefix(arg, "--keep-backup=") || arg == "--prune-backup" || strings.HasPrefix(arg, "--prune-backup=") {
-			return true
-		}
-	}
-	return false
+	return commandargs.LegacyUpgradeMarker(args, "--keep-backup", "--prune-backup")
 }
 
 type retentionAcquisitions struct {

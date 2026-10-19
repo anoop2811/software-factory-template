@@ -873,6 +873,33 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			}
 		}
 		Expect(installationSnapshot(installed.root)).To(Equal(installed.before))
+		// Detached source operands retain their literal filename even when it
+		// spells another native mode. The attached spelling is a healthy control.
+		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:56
+		// per docs/adr/0106-go-backup-retention.md:133
+		archiveBytes, err := os.ReadFile(installed.archive)
+		Expect(err).NotTo(HaveOccurred())
+		type sourceObservation struct {
+			name               string
+			attached, detached cliResult
+		}
+		observations := []sourceObservation{}
+		for _, name := range []string{"--keep-backup", "--prune-backup"} {
+			writeFixture(filepath.Join(installed.root, name), archiveBytes, 0600)
+			before := installationSnapshot(installed.root)
+			tail := append(append([]string{}, installed.arguments()[3:]...), "--dry-run", "--json")
+			attached := installationCommand(installed.driver, installed.root, installed.sentinel, append([]string{"--installation", "--source=" + name}, tail...)...)
+			detached := installationCommand(installed.driver, installed.root, installed.sentinel, append([]string{"--installation", "--source", name}, tail...)...)
+			Expect(installationSnapshot(installed.root)).To(Equal(before), "both source spellings must remain read-only")
+			observations = append(observations, sourceObservation{name, attached, detached})
+		}
+		for _, observed := range observations {
+			Expect(observed.attached.status).To(Equal(0), "healthy attached %s source: %+v", observed.name, observed.attached)
+			control := installationDecodeProposal(observed.attached)
+			Expect(control["blockers"]).To(BeEmpty())
+			Expect(observed.detached.status).To(Equal(0), "detached %s is a filename, not a backup-control selection: %+v", observed.name, observed.detached)
+			Expect(installationDecodeProposal(observed.detached)).To(Equal(control))
+		}
 	}, Entry("v0.1.6 genuine installation", "v0.1.6"), Entry("bash baseline genuine installation", "bash-baseline"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:19

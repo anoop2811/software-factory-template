@@ -43,16 +43,23 @@ type transaction struct {
 	terminalCleanup               bool
 	preparationRecovery           bool
 	completed, closed, idempotent bool
+	retention                     *retentionOperation
 }
 
 func Begin(ctx context.Context, root string, request Request) (*Capability, error) {
 	return beginWith(ctx, root, request, commandOps{})
 }
-func beginWith(ctx context.Context, root string, request Request, operations commandOps) (result *Capability, returned error) {
+func beginWith(ctx context.Context, root string, request Request, operations commandOps) (*Capability, error) {
+	return beginWithRetention(ctx, root, request, operations, nil, false)
+}
+func beginWithRetention(ctx context.Context, root string, request Request, operations commandOps, resolver RetentionResolver, retaining bool) (result *Capability, returned error) {
 	if !request.Quiescent || !digestPattern.MatchString(request.Confirmation) {
 		return nil, conflict("installation requires current consent and maintained quiescence")
 	}
 	owner := &transaction{root: root, request: request, published: map[string]*Image{}, operations: operations}
+	if retaining && request.Rollback == "" && request.Recover == "" {
+		owner.retention = &retentionOperation{context: newRetentionContext(request, resolver), report: newRetentionReport("retention-apply")}
+	}
 	defer func() {
 		if result == nil {
 			returned = errors.Join(returned, owner.close(context.WithoutCancel(ctx)))
@@ -130,6 +137,16 @@ func beginWith(ctx context.Context, root string, request Request, operations com
 	}
 	if err != nil {
 		return nil, err
+	}
+	if owner.retention != nil && !owner.idempotent {
+		owner.retention.plan, err = planRetention(ctx, root, request, owner.retention.context)
+		if err != nil {
+			return nil, err
+		}
+		owner.retention.report = owner.retention.plan.Report
+		if err = bindRetention(&owner.planned, owner.retention.plan); err != nil {
+			return nil, err
+		}
 	}
 	if !owner.idempotent && owner.planned.proposal.ProposalDigest != request.Confirmation {
 		return nil, conflict("installation proposal changed; request a fresh preview")
@@ -243,7 +260,7 @@ func (capability *Capability) Complete(ctx context.Context) error {
 				entries = append(entries, journalEntry{Path: action.Path, Action: action.Action, Phase: "prepared", Before: action.Before, ExpectedAfter: action.After})
 			}
 		}
-		owner.record = journal{1, "installation-transaction", operationID(owner.request), "upgrade", "forward", "prepared", owner.request.Profile, owner.request.Source.Target, owner.request.Confirmation, entries, []checkRecord{}, "pending", nil}
+		owner.record = journal{SchemaVersion: 1, Kind: "installation-transaction", MigrationID: operationID(owner.request), Purpose: "upgrade", Direction: "forward", Phase: "prepared", Profile: owner.request.Profile, Target: owner.request.Source.Target, PlanDigest: owner.request.Confirmation, Entries: entries, Checks: []checkRecord{}, Outcome: "pending"}
 	}
 	if err := owner.preflightCandidate(ctx, reverse); err != nil {
 		cleanupErr := owner.discardPreparation(context.WithoutCancel(ctx))
@@ -384,7 +401,13 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	}
 	owner.pending = nil
 	owner.completed = true
-	return owner.check(ctx)
+	if err := owner.check(ctx); err != nil {
+		return err
+	}
+	if err := owner.finishRetention(ctx); err != nil {
+		return &Failure{Code: 1, Reason: "installation completed; backup cleanup is incomplete", cause: &retentionCleanupFailure{err}}
+	}
+	return nil
 }
 func (capability *Capability) Close(ctx context.Context) error {
 	if capability == nil || capability.state == nil {
@@ -403,6 +426,9 @@ func (owner *transaction) close(ctx context.Context) error {
 		return nil
 	}
 	var errs []error
+	if owner.retention != nil {
+		errs = append(errs, owner.retention.context.close())
+	}
 	unresolved := owner.unresolvedWork()
 	if unresolved {
 		errs = append(errs, owner.persistUnresolved(ctx))

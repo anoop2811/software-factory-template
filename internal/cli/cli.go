@@ -154,6 +154,12 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// Standalone backup controls reserve malformed requests before any
+				// candidate acquisition or installed admission. docs/adr/0106-go-backup-retention.md:63.
+				if name == "upgrade" && releasecmd.BackupClaimed(forwarded) {
+					status = releasecmd.RunBackup(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
 				if (name == "init" || name == "upgrade") && releasecmd.Claimed(forwarded) {

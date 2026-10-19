@@ -215,6 +215,11 @@ func (owner *transaction) backup(ctx context.Context) error {
 	if err := writeRecord(ctx, owner.tree, base+"/installation.manifest", manifest, nil); err != nil {
 		return err
 	}
+	if owner.retention != nil {
+		if err := writeRetentionReceipt(ctx, owner); err != nil {
+			return err
+		}
+	}
 	return parent.Sync(ctx)
 }
 func operationQuota(ctx context.Context, tree *installationfs.Tree, path string) (returned error) {
@@ -227,11 +232,18 @@ func operationQuota(ctx context.Context, tree *installationfs.Tree, path string)
 		return err
 	}
 	defer func() { returned = errors.Join(returned, directory.Close()) }()
-	entries, err := directory.ReadDir(17)
+	entries, err := directory.ReadDir(18)
 	if err != nil && len(entries) == 0 {
 		return err
 	}
-	if len(entries) > 16 {
+	count := 0
+	for _, entry := range entries {
+		if path == ".factory/backups" && entry.Name() == ".retention.json" {
+			continue
+		}
+		count++
+	}
+	if count > 16 {
 		return conflict("installation operation quota exceeded")
 	}
 	return ctx.Err()

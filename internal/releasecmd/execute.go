@@ -63,7 +63,9 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 		}
 		request.Before = previous.options
 	}
-	proposal, err := installation.Propose(ctx, root, request)
+	references := newRetentionAcquisitions(environment, candidate, previous)
+	defer func() { status = references.finish(stderr, status) }()
+	proposal, err := installation.ProposeRetaining(ctx, root, request, references.resolve)
 	if err != nil {
 		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
 		return installation.ErrorStatus(err)
@@ -79,6 +81,9 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 				apply = append(apply, "--project-input", input)
 			}
 			data = []byte(fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- %s\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), quotedArguments(apply)))
+		}
+		if !option.json {
+			data = append(data, installation.RetentionDiagnosticReport(proposal.Retention)...)
 		}
 		if err == nil {
 			err = output.WriteEvent(ctx, stdout, data)
@@ -97,10 +102,16 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 		return 2
 	}
 	request.MigrationID = "candidate-" + proposal.ProposalDigest[:24]
-	if err := installation.Apply(ctx, root, request); err != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
-		reportRecovery(root, request, candidate, previous, stderr)
-		return installation.ErrorStatus(err)
+	retention, applyErr := installation.ApplyRetaining(ctx, root, request, references.resolve)
+	if reportErr := output.WriteEvent(context.WithoutCancel(ctx), stderr, []byte(installation.RetentionDiagnosticReport(retention))); reportErr != nil {
+		return 1
+	}
+	if applyErr != nil {
+		fmt.Fprintln(stderr, "factory candidate: "+applyErr.Error())
+		if !installation.CleanupIncomplete(applyErr) {
+			reportRecovery(root, request, candidate, previous, stderr)
+		}
+		return installation.ErrorStatus(applyErr)
 	}
 	fmt.Fprintln(stderr, "factory candidate: installation completed")
 	return 0

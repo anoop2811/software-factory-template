@@ -582,7 +582,42 @@ func installationApply(fixture installationFixtureData, migration string) {
 	args := append(fixture.arguments(), "--migration-id", migration, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
 	out := installationMutationCommand(fixture.driver, fixture.root, fixture.sentinel, args...)
 	Expect(out.status).To(Equal(0), "healthy complete installation activation failed: %+v", out)
-	Expect(out.stderr).To(BeEmpty())
+	// per docs/adr/0106-go-backup-retention.md:73
+	Expect(out.stderr).To(HavePrefix("factory retention: "))
+	Expect(out.stderr).To(HaveSuffix("\n"))
+	Expect(strings.Split(strings.TrimSuffix(out.stderr, "\n"), "\n")).To(HaveLen(1), "successful local apply must emit exactly its checked retention report, with no extra diagnostics")
+	report := retentionApplyReport(out)
+	Expect(report.Mode).To(Equal("retention-apply"))
+	Expect(report.Status).To(Equal("completed"))
+	Expect(report.Advanced).To(BeFalse(), "local source images never advance release expiry")
+	Expect(report.RemovedSets).To(Equal(0))
+	Expect(report.RemovedFiles).To(Equal(int64(0)))
+	Expect(report.RemovedBytes).To(Equal(int64(0)))
+	ids := retentionBackupIDs(fixture.root)
+	Expect(report.RetainedSets).To(Equal(len(ids)))
+	reported := []string{}
+	var knownFiles, knownBytes int64
+	allKnown := true
+	for _, id := range ids {
+		row := retentionSet(report, id)
+		Expect(row.Action).To(BeElementOf("retain", "held"))
+		reported = append(reported, row.MigrationID)
+		if row.Files == nil || row.Bytes == nil {
+			Expect(row.Files).To(BeNil())
+			Expect(row.Bytes).To(BeNil())
+			allKnown = false
+			continue
+		}
+		files, size := retentionCounts(fixture.root, id)
+		Expect(*row.Files).To(Equal(files))
+		Expect(*row.Bytes).To(Equal(size))
+		knownFiles += files
+		knownBytes += size
+	}
+	Expect(report.Sets).To(HaveLen(len(reported)))
+	Expect(report.RetainedFiles).To(Equal(knownFiles))
+	Expect(report.RetainedBytes).To(Equal(knownBytes))
+	Expect(report.CountsKnown).To(Equal(allKnown))
 	_, err := os.Lstat(fixture.sentinel)
 	Expect(os.IsNotExist(err)).To(BeTrue(), "whole consumer executed legacy upgrade")
 }

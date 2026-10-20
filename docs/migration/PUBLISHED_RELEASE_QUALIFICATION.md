@@ -162,3 +162,41 @@ On 2026-10-20 UTC, [Go's release history](https://go.dev/doc/devel/release)
 confirmed Go 1.27.2 exists (2026-10-08) and Go 1.27.3 was released on 2026-10-19
 with a crypto/x509 security fix. This lane reuses the existing qualified 1.27.2
 pin; qualification of the new security patch remains a pre-RC follow-up.
+
+## Source-CI scheduling correction
+
+The macOS source-handoff job in [run 39364383333](https://github.com/anoop2811/software-factory-template/actions/runs/39364383333/job/118437939519)
+failed its suite deadline after all 44 selected criteria passed. Its retained
+report placed both longest ordered groups on one worker. The bounded correction
+in docs/adr/0107-published-release-qualification.md:194 assigns three coarse
+priorities while preserving those whole groups, all assertions and existing
+worker/resource limits and deadlines. This does not change installed behavior.
+
+The independent oracle first exposed evaluator setup issues: parallel dry-run
+reporting, omitted fields in Ginkgo's custom JSON serializer, and a nested test
+container that did not match the real four top-level groups. Those attempts are
+not counted as a priority differential. After correcting the evaluator, a source
+overlay removing only the three real decorators produced the expected scheduling
+failure; the unmodified candidate passed. One generated bootstrap is shared
+between the two separate fixture programs, retaining the repository dialect gate.
+
+RAN on 2026-10-20 UTC with the existing qualified harness, with child executable
+race building unset:
+
+```text
+go test -race -count=1 -timeout=4m -v ./acceptance -ginkgo.focus='Go source qualification|Published release qualification workflow contract' -ginkgo.no-color -ginkgo.fail-on-empty
+16 Passed, 0 Failed; package 82.574s
+
+go test -race -count=1 -timeout=3m -v ./acceptance -ginkgo.focus='Go source qualification worker execution' -ginkgo.v -ginkgo.no-color -ginkgo.fail-on-empty
+1 Passed, 0 Failed; package 24.392s (after shared-bootstrap reuse)
+
+go test -overlay=/private/tmp/factory-pr133-priority-removed-control/overlay.json -race -count=1 -timeout=3m -v ./acceptance -ginkgo.focus='Go source qualification worker execution' -ginkgo.no-color -ginkgo.fail-on-empty
+0 Passed, 1 Failed; package 21.910s (expected negative control)
+priority oracle: light cannot precede medium completion
+```
+
+Native discovery also retained exactly the same 44 full handoff identities as the
+failed hosted report, with no additions or omissions. These controls establish
+selection and scheduling behavior. The complete real handoff run and final-head
+hosted timing remain separate outcomes; no speedup, published-release pass or
+minimum-OS qualification is inferred from the small scheduling proof.

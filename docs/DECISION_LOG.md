@@ -4505,3 +4505,12 @@ for the interrupted installed-runtime probe, excluding signal death from the
 negative oracle without changing runtime exit semantics. Preserve the separately
 observed source-CI Git-init timeout and its same-head rerun in review evidence;
 a source rerun is not actual published-release qualification.
+
+Source-CI follow-up (2026-10-20 UTC): the retained PR #133 macOS handoff report
+records a suite timeout with all 44 criteria passed and both longest indivisible
+`Ordered` groups assigned to one worker. ADR 0107 now requires three coarse Ginkgo
+scheduling buckets (2/1/0), preserving criterion identities, fixture ownership,
+real recovery proofs, worker/resource limits, deadlines and source gates. An
+independent real-scheduler oracle and removed-priority negative control precede
+the three decorators. This is a source-CI scheduling correction; hosted performance
+improvement and actual published-release qualification remain unproven.

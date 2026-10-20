@@ -271,7 +271,8 @@ func retentionRequireRefusal(result cliResult) {
 // The family retains the reviewed handoff selector, so every new public criterion
 // belongs to exactly one source-qualification partition.
 // per docs/adr/0106-go-backup-retention.md:109
-var _ = Describe("Whole installation upgrade release candidate handoff backup retention", Ordered, ContinueOnFailure, Label("handoff-backup-retention"), func() {
+// per docs/adr/0107-published-release-qualification.md:207
+var _ = Describe("Whole installation upgrade release candidate handoff backup retention", Ordered, SpecPriority(1), ContinueOnFailure, Label("handoff-backup-retention"), func() {
 	var images retentionImages
 	BeforeAll(func() { images = retentionPrepareImages() })
 
@@ -474,7 +475,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff backup re
 })
 
 // per docs/adr/0106-go-backup-retention.md:101
-var _ = Describe("Whole installation upgrade release candidate handoff backup retention safeguards", Ordered, ContinueOnFailure, Label("handoff-retention-safeguards"), func() {
+// per docs/adr/0107-published-release-qualification.md:207
+var _ = Describe("Whole installation upgrade release candidate handoff backup retention safeguards", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-retention-safeguards"), func() {
 	var images retentionImages
 	BeforeAll(func() { images = retentionPrepareImages() })
 

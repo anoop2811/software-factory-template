@@ -190,3 +190,48 @@ interrupted installation's ordinary command must return the existing policy
 refusal status 2 and its admission diagnostic. A signal exit (-1) is not evidence
 of that refusal. Strengthen only the live assertion; do not normalize subprocess
 statuses or change the runtime's established policy/error behavior.
+
+## Source-CI review refinement: schedule whole handoff groups by coarse cost
+
+On 2026-10-20 UTC, [PR #133 source-CI run 39364383333](https://github.com/anoop2811/software-factory-template/actions/runs/39364383333/job/118437939519)
+reported `Suite Timeout Elapsed` although all 44 selected handoff `It` criteria
+passed. The retained Ginkgo report records four indivisible `Ordered` groups:
+legacy/init (21 criteria, 674.509 seconds), retention safeguards (10, 785.893
+seconds), retention (8, 647.181 seconds), and Go recovery (5, 465.827 seconds).
+Both longest groups ran on the same worker. These are measurements from that
+failed run, not estimates of the corrected run. The primary worker's 346.889-second
+suite-cleanup report includes waiting for its peer; it does not establish that
+deleting fixtures took that long.
+
+Use the already pinned Ginkgo v2.32.1 `SpecPriority` decorator for three coarse
+scheduling buckets: legacy/init and retention safeguards use priority 2, retention
+uses priority 1, and Go recovery retains default priority 0. Start the two expensive
+groups first and offer retention before Go recovery as workers become available.
+Keep random ordering within an equal-priority bucket; do not prescribe a total
+order or a particular worker assignment. `--randomize-all` is not a substitute:
+an `Ordered` container remains a single execution group.
+
+Preserve all 44 full criterion identities and assertions, the four `Ordered`
+groups, their `ContinueOnFailure` behavior, group-owned `BeforeAll` fixtures and
+cleanup lifetimes, independently built predecessor binaries, and genuine
+subprocess/interruption/recovery proofs. Preserve adaptive worker selection, the
+existing two-worker handoff ceiling, race instrumentation, the 25-minute suite
+and 30-minute job limits, and every source-quality gate. Do not alter Makefile
+dispatch, runtime/release protocols, dependencies or published-release selection.
+
+Before changing the three decorators, qualify an independent scheduling oracle:
+extract the real selected criteria's priority metadata, retain the exact 44-name
+inventory, and exercise four small `Ordered` groups with those priorities under
+the actual two-worker Ginkgo scheduler. An independent negative control with
+priorities removed must fail that oracle. Synthetic scheduling and dry-run
+metadata do not establish a performance improvement. Only a subsequent actual
+hosted handoff run can qualify the scheduling correction; no live published-release
+or minimum-OS evidence is inferred.
+
+Authoritative semantics fetched 2026-10-20 UTC:
+[Ginkgo prioritization](https://onsi.github.io/ginkgo/#prioritizing-specs),
+[pinned ordering implementation](https://github.com/onsi/ginkgo/blob/v2.32.1/internal/ordering.go)
+and [suite cleanup](https://github.com/onsi/ginkgo/blob/v2.32.1/internal/suite.go).
+Higher priorities are scheduled first even without `--randomize-all`; ordered
+groups are preserved and equal-priority groups remain shuffled. Suite cleanup
+waits for nonprimary processes before the primary cleanup body.

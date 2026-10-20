@@ -251,7 +251,8 @@ func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, st
 	return f, driver, legacy
 }
 
-var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
+// per docs/adr/0107-published-release-qualification.md:207
+var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
 	var fixtures handoffScenarioFixtures
 	BeforeAll(func() {
 		fixtures = handoffPrepareScenarioFixtures()

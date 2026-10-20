@@ -183,3 +183,10 @@ Keep independent runs uncancelled by the workflow's default scheduling rather
 than a unique-per-run concurrency group that adds no exclusion. Preserve current
 finite command deadlines until actual execution supplies evidence for changing
 them. Source contract counts remain dated observations, not live release proof.
+
+
+The next PR #133 review identified a narrow refusal-oracle distinction: the
+interrupted installation's ordinary command must return the existing policy
+refusal status 2 and its admission diagnostic. A signal exit (-1) is not evidence
+of that refusal. Strengthen only the live assertion; do not normalize subprocess
+statuses or change the runtime's established policy/error behavior.

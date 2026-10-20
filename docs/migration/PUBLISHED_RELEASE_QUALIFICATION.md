@@ -155,3 +155,10 @@ explicit candidate overrides, and isolation of offline fixtures from ambient
 GitHub/Actions values; the isolation control also observed RED before correction.
 These additional controls remain inside the same four ordinary criteria, so the
 source census is unchanged. Actual published qualification remains NOT RUN.
+
+
+Before publishing an RC, refresh the qualified toolchain against upstream.
+On 2026-10-20 UTC, [Go's release history](https://go.dev/doc/devel/release)
+confirmed Go 1.27.2 exists (2026-10-08) and Go 1.27.3 was released on 2026-10-19
+with a crypto/x509 security fix. This lane reuses the existing qualified 1.27.2
+pin; qualification of the new security patch remains a pre-RC follow-up.

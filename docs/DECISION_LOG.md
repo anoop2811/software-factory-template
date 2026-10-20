@@ -4498,3 +4498,10 @@ presence grants no trust and leaves real per-subject verification unchanged.
 Independent missing-asset RED precedes wiring. Simplify default non-cancelling
 scheduling and retain bounded deadlines; inherited harness tools/read tokens are
 qualified with synthetic child receipts rather than inferred from partial diffs.
+
+
+Further review follow-up (2026-10-20 UTC): require existing policy-refusal status 2
+for the interrupted installed-runtime probe, excluding signal death from the
+negative oracle without changing runtime exit semantics. Preserve the separately
+observed source-CI Git-init timeout and its same-head rerun in review evidence;
+a source rerun is not actual published-release qualification.

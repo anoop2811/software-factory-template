@@ -479,7 +479,7 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		_, err = os.Lstat(pending)
 		Expect(err).NotTo(HaveOccurred())
 		blocked := publishedExecute(legacy.root, release.environment, "", filepath.Join(legacy.root, ".factory/bin/factory-runtime"), "selftest")
-		Expect(blocked.status).NotTo(Equal(0))
+		Expect(blocked.status).To(Equal(2))
 		Expect(blocked.stderr).To(MatchRegexp(`(?i)(pending|maintenance|incomplete|admission unavailable)`))
 		args := release.recoveryArgs(profile, migration, "--recover")
 		recovery := handoffProposal(publishedExecute(legacy.root, release.environment, "", release.bootstrap, append(append([]string{}, args...), "--dry-run", "--json")...))

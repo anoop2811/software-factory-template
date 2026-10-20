@@ -170,3 +170,16 @@ Fetched 2026-10-19 UTC before implementation:
 - [GitHub macOS 14 retirement notice](https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/):
   the hosted image retires on 2026-11-02, with prior brownouts. Runner availability
   is not evidence changing the approved minimum operating-system contract.
+
+
+## Review refinement: refuse incomplete releases before native scheduling
+
+On 2026-10-20 UTC, PR #133 review prompted an early presence check in the trusted
+guard: require all twelve expected native bootstrap/runtime/installation subjects
+and the shared attestation bundle before publishing outputs or scheduling native
+jobs. File presence is not authentication; each native evaluator and the public
+installer still independently authenticate their exact downloaded subjects.
+Keep independent runs uncancelled by the workflow's default scheduling rather
+than a unique-per-run concurrency group that adds no exclusion. Preserve current
+finite command deadlines until actual execution supplies evidence for changing
+them. Source contract counts remain dated observations, not live release proof.

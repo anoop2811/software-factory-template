@@ -57,7 +57,8 @@ func publishedRunStep(script, root string, environment map[string]string) cliRes
 	command.Dir = root
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
-		if _, replaced := environment[key]; !replaced && !strings.HasPrefix(key, "FACTORY_PUBLISHED_") {
+		isolated := strings.HasPrefix(key, "GH_") || strings.HasPrefix(key, "GITHUB_") || strings.HasPrefix(key, "ACTIONS_") || strings.HasPrefix(key, "FACTORY_PUBLISHED_")
+		if _, replaced := environment[key]; !replaced && !isolated {
 			command.Env = append(command.Env, entry)
 		}
 	}
@@ -170,11 +171,31 @@ var _ = Describe("Published release qualification workflow contract", func() {
 	It("executes strict published identity and trusted-event refusal before exposing a candidate", func() {
 		workflow := publishedLoadWorkflow(".github/workflows/published-release-qualification.yml")
 		script := publishedRunScript(workflow.Jobs["guard"])
-		for _, scenario := range []string{"release", "manual", "foreign repository", "manual branch", "PR", "long tag", "moving tag", "malformed revision", "draft", "wrong release tag", "moved tag"} {
+		// Presence is a preflight condition, never authentication authority.
+		// Require each cross-platform subject and the shared attestation bundle.
+		// per docs/adr/0107-published-release-qualification.md:39
+		// per docs/adr/0107-published-release-qualification.md:177
+		tag, revision := "v9.8.1", strings.Repeat("a", 40)
+		assets := []string{"runtime-attestations.jsonl"}
+		for _, target := range []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64"} {
+			assets = append(assets, "factory-bootstrap-"+tag+"-"+target, "factory-runtime-"+tag+"-"+target+".tar.gz", "factory-installation-"+tag+"-"+target+".tar.gz")
+		}
+		scenarios := []string{}
+		for _, asset := range assets {
+			scenarios = append(scenarios, "missing "+asset)
+		}
+		scenarios = append(scenarios, "release", "manual", "foreign repository", "manual branch", "PR", "long tag", "moving tag", "malformed revision", "draft", "wrong release tag", "moved tag")
+		for _, scenario := range scenarios {
 			root := GinkgoT().TempDir()
 			trace, output := filepath.Join(root, "gh-calls"), filepath.Join(root, "outputs")
 			writeFixture(filepath.Join(root, "tools/gh"), []byte(`#!/bin/sh
 set -eu
+case " $* " in
+  *' --json assets '*)
+    printf 'release assets\n' >> "$FIXTURE_TRACE"
+    cat "$FIXTURE_ASSETS"
+    exit 0 ;;
+esac
 printf '%s\n' "$1 ${2-}" >> "$FIXTURE_TRACE"
 case "$1 ${2-}" in
   'release view') printf '%s\t%s\n' "$FIXTURE_TAG" "$FIXTURE_DRAFT" ;;
@@ -182,8 +203,15 @@ case "$1 ${2-}" in
   *) exit 93 ;;
 esac
 `), 0700)
-			tag, revision := "v9.8.1", strings.Repeat("a", 40)
-			env := map[string]string{"PATH": filepath.Join(root, "tools") + string(os.PathListSeparator) + os.Getenv("PATH"), "GITHUB_REPOSITORY": "anoop2811/software-factory-template", "GITHUB_EVENT_NAME": "release", "GITHUB_REF": "refs/tags/" + tag, "FACTORY_PUBLISHED_TAG": tag, "FACTORY_PUBLISHED_REVISION": revision, "GITHUB_OUTPUT": output, "FIXTURE_TRACE": trace, "FIXTURE_TAG": tag, "FIXTURE_DRAFT": "false", "FIXTURE_REVISION": revision}
+			available := []string{}
+			for _, asset := range assets {
+				if scenario != "missing "+asset {
+					available = append(available, asset)
+				}
+			}
+			assetFile := filepath.Join(root, "published-assets")
+			writeFixture(assetFile, []byte(strings.Join(available, "\n")+"\n"), 0600)
+			env := map[string]string{"PATH": filepath.Join(root, "tools") + string(os.PathListSeparator) + os.Getenv("PATH"), "GITHUB_REPOSITORY": "anoop2811/software-factory-template", "GITHUB_EVENT_NAME": "release", "GITHUB_REF": "refs/tags/" + tag, "FACTORY_PUBLISHED_TAG": tag, "FACTORY_PUBLISHED_REVISION": revision, "GITHUB_OUTPUT": output, "FIXTURE_TRACE": trace, "FIXTURE_TAG": tag, "FIXTURE_DRAFT": "false", "FIXTURE_REVISION": revision, "FIXTURE_ASSETS": assetFile}
 			healthy, beforeNetwork := scenario == "release" || scenario == "manual", false
 			switch scenario {
 			case "manual":
@@ -220,7 +248,7 @@ esac
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(data)).To(ContainSubstring("tag=" + tag + "\n"))
 				Expect(string(data)).To(ContainSubstring("revision=" + revision + "\n"))
-				Expect(os.ReadFile(trace)).To(Equal([]byte("release view\napi repos/anoop2811/software-factory-template/commits/refs/tags/" + tag + "\n")))
+				Expect(os.ReadFile(trace)).To(Equal([]byte("release view\napi repos/anoop2811/software-factory-template/commits/refs/tags/" + tag + "\nrelease assets\n")))
 			} else {
 				Expect(result.status).NotTo(Equal(0), "%s must refuse", scenario)
 				_, err := os.Lstat(output)
@@ -279,6 +307,60 @@ exit "$FIXTURE_STATUS"
 			}
 		}
 		Expect(uploads).To(Equal(1))
+		// Exercise the actual shared command builder: a sparse rollback map
+		// inherits the caller's qualified host tools, home/temp and GitHub auth;
+		// explicit candidate overrides still replace those values literally.
+		// per docs/adr/0107-published-release-qualification.md:84
+		// per docs/adr/0107-published-release-qualification.md:104
+		root := GinkgoT().TempDir()
+		parentTools, poisonTools := filepath.Join(root, "baseline-tools"), filepath.Join(root, "poison-tools")
+		for _, toolDirectory := range []string{parentTools, poisonTools} {
+			writeFixture(filepath.Join(toolDirectory, "go"), []byte("#!/bin/sh\nexit 97\n"), 0700)
+		}
+		parentPATH := parentTools + string(os.PathListSeparator) + os.Getenv("PATH")
+		GinkgoT().Setenv("PATH", parentPATH)
+		GinkgoT().Setenv("GH_TOKEN", "synthetic-parent-read-token")
+		GinkgoT().Setenv("GIT_CONFIG_GLOBAL", "parent-config-must-be-removed")
+		GinkgoT().Setenv("FACTORY_PUBLISHED_TAG", "parent-tag-must-be-removed")
+		child := filepath.Join(root, "child-receipt.sh")
+		writeFixture(child, []byte(`#!/bin/sh
+set -eu
+printf '%s\n' "$PATH" "${HOME-unset}" "${TMPDIR-unset}" "${GH_TOKEN-unset}" "${GIT_CONFIG_GLOBAL-unset}" "${FACTORY_PUBLISHED_TAG-unset}" "$(command -v go)" > "$1"
+`), 0700)
+		for _, overridden := range []bool{false, true, false} {
+			environment := map[string]string{}
+			expectedPATH, expectedHOME, expectedTMP, expectedToken := parentPATH, os.Getenv("HOME"), os.Getenv("TMPDIR"), "synthetic-parent-read-token"
+			expectedGit, expectedTag, expectedGo := "unset", "unset", filepath.Join(parentTools, "go")
+			if _, present := os.LookupEnv("HOME"); !present {
+				expectedHOME = "unset"
+			}
+			if _, present := os.LookupEnv("TMPDIR"); !present {
+				expectedTMP = "unset"
+			}
+			if overridden {
+				expectedPATH = poisonTools + string(os.PathListSeparator) + parentPATH
+				expectedHOME, expectedTMP, expectedToken = filepath.Join(root, "child-home"), filepath.Join(root, "child-temp"), "synthetic-explicit-read-token" // #nosec G101 -- inert test-only receipt value, never an authentication credential.
+				expectedGit, expectedTag, expectedGo = os.DevNull, "explicit-test-tag", filepath.Join(poisonTools, "go")
+				environment = map[string]string{"PATH": expectedPATH, "HOME": expectedHOME, "TMPDIR": expectedTMP, "GH_TOKEN": expectedToken, "GIT_CONFIG_GLOBAL": expectedGit, "FACTORY_PUBLISHED_TAG": expectedTag}
+			}
+			receipt := filepath.Join(root, "actual-child-environment")
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			command := handoffCommand(ctx, root, environment, "", "/bin/sh", child, receipt)
+			output, err := command.CombinedOutput()
+			cancel()
+			Expect(err).NotTo(HaveOccurred(), "actual handoff child failed: %s", output)
+			Expect(os.ReadFile(receipt)).To(Equal([]byte(strings.Join([]string{expectedPATH, expectedHOME, expectedTMP, expectedToken, expectedGit, expectedTag, expectedGo}, "\n") + "\n")))
+		}
+		// Offline workflow fixtures must not borrow any ambient CI credentials
+		// or context. Only explicitly supplied synthetic values may cross.
+		// per docs/adr/0107-published-release-qualification.md:146
+		for _, key := range []string{"GH_PARENT_SENTINEL", "GITHUB_PARENT_SENTINEL", "ACTIONS_PARENT_SENTINEL", "FACTORY_PUBLISHED_PARENT_SENTINEL"} {
+			GinkgoT().Setenv(key, "synthetic-parent-poison")
+		}
+		receipt := filepath.Join(root, "isolated-workflow-environment")
+		result := publishedRunStep(`printf '%s\n' "${GH_PARENT_SENTINEL-unset}" "${GITHUB_PARENT_SENTINEL-unset}" "${ACTIONS_PARENT_SENTINEL-unset}" "${FACTORY_PUBLISHED_PARENT_SENTINEL-unset}" "$GH_TOKEN" "$GITHUB_REPOSITORY" > "$RECEIPT"`, root, map[string]string{"RECEIPT": receipt, "GH_TOKEN": "synthetic-explicit-workflow-token", "GITHUB_REPOSITORY": "explicit/test-fixture"}) // #nosec G101 -- inert synthetic credential tests environment isolation; no real secret or network request.
+		Expect(result.status).To(Equal(0), "%+v", result)
+		Expect(os.ReadFile(receipt)).To(Equal([]byte("unset\nunset\nunset\nunset\nsynthetic-explicit-workflow-token\nexplicit/test-fixture\n")))
 	})
 
 	// per docs/adr/0107-published-release-qualification.md:79

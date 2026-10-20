@@ -4490,3 +4490,11 @@ Keep live per-target evidence separate from hermetic source checks, preserve the
 approved minimum-OS gate and record any macOS 14 qualification gap explicitly.
 Independent RED precedes wiring; no new CLI, dependency version, default cutover,
 pilot completion, release publication or platform success is claimed by the lane.
+
+
+Review follow-up (2026-10-20 UTC, PR #133): require every expected native asset
+and the shared attestation bundle in the read-only guard before matrix scheduling;
+presence grants no trust and leaves real per-subject verification unchanged.
+Independent missing-asset RED precedes wiring. Simplify default non-cancelling
+scheduling and retain bounded deadlines; inherited harness tools/read tokens are
+qualified with synthetic child receipts rather than inferred from partial diffs.

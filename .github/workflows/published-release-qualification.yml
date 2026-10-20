@@ -29,11 +29,6 @@ env:
   GH_HOST: github.com
   GH_PROMPT_DISABLED: '1'
 
-# Release evidence is not superseded by a later source or candidate run.
-concurrency:
-  group: published-qualification-${{ github.run_id }}-${{ inputs.tag }}
-  cancel-in-progress: false
-
 jobs:
   guard:
     runs-on: ubuntu-24.04
@@ -55,11 +50,6 @@ jobs:
           tag=$FACTORY_PUBLISHED_TAG
           revision=$FACTORY_PUBLISHED_REVISION
           [ "$GITHUB_REPOSITORY" = "$repository" ] || exit 2
-          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
-            workflow_dispatch:refs/heads/main) ;;
-            "release:refs/tags/$tag") ;;
-            *) printf '%s\n' 'qualification: only published releases and trusted main dispatch are supported' >&2; exit 2 ;;
-          esac
           case "$tag" in
             ''|*[!a-zA-Z0-9._+-]*|[!a-zA-Z0-9]*|[mM][aA][iI][nN]|[hH][eE][aA][dD]|[lL][aA][tT][eE][sS][tT]|[cC][uU][rR][rR][eE][nN][tT])
               printf '%s\n' 'qualification: invalid literal release tag' >&2; exit 2 ;;
@@ -67,10 +57,28 @@ jobs:
           [ "${#tag}" -le 128 ] || exit 2
           case "$revision" in ''|*[!0-9a-f]*) printf '%s\n' 'qualification: invalid expected source revision' >&2; exit 2 ;; esac
           [ "${#revision}" -eq 40 ] || exit 2
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
+            workflow_dispatch:refs/heads/main) ;;
+            "release:refs/tags/$tag") ;;
+            *) printf '%s\n' 'qualification: only published releases and trusted main dispatch are supported' >&2; exit 2 ;;
+          esac
           release=$(gh release view "$tag" --repo "$repository" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv')
           [ "$release" = "$(printf '%s\tfalse' "$tag")" ] || { printf '%s\n' 'qualification: published release identity mismatch' >&2; exit 1; }
           resolved=$(gh api "repos/$repository/commits/refs/tags/$tag" --jq .sha)
           [ "$resolved" = "$revision" ] || { printf '%s\n' 'qualification: source tag changed or does not match the expected revision' >&2; exit 1; }
+          # Presence avoids four unnecessary native jobs; it grants no trust.
+          # docs/adr/0107-published-release-qualification.md:175.
+          assets=$(gh release view "$tag" --repo "$repository" --json assets --jq '.assets[].name')
+          expected=(runtime-attestations.jsonl)
+          for target in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            expected+=("factory-bootstrap-$tag-$target" "factory-runtime-$tag-$target.tar.gz" "factory-installation-$tag-$target.tar.gz")
+          done
+          for asset in "${expected[@]}"; do
+            case $'\n'"$assets"$'\n' in
+              *$'\n'"$asset"$'\n'*) ;;
+              *) printf 'qualification: published release missing asset: %s\n' "$asset" >&2; exit 1 ;;
+            esac
+          done
           printf 'tag=%s\nrevision=%s\n' "$tag" "$revision" >> "$GITHUB_OUTPUT"
 
   qualify:

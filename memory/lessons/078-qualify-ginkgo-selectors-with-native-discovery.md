@@ -18,6 +18,6 @@ without any live scenario. A build tag and `fail-on-empty` were insufficient whe
 another container satisfied the focus. The live-only full namespace now has a
 five-criterion discovery check and a Go overlay removing its registration must
 fail with zero selected criteria. See
-acceptance/published_release_workflow_test.go:287 and
-.github/workflows/published-release-qualification.yml:133. These controls qualify
+acceptance/published_release_workflow_test.go:387 and
+.github/workflows/published-release-qualification.yml:141. These controls qualify
 selection, not a published release's behavior or authenticity.

@@ -26,7 +26,9 @@ gh workflow run published-release-qualification.yml --ref main \
 
 Replace both placeholders. A draft release, mismatched or moved tag, malformed
 operand, wrong repository or untrusted dispatch ref is refused before candidate
-execution. The independent real GitHub verifier authenticates the exact native
+execution. The guard also requires all twelve native assets and the shared
+attestation bundle before scheduling the matrix. Presence does not grant trust.
+The independent real GitHub verifier authenticates the exact native
 subjects, source commit, tag ref and signer workflow before downloaded code runs.
 The public installer then repeats its own supported acquisition checks.
 
@@ -126,6 +128,30 @@ go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
 exit 0; no output
 ```
 
+The first submitted source head was
+[935d58a](https://github.com/anoop2811/software-factory-template/commit/935d58aab26df5fbb913e4d8121f36295cd8b505).
+Its [Go source CI run](https://github.com/anoop2811/software-factory-template/actions/runs/39339436829)
+passed on both operating systems. Later PR revisions have separate exact-head
+check results; these dated command outputs are historical observations.
+
 Independent correctness, security and test review plus finding verification found
 no surviving source finding. The five real published-release scenarios remain
 NOT RUN; neither this evidence nor a source-CI pass closes that release gate.
+
+
+Review follow-up observed 2026-10-20 UTC in the same qualified environment:
+
+```text
+go test -race -count=1 -timeout=2m -v ./acceptance -ginkgo.focus='Published release qualification workflow contract' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 4 of 2996 Specs in 18.530 seconds
+SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 2992 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 19.170s
+```
+
+Each of the thirteen required release assets is independently omitted by a
+negative control. A missing-bundle RED preceded early guard wiring. Synthetic
+child receipts confirm inherited host tools/home/temp/read-token behavior,
+explicit candidate overrides, and isolation of offline fixtures from ambient
+GitHub/Actions values; the isolation control also observed RED before correction.
+These additional controls remain inside the same four ordinary criteria, so the
+source census is unchanged. Actual published qualification remains NOT RUN.

@@ -309,7 +309,7 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		role := filepath.Join(legacy.root, "scripts/factory-report.sh")
 		original, err := os.ReadFile(role)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(os.WriteFile(role, append(append([]byte{}, original...), []byte("\n# operator required-role edit\n")...), 0700)).To(Succeed()) // #nosec G306 -- test-owned existing executable; preserve its owner-only fixture mode.
+		Expect(os.WriteFile(role, append(append([]byte{}, original...), []byte("\n# operator required-role edit\n")...), 0700)).To(Succeed()) // #nosec G306 -- test-owned existing executable; preserve its existing fixture mode.
 		before := installationSnapshot(legacy.root)
 		conflict := publishedExecute(legacy.root, release.environment, "", "/bin/sh", release.installer, "upgrade", "--go-candidate", release.evidence.Tag, "--dry-run", "--json")
 		Expect(installationSnapshot(legacy.root)).To(Equal(before))

@@ -4514,3 +4514,27 @@ real recovery proofs, worker/resource limits, deadlines and source gates. An
 independent real-scheduler oracle and removed-priority negative control precede
 the three decorators. This is a source-CI scheduling correction; hosted performance
 improvement and actual published-release qualification remain unproven.
+
+## Decision 107 (2026-10-22 UTC): require the Go 1.27.3 security patch before candidate qualification
+
+PR #133's current source CI at `4450120` passes its observed behavioral criteria
+but fails the mandatory vulnerability scan with reachable GO-2026-6809:
+`Found in: crypto/x509@go1.27.2; Fixed in: crypto/x509@go1.27.3`.
+The [failed source run](https://github.com/anoop2811/software-factory-template/actions/runs/39613553886)
+and [official Go advisory](https://pkg.go.dev/vuln/GO-2026-6809) establish the
+required patch; [Go's release history](https://go.dev/doc/devel/release), fetched
+2026-10-22 UTC, records Go 1.27.3 released 2026-10-19. Do not defer the patch to
+an RC or suppress the scan. Record this decision before changing the active pins.
+
+Move the factory compiler contract, root and isolated analyzer module declarations,
+four factory-development workflows, exact compiler-scoped quality cache keys and
+independent active valid-artifact fixtures together to 1.27.3. Preserve tool
+dependency versions, adopter language packs, immutable Bash references, generation
+recipes, malformed/wrong-compiler controls, criterion counts, deadlines and
+historical evidence. The existing strict source-artifact contract in
+docs/adr/0098-whole-installation-upgrade-and-rollback.md:574 still requires
+repackaging previously unreleased Go candidates; do not silently accept mismatched
+compiler metadata. An independently updated workflow expectation must fail against
+the old pin before implementation, followed by source, packaging, race, quality,
+vulnerability and hosted native qualification with the patch. No default cutover,
+pilot completion or release publication is authorized by a passing source check.

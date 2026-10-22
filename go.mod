@@ -1,6 +1,6 @@
 module github.com/anoop2811/software-factory-template
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/onsi/ginkgo/v2 v2.32.1

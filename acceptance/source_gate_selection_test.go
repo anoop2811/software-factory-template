@@ -628,6 +628,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:562
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
 	// per docs/adr/0101-go-release-handoff.md:560
+	// per docs/DECISION_LOG.md:4529
 	It("preserves OS check names and pinned setup while scheduling all three groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -666,7 +667,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		// historical baseline; all other setup operands still compare exactly.
 		Expect(original.Steps[1].Uses).To(Equal("actions/setup-go@v7.0.0"))
 		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
-		original.Steps[1].With["go-version"] = "1.27.2"
+		original.Steps[1].With["go-version"] = "1.27.3"
 		// per docs/adr/0101-go-release-handoff.md:606
 		original.Steps[1].With["cache-dependency-path"] = "go.sum\ntools/security/go.sum\n"
 		Expect(original.Steps[4].Name).To(Equal("Install pinned quality tools"))
@@ -733,7 +734,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			Expect(cache.If).To(BeEmpty())
 			Expect(cache.With).To(HaveLen(2), "no broad restore prefix may impersonate an exact qualified cache hit")
 			Expect(cache.With["path"]).To(Equal("${{ runner.temp }}/factory-quality-tools"))
-			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
+			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
 			Expect(pathStep.If).To(BeEmpty(), "PATH must be configured on cold and warm runs")
 			Expect(pathStep.Run).NotTo(BeEmpty())
 			Expect(install.If).To(Equal("steps.quality-tools.outputs.cache-hit != 'true'"))

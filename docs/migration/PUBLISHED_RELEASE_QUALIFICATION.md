@@ -160,8 +160,39 @@ source census is unchanged. Actual published qualification remains NOT RUN.
 Before publishing an RC, refresh the qualified toolchain against upstream.
 On 2026-10-20 UTC, [Go's release history](https://go.dev/doc/devel/release)
 confirmed Go 1.27.2 exists (2026-10-08) and Go 1.27.3 was released on 2026-10-19
-with a crypto/x509 security fix. This lane reuses the existing qualified 1.27.2
-pin; qualification of the new security patch remains a pre-RC follow-up.
+with a crypto/x509 security fix. The initial lane reused the then-qualified
+1.27.2 pin. The subsequent source run at `4450120` failed its mandatory scan on
+reachable [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809), so
+[Decision 107](../DECISION_LOG.md)
+moves the active compiler, metadata contract, workflows and exact tool-cache keys
+to 1.27.3 before current qualification can pass. Earlier command outputs retain
+their actual toolchain and source identity; they are not patch qualification.
+Previously unreleased Go candidates require repackaging under the existing exact
+compiler policy. Immutable Bash/v0.1.6 references and adopter language packs stay
+unchanged. Record patched source results separately from actual published runs.
+
+Patch qualification observed 2026-10-22 UTC with Go 1.27.3 and the existing
+Python 3.12.14 harness, with `FACTORY_CLI_TEST_RACE` unset:
+
+```text
+go test -race -count=1 -timeout=2m -v ./acceptance -ginkgo.focus='Go source qualification workflow partition' -ginkgo.no-color -ginkgo.fail-on-empty
+1 Passed, 0 Failed; package 9.823s
+
+go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='G1 committed-source runtime packaging|G1 runtime bundle staging|G1 complete installation source images|Installed runtime root separation' -ginkgo.no-color -ginkgo.fail-on-empty -ginkgo.json-report=/private/tmp/factory-pr133-go1273-affected-acceptance.json
+145 Passed, 0 Failed; package 151.321s
+
+govulncheck ./...
+No vulnerabilities found.
+Your code is affected by 0 vulnerabilities.
+```
+
+The workflow expectation first failed against the old compiler cache key under
+Go 1.27.2. The new JSON report independently records 20 packaging, 69 complete
+image, 52 staging and four installed-root criteria passed. The scanner also
+reported eight advisory entries in required modules that are not reachable from
+the analyzed code; this is not a claim that every module is advisory-free.
+These observations qualify local source behavior; patched hosted native checks
+and actual published-release scenarios remain separately required.
 
 ## Source-CI scheduling correction
 

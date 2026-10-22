@@ -105,7 +105,7 @@ var _ = Describe("Installation Git process ownership", Ordered, ContinueOnFailur
 		work, err = filepath.EvalSymlinks(work)
 		Expect(err).NotTo(HaveOccurred())
 		source = filepath.Join(work, "source")
-		write(filepath.Join(source, "go.mod"), []byte("module example.com/ownership-fixture\n\ngo 1.27.2\n"), 0600)
+		write(filepath.Join(source, "go.mod"), []byte("module example.com/ownership-fixture\n\ngo 1.27.3\n"), 0600)
 		write(filepath.Join(source, "cmd/factory/main.go"), []byte("package main\nfunc main() {}\n"), 0600)
 		gitRun(source, "init", "--quiet", "--template=")
 		objects := strings.TrimSpace(gitRun("../..", "rev-parse", "--path-format=absolute", "--git-path", "objects"))

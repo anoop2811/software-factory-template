@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: true
           cache-dependency-path: |
             go.sum
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/factory-quality-tools
-          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
       - name: Add pinned quality tools to PATH
         run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools
@@ -102,7 +102,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: true
           cache-dependency-path: |
             go.sum
@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/factory-quality-tools
-          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
       - name: Add pinned quality tools to PATH
         run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools

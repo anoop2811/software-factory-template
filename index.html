@@ -3,14 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>softwareaifactory.sh — enforcement you can execute</title>
-<meta name="description" content="A software factory template for AI coding agents. Deterministic gates, role separation, and a verification contract — every control an executable script, every script proven by watching it fail.">
-<meta property="og:title" content="softwareaifactory.sh — enforcement you can execute">
-<meta property="og:description" content="A software factory template for AI coding agents: deterministic gates, break/fix-proven checks, and a verification contract.">
+<title>Software AI Factory — Enforced Checks for AI Coding Agents</title>
+<meta name="description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
+<meta property="og:title" content="Software AI Factory — Enforced Checks for AI Coding Agents">
+<meta property="og:description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://softwareaifactory.sh/">
+<meta property="og:site_name" content="Software AI Factory">
+<meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Software AI Factory — Enforced Checks for AI Coding Agents">
+<meta name="twitter:description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
 <link rel="canonical" href="https://softwareaifactory.sh/">
+<!-- Site/source identity, not a claim of search ranking or app rich-result eligibility.
+     per docs/DECISION_LOG.md:4569 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://softwareaifactory.sh/#website",
+      "url": "https://softwareaifactory.sh/",
+      "name": "Software AI Factory",
+      "alternateName": "softwareaifactory.sh",
+      "inLanguage": "en",
+      "description": "Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets."
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://softwareaifactory.sh/#webpage",
+      "url": "https://softwareaifactory.sh/",
+      "name": "Software AI Factory — Enforced Checks for AI Coding Agents",
+      "inLanguage": "en",
+      "isPartOf": {"@id": "https://softwareaifactory.sh/#website"},
+      "about": {"@id": "https://softwareaifactory.sh/#source"}
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://softwareaifactory.sh/#source",
+      "name": "Software AI Factory",
+      "url": "https://softwareaifactory.sh/",
+      "description": "Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.",
+      "codeRepository": "https://github.com/anoop2811/software-factory-template",
+      "codeSampleType": "template",
+      "programmingLanguage": ["Go", "Shell", "TypeScript"],
+      "license": "https://github.com/anoop2811/software-factory-template/blob/main/LICENSE"
+    }
+  ]
+}
+</script>
 <!-- The page loads one third-party script (Google Analytics). Constrain where it
      may go: no other host can be contacted, framed, or posted to. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https://www.google-analytics.com https://*.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
@@ -55,7 +97,7 @@
   gtag('js', new Date());
   gtag('config', 'G-SWDEH8ZZQM');
 </script>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23101216'/%3E%3Ctext x='32' y='42' font-family='monospace' font-size='28' font-weight='700' fill='%234CC46E' text-anchor='middle'%3E%24_%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
 <style>
   :root {
     --bg: #0B0D12;
@@ -542,12 +584,13 @@
   <section class="hero">
     <div class="wrap">
       <div class="pills">
-        <span class="pill green">selftest: 20 passed, 0 failed</span>
+        <span class="pill green">Executable checks</span>
         <span class="pill blue">MIT licensed</span>
         <span class="pill violet">break/fix proven</span>
         <span class="pill amber">opencode · Claude Code · Codex</span>
       </div>
       <h1>Your AI agents follow rules.<br>Ours <span class="pass-word">exit&nbsp;non-zero</span> if they don't.</h1>
+      <p class="lede"><strong>Software AI Factory</strong> is an open-source software factory for Codex, Claude Code and OpenCode, with enforceable checks and independent agent review.</p>
       <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we build our own product with — it's what stuck after an agent told us a change was verified when the check had never run.</p>
       <p class="lede"><a href="#features">Budget controls, run observability, and bounded repair loops</a> &mdash; choose how much work your agents can take on.</p>
       <div class="whofor">

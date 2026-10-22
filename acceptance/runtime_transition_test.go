@@ -214,10 +214,14 @@ func transitionPython(checkout string) string {
 	return strings.TrimSpace(out.stdout)
 }
 
+// Publish only complete fixture receipts; per docs/DECISION_LOG.md:4560
 const transitionNativeSource = `import os,sys,time,json
 from pathlib import Path
 if '--help' in sys.argv:
- if os.environ.get('TRANSITION_HELP_STARTED'): Path(os.environ['TRANSITION_HELP_STARTED']).write_text(str(os.getpid()))
+ if os.environ.get('TRANSITION_HELP_STARTED'):
+  ready=Path(os.environ['TRANSITION_HELP_STARTED']);pending=ready.with_name(ready.name+'.'+str(os.getpid())+'.pending')
+  with os.fdopen(os.open(pending,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as receipt: receipt.write(str(os.getpid()))
+  os.replace(pending,ready)
  release=os.environ.get('TRANSITION_RELEASE')
  while release and not Path(release).exists(): time.sleep(.01)
  if os.environ.get('TRANSITION_BAD_HELP')=='true': print('unsupported');sys.exit()

@@ -4538,3 +4538,30 @@ compiler metadata. An independently updated workflow expectation must fail again
 the old pin before implementation, followed by source, packaging, race, quality,
 vulnerability and hosted native qualification with the patch. No default cutover,
 pilot completion or release publication is authorized by a passing source check.
+
+Review follow-up (2026-10-22 UTC): the shell assertion for the privileged
+workflow's compiler also accepts prefix versions such as 1.27.30. Require an
+exact complete value and observe the prefix-version negative controls before
+claiming the assertion is effective. The read-only source/bundle workflows
+currently retain their existing mutable checkout/setup-go tags; this does not
+violate the privileged-review-only policy. Accept the bounded hardening to
+pin those same already-fetched versions to their existing immutable commits,
+without a dependency upgrade: checkout v7.0.1 at
+`3d3c42e5aac5ba805825da76410c181273ba90b1`, setup-go v7.0.0 at
+`b7ad1dad31e06c5925ef5d2fc7ad053ef454303e`. Independent baseline comparisons
+permit only these explicit reference substitutions alongside the compiler patch;
+all other operands, checks, permissions and source criteria remain unchanged.
+
+Hosted-CI follow-up (2026-10-22 UTC): source run 39725376503 passes five Go
+jobs but the macOS base criterion reads an empty PID from the existing live
+transition fixture (`strconv.Atoi: parsing "": invalid syntax`). Its fake native
+help process creates the published path before `Path.write_text` writes the PID;
+the reader correctly waits for publication but observes that intermediate inode.
+Publish the complete fixture PID by writing and closing an exclusive private
+sibling, then atomically renaming it to the ready path in the same directory.
+Keep the production controllers, reader deadline, PID parsing, process-liveness,
+real flock and durable-marker assertions unchanged. An independent temporary
+overlay must witness the old empty-publication window and the corrected complete
+publication before rerunning the actual transition lifecycle criteria. This is a
+test-fixture handshake correction, not evidence of an adopter runtime failure;
+ordinary criterion identities and the 2,996 source census remain unchanged.

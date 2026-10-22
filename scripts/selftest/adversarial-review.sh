@@ -666,7 +666,7 @@ go_client_workflow_wiring() {
   # The privileged active workflow builds only trusted base source before the
   # secret-bearing review step, and pins setup-go by immutable commit.
   grep -qE '^        uses: actions/setup-go@[[:xdigit:]]{40}( #.*)?$' "$active" || return 1
-  grep -q 'go-version:.*1\.27\.3' "$active" || return 1
+  grep -qFx "          go-version: '1.27.3'" "$active" || return 1
   build_line="$(grep -nE 'go build .*cmd/factory|go build .*\./cmd/factory' "$active" | head -1 | cut -d: -f1)"
   review_line="$(grep -n '^      - name: Review$' "$active" | cut -d: -f1)"
   [ -n "$build_line" ] && [ -n "$review_line" ] && [ "$build_line" -lt "$review_line" ] || return 1

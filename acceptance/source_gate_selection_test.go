@@ -663,9 +663,13 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		Expect(candidate.Jobs).To(HaveKey("go-runtime"), "existing required matrix check names must retain their job identifier")
 		Expect(candidate.Jobs).To(HaveLen(2), "installation needs its own parallel OS matrix rather than the exhausted single job")
 		original := baseline.Jobs["go-runtime"]
-		// Apply only the reviewed compiler/analyzer setup exceptions to the
-		// historical baseline; all other setup operands still compare exactly.
+		// Apply only the reviewed compiler/analyzer and action-reference exceptions
+		// to the historical baseline; all other setup operands still compare exactly.
+		// per docs/DECISION_LOG.md:4548
+		Expect(original.Steps[0].Uses).To(Equal("actions/checkout@v7.0.1"))
 		Expect(original.Steps[1].Uses).To(Equal("actions/setup-go@v7.0.0"))
+		original.Steps[0].Uses = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+		original.Steps[1].Uses = "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"
 		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
 		original.Steps[1].With["go-version"] = "1.27.3"
 		// per docs/adr/0101-go-release-handoff.md:606

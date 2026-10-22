@@ -4565,3 +4565,41 @@ overlay must witness the old empty-publication window and the corrected complete
 publication before rerunning the actual transition lifecycle criteria. This is a
 test-fixture handshake correction, not evidence of an adopter runtime failure;
 ordinary criterion identities and the 2,996 source census remain unchanged.
+
+## Decision 108 (2026-10-22 UTC): describe the project consistently for repository and website discovery
+
+Anoop requested a populated GitHub About section and search optimization of the
+project site while the separately approved v0.2.0-rc.1 release rehearsal proceeds.
+The repository API currently reports null description/homepage and no topics.
+CNAME and GitHub Pages identify https://softwareaifactory.sh/ as the intended site;
+the extra-w spelling supplied in chat does not resolve. Preserve that canonical
+domain rather than inventing or changing domain ownership.
+
+Describe the actual main-branch factory and its Codex, Claude Code and OpenCode
+support, independent checks/reviews, budget controls, observability and bounded
+loops. Add factual repository topics and the canonical website. Update descriptive
+title/snippet/share metadata, a static crawlable brand favicon, WebSite/WebPage
+and SoftwareSourceCode JSON-LD, a single-canonical-URL sitemap and its robots
+reference. Keep meaningful visible product text aligned with metadata. Do not
+add fictitious ratings, pricing claims, unreleased-default Go claims, keyword
+stuffing, a search endpoint that does not exist or noncanonical sitemap entries.
+Preserve the existing visual identity, CSP, analytics preferences and runtime
+installation behavior. No new product dependency is required.
+
+Google's primary title/snippet, site-name and sitemap documentation and Schema.org
+SoftwareSourceCode were fetched on 2026-10-22 before edits:
+https://developers.google.com/search/docs/appearance/title-link,
+https://developers.google.com/search/docs/appearance/snippet,
+https://developers.google.com/search/docs/appearance/site-names,
+https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap,
+and https://schema.org/SoftwareSourceCode. These changes improve discoverability
+signals; they do not establish indexing, rankings or Search Console ownership.
+Validate actual generated HTML/JSON-LD, XML, local asset paths and the diff before
+opening a reviewable PR. Observe deployed responses separately after merge.
+
+Before the operator change, the public HTTP homepage returned 200 rather than
+redirecting to HTTPS; Cloudflare fronts Pages and Pages reports no origin HTTPS
+certificate. Canonical metadata is not a server redirect. After Anoop enabled
+the Cloudflare setting, independent curl checks at 14:19 UTC observed HTTP 301
+with Location: https://softwareaifactory.sh/, then HTTPS 200 after exactly one
+redirect. That observed edge change is separate from these repository edits.

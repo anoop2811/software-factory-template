@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Software AI Factory</title>
+  <rect width="64" height="64" rx="12" fill="#101216"/>
+  <text x="32" y="42" font-family="monospace" font-size="28" font-weight="700" fill="#4CC46E" text-anchor="middle">$_</text>
+</svg>

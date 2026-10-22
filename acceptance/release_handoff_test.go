@@ -109,7 +109,7 @@ var _ = Describe("Authenticated release candidate publishing", func() {
 			entries := []stageEntry{
 				{prefix + "bin/factory-runtime", payload, 0755, tar.TypeReg},
 				{prefix + "runtime.manifest", []byte(fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%x\nEND\n", handoffVersion, identity, sha256.Sum256(payload))), 0644, tar.TypeReg},
-				{prefix + "source.json", []byte(fmt.Sprintf(`{"revision":%q,"version":%q,"target":%q,"go_version":"go1.27.2","kind":"source-build"}`, batchBase, handoffVersion, identity)), 0644, tar.TypeReg},
+				{prefix + "source.json", []byte(fmt.Sprintf(`{"revision":%q,"version":%q,"target":%q,"go_version":"go1.27.3","kind":"source-build"}`, batchBase, handoffVersion, identity)), 0644, tar.TypeReg},
 			}
 			for _, kind := range []string{"runtime", "installation-image"} {
 				selected := append([]stageEntry(nil), entries...)

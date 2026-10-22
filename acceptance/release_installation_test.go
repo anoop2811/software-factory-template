@@ -92,7 +92,9 @@ func handoffNativeProcess(cwd string, environment map[string]string, input, prog
 }
 
 func handoffCommand(ctx context.Context, cwd string, environment map[string]string, input, program string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, program, args...) // #nosec G204 -- independently built fixture executable and literal public operands; no shell.
+	// Published callers authenticate release bytes before selecting this executable.
+	// per acceptance/published_release_test.go:69
+	cmd := exec.CommandContext(ctx, program, args...) // #nosec G204 G702 -- acceptance-owned program and literal arguments; no shell interpolation.
 	cmd.Dir = cwd
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -249,7 +251,8 @@ func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, st
 	return f, driver, legacy
 }
 
-var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
+// per docs/adr/0107-published-release-qualification.md:207
+var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
 	var fixtures handoffScenarioFixtures
 	BeforeAll(func() {
 		fixtures = handoffPrepareScenarioFixtures()

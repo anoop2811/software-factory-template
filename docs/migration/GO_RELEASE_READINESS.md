@@ -101,3 +101,12 @@ The completed orchestration implementation and its qualification are tracked in
 [ORCHESTRATION.md](ORCHESTRATION.md). Do not count a
 new interface, inventory or review correction as another source-plan package.
 The fixed denominator remains thirty; no new percentage is inferred here.
+
+## Published-release qualification lane
+
+[Published-release qualification](PUBLISHED_RELEASE_QUALIFICATION.md) defines the
+explicit attested candidate lane under [ADR 0107](../adr/0107-published-release-qualification.md).
+Its implementation and ordinary hermetic contract checks do not close the native
+published-release gate. Record actual published outcomes and exact platform/OS
+evidence separately, including the outstanding macOS 14 Intel minimum-OS proof.
+The mandatory adopter pilot and default cutover remain independent requirements.

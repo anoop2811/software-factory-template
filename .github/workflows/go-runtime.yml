@@ -29,13 +29,13 @@ jobs:
     env:
       GO_RUNTIME_TEST_MAX_PROCS: ${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Differential acceptance executes the identified historical baseline.
           fetch-depth: 0
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: true
           cache-dependency-path: |
             go.sum
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/factory-quality-tools
-          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
       - name: Add pinned quality tools to PATH
         run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools
@@ -96,13 +96,13 @@ jobs:
     env:
       GO_RUNTIME_TEST_MAX_PROCS: ${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Differential acceptance executes the identified historical baseline.
           fetch-depth: 0
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: true
           cache-dependency-path: |
             go.sum
@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/factory-quality-tools
-          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.2-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
+          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
       - name: Add pinned quality tools to PATH
         run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
       - name: Install pinned quality tools

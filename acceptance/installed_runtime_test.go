@@ -65,7 +65,7 @@ func installedRuntimeCustodyFixture() installedRuntimeFixture {
 	add(".factory/bin/factory-runtime", candidateBinary, 0700)
 	manifest := fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%s\nEND\n", version, target, digest)
 	add(".factory/bin/runtime.manifest", []byte(manifest), 0600)
-	add(".factory/bin/source.json", imageMarshal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.2", "kind": "installation-source-build"}), 0600)
+	add(".factory/bin/source.json", imageMarshal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.3", "kind": "installation-source-build"}), 0600)
 
 	canonical, err := os.ReadFile("../docs/migration/INSTALLATION_ROLE_MAP.json")
 	Expect(err).NotTo(HaveOccurred())

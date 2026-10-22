@@ -4474,3 +4474,94 @@ Keep the existing generation recipe compatible and reuse native exclusion,
 verification, publication and confined filesystem primitives. Outside-in
 Ginkgo/Gomega RED precedes implementation; independent review and hosted
 qualification precede human merge. No default cutover or release is claimed.
+
+
+## Decision 106 (2026-10-19 UTC): qualify published attested release candidates through the public installer
+
+After merged PR #132, the user authorized the next release milestone: actual
+published-release qualification, rather than another locally staged bundle pass.
+[ADR 0107](adr/0107-published-release-qualification.md) records the contract before
+workflow implementation. Reuse existing authenticated acquisition and migration
+engines in an opt-in native Ginkgo lane for fresh init, both genuine supported
+Bash predecessors, state/customization preservation, inert ignored backups,
+rollback and witnessed interrupted recovery. A trusted manual/reusable workflow
+runs after asset upload with read-only permissions and exact tag/source identity.
+Keep live per-target evidence separate from hermetic source checks, preserve the
+approved minimum-OS gate and record any macOS 14 qualification gap explicitly.
+Independent RED precedes wiring; no new CLI, dependency version, default cutover,
+pilot completion, release publication or platform success is claimed by the lane.
+
+
+Review follow-up (2026-10-20 UTC, PR #133): require every expected native asset
+and the shared attestation bundle in the read-only guard before matrix scheduling;
+presence grants no trust and leaves real per-subject verification unchanged.
+Independent missing-asset RED precedes wiring. Simplify default non-cancelling
+scheduling and retain bounded deadlines; inherited harness tools/read tokens are
+qualified with synthetic child receipts rather than inferred from partial diffs.
+
+
+Further review follow-up (2026-10-20 UTC): require existing policy-refusal status 2
+for the interrupted installed-runtime probe, excluding signal death from the
+negative oracle without changing runtime exit semantics. Preserve the separately
+observed source-CI Git-init timeout and its same-head rerun in review evidence;
+a source rerun is not actual published-release qualification.
+
+Source-CI follow-up (2026-10-20 UTC): the retained PR #133 macOS handoff report
+records a suite timeout with all 44 criteria passed and both longest indivisible
+`Ordered` groups assigned to one worker. ADR 0107 now requires three coarse Ginkgo
+scheduling buckets (2/1/0), preserving criterion identities, fixture ownership,
+real recovery proofs, worker/resource limits, deadlines and source gates. An
+independent real-scheduler oracle and removed-priority negative control precede
+the three decorators. This is a source-CI scheduling correction; hosted performance
+improvement and actual published-release qualification remain unproven.
+
+## Decision 107 (2026-10-22 UTC): require the Go 1.27.3 security patch before candidate qualification
+
+PR #133's current source CI at `4450120` passes its observed behavioral criteria
+but fails the mandatory vulnerability scan with reachable GO-2026-6809:
+`Found in: crypto/x509@go1.27.2; Fixed in: crypto/x509@go1.27.3`.
+The [failed source run](https://github.com/anoop2811/software-factory-template/actions/runs/39613553886)
+and [official Go advisory](https://pkg.go.dev/vuln/GO-2026-6809) establish the
+required patch; [Go's release history](https://go.dev/doc/devel/release), fetched
+2026-10-22 UTC, records Go 1.27.3 released 2026-10-19. Do not defer the patch to
+an RC or suppress the scan. Record this decision before changing the active pins.
+
+Move the factory compiler contract, root and isolated analyzer module declarations,
+four factory-development workflows, exact compiler-scoped quality cache keys and
+independent active valid-artifact fixtures together to 1.27.3. Preserve tool
+dependency versions, adopter language packs, immutable Bash references, generation
+recipes, malformed/wrong-compiler controls, criterion counts, deadlines and
+historical evidence. The existing strict source-artifact contract in
+docs/adr/0098-whole-installation-upgrade-and-rollback.md:574 still requires
+repackaging previously unreleased Go candidates; do not silently accept mismatched
+compiler metadata. An independently updated workflow expectation must fail against
+the old pin before implementation, followed by source, packaging, race, quality,
+vulnerability and hosted native qualification with the patch. No default cutover,
+pilot completion or release publication is authorized by a passing source check.
+
+Review follow-up (2026-10-22 UTC): the shell assertion for the privileged
+workflow's compiler also accepts prefix versions such as 1.27.30. Require an
+exact complete value and observe the prefix-version negative controls before
+claiming the assertion is effective. The read-only source/bundle workflows
+currently retain their existing mutable checkout/setup-go tags; this does not
+violate the privileged-review-only policy. Accept the bounded hardening to
+pin those same already-fetched versions to their existing immutable commits,
+without a dependency upgrade: checkout v7.0.1 at
+`3d3c42e5aac5ba805825da76410c181273ba90b1`, setup-go v7.0.0 at
+`b7ad1dad31e06c5925ef5d2fc7ad053ef454303e`. Independent baseline comparisons
+permit only these explicit reference substitutions alongside the compiler patch;
+all other operands, checks, permissions and source criteria remain unchanged.
+
+Hosted-CI follow-up (2026-10-22 UTC): source run 39725376503 passes five Go
+jobs but the macOS base criterion reads an empty PID from the existing live
+transition fixture (`strconv.Atoi: parsing "": invalid syntax`). Its fake native
+help process creates the published path before `Path.write_text` writes the PID;
+the reader correctly waits for publication but observes that intermediate inode.
+Publish the complete fixture PID by writing and closing an exclusive private
+sibling, then atomically renaming it to the ready path in the same directory.
+Keep the production controllers, reader deadline, PID parsing, process-liveness,
+real flock and durable-marker assertions unchanged. An independent temporary
+overlay must witness the old empty-publication window and the corrected complete
+publication before rerunning the actual transition lifecycle criteria. This is a
+test-fixture handshake correction, not evidence of an adopter runtime failure;
+ordinary criterion identities and the 2,996 source census remain unchanged.

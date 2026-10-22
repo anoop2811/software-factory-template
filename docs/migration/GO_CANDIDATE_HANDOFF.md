@@ -80,3 +80,9 @@ predecessor recovery and prunes only qualified older sets. Standalone controls a
 The bare installer and existing source/ref defaults remain unchanged. Actual
 release authentication on all four targets, the mandatory adopter pilot and default
 cutover remain tracked in [GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
+
+Release maintainers can use the
+[published-release qualification lane](PUBLISHED_RELEASE_QUALIFICATION.md) to
+collect actual authentication, initialization and migration evidence for an exact
+published tag. Its reports distinguish the observed runner OS from the approved
+minimum-OS requirement.

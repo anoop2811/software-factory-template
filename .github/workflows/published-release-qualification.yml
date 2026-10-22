@@ -1,0 +1,151 @@
+name: Published release qualification
+
+# Repository qualification only; never copied into an adopter installation.
+# docs/adr/0107-published-release-qualification.md:27.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+      revision:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published official candidate tag to qualify
+        type: string
+        required: true
+      revision:
+        description: Full expected source commit for that tag
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  GH_HOST: github.com
+  GH_PROMPT_DISABLED: '1'
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      revision: ${{ steps.release.outputs.revision }}
+    steps:
+      - name: Resolve the explicit published release before executing its code
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FACTORY_PUBLISHED_TAG: ${{ inputs.tag }}
+          FACTORY_PUBLISHED_REVISION: ${{ inputs.revision }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository=anoop2811/software-factory-template
+          tag=$FACTORY_PUBLISHED_TAG
+          revision=$FACTORY_PUBLISHED_REVISION
+          [ "$GITHUB_REPOSITORY" = "$repository" ] || exit 2
+          case "$tag" in
+            ''|*[!a-zA-Z0-9._+-]*|[!a-zA-Z0-9]*|[mM][aA][iI][nN]|[hH][eE][aA][dD]|[lL][aA][tT][eE][sS][tT]|[cC][uU][rR][rR][eE][nN][tT])
+              printf '%s\n' 'qualification: invalid literal release tag' >&2; exit 2 ;;
+          esac
+          [ "${#tag}" -le 128 ] || exit 2
+          case "$revision" in ''|*[!0-9a-f]*) printf '%s\n' 'qualification: invalid expected source revision' >&2; exit 2 ;; esac
+          [ "${#revision}" -eq 40 ] || exit 2
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF" in
+            workflow_dispatch:refs/heads/main) ;;
+            "release:refs/tags/$tag") ;;
+            *) printf '%s\n' 'qualification: only published releases and trusted main dispatch are supported' >&2; exit 2 ;;
+          esac
+          release=$(gh release view "$tag" --repo "$repository" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv')
+          [ "$release" = "$(printf '%s\tfalse' "$tag")" ] || { printf '%s\n' 'qualification: published release identity mismatch' >&2; exit 1; }
+          resolved=$(gh api "repos/$repository/commits/refs/tags/$tag" --jq .sha)
+          [ "$resolved" = "$revision" ] || { printf '%s\n' 'qualification: source tag changed or does not match the expected revision' >&2; exit 1; }
+          # Presence avoids four unnecessary native jobs; it grants no trust.
+          # docs/adr/0107-published-release-qualification.md:175.
+          assets=$(gh release view "$tag" --repo "$repository" --json assets --jq '.assets[].name')
+          expected=(runtime-attestations.jsonl)
+          for target in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            expected+=("factory-bootstrap-$tag-$target" "factory-runtime-$tag-$target.tar.gz" "factory-installation-$tag-$target.tar.gz")
+          done
+          for asset in "${expected[@]}"; do
+            case $'\n'"$assets"$'\n' in
+              *$'\n'"$asset"$'\n'*) ;;
+              *) printf 'qualification: published release missing asset: %s\n' "$asset" >&2; exit 1 ;;
+            esac
+          done
+          printf 'tag=%s\nrevision=%s\n' "$tag" "$revision" >> "$GITHUB_OUTPUT"
+
+  qualify:
+    needs: guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux/amd64
+            artifact: linux-amd64
+          - os: ubuntu-24.04-arm
+            target: linux/arm64
+            artifact: linux-arm64
+          - os: macos-15-intel
+            target: darwin/amd64
+            artifact: darwin-amd64
+          - os: macos-14
+            target: darwin/arm64
+            artifact: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FACTORY_PUBLISHED_TAG: ${{ needs.guard.outputs.tag }}
+      FACTORY_PUBLISHED_REVISION: ${{ needs.guard.outputs.revision }}
+      FACTORY_PUBLISHED_TARGET: ${{ matrix.target }}
+    steps:
+      - name: Check out the trusted default-branch harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up the existing qualified harness toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+          cache: true
+          cache-dependency-path: go.sum
+      # Historic Bash initialization uses the existing qualified oracle. Go
+      # adopter processes explicitly exclude this interpreter and the compiler.
+      - name: Provision the historic-initializer interpreter
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.19'
+          python-version: '3.12.14'
+          activate-environment: true
+          venv-path: ${{ runner.temp }}/factory-python
+          no-project: true
+          enable-cache: false
+      - name: Exercise authenticated published installation and migration
+        env:
+          FACTORY_PUBLISHED_EVIDENCE_DIR: ${{ runner.temp }}/published-release-evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$FACTORY_PUBLISHED_EVIDENCE_DIR"
+          go test -tags=publishedrelease -race -count=1 -timeout=25m -v ./acceptance \
+            -ginkgo.focus='^Go factory command acceptance Published release qualification live ' -ginkgo.fail-on-empty -ginkgo.no-color \
+            -ginkgo.json-report="$FACTORY_PUBLISHED_EVIDENCE_DIR/ginkgo.json" \
+            -ginkgo.junit-report="$FACTORY_PUBLISHED_EVIDENCE_DIR/junit.xml"
+      - name: Retain exact-release outcomes and observed platform evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: published-release-${{ matrix.artifact }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/published-release-evidence/
+          if-no-files-found: warn
+          retention-days: 14

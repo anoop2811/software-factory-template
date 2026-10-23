@@ -104,6 +104,15 @@ shared-budget implementation/review/repair; progress and stop conditions; fresh
 checkpoints/evidence/handoffs; install/upgrade/docs and deterministic acceptance.
 The existing eleven roadmap items and priorities remain unchanged.
 
+## Runtime selection
+
+Loops are implemented natively in the Go CLI, including manual checks, bounded
+repair and checkpoint freshness. The current source launcher and ordinary source/ref
+updates still select the legacy script runtime. An explicitly selected authenticated
+Go installation reaches the native controller through the same `./factory loop`
+command. See [CLI.md](CLI.md) and [UPGRADING.md](UPGRADING.md); source implementation
+does not by itself establish default cutover or a published replacement release.
+
 ## Usage and cost choices
 
 Inspect the plan and run checks without using a model:

@@ -39,8 +39,12 @@ attempt stays in the report. Distinct task IDs share the same session limits.
 
 ## Interface and configuration
 
-The shared shell entry point reads flat factory.yaml through scripts/lib/config.sh
-and passes values as data to a Python 3.8+ standard-library implementation.
+The default source/script installation reads flat factory.yaml through the shared
+shell entry point and passes values as data to its Python implementation. The
+source-built or explicitly selected installed Go CLI reads the same configuration
+and owns budgeting natively without Python. Runtime selection and command
+availability are explained in [CLI.md](CLI.md); source/ref updates retain the
+script default until the replacement cutover is qualified.
 
 Commands (flags use separate values or `--flag=value`):
 

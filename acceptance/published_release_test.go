@@ -443,6 +443,19 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		}
 		Eventually(observe, 3*time.Minute, time.Millisecond).Should(BeTrue(), "must observe durable applied rows under pending, not perform a timed kill")
 		Expect(syscall.Kill(command.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+		// A signal acknowledgement is not the stopped-process witness.
+		// per docs/DECISION_LOG.md:4695.
+		Eventually(func() bool {
+			select {
+			case err := <-finished:
+				waited = true
+				StopTrying(fmt.Sprintf("published candidate exited before observed stop: %v", err)).Now()
+			default:
+			}
+			stopped, stopErr := installationProcessStopped(command.Process.Pid)
+			Expect(stopErr).NotTo(HaveOccurred(), "observe actual published candidate stop before reading crash evidence")
+			return stopped
+		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "must observe the actual process stopped before accepting its durable witness")
 		// Re-read the stopped process's actual durable boundary. A completed
 		// transaction between the poll and SIGSTOP must fail this proof closed.
 		stoppedBytes, err := os.ReadFile(filepath.Join(legacy.root, ".factory/installation-transactions", migration+".json"))

@@ -4686,3 +4686,32 @@ review's one confirmed minor fixture gap is addressed with public caller modes
 and forced-private snapshot assertions. A mode-breaking temporary compiler overlay
 failed both valid cases; unchanged production passed all three. These test-only
 follow-ups do not alter the staging correction or broaden the release claim.
+
+A later Linux installation job at head 33507ff failed the unchanged committed
+cleanup interruption criterion: after acknowledging SIGSTOP and reading the
+pending marker, SIGKILL was followed by an absent marker. The observer currently
+reads its witness immediately after sending SIGSTOP, without confirming actual
+process stop. Investigate that asynchronous-observation gap before changing any
+runtime behavior. A test-only correction must observe actual stopped state before
+accepting the journal/pending witness, preserve the SIGKILL/result/pending checks,
+and retain the existing bounded attempts. It must not convert an unwitnessed
+healthy completion into a successful crash/recovery claim or add production fault
+flags. Use an independent controlled observation-race probe and the real recovery
+criterion to qualify any fixture correction.
+
+The independent observer probe omitted only the first SIGSTOP and returned its
+successful acknowledgement after the actual healthy completion. Old observation
+failed (0 passed/1 failed); corrected observation rejected that attempt, then
+required a real stopped committed/pending child and SIGKILL recovery (4 passed).
+The unchanged final four recovery criteria passed natively on Darwin arm64 under
+the race detector in 195.659 seconds, including the adjacent forward/reverse applying witness with
+exact SIGKILL and unchanged stopped-journal bytes. The published five-criterion
+lane was compiled/discovered only; no live replacement qualification is claimed.
+Three independent review lenses found no remaining observer issue.
+
+The same source CI run also recorded a separate macOS healthy-control Git-init
+proof timeout at the existing five-second deadline. Its cause is unproven; retain
+the production bound and assertions. The unchanged archive-subject criterion then
+passed locally (1 passed/0 failed in 23.962 seconds). Inspect the next head's full
+native CI; do not infer hosted success or change the source timeout from that
+local result.

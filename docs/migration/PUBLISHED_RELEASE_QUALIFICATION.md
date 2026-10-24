@@ -49,7 +49,9 @@ with GitHub-compatible suffix dispatch, private permissions, unchanged bytes aft
 caller-input mutation, staged payload identity and refusal without publication.
 The source census is now 2,999 ordinary criteria; no previous criterion was removed.
 
-Observed 2026-10-24 with Go 1.27.3:
+Observed 2026-10-24 with Go 1.27.3 (released 2026-10-19;
+[official Go release history](https://go.dev/doc/devel/release)). The linter below
+is the repository's existing v2.14.0 CI pin, not a claim of the latest tool version:
 
 ```text
 go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='G1 runtime bundle staging|G1 complete installation source images' -ginkgo.no-color -ginkgo.fail-on-empty
@@ -92,6 +94,63 @@ creation from 0600 to 0644 produced `1 Passed | 2 Failed`, with both valid-forma
 cases rejected as `verification snapshot is not private`. Unmodified production
 then produced `3 Passed | 0 Failed` in 1.661 seconds. No tracked production file
 was changed by the mutation probe, and no extra criterion was added.
+
+## Correction-PR CI follow-up
+
+Head `33507ff51ff974e173bc6941714180a8cebecd15` passed Linux base,
+macOS installation, both release-handoff jobs and the four native bundle jobs.
+[Run 40105875345](https://github.com/anoop2811/software-factory-template/actions/runs/40105875345)
+also retained two distinct failures:
+
+- Linux installation: the existing committed-cleanup interruption criterion sent
+  SIGSTOP and read a pending witness without first observing that the process had
+  stopped. After SIGKILL, that marker was absent. The observer follow-up requires
+  actual native stopped state before reading durable crash evidence; it preserves
+  signal-exit, pending, recovery and bounded-attempt assertions. The live published
+  recovery fixture uses the same observer before accepting its partial journal.
+- macOS base: an unchanged archive-subject criterion failed its healthy initialization
+  control because the real isolated `git init` proof exceeded its existing
+  five-second limit (`elapsed_seconds=5.023`, exit confirmed). This is before the
+  wrong-subject scenario. The log does not establish the source of the delay;
+  hosted contention is only a hypothesis. Preserve the production deadline and
+  assertion, then inspect the next head's native CI outcome.
+
+An independent compiler-overlay probe withheld only the first actual SIGSTOP,
+waited for healthy `Cmd.Wait` completion, requeued that result and returned a
+successful signal-call result. The old observer tried SIGKILL against the exited
+child: `0 Passed | 1 Failed` in 120.186 seconds. With actual-stop observation, the
+same injected acknowledgement race produced `4 Passed | 0 Failed` in 214.154
+seconds. Its retained Ginkgo output records an unwitnessed healthy completion on
+`terminal-cleanup-1`, then an actual committed/pending SIGSTOP/SIGKILL witness on
+`terminal-cleanup-2`, plus the separate real applying-row witness. It does not
+credit the omitted stop as a crash or introduce a production fault flag.
+
+The final ordinary recovery run on Darwin arm64, without the compiler overlay,
+passed all four selected criteria in 195.659 seconds. It retained real committed
+and applying-row stopped witnesses, exact SIGKILL checks, pending admission and
+forward/reverse recovery. Linux amd64 cross-compilation exited 0; native Linux
+behavior remains the CI matrix's evidence. The tagged live lane compiled and
+selected its five criteria in dry-run mode only; no published test body ran.
+
+```text
+env GORACE=atexit_sleep_ms=0 GOFLAGS= go test -race -count=1 -timeout=5m -v ./acceptance -ginkgo.focus='Whole installation upgrade semantic consumer (recovers actual committed pending cleanup without replaying assets or making another backup|preserves a foreign equal-byte created leaf after an actual applied-row interruption|retains one pending installation after native interruption and recovers with fresh consent)' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 4 of 2999 Specs in 195.659 seconds
+SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 2995 Skipped
+```
+
+The unchanged archive-subject criterion also passed a focused native macOS run:
+
+```text
+go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='Authenticated release candidate archive subject refuses a different verified archive subject even when raw bootstrap authentication succeeds' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 1 of 2999 Specs in 23.962 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 2998 Skipped
+```
+
+That local healthy control does not determine the previous hosted delay's cause
+or replace the next head's full native CI run.
+
+These failures remain separate from the observed attestation-format defect.
+A passing source rerun cannot qualify the unchanged failed RC1.
 
 ## Select an exact release
 

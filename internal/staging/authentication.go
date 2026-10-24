@@ -12,6 +12,12 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
+// Preserve the verifier's format discriminator within private snapshot custody.
+// docs/DECISION_LOG.md:4639.
+func attestationSnapshotName(source string) string {
+	return "attestation" + filepath.Ext(source)
+}
+
 func authenticate(ctx context.Context, options Options, workspace string) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -23,7 +29,7 @@ func authenticate(ctx context.Context, options Options, workspace string) error 
 		"--repo", "anoop2811/software-factory-template",
 		"--signer-workflow", "anoop2811/software-factory-template/.github/workflows/runtime-release.yml",
 		"--source-digest", options.Revision, "--source-ref", "refs/tags/" + options.Version,
-		"--bundle", filepath.Join(workspace, "attestation"), "--custom-trusted-root", filepath.Join(workspace, "trusted-root"), "--deny-self-hosted-runners"}
+		"--bundle", filepath.Join(workspace, attestationSnapshotName(options.Attestation)), "--custom-trusted-root", filepath.Join(workspace, "trusted-root"), "--deny-self-hosted-runners"}
 	environment := map[string]string{}
 	for _, entry := range os.Environ() {
 		key, value, _ := strings.Cut(entry, "=")

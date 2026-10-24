@@ -6,6 +6,78 @@ attestations. Regular users continue to use the single `factory` CLI.
 Adding the lane does not establish that a release passed it. The
 [replacement-release checklist](GO_RELEASE_READINESS.md) remains authoritative.
 
+## First published candidate result
+
+On 2026-10-24, [v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
+was published at `5ef20c186676069229cae3781c85ec509f377af2`.
+[Release run 40103396983](https://github.com/anoop2811/software-factory-template/actions/runs/40103396983)
+passed four native builds, attestation/upload of all twelve subjects and the
+qualification guard. The release contains fourteen assets including the shared
+attestation bundle and checksum file. It remains a prerelease; v0.1.6 is latest
+stable.
+
+Actual published qualification **failed on all four targets**. Each evaluator
+first authenticated its three native subjects with the real verifier, then its
+five init/upgrade/rollback/recovery criteria failed in candidate staging. The
+consumer copied the attestation bundle into private custody under an extensionless
+name; the real GitHub CLI refused it with `bundle file extension not supported,
+must be json or jsonl`. This is a consumer failure, not an artifact-signature
+failure or successful migration evidence. The release notes mark RC1 unsuitable
+for migration. Its signed source, tag and assets are retained unchanged.
+
+| Target | Observed OS | Published scenarios |
+|---|---|---|
+| Linux amd64 | Ubuntu 24.04.5 LTS | 0 passed, 5 failed |
+| Linux arm64 | Ubuntu 24.04.5 LTS | 0 passed, 5 failed |
+| macOS amd64 | 15.7.9 | 0 passed, 5 failed |
+| macOS arm64 | 14.8.9 | 0 passed, 5 failed |
+
+The retained `published-release-TARGET-40103396983-1` artifacts contain the exact
+subject digests, source/harness identity, OS and Ginkgo failure messages. Decision
+110 records the correction contract. A corrected source implementation and local
+stager checks do not repair RC1 or close the real release gate: publish a new
+candidate after review and repeat the full live matrix. The macOS 14 Intel gap,
+mandatory adopter pilot and default cutover remain separate requirements.
+
+## Local correction evidence
+
+Decision 110 preserves the original bundle format suffix in the private snapshot
+used by the generic stager. Independent public regressions first observed two
+failures for JSON/JSONL and one existing unsupported-format refusal pass. After
+the correction, the same three criteria passed. They exercise a compiled consumer
+with GitHub-compatible suffix dispatch, private permissions, unchanged bytes after
+caller-input mutation, staged payload identity and refusal without publication.
+The source census is now 2,999 ordinary criteria; no previous criterion was removed.
+
+Observed 2026-10-24 with Go 1.27.3:
+
+```text
+go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='G1 runtime bundle staging|G1 complete installation source images' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 124 of 2999 Specs in 142.593 seconds
+SUCCESS! -- 124 Passed | 0 Failed | 0 Pending | 2875 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 143.220s
+
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run --config packs/go/.golangci.yml ./internal/staging ./acceptance
+0 issues.
+
+go vet ./internal/staging ./acceptance
+exit 0; no output
+```
+
+A separate local real-verifier probe used RC1's actual signed Darwin arm64
+installation archive, its release bundle, freshly provisioned trusted roots,
+exact source `5ef20c186676069229cae3781c85ec509f377af2` and tag ref. Real
+`gh attestation verify` rejected the unchanged bundle copied to an extensionless
+filename with exit 1 and accepted its `.jsonl` name with exit 0. The corrected
+public `factory-stage --installation` then authenticated and staged that same
+archive with both the JSONL bundle and a pretty-printed single-bundle JSON form:
+each exited 0 and reported `authentication: github-attestation`.
+
+These observations qualify corrected local staging, not a new signed Go runtime
+or completed public migration. RC1 remains failed; a reviewed correction must be
+published under a new candidate tag and pass the full live matrix. No signature,
+source, private-custody, process-ownership or extraction check was relaxed.
+
 ## Select an exact release
 
 Use a non-draft official release or prerelease containing the complete native

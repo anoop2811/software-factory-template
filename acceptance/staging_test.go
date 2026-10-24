@@ -27,6 +27,49 @@ type stageEntry struct {
 	kind byte
 }
 
+// The real verifier selects its decoder from the bundle suffix, independently
+// of staging's snapshot filename. per docs/DECISION_LOG.md:4668.
+const stageFormatVerifierSource = `package main
+import (
+ "bytes"
+ "encoding/json"
+ "fmt"
+ "io"
+ "os"
+ "path/filepath"
+)
+func reject(message string) { fmt.Fprintln(os.Stderr, message); os.Exit(41) }
+func main() {
+ bundle := ""
+ for i := 1; i + 1 < len(os.Args); i++ {
+  if os.Args[i] == "--bundle" { bundle = os.Args[i+1] }
+ }
+ extension := filepath.Ext(bundle)
+ if extension != ".json" && extension != ".jsonl" { reject("unsupported bundle format") }
+ original := os.Getenv("STAGE_FORMAT_ORIGINAL")
+ if bundle == original { reject("mutable original used for verification") }
+ body, err := os.ReadFile(bundle); if err != nil { reject(err.Error()) }
+ info, err := os.Stat(bundle); if err != nil { reject(err.Error()) }
+ parent, err := os.Stat(filepath.Dir(bundle)); if err != nil { reject(err.Error()) }
+ if info.Mode().Perm() != 0600 || parent.Mode().Perm() != 0700 { reject("verification snapshot is not private") }
+ decoder := json.NewDecoder(bytes.NewReader(body))
+ documents := 0
+ for {
+  var value map[string]string
+  err := decoder.Decode(&value)
+  if err == io.EOF { break }
+  if err != nil || value["subject"] == "" { reject("invalid bundle document") }
+  documents++
+ }
+ if documents == 0 || extension == ".json" && documents != 1 { reject("wrong bundle decoder") }
+ if os.WriteFile(original, []byte("caller changed after snapshot"), 0600) != nil { reject("cannot change original") }
+ expected, err := os.ReadFile(os.Getenv("STAGE_FORMAT_EXPECTED")); if err != nil { reject(err.Error()) }
+ current, err := os.ReadFile(bundle); if err != nil || !bytes.Equal(current, expected) { reject("verification bytes changed with caller input") }
+ record, err := json.Marshal(struct {Path string; Documents int; Bytes []byte}{bundle, documents, current})
+ if err != nil || os.WriteFile(os.Getenv("STAGE_FORMAT_RECORD"), record, 0600) != nil { reject("cannot record verification") }
+}
+`
+
 func stageArchive(entries []stageEntry) []byte {
 	GinkgoHelper()
 	var compressed bytes.Buffer
@@ -55,7 +98,7 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 	const target = "linux/amd64"
 	const revision = "0123456789012345678901234567890123456789"
 	const prefix = version + "/" + target + "/"
-	var binary, work, archive, output, marker string
+	var binary, formatVerifier, work, archive, output, marker string
 	var entries []stageEntry
 	BeforeAll(func() {
 		build, err := os.MkdirTemp("", "factory-stage-build-")
@@ -65,6 +108,12 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 		cmd := exec.Command("go", "build", "-o", binary, "./cmd/factory-stage") // #nosec G204 -- test-owned compiled CLI.
 		cmd.Dir = ".."
 		out, err := cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), "%s", out)
+		formatSource := filepath.Join(build, "format-verifier.go")
+		writeFixture(formatSource, []byte(stageFormatVerifierSource), 0600)
+		formatVerifier = filepath.Join(build, "format-verifier")
+		cmd = exec.Command("go", "build", "-o", formatVerifier, formatSource) // #nosec G204 -- test-owned independent format-consumer fixture.
+		out, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred(), "%s", out)
 	})
 	BeforeEach(func() {
@@ -277,6 +326,56 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 		Expect(err).NotTo(HaveOccurred())
 		_, err = os.Lstat(filepath.Join(work, "staged"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
+	})
+	// per docs/DECISION_LOG.md:4655 and docs/adr/0061-runtime-bundle-staging.md:27.
+	DescribeTable("preserves verifier bundle format and private byte custody", func(extension, body string, documents int) {
+		write()
+		attestation := filepath.Join(work, "caller-attestation"+extension)
+		roots, expected, record := filepath.Join(work, "roots"), filepath.Join(work, "expected"), filepath.Join(work, "verification.json")
+		writeFixture(attestation, []byte(body), 0600)
+		writeFixture(expected, []byte(body), 0600)
+		writeFixture(roots, []byte("trusted fixture"), 0600)
+		result := readerProcess(work, map[string]string{"STAGE_FORMAT_ORIGINAL": attestation, "STAGE_FORMAT_EXPECTED": expected, "STAGE_FORMAT_RECORD": record}, binary, append(args(false), "--attestation", attestation, "--trusted-root", roots, "--gh", formatVerifier)...)
+		Expect(result.status).To(Equal(0), result.stderr)
+		var observed struct {
+			Path      string
+			Documents int
+			Bytes     []byte
+		}
+		data, err := os.ReadFile(record)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(json.Unmarshal(data, &observed)).To(Succeed())
+		Expect(observed.Path).NotTo(Equal(attestation))
+		Expect(filepath.Ext(observed.Path)).To(Equal(extension), "the consumer must retain its original format selection")
+		Expect(observed.Documents).To(Equal(documents))
+		Expect(observed.Bytes).To(Equal([]byte(body)))
+		changed, err := os.ReadFile(attestation)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(changed)).To(Equal("caller changed after snapshot"))
+		_, err = os.Lstat(observed.Path)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "private snapshot should be cleaned after successful staging")
+		for _, entry := range entries {
+			staged, readErr := os.ReadFile(filepath.Join(output, filepath.FromSlash(entry.name)))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(staged).To(Equal(entry.body))
+		}
+	}, Entry("single JSON bundle", ".json", "{\n  \"subject\": \"one\"\n}\n", 1),
+		Entry("JSONL bundle stream", ".jsonl", "{\"subject\":\"one\"}\n{\"subject\":\"two\"}\n", 2))
+	// per docs/DECISION_LOG.md:4658 and docs/adr/0061-runtime-bundle-staging.md:22.
+	It("preserves unsupported bundle-format refusal without publishing or changing caller bytes", func() {
+		write()
+		attestation, roots := filepath.Join(work, "bundle.unknown"), filepath.Join(work, "roots")
+		body := []byte("{\"subject\":\"one\"}\n")
+		writeFixture(attestation, body, 0600)
+		writeFixture(roots, []byte("trusted fixture"), 0600)
+		result := failure(append(args(false), "--attestation", attestation, "--trusted-root", roots, "--gh", formatVerifier), 1)
+		Expect(result.stderr).To(ContainSubstring("unsupported bundle format"))
+		current, err := os.ReadFile(attestation)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(current).To(Equal(body))
+		current, err = os.ReadFile(archive)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(current).To(Equal(stageArchive(entries)))
 	})
 	It("binds offline verification to private snapshots and stages those same bytes", func() {
 		write()

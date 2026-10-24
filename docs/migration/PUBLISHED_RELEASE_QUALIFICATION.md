@@ -78,6 +78,21 @@ or completed public migration. RC1 remains failed; a reviewed correction must be
 published under a new candidate tag and pass the full live matrix. No signature,
 source, private-custody, process-ownership or extraction check was relaxed.
 
+The first correction PR run also exposed the scheduler's frozen 2,996-case
+expectation after adding the three format criteria. Updating only the active
+census expectations retains exhaustive/disjoint membership and all quality-stage
+checks. Independent native discovery passed the focused scheduler criterion:
+`1 Passed | 0 Failed` in 19.544 seconds, with
+`2999 = 2858 base + 97 installation + 44 release-handoff` and zero-selection refusal.
+
+The permission fixtures were subsequently strengthened to use caller directory
+0755 and bundle 0644 while still requiring private snapshot directory 0700 and
+file 0600. A temporary Go compiler overlay changing only private destination
+creation from 0600 to 0644 produced `1 Passed | 2 Failed`, with both valid-format
+cases rejected as `verification snapshot is not private`. Unmodified production
+then produced `3 Passed | 0 Failed` in 1.661 seconds. No tracked production file
+was changed by the mutation probe, and no extra criterion was added.
+
 ## Select an exact release
 
 Use a non-draft official release or prerelease containing the complete native

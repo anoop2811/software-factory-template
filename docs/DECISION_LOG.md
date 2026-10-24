@@ -4678,3 +4678,11 @@ staging/source-image checks passed 124/124, targeted pinned-CI lint reported
 real GitHub authentication with RC1's actual signed Darwin arm64 image and both
 JSON/JSONL bundle forms. Detailed commands and their scope are recorded in
 PUBLISHED_RELEASE_QUALIFICATION.md; these are not new-candidate migration results.
+
+CI follow-up retains the same 2,999 source criteria and changes only the active
+scheduler census from 2996/2855 to 2999/2858; its native partition criterion passed
+with all disjoint/exhaustive identities and quality stages retained. The advisory
+review's one confirmed minor fixture gap is addressed with public caller modes
+and forced-private snapshot assertions. A mode-breaking temporary compiler overlay
+failed both valid cases; unchanged production passed all three. These test-only
+follow-ups do not alter the staging correction or broaden the release claim.

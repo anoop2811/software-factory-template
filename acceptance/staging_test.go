@@ -330,9 +330,11 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 	// per docs/DECISION_LOG.md:4655 and docs/adr/0061-runtime-bundle-staging.md:27.
 	DescribeTable("preserves verifier bundle format and private byte custody", func(extension, body string, documents int) {
 		write()
+		Expect(os.Chmod(work, 0755)).To(Succeed())
 		attestation := filepath.Join(work, "caller-attestation"+extension)
 		roots, expected, record := filepath.Join(work, "roots"), filepath.Join(work, "expected"), filepath.Join(work, "verification.json")
-		writeFixture(attestation, []byte(body), 0600)
+		writeFixture(attestation, []byte(body), 0644)
+		Expect(os.Chmod(attestation, 0644)).To(Succeed())
 		writeFixture(expected, []byte(body), 0600)
 		writeFixture(roots, []byte("trusted fixture"), 0600)
 		result := readerProcess(work, map[string]string{"STAGE_FORMAT_ORIGINAL": attestation, "STAGE_FORMAT_EXPECTED": expected, "STAGE_FORMAT_RECORD": record}, binary, append(args(false), "--attestation", attestation, "--trusted-root", roots, "--gh", formatVerifier)...)

@@ -20,7 +20,7 @@ curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typ
 # later, from inside the repo — pull framework updates (a reviewable diff):
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
 
-# installs and upgrades are pinned to the latest release; --ref takes any branch or tag:
+# the installer uses its pinned stable release; --ref takes any branch or tag:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
 ```
@@ -33,10 +33,48 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 
 `factory-init.sh` detects your stack, writes `factory.yaml`, installs the hooks, then runs a break/fix self-test so you watch a gate fire before it declares success. Afterward, try pushing straight to `main`, or committing with the message `fix: verified the thing`. Both get blocked. That's the product.
 
+## Upgrade from v0.1.6 to the Go factory
+
+**Release status:** v0.1.6 is the latest published stable release. v0.2.0 is the
+planned Go replacement; it is not published yet. Native commands and the explicit
+candidate upgrade flow are implemented on `main`, with release qualification,
+adopter pilot and default cutover still pending. Track the
+[release checklist](docs/migration/GO_RELEASE_READINESS.md).
+
+An ordinary `upgrade` or `upgrade --ref main` continues to select the script
+installation. When v0.2.0 is published with its complete attested assets, use the
+explicit Go flow below from your existing project:
+
+```sh
+# Preview only; requires the complete published v0.2.0 release.
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --dry-run --json
+
+# Review the proposal. Stop other factory work for the maintenance window.
+# Replace PROPOSAL_DIGEST with the complete proposal_digest from that preview.
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+
+# After successful activation, use the same public command.
+./factory doctor
+```
+
+For a published prerelease, substitute its exact tag in both commands. The
+preview authenticates assets and reports conflicts without changing your project.
+Confirmation rechecks the proposal before activation. Unchanged owned obsolete
+implementations are replaced or retired; custom files are preserved. Compatible
+public script paths remain thin adapters to Go. Recovery copies are inert and
+Git-ignored under `.factory/backups/`; qualified later releases prune eligible
+older sets while retaining the immediately preceding usable installation.
+
+Read the [upgrade and recovery guide](docs/UPGRADING.md) for prerequisites,
+configuration/history preservation, retention exceptions and interrupted upgrades.
+See the [CLI command reference](docs/CLI.md) for the commands available in each
+runtime. Installing the packaged Go factory requires no Go compiler or Python;
+product tools and retained validation gates keep their own requirements.
+
 ## Getting started
 
 1. Read [docs/CONCEPTS.md](docs/CONCEPTS.md) (~5 min) — why the gates exist.
-2. Run `factory-init` in your repo to install the hooks and prove they fire.
+2. Use the Quick start initializer in your project to install the hooks and prove they fire.
 3. Run `./factory doctor` any time to see which gates are armed, inert, or stale — and watch every armed gate fire on its own break/fix proof.
    - `./factory report` shows what the gates caught, enforced at 0 model tokens, plus one clearly-labeled cost estimate — no vanity "tokens saved" number.
    - `./factory metrics` shows what the factory is doing to your repo: gates armed vs inert, what they blocked, rework, reverts, whether claims carry evidence. Mostly from git history, so it works the day you install. `--json` to export, `--html` for a page. Local only — nothing is transmitted.
@@ -57,10 +95,11 @@ The third idea is that this is already a graph. The vocabulary everyone's chasin
 |---|---|---|
 | Agent roles | `.opencode/agent/` | spec-writer, implementer, refactorer, reviewer, wiki-maintainer. The role that writes tests never writes implementation — enforced by a hook, not by trust. |
 | Hooks | `scripts/hooks/` | Deterministic gates on commits, pushes, and CI. Each one in [docs/HOOKS.md](docs/HOOKS.md). |
-| Harness adapters | `scripts/sync-*.sh` | opencode is canonical; the Claude Code and Codex configs are generated from it, and CI fails on drift. |
+| Harness adapters | `factory sync` in Go; `scripts/sync-*.sh` in the script installation | opencode is canonical; the Claude Code and Codex configs are generated from it, and CI fails on drift. |
 | Language packs | `packs/` | The core never mentions a language. Packs carry the stack opinions. |
 | Agent evals | `eval/` | Score agents on real tasks — a red spec plus an oracle, pass rate over N runs. Baselines record what they were measured against, so a changed oracle reports *stale* instead of a false "no regression". |
 | Workflow recipes | `workflows/` | The graph in plain text: nodes are roles, edges are code, findings pass a verifier. `workflow-lint` enforces the shape; one recipe runs natively on all three harnesses. |
+| CLI | `./factory` | One developer entrypoint for setup, health, upgrades, budgets and loops. [Command reference](docs/CLI.md). |
 | Metrics | `factory metrics` | What the factory is doing to your repo, computed locally and never sent anywhere. Shows the unflattering numbers — inert gates, repeat blocks, rework, stale baselines — as prominently as the wins. [docs/METRICS.md](docs/METRICS.md). |
 
 ## Pack maturity
@@ -76,9 +115,13 @@ Labels are evidence, not roadmap: battle-tested means a real project shipped und
 Frameworks ride on the language pack, not their own: React and Vue use the TypeScript pack (Biome auto-applies its `react`/`vue` rules), Spring Boot uses the Java pack (JUnit 5 + Testcontainers). `factory-init` detects them and points you at the right pack. Install several at once for polyglot repos — `--pack go,typescript`.
 
 The [Go runtime conversion spec](specs/001-go-runtime-conversion.md) governs a
-staged migration with backward compatibility, recovery and safe cleanup. Go
-reader, configuration-export and artifact-verification candidates are available
-for development; no default runtime cutover or packaged conversion has shipped.
+staged migration with backward compatibility, recovery and safe cleanup. Native Go implementations now cover setup, health, reporting, metrics, review-lane
+configuration, configuration migration, budgets, loops, harness synchronization,
+check orchestration, evaluation and review. Authenticated whole-installation
+upgrade, rollback, interrupted recovery and backup retention are implemented.
+The [command reference](docs/CLI.md) distinguishes this source surface from the
+current script default; [release readiness](docs/migration/GO_RELEASE_READINESS.md)
+tracks the remaining qualification and cutover gates.
 
 ## Cost & models
 
@@ -103,6 +146,9 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 
 ## Documentation
 
+- [docs/CLI.md](docs/CLI.md) — commands, examples, runtime availability and model-cost choices
+- [docs/UPGRADING.md](docs/UPGRADING.md) — v0.1.6 to the Go factory, backups and recovery
+- [docs/migration/GO_RELEASE_READINESS.md](docs/migration/GO_RELEASE_READINESS.md) — remaining Go replacement release gates
 - [docs/CONCEPTS.md](docs/CONCEPTS.md) — why the rules exist, including the full Verification Contract
 - [docs/ADAPTING.md](docs/ADAPTING.md) — adopting the factory in an existing project
 - [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md) — the cost profile and per-harness model tiers

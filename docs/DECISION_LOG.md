@@ -4603,3 +4603,35 @@ certificate. Canonical metadata is not a server redirect. After Anoop enabled
 the Cloudflare setting, independent curl checks at 14:19 UTC observed HTTP 301
 with Location: https://softwareaifactory.sh/, then HTTPS 200 after exactly one
 redirect. That observed edge change is separate from these repository edits.
+
+## Decision 109 (2026-10-23 UTC): document the native CLI and the v0.1.6 upgrade boundary
+
+Anoop requested an audit of the public index against delivered source, a usable
+command reference and README instructions for moving from v0.1.6 to the planned
+v0.2.0 Go replacement. GitHub release readback on 2026-10-23 still identifies
+v0.1.6 as latest stable and has no published v0.2.0 or Go candidate. Existing
+source and opt-in release handoff are implemented; default selection, published
+native qualification, adopter pilot and stable publication remain separate gates
+in docs/migration/GO_RELEASE_READINESS.md.
+
+Add a user-facing command reference grounded in the actual source command map
+and safe help invocations. Distinguish the ordinary script launcher from the
+native Go command surface; one public factory CLI remains the adopter interface.
+Keep staging, packaging and protocol entrypoints as maintainer internals. Explain
+command purpose, usage, side effects and explicit model-cost choices, linking to
+the existing detailed guides instead of copying their contracts.
+
+Add one upgrade guide for supported v0.1.6 adopters: release availability and
+prerequisites, authenticated read-only candidate preview, digest-bound consent
+with a quiet maintenance window, post-upgrade checks, classified script retirement,
+inert ignored recovery, retention and safe refusal/recovery. Give v0.2.0 commands
+as a conditional recipe for a complete published release, not as an available
+upgrade today. Existing source/ref updates keep their current script selection.
+Do not manufacture a release or assert seamless migration before its gates pass.
+
+Update the README and website with the source/runtime boundary, the guides and
+concrete developer use cases. Correct conflicting maturity or stale example counts
+only against existing project evidence. Preserve the public installer, runtime
+selection, CSP, analytics and enforcement. This is a documentation change, not a
+runtime cutover. Validate command examples without paid model calls, parse page
+metadata, resolve local links/citations and independently review the final diff.

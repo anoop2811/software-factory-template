@@ -727,6 +727,25 @@ func installationInterruptPhase(fixture installationFixtureData, migration, dige
 			if err := syscall.Kill(command.Process.Pid, syscall.SIGSTOP); err != nil {
 				continue
 			}
+			// A successful signal request does not establish that cleanup stopped.
+			// per docs/DECISION_LOG.md:4695.
+			for {
+				select {
+				case err := <-finished:
+					waited = true
+					Expect(err).NotTo(HaveOccurred(), "healthy terminal sibling failed before an observed stop: %s", stderr.String())
+					_, _ = fmt.Fprintf(GinkgoWriter, "terminal cleanup completed before observed SIGSTOP witness: %s\n", migration)
+					return "", false
+				default:
+				}
+				stopped, stopErr := installationProcessStopped(command.Process.Pid)
+				Expect(stopErr).NotTo(HaveOccurred(), "observe actual installer stop before reading crash evidence")
+				if stopped {
+					break
+				}
+				Expect(time.Now().Before(deadline)).To(BeTrue(), "installer did not enter an observed stop within its bounded witness window")
+				runtime.Gosched()
+			}
 			stoppedBody, journalErr := os.ReadFile(journalPath)
 			pending, pendingErr := os.Lstat(pendingPath)
 			var stoppedJournal map[string]any
@@ -1441,7 +1460,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		})
 		journalPath := filepath.Join(installed.root, ".factory/installation-transactions", migration+".json")
 		pendingPath := filepath.Join(installed.root, ".factory/runtime-publication.pending")
-		Eventually(func() bool {
+		observeAppliedPending := func() bool {
 			body, err := os.ReadFile(journalPath)
 			if err != nil {
 				return false
@@ -1462,13 +1481,28 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			}
 			_, err = os.Lstat(pendingPath)
 			return applied >= 2 && err == nil
-		}, 20*time.Second, time.Millisecond).Should(BeTrue(), "must observe multiple rows under one live pending marker")
+		}
+		Eventually(observeAppliedPending, 20*time.Second, time.Millisecond).Should(BeTrue(), "must observe multiple rows under one live pending marker")
 		Expect(syscall.Kill(command.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+		// Re-read the applying/pending evidence only after an actual native stop.
+		// per docs/DECISION_LOG.md:4695.
+		Eventually(func() bool {
+			stopped, stopErr := installationProcessStopped(command.Process.Pid)
+			Expect(stopErr).NotTo(HaveOccurred())
+			return stopped
+		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "must observe actual stop before accepting partial installation evidence")
+		Expect(observeAppliedPending()).To(BeTrue(), "the stopped installer must retain applying rows and pending")
+		stoppedJournal, err := os.ReadFile(journalPath)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(syscall.Kill(-command.Process.Pid, syscall.SIGKILL)).To(Succeed())
-		err := command.Wait()
+		err = command.Wait()
 		waited = true
 		var exit *exec.ExitError
 		Expect(errors.As(err, &exit)).To(BeTrue(), "actual interrupted driver did not exit by signal")
+		status, ok := exit.Sys().(syscall.WaitStatus)
+		Expect(ok).To(BeTrue())
+		Expect(status.Signal()).To(Equal(syscall.SIGKILL))
+		Expect(os.ReadFile(journalPath)).To(Equal(stoppedJournal), "the killed installer cannot advance its durable witness")
 		_, err = os.Lstat(pendingPath)
 		Expect(err).NotTo(HaveOccurred(), "crash cleared unresolved pending evidence")
 		recovery := installationProposal(installed, "--recover", migration, "--direction", direction)

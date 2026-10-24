@@ -95,7 +95,7 @@ func Stage(ctx context.Context, options Options) (result Result, err error) {
 	}
 	authentication := "local-source"
 	if !options.Local {
-		if _, err = snapshot(ctx, root, options.Attestation, "attestation", 16<<20); err != nil {
+		if _, err = snapshot(ctx, root, options.Attestation, attestationSnapshotName(options.Attestation), 16<<20); err != nil {
 			return Result{}, fmt.Errorf("attestation snapshot: %w", err)
 		}
 		if _, err = snapshot(ctx, root, options.TrustedRoot, "trusted-root", 16<<20); err != nil {

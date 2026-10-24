@@ -25,6 +25,17 @@ default source launcher, bare bootstrap and source upgrade still select the scri
 installation until the release gates pass. Explicit candidate delivery is described
 in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
+## Current release candidate
+
+[v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
+was published on 2026-10-24 to exercise real release authentication and migration.
+All assets were built and attested, but the consumer's extensionless private
+attestation copy caused all four native qualification jobs to fail before
+successful migration. RC1 is marked unsuitable for migration; v0.1.6 remains
+latest stable. See [the exact results](PUBLISHED_RELEASE_QUALIFICATION.md#first-published-candidate-result).
+A corrected, reviewed new candidate must pass actual published qualification;
+source-only checks do not close the gate below.
+
 ## Required release gates
 
 - [x] Complete committed source-image bundle and fixed legacy reference catalogs,

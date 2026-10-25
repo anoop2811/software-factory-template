@@ -4715,3 +4715,93 @@ the production bound and assertions. The unchanged archive-subject criterion the
 passed locally (1 passed/0 failed in 23.962 seconds). Inspect the next head's full
 native CI; do not infer hosted success or change the source timeout from that
 local result.
+
+## Decision 111 (2026-10-25 UTC): rehearse migration and a disposable adopter feature cycle
+
+Anoop requested actual adopter migration, product tests and a reversible feature cycle
+to gather release-readiness evidence. The observed original checkout is clean at
+an independently recorded project revision, with factory marker an older source revision,
+project-specific hooks/configuration and Go/TypeScript product code. Its files must
+remain unchanged. The corrected factory source is bb8815a5f214fc9977fccdb4d111fb3e93a62426
+in unmerged PR #136; RC1 remains failed. A local source build is explicitly
+unauthenticated rehearsal evidence, not a replacement published candidate.
+
+Use an isolated independent clone and record original file/mode, Git, configuration
+and runtime-history identities before testing. Try the exact observed installation
+first; preserve unsupported/customized blockers rather than replacing markers,
+forcing ownership or deleting hooks to manufacture success. If necessary, run a
+separately labeled supported-v0.1.6 fixture containing unchanged adopter product code
+alongside that exact-state refusal. That fixture does not establish migration of
+the existing adopter installation.
+
+Run baseline and post-change product checks, native factory health and harness
+wiring checks where available. A minimal temporary HTTP health-response feature
+will be specified/tested independently with Ginkgo/Gomega before implementation;
+exercise failure, success and feature reversal, then installation rollback if a
+qualified migration is available. Keep all feature changes in the isolated clone.
+Use private disposable database/services and existing declared language tools;
+never connect tests to the user's data, copy credentials, call paid models or
+publish the throwaway feature. Record blocked prerequisites and pre-existing
+failures separately from migration regressions.
+
+Retain a concise evidence report with exact source/target identities, commands,
+outcomes, preservation/cleanup/rollback observations and unexecuted checks.
+Compare the original checkout again at the end. No release gate is closed merely
+by a local rehearsal; actual signed native qualification, minimum-OS evidence,
+operator acceptance and default cutover retain their independent contracts.
+
+Observed rehearsal outcomes: actual older adopter preview produced 24/26 ownership
+blockers for the two supported profiles; its attempted apply changed no existing
+file and created only the transition coordination lock. A genuine fresh-v0.1.6
+fixture with identical product code/configuration migrated locally in 18.697s.
+Backend, frontend build/type and three native manual harness checks passed;
+frontend Vitest had no tests and the same invite browser criterion failed before
+and afterward. The independently authored health-header criterion failed, passed
+after implementation, then failed after reversal; the test was disposed and all
+product source restored. Clean rollback succeeded; rollback after new loop history
+was correctly blocked without erasing accounting. Original 207-file/HEAD/index/status
+fingerprints matched; owned containers and VM/data were removed.
+
+The trial also exposed a confirmed release blocker: native doctor requires execute
+permission on scripts/lib/config.sh even though the declared installed bridge is
+sourceable 0644. Independent review reproduced it and identified native fixture
+chmod 0700 masking. Correct the readable-library versus executable-hook boundary
+with independent installed-mode regressions before another published candidate.
+The local evidence and all qualifications are recorded in ADOPTER_REHEARSAL.md; no new
+release gate is marked complete by these observations.
+
+## Decision 112 (2026-10-25 UTC): diagnose sourceable core libraries using their actual installed permissions
+
+Anoop requested correction of the issues found in the adopter rehearsal and merged
+PR #136 as f902a29b46d88d483ac25d760573060db7983689. Preserve the completed
+attestation correction and sourceable bridge mode. The current native doctor
+incorrectly checks scripts/lib/config.sh as an invoked executable even though
+ADR 0098 declares it a readable regular sourceable library at mode 0644.
+
+Correct the diagnostic classification: require the sourced library to be a
+readable regular file, and retain readable/executable requirements for invoked
+core hooks. Missing, unreadable or non-regular required entries remain failures;
+ordinary inert/warning choices retain their existing exit semantics. Do not chmod
+installed assets to resemble the frozen legacy fixture, broaden migration
+ownership, delete modern controller history, weaken gate proofs or change model/
+provider/dependency versions.
+
+An independent test author must first demonstrate RED through the compiled public
+CLI with the real installed library mode. Include an actual qualified installation
+and focused missing/unreadable library plus non-executable invoked-hook controls.
+Retain legacy-parity fixtures separately, without using their chmod0700 layout as
+the sole native health oracle. Update only the scheduler's independently checked
+coverage census when adding criteria. Root implementation follows observed RED,
+then targeted race/static checks, adopter reproduction and independent review.
+Rehearsal findings remain historical; append correction evidence instead of
+rewriting the original failed observations into successes.
+
+Decision 112 qualification observed: the independent nine-criterion RED had five
+passes and four failures, including an actual upgraded installation rejecting its
+own0644 bridge. The correction passed all nine in 148.215s. All60 native-doctor
+criteria passed in 127.811s; after the lint-required switch refactor, all 8 focused
+permission criteria passed in 8.767s. PinnedCI lint reported 0issues, Go vet exited 0,
+and the security scan reported 0issues across 4files. Three independent review
+lenses found no actionable finding. The frozen source census was seen failing
+at 2999 vs 3008, then passed actual disjoint/exhaustive discovery at
+3008 = 2866 base + 98 installation + 44 handoff. No declared installation mode changed.

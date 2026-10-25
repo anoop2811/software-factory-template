@@ -188,6 +188,83 @@ var _ = Describe("Native Go doctor core", func() {
 	})
 })
 
+var _ = Describe("Native Go doctor sourceable library permissions", func() {
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:392
+	// per docs/DECISION_LOG.md:4781
+	It("accepts readable regular config at 0644 without changing its mode or bytes", func() {
+		root, environment := doctorFixture()
+		path := filepath.Join(root, "scripts/lib/config.sh")
+		Expect(os.Chmod(path, 0644)).To(Succeed())
+		before, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(before.Mode().IsRegular()).To(BeTrue())
+		Expect(before.Mode().Perm()).To(Equal(os.FileMode(0644)))
+		contents, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+
+		out := doctorRun(root, environment, false)
+		Expect(out.status).To(BeZero(), "%+v", out)
+		Expect(out.stdout).To(ContainSubstring("factory doctor: healthy"))
+		Expect(out.stdout).NotTo(ContainSubstring("[FAIL]"))
+		after, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, after)).To(BeTrue())
+		Expect(after.Mode()).To(Equal(before.Mode()), "doctor must diagnose installed modes without repairing them")
+		Expect(os.ReadFile(path)).To(Equal(contents))
+	})
+
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:392
+	// per docs/DECISION_LOG.md:4783
+	DescribeTable("rejects an unusable required sourceable config", func(kind string) {
+		root, environment := doctorFixture()
+		path := filepath.Join(root, "scripts/lib/config.sh")
+		switch kind {
+		case "missing":
+			Expect(os.Remove(path)).To(Succeed())
+		case "unreadable":
+			Expect(os.Chmod(path, 0111)).To(Succeed())
+			_, err := os.ReadFile(path)
+			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny library reads")
+			DeferCleanup(os.Chmod, path, os.FileMode(0700))
+		case "directory":
+			Expect(os.Remove(path)).To(Succeed())
+			Expect(os.Mkdir(path, 0700)).To(Succeed())
+		}
+
+		out := doctorRun(root, environment, false)
+		Expect(out.status).To(Equal(1), "%+v", out)
+		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/lib/config.sh")))
+		Expect(out.stdout).NotTo(ContainSubstring("factory doctor: healthy"))
+	}, Entry("missing library", "missing"), Entry("execute-only unreadable library", "unreadable"), Entry("non-regular library directory", "directory"))
+
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:394
+	// per docs/DECISION_LOG.md:4782
+	DescribeTable("still requires invoked core hooks to be readable regular executables", func(kind string) {
+		root, environment := doctorFixture()
+		Expect(os.Chmod(filepath.Join(root, "scripts/lib/config.sh"), 0644)).To(Succeed())
+		path := filepath.Join(root, "scripts/hooks/commit-message-lint.sh")
+		switch kind {
+		case "missing":
+			Expect(os.Remove(path)).To(Succeed())
+		case "nonexecutable":
+			Expect(os.Chmod(path, 0644)).To(Succeed())
+		case "unreadable":
+			Expect(os.Chmod(path, 0111)).To(Succeed())
+			_, err := os.ReadFile(path)
+			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny invoked-hook reads")
+			DeferCleanup(os.Chmod, path, os.FileMode(0700))
+		case "directory":
+			Expect(os.Remove(path)).To(Succeed())
+			Expect(os.Mkdir(path, 0700)).To(Succeed())
+		}
+
+		out := doctorRun(root, environment, false)
+		Expect(out.status).To(Equal(1), "%+v", out)
+		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/hooks/commit-message-lint.sh")))
+		Expect(out.stdout).NotTo(ContainSubstring("factory doctor: healthy"))
+	}, Entry("missing invoked hook", "missing"), Entry("non-executable invoked hook", "nonexecutable"), Entry("execute-only unreadable invoked hook", "unreadable"), Entry("non-regular invoked-hook directory", "directory"))
+})
+
 func doctorConfig(root, text string) {
 	GinkgoHelper()
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte(text), 0600)

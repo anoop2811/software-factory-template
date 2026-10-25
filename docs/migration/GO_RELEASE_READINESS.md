@@ -93,6 +93,18 @@ retention has visible file/byte totals and preserves all declared exceptions.
 No model is called as an upgrade or health test. Existing paid/optional choices
 and budgets remain explicit.
 
+## Installed doctor correction
+
+An isolated local adopter rehearsal exposed a sourceable-library permission
+mismatch in native doctor. Decision 112 corrects it while retaining executable
+requirements for invoked hooks. Independent criteria include an actual qualified
+installation at its declared 0644 library mode; local permission and doctor suites
+pass. See [the anonymized factory evidence](ADOPTER_REHEARSAL.md).
+
+Require reviewed exact-head CI and new published qualification before selecting
+another release candidate. The initial failed candidate, minimum-OS gap, mandatory
+operator pilot and default cutover remain open requirements.
+
 ## Pending operator input
 
 The pilot project and evidence period/exit criteria were requested from Anoop on

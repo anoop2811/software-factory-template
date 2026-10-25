@@ -961,6 +961,30 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		}
 	}, Entry("v0.1.6 complete activation", "v0.1.6"), Entry("bash baseline complete activation", "bash-baseline"))
 
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:392
+	// per docs/DECISION_LOG.md:4789
+	It("runs installed public doctor with the actual sourceable bridge at 0644", func() {
+		installed := fixture("v0.1.6")
+		installationApply(installed, "whole-sourceable-doctor")
+		path := filepath.Join(installed.root, "scripts/lib/config.sh")
+		before, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(before.Mode().IsRegular()).To(BeTrue())
+		Expect(before.Mode().Perm()).To(Equal(os.FileMode(0644)), "the real installation must supply its declared sourceable bridge mode")
+		contents, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+
+		out := imageProcess(installed.root, map[string]string{"FACTORY_BRIDGE_PROTOCOL": ""}, filepath.Join(installed.root, "factory"), "doctor")
+		Expect(out.status).To(BeZero(), "qualified installed public doctor rejected its own sourceable library: %+v", out)
+		Expect(out.stdout).To(ContainSubstring("factory doctor: healthy"))
+		Expect(out.stdout).NotTo(ContainSubstring("[FAIL]"))
+		after, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, after)).To(BeTrue())
+		Expect(after.Mode()).To(Equal(before.Mode()), "installed doctor must not chmod its sourceable bridge")
+		Expect(os.ReadFile(path)).To(Equal(contents))
+	})
+
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:50
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:229
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:297

@@ -49,6 +49,7 @@ func (r *report) path(path string) string {
 }
 func regular(path string) bool    { s, e := os.Stat(path); return e == nil && s.Mode().IsRegular() }
 func directory(path string) bool  { s, e := os.Stat(path); return e == nil && s.IsDir() }
+func readable(path string) bool   { return regular(path) && syscall.Access(path, 4) == nil }
 func executable(path string) bool { return regular(path) && syscall.Access(path, 1) == nil }
 
 // Run retains ignored argv and the explicit subprocess boundaries.
@@ -129,10 +130,14 @@ func (r *report) run(ctx context.Context) error {
 	r.print("\nIntegrity\n")
 	missing := 0
 	for _, path := range coreHooks {
-		if !regular(r.path(path)) {
+		switch {
+		case !regular(r.path(path)):
 			r.line("[FAIL]", path+" is missing")
 			missing++
-		} else if !executable(r.path(path)) {
+		case !readable(r.path(path)):
+			r.line("[FAIL]", path+" is not readable")
+			missing++
+		case path != coreConfigLibrary && !executable(r.path(path)):
 			r.line("[FAIL]", path+" is not executable")
 			missing++
 		}
@@ -165,7 +170,11 @@ func (r *report) run(ctx context.Context) error {
 	return r.err
 }
 
-var coreHooks = []string{"scripts/lib/config.sh", "scripts/selftest/run.sh", "scripts/hooks/test-edit-denial.sh", "scripts/hooks/commit-message-lint.sh", "scripts/hooks/decision-log-gate.sh", "scripts/hooks/diff-aware-check.sh", "scripts/hooks/hook-existence-check.sh", "scripts/hooks/shared-script-enforcement.sh", "scripts/hooks/direct-main-push-block.sh", "scripts/hooks/pending-lessons-push-block.sh", "scripts/citation-lint.sh"}
+// The configuration bridge is sourced; the remaining core scripts are invoked.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:392.
+const coreConfigLibrary = "scripts/lib/config.sh"
+
+var coreHooks = []string{coreConfigLibrary, "scripts/selftest/run.sh", "scripts/hooks/test-edit-denial.sh", "scripts/hooks/commit-message-lint.sh", "scripts/hooks/decision-log-gate.sh", "scripts/hooks/diff-aware-check.sh", "scripts/hooks/hook-existence-check.sh", "scripts/hooks/shared-script-enforcement.sh", "scripts/hooks/direct-main-push-block.sh", "scripts/hooks/pending-lessons-push-block.sh", "scripts/citation-lint.sh"}
 
 func unsafeResult(r native.CommandResult) bool {
 	return r.OwnershipUnconfirmed || r.Outcome == "timeout" || r.Outcome == "interrupted" || r.Outcome == "output_limit"

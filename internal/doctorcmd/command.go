@@ -130,9 +130,16 @@ func (r *report) run(ctx context.Context) error {
 	r.print("\nIntegrity\n")
 	missing := 0
 	for _, path := range coreHooks {
+		info, err := os.Stat(r.path(path))
 		switch {
-		case !regular(r.path(path)):
+		case errors.Is(err, os.ErrNotExist):
 			r.line("[FAIL]", path+" is missing")
+			missing++
+		case err != nil:
+			r.line("[FAIL]", path+" cannot be inspected")
+			missing++
+		case !info.Mode().IsRegular():
+			r.line("[FAIL]", path+" is not a regular file")
 			missing++
 		case !readable(r.path(path)):
 			r.line("[FAIL]", path+" is not readable")

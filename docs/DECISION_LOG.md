@@ -4798,10 +4798,20 @@ rewriting the original failed observations into successes.
 
 Decision 112 qualification observed: the independent nine-criterion RED had five
 passes and four failures, including an actual upgraded installation rejecting its
-own0644 bridge. The correction passed all nine in 148.215s. All60 native-doctor
+own 0644 bridge. The correction passed all nine in 148.215s. All 60 native-doctor
 criteria passed in 127.811s; after the lint-required switch refactor, all 8 focused
-permission criteria passed in 8.767s. PinnedCI lint reported 0issues, Go vet exited 0,
-and the security scan reported 0issues across 4files. Three independent review
+permission criteria passed in 8.767s. Pinned CI lint reported 0 issues, Go vet exited 0,
+and the security scan reported 0 issues across 4 files. Three independent review
 lenses found no actionable finding. The frozen source census was seen failing
 at 2999 vs 3008, then passed actual disjoint/exhaustive discovery at
 3008 = 2866 base + 98 installation + 44 handoff. No declared installation mode changed.
+
+Decision 112 review follow-up: the advisory review completed all eight files and
+ten fragments. Distinguish missing, inaccessible and non-regular entries; pin the
+negative-case reason, register mode cleanup before guards, and require empty stderr
+for healthy native and installed checks. The two directory diagnostics were seen
+failing before correction; all eight permission criteria then passed in 12.353s.
+The targeted pinned lint reported `0 issues.` and `go vet ./internal/doctorcmd
+./acceptance` exited 0. Keep actual permission-denial guards fail-closed rather
+than skipping them under privilege. Keep the fixed source census as the independent
+coverage oracle alongside disjoint/exhaustive identity discovery.

@@ -976,6 +976,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 
 		out := imageProcess(installed.root, map[string]string{"FACTORY_BRIDGE_PROTOCOL": ""}, filepath.Join(installed.root, "factory"), "doctor")
 		Expect(out.status).To(BeZero(), "qualified installed public doctor rejected its own sourceable library: %+v", out)
+		Expect(out.stderr).To(BeEmpty())
 		Expect(out.stdout).To(ContainSubstring("factory doctor: healthy"))
 		Expect(out.stdout).NotTo(ContainSubstring("[FAIL]"))
 		after, err := os.Lstat(path)

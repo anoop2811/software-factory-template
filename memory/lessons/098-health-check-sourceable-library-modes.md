@@ -7,8 +7,9 @@ can mask the integration mismatch; qualify the actual installed modes and keep
 negative controls for unreadable libraries and non-executable invoked hooks.
 
 The canonical permission contract is docs/adr/0098-whole-installation-upgrade-and-rollback.md:392.
-The observed source mismatch is internal/doctorcmd/command.go:135 and
-internal/installation/roles.go:49. The original observation predates the correction; Decision 112 records the
+The original mismatch is preserved in the
+[immutable pre-correction check](https://github.com/anoop2811/software-factory-template/blob/bb8815a5f214fc9977fccdb4d111fb3e93a62426/internal/doctorcmd/command.go#L135)
+and the declared mode remains internal/installation/roles.go:49. The original observation predates the correction; Decision 112 records the
 independent regression and source correction.
 
 Provenance: observed 2026-10-25 via `rtk proxy ./factory doctor` in the isolated

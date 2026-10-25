@@ -204,6 +204,7 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
+		Expect(out.stderr).To(BeEmpty())
 		Expect(out.stdout).To(ContainSubstring("factory doctor: healthy"))
 		Expect(out.stdout).NotTo(ContainSubstring("[FAIL]"))
 		after, err := os.Lstat(path)
@@ -223,9 +224,9 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 			Expect(os.Remove(path)).To(Succeed())
 		case "unreadable":
 			Expect(os.Chmod(path, 0111)).To(Succeed())
+			DeferCleanup(os.Chmod, path, os.FileMode(0700))
 			_, err := os.ReadFile(path)
 			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny library reads")
-			DeferCleanup(os.Chmod, path, os.FileMode(0700))
 		case "directory":
 			Expect(os.Remove(path)).To(Succeed())
 			Expect(os.Mkdir(path, 0700)).To(Succeed())
@@ -233,7 +234,8 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(Equal(1), "%+v", out)
-		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/lib/config.sh")))
+		reason := map[string]string{"missing": "is missing", "unreadable": "is not readable", "directory": "is not a regular file"}[kind]
+		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/lib/config.sh "+reason) + `(\n|$)`))
 		Expect(out.stdout).NotTo(ContainSubstring("factory doctor: healthy"))
 	}, Entry("missing library", "missing"), Entry("execute-only unreadable library", "unreadable"), Entry("non-regular library directory", "directory"))
 
@@ -250,9 +252,9 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 			Expect(os.Chmod(path, 0644)).To(Succeed())
 		case "unreadable":
 			Expect(os.Chmod(path, 0111)).To(Succeed())
+			DeferCleanup(os.Chmod, path, os.FileMode(0700))
 			_, err := os.ReadFile(path)
 			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny invoked-hook reads")
-			DeferCleanup(os.Chmod, path, os.FileMode(0700))
 		case "directory":
 			Expect(os.Remove(path)).To(Succeed())
 			Expect(os.Mkdir(path, 0700)).To(Succeed())
@@ -260,7 +262,8 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(Equal(1), "%+v", out)
-		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/hooks/commit-message-lint.sh")))
+		reason := map[string]string{"missing": "is missing", "nonexecutable": "is not executable", "unreadable": "is not readable", "directory": "is not a regular file"}[kind]
+		Expect(out.stdout).To(MatchRegexp(`\[FAIL\]\s+` + regexp.QuoteMeta("scripts/hooks/commit-message-lint.sh "+reason) + `(\n|$)`))
 		Expect(out.stdout).NotTo(ContainSubstring("factory doctor: healthy"))
 	}, Entry("missing invoked hook", "missing"), Entry("non-executable invoked hook", "nonexecutable"), Entry("execute-only unreadable invoked hook", "unreadable"), Entry("non-regular invoked-hook directory", "directory"))
 })

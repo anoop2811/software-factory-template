@@ -223,9 +223,11 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 		case "missing":
 			Expect(os.Remove(path)).To(Succeed())
 		case "unreadable":
+			original, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(os.Chmod(path, 0111)).To(Succeed())
-			DeferCleanup(os.Chmod, path, os.FileMode(0700))
-			_, err := os.ReadFile(path)
+			DeferCleanup(os.Chmod, path, original.Mode().Perm())
+			_, err = os.ReadFile(path)
 			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny library reads")
 		case "directory":
 			Expect(os.Remove(path)).To(Succeed())
@@ -251,9 +253,11 @@ var _ = Describe("Native Go doctor sourceable library permissions", func() {
 		case "nonexecutable":
 			Expect(os.Chmod(path, 0644)).To(Succeed())
 		case "unreadable":
+			original, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(os.Chmod(path, 0111)).To(Succeed())
-			DeferCleanup(os.Chmod, path, os.FileMode(0700))
-			_, err := os.ReadFile(path)
+			DeferCleanup(os.Chmod, path, original.Mode().Perm())
+			_, err = os.ReadFile(path)
 			Expect(errors.Is(err, os.ErrPermission)).To(BeTrue(), "the control must actually deny invoked-hook reads")
 		case "directory":
 			Expect(os.Remove(path)).To(Succeed())

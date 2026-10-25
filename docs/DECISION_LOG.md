@@ -4815,3 +4815,13 @@ The targeted pinned lint reported `0 issues.` and `go vet ./internal/doctorcmd
 ./acceptance` exited 0. Keep actual permission-denial guards fail-closed rather
 than skipping them under privilege. Keep the fixed source census as the independent
 coverage oracle alongside disjoint/exhaustive identity discovery.
+
+Decision 112 final review follow-up: capture and restore each unreadable fixture
+entry's observed original permissions; os.WriteFile preserves an existing mode.
+The eight focused race criteria passed in 7.865s after this test-only correction.
+A disposable Linux root/non-root probe refuted the advisory claim that root can
+execute 0644/0000 hooks: X_OK denied both, while R_OK agreed with actual file opens.
+Retain real access checks rather than substitute mode bits or skip negative proofs.
+The immutable pre-correction link and the approved Linux/macOS target boundary
+remain valid; repeated path stats in a read-only diagnostic add no activation
+authority or claim of atomic concurrent-filesystem classification.

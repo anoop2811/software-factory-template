@@ -494,12 +494,13 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal, _ := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		Expect(negativeTotal).To(Equal(2996))
+		// Three bundle-format consumer criteria join base. per docs/DECISION_LOG.md:4660.
+		Expect(negativeTotal).To(Equal(2999))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(2996))
-		expectedCounts := map[string]int{"base": 2855, "installation": 97, "release-handoff": 44}
+		Expect(allTotal).To(Equal(2999))
+		expectedCounts := map[string]int{"base": 2858, "installation": 97, "release-handoff": 44}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

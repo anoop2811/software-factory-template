@@ -6,6 +6,152 @@ attestations. Regular users continue to use the single `factory` CLI.
 Adding the lane does not establish that a release passed it. The
 [replacement-release checklist](GO_RELEASE_READINESS.md) remains authoritative.
 
+## First published candidate result
+
+On 2026-10-24, [v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
+was published at `5ef20c186676069229cae3781c85ec509f377af2`.
+[Release run 40103396983](https://github.com/anoop2811/software-factory-template/actions/runs/40103396983)
+passed four native builds, attestation/upload of all twelve subjects and the
+qualification guard. The release contains fourteen assets including the shared
+attestation bundle and checksum file. It remains a prerelease; v0.1.6 is latest
+stable.
+
+Actual published qualification **failed on all four targets**. Each evaluator
+first authenticated its three native subjects with the real verifier, then its
+five init/upgrade/rollback/recovery criteria failed in candidate staging. The
+consumer copied the attestation bundle into private custody under an extensionless
+name; the real GitHub CLI refused it with `bundle file extension not supported,
+must be json or jsonl`. This is a consumer failure, not an artifact-signature
+failure or successful migration evidence. The release notes mark RC1 unsuitable
+for migration. Its signed source, tag and assets are retained unchanged.
+
+| Target | Observed OS | Published scenarios |
+|---|---|---|
+| Linux amd64 | Ubuntu 24.04.5 LTS | 0 passed, 5 failed |
+| Linux arm64 | Ubuntu 24.04.5 LTS | 0 passed, 5 failed |
+| macOS amd64 | 15.7.9 | 0 passed, 5 failed |
+| macOS arm64 | 14.8.9 | 0 passed, 5 failed |
+
+The retained `published-release-TARGET-40103396983-1` artifacts contain the exact
+subject digests, source/harness identity, OS and Ginkgo failure messages. Decision
+110 records the correction contract. A corrected source implementation and local
+stager checks do not repair RC1 or close the real release gate: publish a new
+candidate after review and repeat the full live matrix. The macOS 14 Intel gap,
+mandatory adopter pilot and default cutover remain separate requirements.
+
+## Local correction evidence
+
+Decision 110 preserves the original bundle format suffix in the private snapshot
+used by the generic stager. Independent public regressions first observed two
+failures for JSON/JSONL and one existing unsupported-format refusal pass. After
+the correction, the same three criteria passed. They exercise a compiled consumer
+with GitHub-compatible suffix dispatch, private permissions, unchanged bytes after
+caller-input mutation, staged payload identity and refusal without publication.
+The source census is now 2,999 ordinary criteria; no previous criterion was removed.
+
+Observed 2026-10-24 with Go 1.27.3 (released 2026-10-19;
+[official Go release history](https://go.dev/doc/devel/release)). The linter below
+is the repository's existing v2.14.0 CI pin, not a claim of the latest tool version:
+
+```text
+go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='G1 runtime bundle staging|G1 complete installation source images' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 124 of 2999 Specs in 142.593 seconds
+SUCCESS! -- 124 Passed | 0 Failed | 0 Pending | 2875 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 143.220s
+
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run --config packs/go/.golangci.yml ./internal/staging ./acceptance
+0 issues.
+
+go vet ./internal/staging ./acceptance
+exit 0; no output
+```
+
+A separate local real-verifier probe used RC1's actual signed Darwin arm64
+installation archive, its release bundle, freshly provisioned trusted roots,
+exact source `5ef20c186676069229cae3781c85ec509f377af2` and tag ref. Real
+`gh attestation verify` rejected the unchanged bundle copied to an extensionless
+filename with exit 1 and accepted its `.jsonl` name with exit 0. The corrected
+public `factory-stage --installation` then authenticated and staged that same
+archive with both the JSONL bundle and a pretty-printed single-bundle JSON form:
+each exited 0 and reported `authentication: github-attestation`.
+
+These observations qualify corrected local staging, not a new signed Go runtime
+or completed public migration. RC1 remains failed; a reviewed correction must be
+published under a new candidate tag and pass the full live matrix. No signature,
+source, private-custody, process-ownership or extraction check was relaxed.
+
+The first correction PR run also exposed the scheduler's frozen 2,996-case
+expectation after adding the three format criteria. Updating only the active
+census expectations retains exhaustive/disjoint membership and all quality-stage
+checks. Independent native discovery passed the focused scheduler criterion:
+`1 Passed | 0 Failed` in 19.544 seconds, with
+`2999 = 2858 base + 97 installation + 44 release-handoff` and zero-selection refusal.
+
+The permission fixtures were subsequently strengthened to use caller directory
+0755 and bundle 0644 while still requiring private snapshot directory 0700 and
+file 0600. A temporary Go compiler overlay changing only private destination
+creation from 0600 to 0644 produced `1 Passed | 2 Failed`, with both valid-format
+cases rejected as `verification snapshot is not private`. Unmodified production
+then produced `3 Passed | 0 Failed` in 1.661 seconds. No tracked production file
+was changed by the mutation probe, and no extra criterion was added.
+
+## Correction-PR CI follow-up
+
+Head `33507ff51ff974e173bc6941714180a8cebecd15` passed Linux base,
+macOS installation, both release-handoff jobs and the four native bundle jobs.
+[Run 40105875345](https://github.com/anoop2811/software-factory-template/actions/runs/40105875345)
+also retained two distinct failures:
+
+- Linux installation: the existing committed-cleanup interruption criterion sent
+  SIGSTOP and read a pending witness without first observing that the process had
+  stopped. After SIGKILL, that marker was absent. The observer follow-up requires
+  actual native stopped state before reading durable crash evidence; it preserves
+  signal-exit, pending, recovery and bounded-attempt assertions. The live published
+  recovery fixture uses the same observer before accepting its partial journal.
+- macOS base: an unchanged archive-subject criterion failed its healthy initialization
+  control because the real isolated `git init` proof exceeded its existing
+  five-second limit (`elapsed_seconds=5.023`, exit confirmed). This is before the
+  wrong-subject scenario. The log does not establish the source of the delay;
+  hosted contention is only a hypothesis. Preserve the production deadline and
+  assertion, then inspect the next head's native CI outcome.
+
+An independent compiler-overlay probe withheld only the first actual SIGSTOP,
+waited for healthy `Cmd.Wait` completion, requeued that result and returned a
+successful signal-call result. The old observer tried SIGKILL against the exited
+child: `0 Passed | 1 Failed` in 120.186 seconds. With actual-stop observation, the
+same injected acknowledgement race produced `4 Passed | 0 Failed` in 214.154
+seconds. Its retained Ginkgo output records an unwitnessed healthy completion on
+`terminal-cleanup-1`, then an actual committed/pending SIGSTOP/SIGKILL witness on
+`terminal-cleanup-2`, plus the separate real applying-row witness. It does not
+credit the omitted stop as a crash or introduce a production fault flag.
+
+The final ordinary recovery run on Darwin arm64, without the compiler overlay,
+passed all four selected criteria in 195.659 seconds. It retained real committed
+and applying-row stopped witnesses, exact SIGKILL checks, pending admission and
+forward/reverse recovery. Linux amd64 cross-compilation exited 0; native Linux
+behavior remains the CI matrix's evidence. The tagged live lane compiled and
+selected its five criteria in dry-run mode only; no published test body ran.
+
+```text
+env GORACE=atexit_sleep_ms=0 GOFLAGS= go test -race -count=1 -timeout=5m -v ./acceptance -ginkgo.focus='Whole installation upgrade semantic consumer (recovers actual committed pending cleanup without replaying assets or making another backup|preserves a foreign equal-byte created leaf after an actual applied-row interruption|retains one pending installation after native interruption and recovers with fresh consent)' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 4 of 2999 Specs in 195.659 seconds
+SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 2995 Skipped
+```
+
+The unchanged archive-subject criterion also passed a focused native macOS run:
+
+```text
+go test -race -count=1 -timeout=6m -v ./acceptance -ginkgo.focus='Authenticated release candidate archive subject refuses a different verified archive subject even when raw bootstrap authentication succeeds' -ginkgo.no-color -ginkgo.fail-on-empty
+Ran 1 of 2999 Specs in 23.962 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 2998 Skipped
+```
+
+That local healthy control does not determine the previous hosted delay's cause
+or replace the next head's full native CI run.
+
+These failures remain separate from the observed attestation-format defect.
+A passing source rerun cannot qualify the unchanged failed RC1.
+
 ## Select an exact release
 
 Use a non-draft official release or prerelease containing the complete native

@@ -4635,3 +4635,83 @@ only against existing project evidence. Preserve the public installer, runtime
 selection, CSP, analytics and enforcement. This is a documentation change, not a
 runtime cutover. Validate command examples without paid model calls, parse page
 metadata, resolve local links/citations and independently review the final diff.
+
+## Decision 110 (2026-10-24 UTC): preserve attestation bundle format in private verification snapshots
+
+The first published Go candidate, v0.2.0-rc.1 at
+5ef20c186676069229cae3781c85ec509f377af2, built and attested all twelve native
+subjects in release run 40103396983. The real Linux amd64 and arm64 qualification
+jobs then refused initialization/upgrade before activation: the GitHub verifier
+reported `bundle file extension not supported, must be json or jsonl`.
+Their retained release.json artifacts identify the exact authenticated subjects;
+all five live scenarios failed on each observed Linux target. This is an observed
+candidate consumer defect, not successful migration evidence. RC1 now carries a
+failed-qualification notice; v0.1.6 remains latest stable.
+
+The generic staging component copies caller-owned inputs into private pinned
+custody, but names the attestation snapshot `attestation`, discarding the format
+suffix consumed by the real verifier. Keep verifying those exact private bytes;
+never pass the mutable original path or weaken the signer/source/digest checks.
+Preserve the supplied filename extension when naming the confined attestation
+snapshot, with one shared name derivation for copying and verifier arguments.
+Retain both JSON and JSONL behavior rather than renaming every input to JSONL;
+unknown/absent suffixes remain subject to the verifier's existing refusal.
+
+An independent test author must reproduce the public staging failure with a
+strict consumer-format boundary before production edits. Qualify JSON and JSONL,
+private same-byte custody, and unchanged refusal/ownership behavior; retain the
+existing live four-target lane as the actual GitHub trust oracle. Do not edit the
+published RC1 source/tag/assets. After a reviewed correction, publish a new
+candidate and rerun real native authentication/init/upgrade/rollback/recovery.
+Minimum-OS evidence, adopter pilot and stable/default cutover remain open.
+
+Authoritative GitHub CLI parser source was fetched on 2026-10-24 before the
+correction: https://github.com/cli/cli/blob/4f2cfe92e3499f8581bf39db77e0a1431fa7b55c/pkg/cmd/attestation/verification/attestation.go.
+GetLocalAttestations dispatches by filepath.Ext; the JSON and JSONL parsers have
+different single-bundle/stream semantics. This confirms preserving format rather than
+only appending one universal suffix.
+
+Observed correction checks on 2026-10-24: independent public-format criteria were
+2 failed/1 passed before production edits, then 3 passed. Broader race-enabled
+staging/source-image checks passed 124/124, targeted pinned-CI lint reported
+`0 issues.`, and Go vet exited 0. The corrected public stager additionally passed
+real GitHub authentication with RC1's actual signed Darwin arm64 image and both
+JSON/JSONL bundle forms. Detailed commands and their scope are recorded in
+PUBLISHED_RELEASE_QUALIFICATION.md; these are not new-candidate migration results.
+
+CI follow-up retains the same 2,999 source criteria and changes only the active
+scheduler census from 2996/2855 to 2999/2858; its native partition criterion passed
+with all disjoint/exhaustive identities and quality stages retained. The advisory
+review's one confirmed minor fixture gap is addressed with public caller modes
+and forced-private snapshot assertions. A mode-breaking temporary compiler overlay
+failed both valid cases; unchanged production passed all three. These test-only
+follow-ups do not alter the staging correction or broaden the release claim.
+
+A later Linux installation job at head 33507ff failed the unchanged committed
+cleanup interruption criterion: after acknowledging SIGSTOP and reading the
+pending marker, SIGKILL was followed by an absent marker. The observer currently
+reads its witness immediately after sending SIGSTOP, without confirming actual
+process stop. Investigate that asynchronous-observation gap before changing any
+runtime behavior. A test-only correction must observe actual stopped state before
+accepting the journal/pending witness, preserve the SIGKILL/result/pending checks,
+and retain the existing bounded attempts. It must not convert an unwitnessed
+healthy completion into a successful crash/recovery claim or add production fault
+flags. Use an independent controlled observation-race probe and the real recovery
+criterion to qualify any fixture correction.
+
+The independent observer probe omitted only the first SIGSTOP and returned its
+successful acknowledgement after the actual healthy completion. Old observation
+failed (0 passed/1 failed); corrected observation rejected that attempt, then
+required a real stopped committed/pending child and SIGKILL recovery (4 passed).
+The unchanged final four recovery criteria passed natively on Darwin arm64 under
+the race detector in 195.659 seconds, including the adjacent forward/reverse applying witness with
+exact SIGKILL and unchanged stopped-journal bytes. The published five-criterion
+lane was compiled/discovered only; no live replacement qualification is claimed.
+Three independent review lenses found no remaining observer issue.
+
+The same source CI run also recorded a separate macOS healthy-control Git-init
+proof timeout at the existing five-second deadline. Its cause is unproven; retain
+the production bound and assertions. The unchanged archive-subject criterion then
+passed locally (1 passed/0 failed in 23.962 seconds). Inspect the next head's full
+native CI; do not infer hosted success or change the source timeout from that
+local result.

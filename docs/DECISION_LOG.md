@@ -4913,3 +4913,60 @@ After, then persist the actual ObservedAfter and applied/reversed phase in the
 existing committed save. Preserve original Before/ExpectedAfter/PreparedAfter and
 the before-image manifest. Completed replay still writes no records; terminal
 qualification must not accept PreparedAfter as a substitute for final custody.
+
+## Decision 114 (2026-10-26 UTC): record RC3 evidence and keep qualification tool identities explicit
+
+PR #138 merged as `95486ecdd3868a319a0e6362ee99cafd8f154200` after eighteen
+successful exact-head checks. Its tree equals the reviewed head. Published
+v0.2.0-rc.3 uses that source; release run 40275363119 passed all four native builds,
+attestation/authentication of twelve subjects, upload of fourteen assets and the
+release guard. Original per-target reports record five actual live criteria
+passed on each target, twenty passed and zero failed overall. The candidate and
+harness identities match. These are published binary outcomes, distinct from
+source-only tests. The observed systems are Ubuntu 24.04.5 on both architectures,
+macOS 14.8.9 arm64 and macOS 15.7.9 amd64. The last does not establish macOS 14
+Intel support; retain the full minimum-OS gate. v0.1.6 remains latest stable.
+
+Keep the mandatory operator pilot in Q5 of
+specs/001-go-runtime-conversion.md:484. Q1 at
+specs/001-go-runtime-conversion.md:480 requires only v0.1.6 and the approved
+immutable Bash baseline as initial predecessors; preserve unsupported customized
+installations without forcing activation. Decision 111 permits a separately
+labeled genuinely initialized supported installation containing real application
+code. Reconciliation of an unsupported original checkout is separate adopter
+work, not an additional initial-release prerequisite. Correct later checklist
+wording that implies otherwise. The evidence period/exit criteria and operator
+acceptance remain required; no calendar duration is invented here.
+
+The merged-source macOS base job in run 40275252277 separately repeated the
+unchanged archive-subject healthy control's isolated Git-init timeout: 5.091s,
+exit -9, child exit confirmed and ownership not uncertain. Its original report
+remains failed evidence; it does not change the successful published outcomes.
+The runner checkout uses `/opt/homebrew/bin/git`, while the native handoff fixture
+removes its Git poison and forces `/usr/bin:/bin`. This dependency-identity
+mismatch is observed; the cause of the delay remains unproven. Before changing
+runtime policy, compare exact real Git identities with fixture-owned bounded
+trace diagnostics and the existing criterion. Preserve real Git output/status,
+poisoned compiler/interpreter boundaries, all assertions and the production
+five-second deadline. A fixture correction may explicitly select the qualified
+harness Git, but must not claim to prove the unrelated implementation cannot
+stall or silently relax platform support. Do not repeatedly rerun a recurring
+failure without collecting new evidence.
+
+Provenance: [published RC3 run](https://github.com/anoop2811/software-factory-template/actions/runs/40275363119)
+and [merged-source run](https://github.com/anoop2811/software-factory-template/actions/runs/40275252277),
+observed 2026-10-26 UTC. Original reports and logs are retained locally; no private
+adopter data belongs in the public release evidence.
+
+Decision 114 fixture-selection evidence: an independent transparent wrapper
+executes the captured absolute real harness Git unchanged and records only
+commands in `factory-init-ignore-*` scratch directories. The old archive-subject
+criterion passed (1 passed, 0 failed, 23.524s), but recorded zero such calls; the
+separate required-witness assertion exited 1. After explicitly symlinking the
+resolved harness Git into the native fixture's existing isolated tools directory,
+the same criterion passed (1 passed, 0 failed, 19.904s) and recorded 33 actual
+ignore-proof Git commands, including init and check-ignore. Healthy installation,
+wrong archive-subject refusal and no-publication assertions remain unchanged.
+This establishes the dependency-selection correction, not the cause of the other
+Git's timeout. The ordinary source census stays 3008; no criterion, poison,
+production deadline or runtime implementation changed.

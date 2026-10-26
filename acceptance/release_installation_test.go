@@ -53,6 +53,11 @@ func handoffBuildImage() handoffReleaseImage {
 // per docs/adr/0101-go-release-handoff.md:148
 func handoffNativeFixture(image handoffReleaseImage) (handoffBootstrapFixture, string) {
 	GinkgoHelper()
+	qualifiedGit, err := exec.LookPath("git")
+	Expect(err).NotTo(HaveOccurred())
+	qualifiedGit, err = filepath.EvalSymlinks(qualifiedGit)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(filepath.IsAbs(qualifiedGit)).To(BeTrue())
 	f := handoffBootstrap(map[string]string{"linux": "Linux", "darwin": "Darwin"}[runtime.GOOS], map[string]string{"amd64": "x86_64", "arm64": "arm64"}[runtime.GOARCH], runtime.GOOS+"-"+runtime.GOARCH, "")
 	assets := f.environment["HANDOFF_ASSETS"]
 	writeFixture(filepath.Join(assets, "factory-bootstrap-"+handoffVersion+"-"+f.target), image.binary, 0600)
@@ -60,7 +65,9 @@ func handoffNativeFixture(image handoffReleaseImage) (handoffBootstrapFixture, s
 	f.environment["HANDOFF_REVISION"] = image.revision
 	// Git is the retained initializer boundary; compilers and Python remain
 	// poisoned in this child PATH, independently of the evaluator's build tools.
+	// per docs/DECISION_LOG.md:4951
 	Expect(os.Remove(filepath.Join(f.root, "host tools", "git"))).To(Succeed())
+	Expect(os.Symlink(qualifiedGit, filepath.Join(f.root, "host tools", "git"))).To(Succeed())
 	writeFixture(filepath.Join(f.root, "host tools", "npm"), []byte("#!/bin/sh\nexit 0\n"), 0700)
 	f.environment["FACTORY_BRIDGE_PROTOCOL"] = ""
 	f.environment["GIT_CONFIG_NOSYSTEM"] = "1"

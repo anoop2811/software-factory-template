@@ -37,8 +37,11 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 
 **Release status:** v0.1.6 is the latest published stable release. v0.2.0 is the
 planned Go replacement; it is not published yet. Native commands and the explicit
-candidate upgrade flow are implemented on `main`, with release qualification,
-adopter pilot and default cutover still pending. Track the
+candidate upgrade flow are implemented on `main`.
+[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
+passed all twenty published init, upgrade, rollback and interruption/recovery
+scenarios across four native targets. Minimum-OS coverage, the operator pilot
+and default cutover remain open; track the
 [release checklist](docs/migration/GO_RELEASE_READINESS.md).
 
 An ordinary `upgrade` or `upgrade --ref main` continues to select the script

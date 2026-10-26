@@ -2,10 +2,13 @@
 
 ## Availability and the command you keep
 
-As of 2026-10-23, **v0.1.6 is the latest published stable release**. v0.2.0 is the
-planned Go replacement and is not published. The explicit Go upgrade engine,
-rollback/recovery and retention are implemented on `main`; published native
-qualification, the adopter pilot and default cutover remain required.
+As of 2026-10-26 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
+the planned Go replacement and is not published. The explicit Go upgrade engine,
+rollback/recovery and retention are implemented on `main`.
+[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
+passed all twenty published scenarios on the observed Linux/macOS targets;
+macOS 14 Intel proof, operator pilot acceptance and default cutover remain open.
+See [the exact qualification evidence](migration/PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 [Release readiness](migration/GO_RELEASE_READINESS.md) is the delivery checklist.
 
 The v0.2.0 commands below are the recipe for when that exact release has its

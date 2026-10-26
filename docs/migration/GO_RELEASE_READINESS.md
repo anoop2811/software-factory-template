@@ -27,14 +27,20 @@ in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Current release candidate
 
-[v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
-was published on 2026-10-24 to exercise real release authentication and migration.
-All assets were built and attested, but the consumer's extensionless private
-attestation copy caused all four native qualification jobs to fail before
-successful migration. RC1 is marked unsuitable for migration; v0.1.6 remains
-latest stable. See [the exact results](PUBLISHED_RELEASE_QUALIFICATION.md#first-published-candidate-result).
-A corrected, reviewed new candidate must pass actual published qualification;
-source-only checks do not close the gate below.
+[v0.2.0-rc.2](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.2)
+was published on 2026-10-26 UTC from reviewed merge
+`f6c179abba9e1062452f6cd6a51ba693fbcfa0f8`. All four builds, twelve subject
+authentications and fourteen uploaded assets succeeded. Live qualification failed
+on every target: three of twenty scenario criteria passed. The reports exposed an
+incorrect blocked-preview assertion, a completed-recovery replay refusal, and a
+Linux arm64 forbidden-tool observation requiring better diagnostics.
+See [the exact RC2 results](PUBLISHED_RELEASE_QUALIFICATION.md#second-published-candidate-result).
+
+Both RC1 and RC2 are marked unqualified for migration; their signed source, tags
+and assets remain unchanged. RC1's attestation-format defect is corrected in RC2.
+v0.1.6 remains latest stable. A runtime correction requires another reviewed signed
+candidate and successful actual qualification; source-only checks do not close the
+gate below.
 
 ## Required release gates
 
@@ -101,15 +107,18 @@ requirements for invoked hooks. Independent criteria include an actual qualified
 installation at its declared 0644 library mode; local permission and doctor suites
 pass. See [the anonymized factory evidence](ADOPTER_REHEARSAL.md).
 
-Require reviewed exact-head CI and new published qualification before selecting
-another release candidate. The initial failed candidate, minimum-OS gap, mandatory
-operator pilot and default cutover remain open requirements.
+PR #137 merged after all eighteen exact-head checks passed. Its merged tree is
+identical to the reviewed head used for RC2. The new published outcomes above
+remain distinct from that source qualification. Minimum-OS coverage, the mandatory
+operator pilot, default cutover and final audit remain open requirements.
 
 ## Pending operator input
 
-The pilot project and evidence period/exit criteria were requested from Anoop on
-2026-10-06. Q5 of the conversion spec remains open until answered. This does not
-block independent implementation of the source-image and installation consumer.
+An isolated rehearsal has run against the operator-selected adopter; its detailed
+records remain local. A genuine v0.1.6 fixture migrated, while the actual older
+customized installation remained preserved ownership blockers. Its reconciliation,
+the evidence period/exit criteria and operator acceptance remain open. This does
+not permit default cutover or close Q5 solely from passing application tests.
 
 ## Current installation-consumer qualification
 

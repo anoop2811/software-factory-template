@@ -45,11 +45,14 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	if pendingErr != nil {
 		return result, pendingErr
 	}
-	if terminalCleanup && (record.Pending == nil || !imageEqual(pending, record.Pending, true)) {
+	if terminalCleanup && (record.Pending == nil || pending != nil && !imageEqual(pending, record.Pending, true)) {
 		return result, conflict("terminal pending observation differs from current marker")
 	}
-	if request.Recover != "" && pending == nil && preparationOnly(record) {
-		return buildPreparationPlan(ctx, root, request, record, tree, image, reference)
+	if request.Recover != "" && pending == nil && !terminalCleanup {
+		if preparationOnly(record) && record.Pending == nil {
+			return buildPreparationPlan(ctx, root, request, record, tree, image, reference)
+		}
+		return result, conflict("incomplete installation pending marker is missing")
 	}
 	for _, check := range record.Checks {
 		if check.OwnershipUnconfirmed || check.Phase == "checking" {
@@ -79,6 +82,10 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	}
 	result = plan{image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
 	result.reference = reference
+	// Historical pending identity is retained; absence can authorize only a freshly
+	// qualified completed no-op, never continuation of partial installation.
+	// docs/DECISION_LOG.md:4848.
+	result.completedRecovery = terminalCleanup && pending == nil
 	if request.Source.Local {
 		result.proposal.Authentication = "local-source"
 	}
@@ -164,6 +171,10 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		atAfter := imageEqual(current, expected, false)
 		observedPhase := progress.Phase == "applied" || progress.Phase == "reversed"
 		knownObserved := progress.ObservedAfter != nil && imageEqual(current, progress.ObservedAfter, true)
+		// Recovery can retain an original leaf already at the requested image.
+		// Its full original identity, not equal bytes, proves that it was untouched.
+		// docs/DECISION_LOG.md:4892.
+		knownOriginal := !observedPhase && imageEqual(current, original.Before, true)
 		knownPrepared := preparedEqual(current, progress.PreparedAfter) && imageEqual(current, expected, false)
 		if record.Direction == "reverse" && progress.Phase == "reverse_prepared" {
 			knownPrepared = preparedEqual(current, progress.PreparedAfter) && imageEqual(current, original.Before, false)
@@ -176,12 +187,12 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 			issue := Issue{row.Path, action.Reason}
 			result.proposal.Conflicts = append(result.proposal.Conflicts, issue)
 			result.proposal.Blockers = append(result.proposal.Blockers, issue)
-		case terminalCleanup && record.Direction == "reverse" && (!atBefore || current != nil && !imageEqual(current, progress.ObservedAfter, true)):
+		case terminalCleanup && record.Direction == "reverse" && (!atBefore || current != nil && !knownObserved && !knownOriginal):
 			action.Reason = "completed reverse entry changed; preserved"
 			issue := Issue{row.Path, action.Reason}
 			result.proposal.Conflicts = append(result.proposal.Conflicts, issue)
 			result.proposal.Blockers = append(result.proposal.Blockers, issue)
-		case record.Phase == "committed" && record.Direction == "forward" && (!atAfter || expected != nil && !imageEqual(current, progress.ObservedAfter, true)):
+		case record.Phase == "committed" && record.Direction == "forward" && (!atAfter || expected != nil && !knownObserved && !knownOriginal):
 			action.Reason = "selected entry changed after installation; preserved"
 			issue := Issue{row.Path, action.Reason}
 			result.proposal.Conflicts = append(result.proposal.Conflicts, issue)
@@ -250,7 +261,8 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		State         []Issue
 		Parents       []installationfs.Directory
 		ObservedState []stateObservation
-	}{root, request, image.ArchiveSHA256, reference.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state})
+		Pending       *Image
+	}{root, request, image.ArchiveSHA256, reference.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state, pending})
 	if err != nil {
 		return result, err
 	}

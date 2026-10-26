@@ -203,6 +203,10 @@ func beginWithRetention(ctx context.Context, root string, request Request, opera
 		if _, err := installedlayout.Validate(ctx, owner.tree, []string{request.Source.Version, request.Source.Revision, owner.planned.image.Runtime.SHA256}); err != nil {
 			return nil, err
 		}
+	} else if owner.planned.completedRecovery {
+		if err := owner.validateCompletedRecovery(ctx); err != nil {
+			return nil, err
+		}
 	} else if err := owner.materializeCandidate(ctx); err != nil {
 		return nil, &Failure{Code: 1, Reason: "candidate installation preparation failed", cause: err}
 	}
@@ -242,6 +246,9 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	if owner.idempotent {
 		owner.completed = true
 		return owner.check(ctx)
+	}
+	if owner.planned.completedRecovery {
+		return owner.completeRecoveryReplay(ctx)
 	}
 	if owner.terminalCleanup {
 		return owner.completePendingCleanup(ctx)
@@ -369,6 +376,9 @@ func (capability *Capability) Complete(ctx context.Context) error {
 			}
 		}
 	}
+	if err := owner.observeRetainedRows(ctx, reverse); err != nil {
+		return err
+	}
 	if !reverse || owner.request.Profile == "go-hybrid-v1" {
 		if _, err := installedlayout.Validate(ctx, owner.tree, nil); err != nil {
 			return err
@@ -409,6 +419,32 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Retained recovery rows have reached the requested image without another write.
+// Persist their freshly checked custody in the first operation's committed save.
+// docs/DECISION_LOG.md:4904.
+func (owner *transaction) observeRetainedRows(ctx context.Context, reverse bool) error {
+	for _, action := range owner.planned.proposal.Actions {
+		if action.Action != "retain" {
+			continue
+		}
+		for _, entry := range owner.record.Entries {
+			if entry.Path != action.Path || entry.Action == "retain" {
+				continue
+			}
+			current, _, err := observe(ctx, owner.tree, action.Path, leafLimit(action.Path))
+			if err != nil {
+				return err
+			}
+			if !imageEqual(current, action.Before, true) || !imageEqual(current, action.After, false) {
+				return conflict("retained recovery entry changed after consent")
+			}
+			owner.recordObservedRow(action.Path, current, reverse)
+		}
+	}
+	return nil
+}
+
 func (capability *Capability) Close(ctx context.Context) error {
 	if capability == nil || capability.state == nil {
 		return errors.New("installation capability unavailable")
@@ -537,8 +573,13 @@ func (owner *transaction) applyRow(ctx context.Context, action Action, reverse b
 	if !imageEqual(actual, action.After, false) {
 		return conflict("published installation entry requires recovery")
 	}
+	owner.recordObservedRow(action.Path, actual, reverse)
+	return owner.save(ctx)
+}
+
+func (owner *transaction) recordObservedRow(path string, actual *Image, reverse bool) {
 	for index := range owner.record.Entries {
-		if owner.record.Entries[index].Path == action.Path {
+		if owner.record.Entries[index].Path == path {
 			owner.record.Entries[index].ObservedAfter = actual
 			owner.record.Entries[index].Phase = "applied"
 			if reverse {
@@ -546,7 +587,6 @@ func (owner *transaction) applyRow(ctx context.Context, action Action, reverse b
 			}
 		}
 	}
-	return owner.save(ctx)
 }
 func publishRuntime(ctx context.Context, sourceTree *installationfs.Tree, image staging.Inspection, tree *installationfs.Tree, path string, expected *Image, onPrepared func(context.Context, *Image) error) (returned error) {
 	source, err := sourceTree.OpenFile(ctx, "bin/factory-runtime", 256<<20)

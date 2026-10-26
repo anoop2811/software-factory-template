@@ -562,6 +562,75 @@ func installationAssertExistingUnchanged(root string, before map[string]string) 
 	}
 }
 
+// A completed replay has no pending marker and must not republish even equal
+// bytes. Preserve the entire tree, including journals, backups and Git metadata.
+// per docs/DECISION_LOG.md:4850
+func installationPreservationWitness(root string) func() {
+	GinkgoHelper()
+	before := installationSnapshot(root)
+	identities := map[string]os.FileInfo{}
+	for path := range before {
+		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(path)))
+		Expect(err).NotTo(HaveOccurred(), path)
+		identities[path] = info
+	}
+	return func() {
+		GinkgoHelper()
+		Expect(installationSnapshot(root)).To(Equal(before), "completed replay must preserve assets, journal, backup, accounting and history")
+		for path, original := range identities {
+			current, err := os.Lstat(filepath.Join(root, filepath.FromSlash(path)))
+			Expect(err).NotTo(HaveOccurred(), path)
+			Expect(os.SameFile(original, current)).To(BeTrue(), "completed replay replaced %s", path)
+			Expect(current.Mode()).To(Equal(original.Mode()), path)
+			Expect(current.ModTime()).To(Equal(original.ModTime()), "completed replay rewrote %s", path)
+		}
+	}
+}
+
+// per docs/DECISION_LOG.md:4850
+func installationAssertCompletedReplay(root string, preview func() cliResult, apply func(string) cliResult) string {
+	GinkgoHelper()
+	unchanged := installationPreservationWitness(root)
+	result := preview()
+	// Retain bounded post-recovery records in machine reports without dumping
+	// whole proposals or journals to the console on a qualification failure.
+	// per docs/DECISION_LOG.md:4857
+	paths, err := filepath.Glob(filepath.Join(root, ".factory/installation-transactions/*.json"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(len(paths)).To(BeNumerically("<=", 8), "this isolated replay fixture must have a bounded journal set")
+	journals := map[string]string{}
+	for _, path := range paths {
+		info, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().IsRegular()).To(BeTrue())
+		Expect(info.Size()).To(BeNumerically("<=", 2<<20))
+		body, err := os.ReadFile(path) // #nosec G122 G703 -- bounded direct-child journal in the quiescent evaluator-owned fixture, not a candidate-selected input.
+		Expect(err).NotTo(HaveOccurred())
+		journals[filepath.Base(path)] = string(body)
+	}
+	AddReportEntry("completed-recovery-observations", map[string]any{"journals": journals, "preview": map[string]any{"status": result.status, "stdout": result.stdout, "stderr": result.stderr}}, ReportEntryVisibilityNever)
+	Expect(result.status).To(Equal(0), "completed recovery must admit a fresh read-only preview without a pending marker; status=%d stderr=%q (proposal and journals retained in the report)", result.status, result.stderr)
+	proposal := installationDecodeProposal(result)
+	Expect(proposal["blockers"]).To(BeEmpty())
+	unchanged()
+	result = apply(proposal["proposal_digest"].(string))
+	Expect(result.status).To(Equal(0), "freshly confirmed completed recovery must be an idempotent no-op: %+v", result)
+	Expect(result.stderr).To(BeEmpty())
+	unchanged()
+	return proposal["proposal_digest"].(string)
+}
+
+// per docs/DECISION_LOG.md:4855
+func installationAssertReplayRefused(root string, command func() cliResult) {
+	GinkgoHelper()
+	unchanged := installationPreservationWitness(root)
+	result := command()
+	AddReportEntry("recovery-refusal-response", map[string]any{"status": result.status, "stdout": result.stdout, "stderr": result.stderr}, ReportEntryVisibilityNever)
+	Expect(result.status).To(Equal(2), "unsafe recovery must remain a policy refusal; status=%d stderr=%q (response retained in the report)", result.status, result.stderr)
+	Expect(result.stderr).NotTo(BeEmpty(), "a refused recovery must report its admission/qualification failure")
+	unchanged()
+}
+
 func installationForwardArguments(fixture installationFixtureData, migration, digest string) []string {
 	return append(fixture.arguments(), "--migration-id", migration, "--confirm", digest, "--quiescent")
 }
@@ -1458,7 +1527,32 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:223
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:326
 	DescribeTable("retains one pending installation after native interruption and recovers with fresh consent", func(direction string) {
+		if direction == "forward" {
+			// Discard this separate genuinely interrupted fixture after removing
+			// its marker; restoring a pathname cannot restore historical custody.
+			// per docs/DECISION_LOG.md:4855
+			var partial installationFixtureData
+			partialID, witnessed := "", false
+			for attempt := 1; attempt <= 3; attempt++ {
+				partial = fixture("bash-baseline")
+				partialID = fmt.Sprintf("missing-partial-marker-%d", attempt)
+				proposal := installationProposal(partial)
+				if _, witnessed = installationInterruptPhase(partial, partialID, proposal["proposal_digest"].(string), "applying", true); witnessed {
+					break
+				}
+			}
+			Expect(witnessed).To(BeTrue(), "a missing-marker refusal needs real applied rows and SIGKILL first")
+			Expect(os.Remove(filepath.Join(partial.root, ".factory/runtime-publication.pending"))).To(Succeed())
+			installationAssertReplayRefused(partial.root, func() cliResult {
+				return installationCommand(partial.driver, partial.root, partial.sentinel, append(partial.arguments(), "--recover", partialID, "--direction", "forward", "--dry-run", "--json")...)
+			})
+		}
 		installed := fixture("bash-baseline")
+		retainedPath := filepath.Join(installed.root, ".githooks/pre-push")
+		retainedOriginal, err := os.Lstat(retainedPath)
+		Expect(err).NotTo(HaveOccurred())
+		retainedOriginalBytes, err := os.ReadFile(retainedPath)
+		Expect(err).NotTo(HaveOccurred())
 		proposal := installationProposal(installed)
 		migration := "interrupted-" + direction
 		args := append([]string{"upgrade"}, installationForwardArguments(installed, migration, proposal["proposal_digest"].(string))...)
@@ -1549,6 +1643,81 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 				}
 			}
 		}
+		// per docs/DECISION_LOG.md:4850
+		replayArgs := append(installed.arguments(), "--recover", migration, "--direction", direction)
+		digest := installationAssertCompletedReplay(installed.root, func() cliResult {
+			return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+		}, func(digest string) cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
+		if direction == "reverse" {
+			installationAssertReplayRefused(installed.root, func() cliResult {
+				return installationCommand(installed.driver, installed.root, installed.sentinel, append(installed.arguments(), "--recover", migration, "--direction", "forward", "--dry-run", "--json")...)
+			})
+			writeFixture(filepath.Join(installed.root, ".factory/budget.json"), budgetHistory(budgetRow("replay-stale-state")), 0600)
+		} else {
+			// Controlled old-record-shape fixture after a real recovery. The new
+			// producer now records receipts for retained rows; emulate only that
+			// older absent receipt, without claiming an old release performed it.
+			// per docs/DECISION_LOG.md:4892
+			relative := ".githooks/pre-push"
+			body, err := os.ReadFile(journalPath)
+			Expect(err).NotTo(HaveOccurred())
+			var record map[string]any
+			decoder := json.NewDecoder(bytes.NewReader(body))
+			decoder.UseNumber()
+			Expect(decoder.Decode(&record)).To(Succeed())
+			current, err := os.Lstat(retainedPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(retainedOriginal, current)).To(BeTrue(), "the control must still have its physical pre-installation original")
+			Expect(current.Mode()).To(Equal(retainedOriginal.Mode()))
+			Expect(current.ModTime()).To(Equal(retainedOriginal.ModTime()))
+			Expect(os.ReadFile(retainedPath)).To(Equal(retainedOriginalBytes))
+			Expect(record["entries"]).To(BeAssignableToTypeOf([]any{}))
+			found := false
+			for _, raw := range record["entries"].([]any) {
+				entry := raw.(map[string]any)
+				if entry["path"] == relative {
+					found = true
+					Expect(entry["before"]).NotTo(BeNil())
+					Expect(entry["observed_after"]).To(Equal(entry["before"]), "the new producer's full native receipt must confirm the original custody")
+					entry["phase"], entry["observed_after"] = "prepared", nil
+				}
+			}
+			Expect(found).To(BeTrue(), "the control needs the independently observed retained original")
+			legacyShape, err := json.Marshal(record)
+			Expect(err).NotTo(HaveOccurred())
+			writeFixture(journalPath, legacyShape, 0600)
+			digest = installationAssertCompletedReplay(installed.root, func() cliResult {
+				return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+			}, func(digest string) cliResult {
+				return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+			})
+			path := filepath.Join(installed.root, filepath.FromSlash(relative))
+			body, err = os.ReadFile(path)
+			Expect(err).NotTo(HaveOccurred())
+			info, err := os.Stat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.Rename(path, filepath.Join(installed.driver, "retained-pre-push-original"))).To(Succeed())
+			writeFixture(path, body, info.Mode().Perm())
+			Expect(os.Chmod(path, info.Mode().Perm())).To(Succeed())
+			foreign, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(info, foreign)).To(BeFalse())
+			Expect(os.ReadFile(path)).To(Equal(body))
+			Expect(foreign.Mode()).To(Equal(info.Mode()))
+			unchanged := installationPreservationWitness(installed.root)
+			fresh := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+			Expect(fresh.status).To(Equal(2), "a fresh preview cannot grant custody to the equal-byte foreign retained row")
+			blocked := installationDecodeProposal(fresh)
+			Expect(blocked["blockers"]).To(ContainElement(HaveKeyWithValue("path", relative)))
+			Expect(blocked["conflicts"]).To(ContainElement(HaveKeyWithValue("path", relative)))
+			Expect(installationRows(blocked)[relative]["action"]).To(Equal("retain"))
+			unchanged()
+		}
+		installationAssertReplayRefused(installed.root, func() cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
 	}, Entry("forward after actual SIGKILL", "forward"), Entry("reverse after actual SIGKILL", "reverse"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:411
@@ -1616,6 +1785,8 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			}
 		}
 		Expect(witnessed).To(BeTrue(), "three healthy attempts produced no actual committed/pending process witness")
+		pendingBytes, err := os.ReadFile(filepath.Join(installed.root, ".factory/runtime-publication.pending"))
+		Expect(err).NotTo(HaveOccurred())
 		before := installationSnapshot(installed.root)
 		identities := map[string]os.FileInfo{}
 		for _, role := range append(append([]installationRoleOracle{}, roleMap.Roles...), roleMap.CanonicalSourceAssets...) {
@@ -1643,8 +1814,22 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			Expect(err).NotTo(HaveOccurred(), path)
 			Expect(os.SameFile(beforeInfo, afterInfo)).To(BeTrue(), "terminal cleanup replayed selected publication: %s", path)
 		}
-		_, err := os.Lstat(filepath.Join(installed.root, ".factory/runtime-publication.pending"))
+		_, err = os.Lstat(filepath.Join(installed.root, ".factory/runtime-publication.pending"))
 		Expect(os.IsNotExist(err)).To(BeTrue(), "fresh terminal cleanup retained its exact pending marker")
+		// per docs/DECISION_LOG.md:4850
+		replayArgs := append(installed.arguments(), "--recover", migration, "--direction", "forward")
+		digest := installationAssertCompletedReplay(installed.root, func() cliResult {
+			return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+		}, func(digest string) cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
+		// A marker that appears after the absent-marker preview is foreign even
+		// when its bytes duplicate the historical marker. Never clear it.
+		// per docs/DECISION_LOG.md:4855
+		writeFixture(filepath.Join(installed.root, ".factory/runtime-publication.pending"), pendingBytes, 0600)
+		installationAssertReplayRefused(installed.root, func() cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:184

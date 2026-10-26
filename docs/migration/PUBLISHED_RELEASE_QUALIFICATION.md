@@ -39,6 +39,53 @@ stager checks do not repair RC1 or close the real release gate: publish a new
 candidate after review and repeat the full live matrix. The macOS 14 Intel gap,
 mandatory adopter pilot and default cutover remain separate requirements.
 
+## Second published candidate result
+
+On 2026-10-26 UTC, [v0.2.0-rc.2](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.2)
+was published at `f6c179abba9e1062452f6cd6a51ba693fbcfa0f8`, the reviewed merge of
+PR #137. Its tree matches head `b600f249e39972f70b7e6f164b7c757f504211c1`, which
+passed all eighteen checks. The merged source Go matrix also passed all six jobs.
+[Release run 40252592120](https://github.com/anoop2811/software-factory-template/actions/runs/40252592120)
+passed four builds, authentication of all twelve subjects, upload of fourteen
+assets and the release guard. Each evaluator independently authenticated its
+three native subjects. RC1's extensionless-bundle refusal no longer occurs.
+
+| Target | Observed OS | Published scenarios |
+|---|---|---|
+| Linux amd64 | Ubuntu 24.04.5 LTS | 1 passed, 4 failed |
+| Linux arm64 | Ubuntu 24.04.5 LTS | 0 passed, 5 failed |
+| macOS amd64 | 15.7.9 | 1 passed, 4 failed |
+| macOS arm64 | 14.8.9 | 1 passed, 4 failed |
+
+The passing scenario on three targets is fresh authenticated Go initialization,
+including installed doctor. Failures remain separately classified:
+
+- Both upgrade/rollback criteria stop at the evaluator's conflict negative
+  control: status 2 returns a JSON proposal, but the
+  [RC2 assertion at line 321](https://github.com/anoop2811/software-factory-template/blob/f6c179abba9e1062452f6cd6a51ba693fbcfa0f8/acceptance/published_release_test.go#L321)
+  incorrectly requires stderr. That
+  assertion does not establish that the clean upgrade or rollback body failed.
+- On three targets, both interruption criteria reach successful first recovery
+  and installed checks, then repeated recovery preview refuses with
+  `terminal pending observation differs from current marker` at
+  [RC2 line 508](https://github.com/anoop2811/software-factory-template/blob/f6c179abba9e1062452f6cd6a51ba693fbcfa0f8/acceptance/published_release_test.go#L508). The
+  committed journal retains its historical pending identity after cleanup removed
+  the marker; completed recovery needs a separately requalified no-op path.
+- Linux arm64's fresh initialization and later installed checks observe a shared
+  [forbidden-tool flag](https://github.com/anoop2811/software-factory-template/blob/f6c179abba9e1062452f6cd6a51ba693fbcfa0f8/acceptance/published_release_test.go#L227).
+  The original artifact lacks its contents, so it does not
+  identify which tool/caller wrote it or prove that each later command repeated
+  the attempt. Optional npm native-addon setup is a concrete candidate requiring
+  controlled execution and improved diagnostic evidence. Keep the control intact.
+
+The retained `published-release-TARGET-40252592120-1` artifacts include release
+identity, authenticated subjects, observed OS, Ginkgo JSON/JUnit and actual stopped
+interruption journals. Counts above include only the five scenario criteria, not
+Ginkgo suite hooks. The twenty criteria total three passes and seventeen failures.
+Decision 113 records the correction contract before implementation. RC2 notes mark
+it unqualified for migration; source, tag and assets remain unchanged. v0.1.6 stays
+latest stable. No platform, adopter-pilot or stable-release gate closes here.
+
 ## Local correction evidence
 
 Decision 110 preserves the original bundle format suffix in the private snapshot

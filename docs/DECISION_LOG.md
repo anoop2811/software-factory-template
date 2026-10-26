@@ -4825,3 +4825,91 @@ Retain real access checks rather than substitute mode bits or skip negative proo
 The immutable pre-correction link and the approved Linux/macOS target boundary
 remain valid; repeated path stats in a read-only diagnostic add no activation
 authority or claim of atomic concurrent-filesystem classification.
+
+## Decision 113 (2026-10-26 UTC): correct the boundaries exposed by live RC2 qualification
+
+After the reviewed merge of PR #137 as
+`f6c179abba9e1062452f6cd6a51ba693fbcfa0f8`, publish v0.2.0-rc.2 as an explicit
+prerelease without changing latest stable. Its source tree equals the reviewed
+head that passed all 18 checks. Release run 40252592120 passed four native builds,
+authentication of all twelve subjects, upload of fourteen assets and the release
+guard. The four live qualification jobs failed: three of twenty scenario criteria
+passed. The retained source, tag and assets remain unchanged; release notes mark
+the candidate unqualified for migration. v0.1.6 remains latest stable.
+
+The complete retained reports identify three separate boundaries:
+
+1. The required-entry conflict preview returns the documented status 2 with a
+   machine-readable proposal. The live evaluator incorrectly requires stderr.
+   Require the exact preserved required entry and its blockers/conflicts in one
+   valid proposal, rather than substituting an error-stream assertion. Keep
+   non-conflict, malformed, trailing, wrong-path and operational failures rejected,
+   and retain the read-only project snapshot proof.
+2. Repeated recovery of an already completed transaction with no pending marker
+   is refused because the record retains its historical owned-marker identity.
+   Keep that identity as historical evidence. Distinguish present-marker cleanup
+   from a freshly qualified completed replay: only a committed, direction-matched,
+   fully reauthenticated and requalified installation may receive a confirmed
+   no-op under exclusion when the marker is absent. Preserve all source, manifest,
+   role/observed-identity, state, ownership, consent and direction checks. A partial
+   transaction without its marker, a new/foreign/replaced marker, changed asset or
+   state and disagreement with the manifest remain refusals. Replay must not
+   rewrite assets, journal, backup, accounting or history. Independently extend the
+   genuine forward/reverse interruption and committed-cleanup proofs to exercise
+   a second preview and confirmed apply, with preservation and refusal controls.
+3. The Linux arm64 dependency control observes a forbidden-tool probe, but the
+   artifact does not retain its contents or caller. Optional npm dependency setup
+   is a concrete possible source, not a proven attribution. Retain the poison
+   contents and command boundary in diagnostics, establish a controlled source of
+   the attempt, and preserve the compiler/interpreter-free shipped Go contract.
+   Do not erase the flag, skip the platform or silently weaken that control.
+
+Independent test authors own evaluator and regression changes before production
+edits. Review findings pass the review-diamond verifier. A harness-only correction
+can requalify unchanged signed assets; any runtime correction requires a reviewed
+new candidate, not replacement RC2 assets. Minimum-OS evidence, the customized
+adopter reconciliation/acceptance, default Go cutover and final audit remain open.
+
+Decision 113 npm boundary refinement: Go-selected initialization must install its
+optional OpenCode JavaScript dependencies without running transitive package
+lifecycle scripts. Use npm's explicit `--ignore-scripts` policy for that selection;
+preserve the existing legacy/source initialization behavior and dependency pins.
+The optional native MessagePack acceleration chain can fall back to node-gyp and
+probe Python; it is not a required factory interpreter. Independently demonstrate
+the lifecycle attempt with a controlled real npm fixture and the compiled public
+candidate init, then prove the install is successful without that attempt. Keep
+the published forbidden-tool control and improve its diagnostics. Validate the
+pinned plugin's JavaScript import/fallback without lifecycle scripts; do not infer
+live client integration from package import alone.
+
+Authoritative npm configuration documentation was fetched 2026-10-26 UTC:
+https://docs.npmjs.com/cli/v11/using-npm/config/#ignore-scripts . It specifies that
+this option suppresses package.json lifecycle scripts during installation; it does
+not suppress commands explicitly requested through npm run/test. The upstream
+MessagePack package describes its native addon as optional:
+https://github.com/kriszyp/msgpackr . No dependency or npm version is changed.
+
+Decision 113 retained-row refinement: the first corrected replay regression found
+additional terminal blockers. Exact retained preview identities refute an ordinary
+self-test mutation: recovery deliberately skips rows already at their requested
+image, leaving their phase unobserved and ObservedAfter absent. For a row never
+marked applied/reversed, terminal qualification may instead use full identity
+equality with its original Before observation, after manifest agreement and fresh
+baseline qualification. Forward still requires the target image; reverse still
+requires the baseline image. Keep the earlier changed-observed refusal and every
+inode, timestamp, owner, link, mode and byte check. PreparedAfter or equal bytes
+alone cannot grant custody; a foreign equal-byte replacement remains a refusal.
+This also supports existing committed recovery records without rewriting history.
+
+Decision 113 recovered-observation refinement: the Go-to-Go forward and reverse
+replay criteria then each blocked the same retained scaffold leaf. Source recovery
+can qualify an already published prepared inode and retain it without creating a
+full postpublication observation. The cleaned-up fixtures do not establish the
+exact original prepared fields, so retain that attribution as a source-supported
+explanation. Before the first actual recovery/rollback commits, reobserve each
+originally changed row which the fresh plan retains. Require its complete current
+identity to equal the consent-bound Before and its bytes/mode to equal the desired
+After, then persist the actual ObservedAfter and applied/reversed phase in the
+existing committed save. Preserve original Before/ExpectedAfter/PreparedAfter and
+the before-image manifest. Completed replay still writes no records; terminal
+qualification must not accept PreparedAfter as a substitute for final custody.

@@ -301,12 +301,22 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	if err := output.WriteEvent(ctx, stdout, []byte("\nInstalling opencode plugin dependencies...\n")); err != nil {
 		return err
 	}
-	ok, err := stage(filepath.Join(target, ".opencode"), []string{"npm", "install"}, true)
+	npmArgs := []string{"npm", "install"}
+	if goSelected {
+		// Optional dependency setup must not introduce an interpreter prerequisite.
+		// docs/DECISION_LOG.md:4873.
+		npmArgs = append(npmArgs, "--ignore-scripts")
+	}
+	ok, err := stage(filepath.Join(target, ".opencode"), npmArgs, true)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		if err := output.WriteEvent(ctx, stdout, []byte("  npm install failed — run manually in .opencode/\n")); err != nil {
+		message := "  npm install failed — run manually in .opencode/\n"
+		if goSelected {
+			message = "  npm install failed — retry npm install --ignore-scripts in .opencode/\n"
+		}
+		if err := output.WriteEvent(ctx, stdout, []byte(message)); err != nil {
 			return err
 		}
 	}

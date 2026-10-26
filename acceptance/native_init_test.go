@@ -582,7 +582,8 @@ var _ = Describe("Native Go init external boundaries", func() {
 		data, err := os.ReadFile(trace)
 		Expect(err).NotTo(HaveOccurred())
 		text := string(data)
-		Expect(text).To(ContainSubstring("npm|" + filepath.Join(target, ".opencode") + "|install"))
+		// per docs/DECISION_LOG.md:4876
+		Expect(text).To(ContainSubstring("npm|"+filepath.Join(target, ".opencode")+"|install\n"), "legacy/source initialization retains its established npm policy")
 		Expect(text).NotTo(ContainSubstring("sync|"))
 		Expect(text).To(ContainSubstring("selftest|" + target + "|"))
 		if which == "sync" {

@@ -80,7 +80,7 @@ func publishedAcquire() *publishedFixture {
 	Expect(err).NotTo(HaveOccurred(), "the live lane requires the real trusted GitHub CLI")
 	gh, err = filepath.EvalSymlinks(gh)
 	Expect(err).NotTo(HaveOccurred())
-	fixture := &publishedFixture{root: root, gh: gh, evidenceDirectory: destination, environment: map[string]string{"GH_HOST": "github.com", "GH_PROMPT_DISABLED": "1", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull}, prepared: map[string]installationFixtureData{}}
+	fixture := &publishedFixture{root: root, gh: gh, evidenceDirectory: destination, environment: map[string]string{"GH_HOST": "github.com", "GH_PROMPT_DISABLED": "1", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull, "PUBLISHED_EVIDENCE_DIR": destination}, prepared: map[string]installationFixtureData{}}
 	target := runtime.GOOS + "/" + runtime.GOARCH
 	if requested := os.Getenv("FACTORY_PUBLISHED_TARGET"); requested != "" {
 		Expect(target).To(Equal(requested), "qualification must execute on the requested native architecture")
@@ -161,12 +161,36 @@ func publishedAcquire() *publishedFixture {
 	Expect(os.WriteFile(fixture.installer, []byte(installer.stdout), 0600)).To(Succeed())
 	poison := filepath.Join(root, "unavailable-adopter-tools")
 	for _, tool := range []string{"go", "python", "python3", "claude", "codex", "opencode", "ollama"} {
-		writeFixture(filepath.Join(poison, tool), []byte("#!/bin/sh\nprintf '%s\n' \"$0\" >> \"$PUBLISHED_FORBIDDEN\"\nexit 97\n"), 0700)
+		writeFixture(filepath.Join(poison, tool), []byte("#!/bin/sh\n{ printf 'tool=%s parent_pid=%s argv=' \"$0\" \"${PPID-unknown}\"; printf ' %s' \"$@\"; printf '\\n'; } >> \"$PUBLISHED_FORBIDDEN\"\nexit 97\n"), 0700)
 	}
 	fixture.environment["PATH"] = poison + string(os.PathListSeparator) + os.Getenv("PATH")
 	fixture.environment["PUBLISHED_FORBIDDEN"] = filepath.Join(root, "forbidden-tool")
 	fixture.saveEvidence()
 	return fixture
+}
+
+// Keep the original poison flag and retain its contents with the enclosing
+// command boundary. A probe is a hard failure, including when the child exits 0.
+// per docs/DECISION_LOG.md:4860
+func publishedAssertNoForbiddenTool(cwd string, environment map[string]string, program string, args []string) {
+	GinkgoHelper()
+	path := environment["PUBLISHED_FORBIDDEN"]
+	if path == "" {
+		return
+	}
+	observed, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return
+	}
+	Expect(err).NotTo(HaveOccurred(), "cannot inspect forbidden-tool evidence after %q %q", program, args)
+	body, err := os.ReadFile(path)
+	Expect(err).NotTo(HaveOccurred(), "cannot read forbidden-tool evidence after %q %q", program, args)
+	evidence := fmt.Sprintf("program=%q\narguments=%q\ncwd=%q\nforbidden_tool_probe:\n%s", program, args, cwd, body)
+	_, _ = fmt.Fprintln(GinkgoWriter, evidence)
+	if destination := environment["PUBLISHED_EVIDENCE_DIR"]; destination != "" {
+		Expect(os.WriteFile(filepath.Join(destination, "forbidden-tool-evidence.txt"), []byte(evidence), 0600)).To(Succeed()) // #nosec G703 -- fixed basename under the trusted output validated by publishedAcquire or an evaluator-owned TempDir; candidate content cannot select the destination.
+	}
+	Expect(observed).To(BeNil(), "published Go dependency control observed a forbidden tool at this command boundary:\n%s", evidence)
 }
 
 func publishedExecute(cwd string, environment map[string]string, input, program string, args ...string) cliResult {
@@ -185,6 +209,7 @@ func publishedExecute(cwd string, environment map[string]string, input, program 
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
 	err := command.Run()
+	publishedAssertNoForbiddenTool(cwd, environment, program, args)
 	Expect(ctx.Err()).NotTo(HaveOccurred(), "published command exceeded its deadline: %s", stderr.String())
 	status := 0
 	if err != nil {
@@ -268,12 +293,108 @@ func publishedPreserved(root string, values map[string][]byte) {
 	}
 }
 
+// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:270
+// per docs/DECISION_LOG.md:4842
+func publishedRequiredRoleConflict(conflict cliResult, path string) {
+	GinkgoHelper()
+	Expect(conflict.status).To(Equal(2), "a preserved required conflict must return its documented status: %+v", conflict)
+	proposal := installationDecodeProposal(conflict)
+	for _, name := range []string{"blockers", "conflicts"} {
+		Expect(proposal[name]).To(ContainElement(HaveKeyWithValue("path", path)), "the proposal must identify the customized required entry in %s", name)
+	}
+	row := installationRows(proposal)[path]
+	Expect(row).NotTo(BeNil(), "the complete proposal must retain the required entry action")
+	Expect(row["required"]).To(BeTrue())
+	Expect(row["action"]).To(Equal("retain"))
+	for _, name := range []string{"applicable", "checks_ready", "success", "rollback_ready"} {
+		Expect(proposal[name]).To(BeFalse(), "blocked preview cannot claim %s", name)
+	}
+}
+
+// The live lane and the offline regression execute the same deterministic
+// evaluator controls before inspecting any authenticated candidate.
+// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:264
+// per docs/DECISION_LOG.md:4842
+func publishedEvaluatorProof() {
+	GinkgoHelper()
+	path := "scripts/factory-report.sh"
+	issue := map[string]any{"path": path, "reason": "operator customization is preserved"}
+	proposal := map[string]any{
+		"proposal_digest": strings.Repeat("a", 64),
+		"actions":         []any{map[string]any{"path": path, "action": "retain", "required": true}},
+		"blockers":        []any{issue}, "conflicts": []any{issue},
+		"applicable": false, "checks_ready": false, "success": false, "rollback_ready": false,
+	}
+	encode := func(value map[string]any) cliResult {
+		body, err := json.Marshal(value)
+		Expect(err).NotTo(HaveOccurred())
+		return cliResult{stdout: string(body), status: 2}
+	}
+	valid := encode(proposal)
+	Expect(InterceptGomegaFailure(func() { publishedRequiredRoleConflict(valid, path) })).To(Succeed(), "status 2 carries the complete blocked proposal on stdout with empty stderr")
+	changed := func(field string, value any) cliResult {
+		var altered map[string]any
+		Expect(json.Unmarshal([]byte(valid.stdout), &altered)).To(Succeed())
+		altered[field] = value
+		return encode(altered)
+	}
+	controls := []struct {
+		name   string
+		result cliResult
+	}{
+		{"operational inspection failure", cliResult{stderr: "cannot inspect installation", status: 1}},
+		{"parser refusal without a proposal", cliResult{stderr: "invalid operand", status: 2}},
+		{"malformed JSON", cliResult{stdout: "{", status: 2}},
+		{"trailing JSON", cliResult{stdout: valid.stdout + "\n{}", status: 2}},
+		{"a status zero masquerading as a preserved mandatory conflict", cliResult{stdout: valid.stdout, status: 0}},
+		{"error-stream contamination", cliResult{stdout: valid.stdout, stderr: "partial inspection", status: 2}},
+		{"missing blocker", changed("blockers", []any{})},
+		{"blocker for another path", changed("blockers", []any{map[string]any{"path": "scripts/other.sh", "reason": "unrelated"}})},
+		{"conflict for another path", changed("conflicts", []any{map[string]any{"path": "scripts/other.sh", "reason": "unrelated"}})},
+		{"an optional retained action", changed("actions", []any{map[string]any{"path": path, "action": "retain", "required": false}})},
+		{"a replacing action", changed("actions", []any{map[string]any{"path": path, "action": "replace", "required": true}})},
+		{"an authority claim despite the conflict", changed("success", true)},
+	}
+	for _, control := range controls {
+		By(control.name)
+		Expect(InterceptGomegaFailure(func() { publishedRequiredRoleConflict(control.result, path) })).To(HaveOccurred(), control.name)
+	}
+
+	// A controlled probe must fail with retained bytes and command context;
+	// qualification must never clear the flag to manufacture later success.
+	// per docs/DECISION_LOG.md:4860
+	root := GinkgoT().TempDir()
+	marker := filepath.Join(root, "forbidden-tool")
+	environment := map[string]string{"PUBLISHED_FORBIDDEN": marker, "PUBLISHED_EVIDENCE_DIR": root}
+	arguments := []string{"published-install.sh", "init", "fixture-adopter"}
+	Expect(InterceptGomegaFailure(func() { publishedAssertNoForbiddenTool(root, environment, "/bin/sh", arguments) })).To(Succeed())
+	probe := []byte("tool=python3 parent_pid=123 argv= --version\n")
+	Expect(os.WriteFile(marker, probe, 0600)).To(Succeed())
+	failure := InterceptGomegaFailure(func() { publishedAssertNoForbiddenTool(root, environment, "/bin/sh", arguments) })
+	Expect(failure).To(HaveOccurred())
+	Expect(failure.Error()).To(ContainSubstring("python3"))
+	Expect(failure.Error()).To(ContainSubstring("fixture-adopter"))
+	Expect(os.ReadFile(marker)).To(Equal(probe))
+	retained, err := os.ReadFile(filepath.Join(root, "forbidden-tool-evidence.txt"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(string(retained)).To(ContainSubstring("program=\"/bin/sh\""))
+	Expect(string(retained)).To(ContainSubstring("fixture-adopter"))
+	Expect(string(retained)).To(ContainSubstring(string(probe)))
+}
+
+var _ = Describe("Published release qualification evaluator", func() {
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:264
+	// per docs/DECISION_LOG.md:4842
+	It("distinguishes a machine-readable required conflict from malformed and operational failures", publishedEvaluatorProof)
+})
+
 // These criteria are never registered by ordinary source compilation. Missing
 // explicit live inputs fail; no environment-dependent skip can masquerade as a pass.
 // per docs/adr/0107-published-release-qualification.md:79
 var _ = Describe("Published release qualification live", Ordered, ContinueOnFailure, func() {
 	var release *publishedFixture
 	BeforeAll(func() {
+		publishedEvaluatorProof()
 		release = publishedAcquire()
 		for _, reference := range []installationReference{{profile: "v0.1.6", revision: "b71ecc32e07ecd87eb330ba8e497c86612f92acd"}, {profile: "bash-baseline", revision: "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"}} {
 			reference.assets, reference.payload = installationGitCatalog("..", reference.revision)
@@ -313,13 +434,7 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		before := installationSnapshot(legacy.root)
 		conflict := publishedExecute(legacy.root, release.environment, "", "/bin/sh", release.installer, "upgrade", "--go-candidate", release.evidence.Tag, "--dry-run", "--json")
 		Expect(installationSnapshot(legacy.root)).To(Equal(before))
-		if conflict.status == 0 {
-			proposal := handoffProposal(conflict)
-			Expect(proposal["blockers"]).NotTo(BeEmpty())
-		} else {
-			Expect(conflict.status).To(Equal(2))
-			Expect(conflict.stderr).NotTo(BeEmpty())
-		}
+		publishedRequiredRoleConflict(conflict, "scripts/factory-report.sh")
 		Expect(os.WriteFile(role, original, 0700)).To(Succeed()) // #nosec G306 -- same owned fixture executable restored before clean preview.
 		proposal := release.preview(legacy.root)
 		result := publishedExecute(legacy.root, release.environment, "", "/bin/sh", release.installer, "upgrade", "--go-candidate", release.evidence.Tag, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
@@ -485,6 +600,7 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		Expect(syscall.Kill(-command.Process.Pid, syscall.SIGKILL)).To(Succeed())
 		Expect(<-finished).To(HaveOccurred())
 		waited = true
+		publishedAssertNoForbiddenTool(legacy.root, release.environment, command.Args[0], command.Args[1:])
 		journal, err := os.ReadFile(filepath.Join(legacy.root, ".factory/installation-transactions", migration+".json"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(journal).To(Equal(stoppedBytes), "the killed transaction cannot advance its recorded witness")

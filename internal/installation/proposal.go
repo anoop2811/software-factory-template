@@ -13,13 +13,14 @@ import (
 )
 
 type plan struct {
-	proposal     Proposal
-	image        staging.Inspection
-	payload      map[string][]byte
-	before       map[string][]byte
-	rootIdentity Identity
-	request      Request
-	reference    baseline
+	proposal          Proposal
+	image             staging.Inspection
+	payload           map[string][]byte
+	before            map[string][]byte
+	rootIdentity      Identity
+	request           Request
+	reference         baseline
+	completedRecovery bool
 }
 
 // Propose is read-only; imported archive bytes establish neither origin nor custody.

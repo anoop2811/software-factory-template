@@ -261,9 +261,12 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	// per docs/adr/0101-go-release-handoff.md:148
 	It("initializes a real selected Go installation from the authenticated complete image", func() {
 		f, driver := handoffNativeFixture(fixtures.image)
+		// per docs/DECISION_LOG.md:4873
+		handoffNPMLifecycleFixture(f)
 		target := filepath.Join(f.cwd, "new governed project")
 		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
 		Expect(result.status).To(Equal(0), "%+v", result)
+		handoffNPMLifecyclePreserved(f, target)
 		data, err := os.ReadFile(filepath.Join(target, ".factory/installation.current"))
 		Expect(err).NotTo(HaveOccurred())
 		var descriptor map[string]any
@@ -878,11 +881,25 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Eventually(observe, 5*time.Second, time.Millisecond).Should(BeTrue(), "must witness actual published rows under pending before interruption")
 		_, _ = fmt.Fprintf(GinkgoWriter, "actual crash witness after %s; %s\n", time.Since(started), lastPhase)
 		Expect(syscall.Kill(cmd.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+		Eventually(func() bool {
+			stopped, err := installationProcessStopped(cmd.Process.Pid)
+			Expect(err).NotTo(HaveOccurred())
+			return stopped
+		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "observe actual stop before accepting the Go-to-Go crash witness")
+		Expect(observe()).To(BeTrue(), "the stopped child must retain applying rows and pending")
+		journalPath := filepath.Join(installed.root, ".factory/installation-transactions", migration+".json")
+		stoppedJournal, err := os.ReadFile(journalPath)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)).To(Succeed())
 		interruptionError := <-finished
 		waited = true
-		Expect(interruptionError).To(HaveOccurred())
-		_, err := os.Lstat(pending)
+		var exit *exec.ExitError
+		Expect(errors.As(interruptionError, &exit)).To(BeTrue())
+		status, ok := exit.Sys().(syscall.WaitStatus)
+		Expect(ok).To(BeTrue())
+		Expect(status.Signal()).To(Equal(syscall.SIGKILL))
+		Expect(os.ReadFile(journalPath)).To(Equal(stoppedJournal), "the killed child cannot advance the stopped journal")
+		_, err = os.Lstat(pending)
 		Expect(err).NotTo(HaveOccurred())
 		recoveryArgs := append(handoffRecoveryOperands(fixtures.image, f, installed.archive), "--recover", migration, "--direction", direction)
 		recovery := handoffProposal(handoffNativeProcess(installed.root, f.environment, "", driver, append(recoveryArgs, "--dry-run", "--json")...))
@@ -899,5 +916,28 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(os.IsNotExist(err)).To(BeTrue())
 		ordinary := handoffNativeProcess(installed.root, f.environment, "", filepath.Join(installed.root, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
+		// per docs/DECISION_LOG.md:4850
+		digest := installationAssertCompletedReplay(installed.root, func() cliResult {
+			return handoffNativeProcess(installed.root, f.environment, "", driver, append(append([]string{}, recoveryArgs...), "--dry-run", "--json")...)
+		}, func(digest string) cliResult {
+			return handoffNativeProcess(installed.root, f.environment, "", driver, append(append([]string{}, recoveryArgs...), "--confirm", digest, "--quiescent")...)
+		})
+		if direction == "forward" {
+			// Preserve a valid JSON manifest whose profile no longer agrees with
+			// the completed transaction, including on a fresh public handoff.
+			// per docs/DECISION_LOG.md:4855
+			path := filepath.Join(installed.root, ".factory/backups", migration, "installation.manifest")
+			body, err := os.ReadFile(path)
+			Expect(err).NotTo(HaveOccurred())
+			var manifest map[string]any
+			Expect(json.Unmarshal(body, &manifest)).To(Succeed())
+			manifest["profile"] = "v0.1.6"
+			changed, err := json.Marshal(manifest)
+			Expect(err).NotTo(HaveOccurred())
+			writeFixture(path, changed, 0600)
+			installationAssertReplayRefused(installed.root, func() cliResult {
+				return handoffNativeProcess(installed.root, f.environment, "", driver, append(append([]string{}, recoveryArgs...), "--confirm", digest, "--quiescent")...)
+			})
+		}
 	}, Entry("resume forward", "forward"), Entry("restore predecessor", "reverse"))
 })

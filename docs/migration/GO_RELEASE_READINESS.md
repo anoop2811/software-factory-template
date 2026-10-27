@@ -27,20 +27,27 @@ in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Current release candidate
 
-[v0.2.0-rc.2](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.2)
+[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
 was published on 2026-10-26 UTC from reviewed merge
-`f6c179abba9e1062452f6cd6a51ba693fbcfa0f8`. All four builds, twelve subject
-authentications and fourteen uploaded assets succeeded. Live qualification failed
-on every target: three of twenty scenario criteria passed. The reports exposed an
-incorrect blocked-preview assertion, a completed-recovery replay refusal, and a
-Linux arm64 forbidden-tool observation requiring better diagnostics.
-See [the exact RC2 results](PUBLISHED_RELEASE_QUALIFICATION.md#second-published-candidate-result).
+`95486ecdd3868a319a0e6362ee99cafd8f154200`. Its tree matches PR #138's reviewed
+head, which passed all eighteen checks. Release run 40275363119 passed four
+builds, authentication of twelve subjects, fourteen uploaded assets and all
+**twenty actual live scenario criteria** across the four native targets.
+See [the exact RC3 results](PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 
-Both RC1 and RC2 are marked unqualified for migration; their signed source, tags
-and assets remain unchanged. RC1's attestation-format defect is corrected in RC2.
-v0.1.6 remains latest stable. A runtime correction requires another reviewed signed
-candidate and successful actual qualification; source-only checks do not close the
-gate below.
+The observed systems are Ubuntu 24.04.5 on both architectures, macOS 14.8.9
+arm64 and macOS 15.7.9 amd64. The Intel result does not establish the approved
+macOS 14 Intel floor, so the full platform gate below remains open. The mandatory
+operator pilot, default selection, classified retirement and final audit also
+remain requirements. v0.1.6 remains latest stable.
+
+RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
+their recorded failures; its passing published results are separate evidence.
+The merged-source macOS base job independently repeated an isolated Git-init
+five-second timeout in its healthy archive-subject control. Its fixture selects a
+different Git executable from the qualified runner/live lane. That source-CI
+investigation remains separate from RC3's successful published matrix; neither
+result erases the other. Decision 114 records the boundary.
 
 ## Required release gates
 
@@ -116,9 +123,17 @@ operator pilot, default cutover and final audit remain open requirements.
 
 An isolated rehearsal has run against the operator-selected adopter; its detailed
 records remain local. A genuine v0.1.6 fixture migrated, while the actual older
-customized installation remained preserved ownership blockers. Its reconciliation,
-the evidence period/exit criteria and operator acceptance remain open. This does
-not permit default cutover or close Q5 solely from passing application tests.
+customized installation remained preserved ownership blockers. Q1 requires
+preservation of unsupported installations, not forced migration of that older
+checkout. Its reconciliation is separate adopter work. Decision 111 permits a
+separately labeled supported installation containing unchanged real application
+code as the pilot fixture.
+
+Q5 still requires an agreed evidence period/exit criteria and operator acceptance
+of a representative supported-project pilot using the current candidate. Earlier
+local rehearsal findings are historical evidence; passing application tests alone
+does not establish a completed current-release upgrade/workflow/recovery pilot or
+permit default cutover. No minimum calendar duration is specified.
 
 ## Current installation-consumer qualification
 

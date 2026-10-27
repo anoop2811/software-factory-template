@@ -37,8 +37,11 @@ curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh ins
 
 **Release status:** v0.1.6 is the latest published stable release. v0.2.0 is the
 planned Go replacement; it is not published yet. Native commands and the explicit
-candidate upgrade flow are implemented on `main`, with release qualification,
-adopter pilot and default cutover still pending. Track the
+candidate upgrade flow are implemented on `main`.
+[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
+passed all twenty published scenarios across four native targets, including
+init, upgrade, rollback and interruption/recovery. Minimum-OS coverage, the operator pilot
+and default cutover remain open; track the
 [release checklist](docs/migration/GO_RELEASE_READINESS.md).
 
 An ordinary `upgrade` or `upgrade --ref main` continues to select the script
@@ -80,6 +83,44 @@ product tools and retained validation gates keep their own requirements.
    - `./factory metrics` shows what the factory is doing to your repo: gates armed vs inert, what they blocked, rework, reverts, whether claims carry evidence. Mostly from git history, so it works the day you install. `--json` to export, `--html` for a page. Local only — nothing is transmitted.
 4. Read [docs/ADAPTING.md](docs/ADAPTING.md) "Adopting incrementally" to arm gates one at a time.
 5. Open [docs/HOOKS.md](docs/HOOKS.md) when a gate blocks you and you want to know why.
+
+## Factory commands
+
+Use one public entrypoint: `./factory`. This table describes the selected Go
+installation; commands marked **Go only** are absent from the default script
+dispatcher. Use an actual published release tag for `TAG`. Start with
+`./factory help`; flags vary by command. The [CLI reference](docs/CLI.md) explains
+options, runtime availability and side effects.
+
+| Command | Purpose | Example |
+|---|---|---|
+| `help` | List the public commands. | `./factory help` |
+| `init` | Initialize a project, configure its packs and install/prove hooks. | `./factory init ../new-project --go-candidate TAG --pack go` |
+| `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
+| `upgrade` | Authenticate and preview an installation update; apply with fresh confirmation. | `./factory upgrade --go-candidate TAG --dry-run --json` |
+| `sync` **Go only** | Regenerate adapters for `all`, `codex`, `claude` or `opencode`; inspect the resulting diff. | `./factory sync all` |
+| `prereq` **Go only** | Check required tools and the configured product Go minimum. | `./factory prereq` |
+| `check` | Run factory gates and your configured project checks. | `./factory check` |
+| `selftest` | Run isolated break/fix proofs of factory enforcement. | `./factory selftest` |
+| `eval` **Go only** | Check harness wiring or run structural/golden evaluations. Real runners can consume model usage. | `./factory eval structural --harness=codex` |
+| `review` **Go only** | Send a saved diff to the configured advisory reviewer; consumes provider usage. | `./factory review change.diff` |
+| `review-batch` **Go only** | Plan or execute complete reviews in bounded batches; local `--plan` makes no provider calls. | [Offline plan and GitHub examples](docs/CLI.md#batched-review-and-ci) |
+| `review-lane` | Inspect/manage advisory PR review: `status`, `enable`, `disable`, `pending`, `secret-name`. | `./factory review-lane status` |
+| `metrics` | Read local activity/enforcement metrics; JSON or local HTML output is available. | `./factory metrics --json` |
+| `report` | Read gate/block history and a labelled estimate; `--clear` resets the block log. | `./factory report` |
+| `budget` | `plan`, `run` or `report` managed model invocations; only explicit `run` launches a model. | `./factory budget plan --harness codex --session work --task issue-1` |
+| `loop` | `plan`, `run`, `resume` or inspect `status` for manual checks or bounded agent work. | `./factory loop plan --harness codex --session work --task issue-1` |
+| `migrate-config` | Preview conversion of legacy flat configuration to YAML; applying preserves a backup. | `./factory migrate-config --dry-run` |
+
+Budgeted model runs and bounded loops require explicit enablement. Real evaluation
+runners, `review`, executed `review-batch` and enabled PR review can consume model
+usage; planning and local reports do not launch models. Read [budget limits](docs/BUDGETS.md)
+and [loop controls](docs/LOOPS.md) before enabling agent execution.
+
+For rollback, interrupted recovery and `upgrade --keep-backup MIGRATION_ID` /
+`upgrade --prune-backup MIGRATION_ID`, follow the [upgrade and recovery guide](docs/UPGRADING.md).
+The packaging/staging utilities are maintainer tools; regular users keep the one
+`factory` CLI. See [maintainer tools](docs/CLI.md#maintainer-tools-and-compatibility-adapters).
 
 ## The idea
 

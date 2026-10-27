@@ -4913,3 +4913,118 @@ After, then persist the actual ObservedAfter and applied/reversed phase in the
 existing committed save. Preserve original Before/ExpectedAfter/PreparedAfter and
 the before-image manifest. Completed replay still writes no records; terminal
 qualification must not accept PreparedAfter as a substitute for final custody.
+
+## Decision 114 (2026-10-26 UTC): record RC3 evidence and keep qualification tool identities explicit
+
+PR #138 merged as `95486ecdd3868a319a0e6362ee99cafd8f154200` after eighteen
+successful exact-head checks. Its tree equals the reviewed head. Published
+v0.2.0-rc.3 uses that source; release run 40275363119 passed all four native builds,
+attestation/authentication of twelve subjects, upload of fourteen assets and the
+release guard. Original per-target reports record five actual live criteria
+passed on each target, twenty passed and zero failed overall. The candidate and
+harness identities match. These are published binary outcomes, distinct from
+source-only tests. The observed systems are Ubuntu 24.04.5 on both architectures,
+macOS 14.8.9 arm64 and macOS 15.7.9 amd64. The last does not establish macOS 14
+Intel support; retain the full minimum-OS gate. v0.1.6 remains latest stable.
+
+Keep the mandatory operator pilot in Q5 of
+specs/001-go-runtime-conversion.md:484. Q1 at
+specs/001-go-runtime-conversion.md:480 requires only v0.1.6 and the approved
+immutable Bash baseline as initial predecessors; preserve unsupported customized
+installations without forcing activation. Decision 111 permits a separately
+labeled genuinely initialized supported installation containing real application
+code. Reconciliation of an unsupported original checkout is separate adopter
+work, not an additional initial-release prerequisite. Correct later checklist
+wording that implies otherwise. The evidence period/exit criteria and operator
+acceptance remain required; no calendar duration is invented here.
+
+The merged-source macOS base job in run 40275252277 separately repeated the
+unchanged archive-subject healthy control's isolated Git-init timeout: 5.091s,
+exit -9, child exit confirmed and ownership not uncertain. Its original report
+remains failed evidence; it does not change the successful published outcomes.
+The runner checkout uses `/opt/homebrew/bin/git`, while the native handoff fixture
+removes its Git poison and forces `/usr/bin:/bin`. This dependency-identity
+mismatch is observed; the cause of the delay remains unproven. Before changing
+runtime policy, compare exact real Git identities with fixture-owned bounded
+trace diagnostics and the existing criterion. Preserve real Git output/status,
+poisoned compiler/interpreter boundaries, all assertions and the production
+five-second deadline. A fixture correction may explicitly select the qualified
+harness Git, but must not claim to prove the unrelated implementation cannot
+stall or silently relax platform support. Do not repeatedly rerun a recurring
+failure without collecting new evidence.
+
+Provenance: [published RC3 run](https://github.com/anoop2811/software-factory-template/actions/runs/40275363119)
+and [merged-source run](https://github.com/anoop2811/software-factory-template/actions/runs/40275252277),
+observed 2026-10-26 UTC. Original reports and logs are retained locally; no private
+adopter data belongs in the public release evidence.
+
+Decision 114 fixture-selection evidence: an independent transparent wrapper
+executes the captured absolute real harness Git unchanged and records only
+commands in `factory-init-ignore-*` scratch directories. The old archive-subject
+criterion passed (1 passed, 0 failed, 23.524s), but recorded zero such calls; the
+separate required-witness assertion exited 1. After explicitly symlinking the
+resolved harness Git into the native fixture's existing isolated tools directory,
+the same criterion passed (1 passed, 0 failed, 19.904s) and recorded 33 actual
+ignore-proof Git commands, including init and check-ignore. Healthy installation,
+wrong archive-subject refusal and no-publication assertions remain unchanged.
+This establishes the dependency-selection correction, not the cause of the other
+Git's timeout. The ordinary source census stays 3008; no criterion, poison,
+production deadline or runtime implementation changed.
+
+## Decision 115 (2026-10-27 UTC): complete the README command guide and require an actually live timeout witness
+
+The README links the CLI reference but does not explain every registered public
+command. Add a concise purpose/example table for all sixteen registered commands
+and help, including Go-only availability, model-execution boundaries and links
+to detailed options, recovery and backup controls. Match the actual CLI surface;
+do not imply uniform flags or activate spending while demonstrating a command.
+Clarify the live qualification census: 3008 ordinary criteria plus six tagged
+criteria make 3014; selecting five live criteria leaves 3009 focused-out cases.
+Retain required file:line citations and the approved Ubuntu 24.04 floor.
+
+PR #139's Linux source job separately failed the existing timeout-before-reap
+fixture in internal/native/natural_exit_test.go. Its child is `read line` with
+empty stdin, so EOF can terminate it naturally before cleanup. The actual CI
+diagnostic correctly reports `reaped_before_signal=true`; a short deadline does
+not establish a live-child witness. Keep production reconciliation unchanged.
+For the publication/cancellation/timeout cases that require a pre-reap child,
+use a self-contained child that cannot exit merely from stdin EOF. Before the
+real group signal, require the actual leader to remain alive and the wait witness
+not to be closed. Preserve the real signal/reap, typed EPERM uncertainty,
+exactly-one-signal, outcome and diagnostic assertions and existing deadlines.
+Independent test authors own this fixture correction; no skip or retry replaces
+the missing witness. The ordinary acceptance census remains unchanged.
+
+Record the resolved evaluator Git identity in the existing native handoff
+fixture's retained report as diagnostics; keep portable harness selection rather
+than hardcoding a Homebrew or system path. Its output/status, isolation and
+compiler/interpreter poisons remain unchanged. The earlier Git delay's cause is
+still unproven. No runtime/default-selection or minimum-platform policy changes
+are authorized by this decision.
+
+Provenance: [PR #139 Linux source run](https://github.com/anoop2811/software-factory-template/actions/runs/40335635683),
+observed 2026-10-26 UTC; its original log records the true prior-reap diagnostic.
+The public command registry is internal/cli/cli.go:75; platform and pilot scope
+remain specs/001-go-runtime-conversion.md:481 and specs/001-go-runtime-conversion.md:484.
+
+Decision 115 test-owned cleanup refinement: an EOF-independent live fixture must
+also have bounded teardown if the supervisor under test fails to signal or an
+assertion aborts. Retain the exact spawned Process through the existing wait
+seam; use that owned object for cleanup rather than a potentially stale raw PID.
+Await completion of the existing sole waiter, never start another Wait. This
+independent cleanup must not increment the tested signal counter, fabricate
+reaping or turn a failed supervision assertion into a pass. Preserve the real
+pre-reap liveness witness and all production deadlines. Exercise the missing-
+signal failure path with a bounded test-only mutation before claiming teardown.
+
+Decision 115 observed follow-up (2026-10-27 UTC): the three corrected pre-reap
+criteria passed with actual liveness assertions; the final full native race suite
+passed all 33 criteria in 12.515s. A test-only compiler overlay omitted the
+supervisor's real group termination. The existing real-leader ESRCH assertion
+still failed (0 passed, 1 failed, 5.009s), while the retained teardown entry records
+an actual owned Process kill and confirmed completion of the original waiter.
+The control proves cleanup without concealing failed supervision. The existing
+archive-subject criterion passed in 21.206s and retained two resolved-Git report
+entries. The actual Go help and registry inventory match all seventeen README
+commands, including exactly the five Go-only entries. Tagged scoped lint reports
+zero issues. These local observations do not claim new-head hosted CI passed.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -71,18 +72,21 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 		options := runOptions{limit: 1024}
 		onSpawn := func(context.Context, int) error { return nil }
 		preReap := false
+		// per docs/DECISION_LOG.md:4989
+		// EOF must not turn a pre-reap refusal witness into natural completion.
+		liveChild := []string{"/bin/sh", "-c", "while :; do :; done"}
 		switch boundary {
 		case "publication":
 			preReap = true
-			plan.Argv = []string{"/bin/sh", "-c", "read line"}
+			plan.Argv = liveChild
 			onSpawn = func(context.Context, int) error { return errors.New("PRIVATE_PUBLICATION_FAILURE") }
 		case "cancel":
 			preReap = true
-			plan.Argv = []string{"/bin/sh", "-c", "read line"}
+			plan.Argv = liveChild
 			onSpawn = func(context.Context, int) error { cancel(); return nil }
 		case "timeout":
 			preReap = true
-			plan.Argv = []string{"/bin/sh", "-c", "read line"}
+			plan.Argv = liveChild
 			onSpawn = func(context.Context, int) error { <-ctx.Done(); return nil }
 		case "signalled":
 			plan.Argv = []string{"/bin/sh", "-c", "read line"}
@@ -102,8 +106,10 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 			options.consume = func(context.Context, []byte) (bool, error) { defer close(finished); <-release; return false, nil }
 		}
 		waited := make(chan struct{})
+		owned := make(chan *os.Process, 1)
 		originalWait := ops.wait
 		ops.wait = func(command *exec.Cmd) error {
+			owned <- command.Process
 			err := originalWait(command)
 			close(waited)
 			if boundary == "unknown-exit" {
@@ -111,12 +117,35 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 			}
 			return err
 		}
+		// per docs/DECISION_LOG.md:5010
+		if preReap {
+			DeferCleanup(func() {
+				deadline := time.NewTimer(ops.waitLimit)
+				defer deadline.Stop()
+				var process *os.Process
+				select {
+				case process = <-owned:
+				case <-deadline.C:
+					Fail("the spawned process was not captured for bounded fixture cleanup")
+				}
+				killErr := process.Kill()
+				select {
+				case <-waited:
+				case <-deadline.C:
+					Fail("the sole waiter did not reap the owned fixture process during cleanup")
+				}
+				AddReportEntry("native-refusal.owned-process-cleanup", map[string]any{"pid": process.Pid, "kill_sent": killErr == nil, "wait_confirmed": true}, ReportEntryVisibilityNever)
+				Expect(killErr == nil || errors.Is(killErr, os.ErrProcessDone)).To(BeTrue(), "owned process cleanup: %v", killErr)
+			})
+		}
 		originalSignal := ops.signalGroup
 		signals := 0
 		ops.signalGroup = func(pid int) error {
 			signals++
 			if preReap {
 				// The real live child is terminated before the synthetic report is returned.
+				Expect(waited).NotTo(BeClosed(), "the pre-reap refusal requires an unreaped real leader")
+				Expect(syscall.Kill(pid, 0)).To(Succeed(), "the intended live leader must still be signalable")
 				Expect(originalSignal(pid)).To(Succeed())
 			} else {
 				Expect(waited).To(BeClosed(), "this boundary must hold the real prior-reap prerequisite")

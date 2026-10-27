@@ -86,6 +86,71 @@ Decision 113 records the correction contract before implementation. RC2 notes ma
 it unqualified for migration; source, tag and assets remain unchanged. v0.1.6 stays
 latest stable. No platform, adopter-pilot or stable-release gate closes here.
 
+## Third published candidate result
+
+On 2026-10-26 UTC, [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
+was published at `95486ecdd3868a319a0e6362ee99cafd8f154200`, the reviewed merge of
+PR #138. Its tree matches reviewed head `2c9768e1d90f7a7112498e2b9b13162ba0262ead`,
+which passed all eighteen checks. The adversarial review completed fourteen files
+and thirty-six fragments; independent reviewers checked and answered its claims.
+[Release run 40275363119](https://github.com/anoop2811/software-factory-template/actions/runs/40275363119)
+passed all ten jobs: four native builds, attestation/authentication and upload,
+the guard and four actual published qualification jobs. Fourteen assets are
+published; all twelve authenticated subject names/digests match the checksum
+records. Candidate, harness and workflow source identities all match the expected
+commit.
+
+| Target | Observed OS | Actual live criteria | Minimum OS established |
+|---|---|---|---|
+| Linux amd64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
+| Linux arm64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
+| macOS amd64 | 15.7.9 | 5 passed, 0 failed | No: macOS 14 Intel remains open |
+| macOS arm64 | 14.8.9 | 5 passed, 0 failed | Yes |
+
+The twenty passes count only executed live `It` criteria, excluding setup/cleanup
+hooks and focused-out source cases. No live criterion was skipped. Every target
+passed fresh initialization; genuine v0.1.6 and immutable Bash-baseline
+upgrade/rollback; and witnessed interruption/recovery for both predecessors.
+Preservation, ignored inert recovery, forbidden-tool controls and fresh completed
+recovery replay assertions ran in those bodies. Eight retained applying journals
+supply the actual interrupted-state evidence. No paid model was called.
+
+The original `published-release-TARGET-40275363119-1` artifacts retain exact
+release/harness identity, observed OS, three independently authenticated native
+subjects per target, Ginkgo JSON/JUnit and stopped transaction evidence.
+The invoked live command was:
+
+```text
+go test -tags=publishedrelease -race -count=1 -timeout=25m -v ./acceptance -ginkgo.focus='^Go factory command acceptance Published release qualification live ' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=EVIDENCE_DIR/ginkgo.json -ginkgo.junit-report=EVIDENCE_DIR/junit.xml
+```
+
+All four original workflow logs report:
+
+```text
+SUCCESS! -- 5 Passed | 0 Failed | 0 Pending | 3009 Skipped
+```
+
+The ordinary source suite has 3,008 criteria. The publishedrelease build tag adds
+six: five live scenarios and one evaluator control, for 3,014 registered criteria.
+Selecting the five live scenarios leaves 3,009 focused-out criteria: the 3,008
+ordinary criteria plus the evaluator control (which also runs inside live setup).
+Those skipped registrations are not skipped live migration scenarios.
+Independently counting only the five executed live criteria per report gives
+twenty passed, zero failed and zero skipped live scenarios overall.
+
+`EVIDENCE_DIR` above abbreviates each runner's actual absolute temporary artifact
+directory. The source remains immutable; release notes record these outcomes.
+The separate merged-source run 40275252277 has a repeated healthy-control Git
+initialization timeout in the source handoff fixture. Decision 114 keeps that
+source-CI investigation separate from the successful published result; it does
+not attribute the host delay without evidence.
+
+RC3 establishes these published outcomes at the observed operating systems.
+It does not establish macOS 14 Intel compatibility, mandatory operator pilot
+acceptance, default Go selection, final classified retirement/audit or a stable
+release. v0.1.6 remains latest stable; RC1 and RC2 stay unchanged and marked
+unqualified. See the [remaining release gates](GO_RELEASE_READINESS.md).
+
 ## Local correction evidence
 
 Decision 110 preserves the original bundle format suffix in the private snapshot

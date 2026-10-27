@@ -43,11 +43,14 @@ remain requirements. v0.1.6 remains latest stable.
 
 RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
 their recorded failures; its passing published results are separate evidence.
-The merged-source macOS base job independently repeated an isolated Git-init
-five-second timeout in its healthy archive-subject control. Its fixture selects a
-different Git executable from the qualified runner/live lane. That source-CI
-investigation remains separate from RC3's successful published matrix; neither
-result erases the other. Decision 114 records the boundary.
+The earlier merged-source macOS base job independently repeated an isolated
+Git-init five-second timeout in its healthy archive-subject control. That failing
+revision's fixture selected a different Git from the qualified runner/live lane.
+PR #139 subsequently merged after all eighteen exact-head checks passed. It
+selects and records the evaluator Git and requires genuine pre-reap fixture
+witnesses with independent bounded cleanup. These source-fixture corrections do
+not establish the original host delay's cause or change RC3's immutable runtime.
+Decisions 114-116 retain both the original failures and later source evidence.
 
 ## Required release gates
 

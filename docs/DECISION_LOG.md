@@ -4974,8 +4974,8 @@ production deadline or runtime implementation changed.
 ## Decision 115 (2026-10-27 UTC): complete the README command guide and require an actually live timeout witness
 
 The README links the CLI reference but does not explain every registered public
-command. Add a concise purpose/example table for all sixteen registered commands
-and help, including Go-only availability, model-execution boundaries and links
+command. Add a concise purpose/example table for all seventeen public commands
+(sixteen operations plus help), including Go-only availability, execution boundaries and links
 to detailed options, recovery and backup controls. Match the actual CLI surface;
 do not imply uniform flags or activate spending while demonstrating a command.
 Clarify the live qualification census: 3008 ordinary criteria plus six tagged
@@ -5028,3 +5028,38 @@ archive-subject criterion passed in 21.206s and retained two resolved-Git report
 entries. The actual Go help and registry inventory match all seventeen README
 commands, including exactly the five Go-only entries. Tagged scoped lint reports
 zero issues. These local observations do not claim new-head hosted CI passed.
+
+## Decision 116 (2026-10-27 UTC): disposition the final PR 139 review against the complete source
+
+PR #139 merged as `87ac3679302272e9a5c24073f9fb0846a5c91ac3` after eighteen
+successful checks. Its tree equals reviewed head
+`006d769b1437cce7959699b68f5e40fb053ab7f5`. The earlier review received a reply,
+but the final-head review did not. Check every final finding against the complete
+source and reply to that exact reviewed head before advancing release work.
+
+There are sixteen registered operations plus separately handled help, seventeen
+public commands total. Clarify that wording without changing the count. Native
+supervision returns immediately when Start fails; only successful Start reaches
+the wait seam, before the publication callback. The suggested nil-process path
+is not present in this implementation. Portable selection from the trusted
+harness PATH and its retained resolved identity remain the approved Git policy.
+No new hardcoded path or stronger authentication requirement is inferred.
+
+Signal zero checks PID existence/permission and does not independently distinguish
+a zombie. Describe that supplemental probe precisely; retain the EOF-independent
+child, outstanding waiter and real signal/reap assertions. The single cleanup
+timer intentionally bounds capture and wait confirmation together. Resetting it
+would expand the allowance; preserve it and describe expiry as failure to confirm
+within the allowance rather than proof that the process was never reaped.
+
+Resolve the cited lines against current source. Keep the restricted-PATH citation,
+explicitly label lesson 100's failing revision as historical and add its current
+Git-selection pointer. Point lesson 101 directly at the EOF-independent child.
+These are wording/citation and test-diagnostic clarifications; no runtime,
+assertion, cleanup bound, platform scope or release status changes.
+
+Provenance: [final-head review](https://github.com/anoop2811/software-factory-template/pull/139#issuecomment-6432936082),
+[prior-head response](https://github.com/anoop2811/software-factory-template/pull/139#issuecomment-6432918852)
+and complete source at merged revision above, read 2026-10-27 UTC. There are no
+inline review threads on PR #139; the advisory issue comment requires an explicit
+finding-by-finding reply rather than a fabricated thread-resolution claim.

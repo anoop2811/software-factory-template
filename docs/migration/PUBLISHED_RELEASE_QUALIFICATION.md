@@ -130,9 +130,13 @@ All four original workflow logs report:
 SUCCESS! -- 5 Passed | 0 Failed | 0 Pending | 3009 Skipped
 ```
 
-The 3,009 focused-out criteria are not live migration scenarios. Independently
-counting only the five executed live criteria per report gives twenty passed,
-zero failed and zero skipped live scenarios overall.
+The ordinary source suite has 3,008 criteria. The publishedrelease build tag adds
+six: five live scenarios and one evaluator control, for 3,014 registered criteria.
+Selecting the five live scenarios leaves 3,009 focused-out criteria: the 3,008
+ordinary criteria plus the evaluator control (which also runs inside live setup).
+Those skipped registrations are not skipped live migration scenarios.
+Independently counting only the five executed live criteria per report gives
+twenty passed, zero failed and zero skipped live scenarios overall.
 
 `EVIDENCE_DIR` above abbreviates each runner's actual absolute temporary artifact
 directory. The source remains immutable; release notes record these outcomes.

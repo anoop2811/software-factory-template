@@ -8,7 +8,7 @@ Start with `./factory help`. In particular, do not assume every command supports
 
 ## Which runtime am I using?
 
-As of 2026-10-23, v0.1.6 is the latest published stable release. The source checkout
+As of 2026-10-26 UTC, v0.1.6 is the latest published stable release. The source checkout
 on `main` still launches scripts through its tracked `factory` file. Building the
 Go command does not activate it in an existing project. A successful explicit
 `--go-candidate TAG` installation selects the authenticated packaged Go runtime

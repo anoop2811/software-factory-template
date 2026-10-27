@@ -58,6 +58,8 @@ func handoffNativeFixture(image handoffReleaseImage) (handoffBootstrapFixture, s
 	qualifiedGit, err = filepath.EvalSymlinks(qualifiedGit)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(filepath.IsAbs(qualifiedGit)).To(BeTrue())
+	// per docs/DECISION_LOG.md:4998
+	AddReportEntry("release-handoff.resolved-git", qualifiedGit, ReportEntryVisibilityNever)
 	f := handoffBootstrap(map[string]string{"linux": "Linux", "darwin": "Darwin"}[runtime.GOOS], map[string]string{"amd64": "x86_64", "arm64": "arm64"}[runtime.GOARCH], runtime.GOOS+"-"+runtime.GOARCH, "")
 	assets := f.environment["HANDOFF_ASSETS"]
 	writeFixture(filepath.Join(assets, "factory-bootstrap-"+handoffVersion+"-"+f.target), image.binary, 0600)

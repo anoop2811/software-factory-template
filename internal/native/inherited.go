@@ -30,7 +30,9 @@ type foreground struct {
 	group int
 }
 
-func takeForeground(file *os.File, pid int) (*foreground, error) {
+// Capture only terminal ownership held by this supervisor. Initial foreground
+// admission is completed by the child before exec. docs/DECISION_LOG.md:5092.
+func captureForeground(file *os.File) (*foreground, error) {
 	group, err := unix.IoctlGetInt(int(file.Fd()), unix.TIOCGPGRP)
 	// Darwin /dev/null reports ENODEV; neither case owns a terminal foreground.
 	// docs/adr/0099-native-factory-orchestration.md:200.
@@ -43,20 +45,28 @@ func takeForeground(file *os.File, pid int) (*foreground, error) {
 	if group != syscall.Getpgrp() {
 		return nil, nil
 	}
-	signal.Ignore(syscall.SIGTTOU)
-	err = unix.IoctlSetPointerInt(int(file.Fd()), unix.TIOCSPGRP, pid)
-	signal.Reset(syscall.SIGTTOU)
-	if err != nil {
-		return nil, err
-	}
 	return &foreground{file, group}, nil
 }
-func (terminal *foreground) restore() error {
+
+func takeForeground(file *os.File, pid int) (*foreground, error) {
+	terminal, err := captureForeground(file)
+	if err != nil || terminal == nil {
+		return terminal, err
+	}
+	if err := terminal.transfer(pid); err != nil {
+		return nil, err
+	}
+	return terminal, nil
+}
+
+func (terminal *foreground) transfer(group int) error {
 	signal.Ignore(syscall.SIGTTOU)
-	err := unix.IoctlSetPointerInt(int(terminal.file.Fd()), unix.TIOCSPGRP, terminal.group)
+	err := unix.IoctlSetPointerInt(int(terminal.file.Fd()), unix.TIOCSPGRP, group)
 	signal.Reset(syscall.SIGTTOU)
 	return err
 }
+
+func (terminal *foreground) restore() error { return terminal.transfer(terminal.group) }
 func forwardSignals(pid int, terminalOwned bool) func() {
 	signals := make(chan os.Signal, 8)
 	done := make(chan struct{})

@@ -120,6 +120,8 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 		// per docs/DECISION_LOG.md:5010
 		if preReap {
 			DeferCleanup(func() {
+				// One allowance covers capture and wait confirmation; do not reset it.
+				// per docs/DECISION_LOG.md:5051
 				deadline := time.NewTimer(ops.waitLimit)
 				defer deadline.Stop()
 				var process *os.Process
@@ -132,7 +134,7 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 				select {
 				case <-waited:
 				case <-deadline.C:
-					Fail("the sole waiter did not reap the owned fixture process during cleanup")
+					Fail("owned fixture wait was not confirmed within the cleanup allowance")
 				}
 				AddReportEntry("native-refusal.owned-process-cleanup", map[string]any{"pid": process.Pid, "kill_sent": killErr == nil, "wait_confirmed": true}, ReportEntryVisibilityNever)
 				Expect(killErr == nil || errors.Is(killErr, os.ErrProcessDone)).To(BeTrue(), "owned process cleanup: %v", killErr)
@@ -145,7 +147,9 @@ var _ = Describe("Darwin reconciliation refusal", func() {
 			if preReap {
 				// The real live child is terminated before the synthetic report is returned.
 				Expect(waited).NotTo(BeClosed(), "the pre-reap refusal requires an unreaped real leader")
-				Expect(syscall.Kill(pid, 0)).To(Succeed(), "the intended live leader must still be signalable")
+				// Signal zero alone does not exclude zombies; the EOF-independent child and wait witness remain required.
+				// per docs/DECISION_LOG.md:5048
+				Expect(syscall.Kill(pid, 0)).To(Succeed(), "the intended leader PID must still be present and accessible")
 				Expect(originalSignal(pid)).To(Succeed())
 			} else {
 				Expect(waited).To(BeClosed(), "this boundary must hold the real prior-reap prerequisite")

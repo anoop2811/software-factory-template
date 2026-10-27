@@ -4974,8 +4974,8 @@ production deadline or runtime implementation changed.
 ## Decision 115 (2026-10-27 UTC): complete the README command guide and require an actually live timeout witness
 
 The README links the CLI reference but does not explain every registered public
-command. Add a concise purpose/example table for all sixteen registered commands
-and help, including Go-only availability, model-execution boundaries and links
+command. Add a concise purpose/example table for all seventeen public commands
+(sixteen operations plus help), including Go-only availability, execution boundaries and links
 to detailed options, recovery and backup controls. Match the actual CLI surface;
 do not imply uniform flags or activate spending while demonstrating a command.
 Clarify the live qualification census: 3008 ordinary criteria plus six tagged
@@ -5028,3 +5028,98 @@ archive-subject criterion passed in 21.206s and retained two resolved-Git report
 entries. The actual Go help and registry inventory match all seventeen README
 commands, including exactly the five Go-only entries. Tagged scoped lint reports
 zero issues. These local observations do not claim new-head hosted CI passed.
+
+## Decision 116 (2026-10-27 UTC): disposition the final PR 139 review against the complete source
+
+PR #139 merged as `87ac3679302272e9a5c24073f9fb0846a5c91ac3` after eighteen
+successful checks. Its tree equals reviewed head
+`006d769b1437cce7959699b68f5e40fb053ab7f5`. The earlier review received a reply,
+but the final-head review did not. Check every final finding against the complete
+source and reply to that exact reviewed head before advancing release work.
+
+There are sixteen registered operations plus separately handled help, seventeen
+public commands total. Clarify that wording without changing the count. Native
+supervision returns immediately when Start fails; only successful Start reaches
+the wait seam, before the publication callback. The suggested nil-process path
+is not present in this implementation. Portable selection from the trusted
+harness PATH and its retained resolved identity remain the approved Git policy.
+No new hardcoded path or stronger authentication requirement is inferred.
+
+Signal zero checks PID existence/permission and does not independently distinguish
+a zombie. Describe that supplemental probe precisely; retain the EOF-independent
+child, outstanding waiter and real signal/reap assertions. The single cleanup
+timer intentionally bounds capture and wait confirmation together. Resetting it
+would expand the allowance; preserve it and describe expiry as failure to confirm
+within the allowance rather than proof that the process was never reaped.
+
+Resolve the cited lines against current source. Keep the restricted-PATH citation,
+explicitly label lesson 100's failing revision as historical and add its current
+Git-selection pointer. Point lesson 101 directly at the EOF-independent child.
+These are wording/citation and test-diagnostic clarifications; no runtime,
+assertion, cleanup bound, platform scope or release status changes.
+
+Provenance: [final-head review](https://github.com/anoop2811/software-factory-template/pull/139#issuecomment-6432936082),
+[prior-head response](https://github.com/anoop2811/software-factory-template/pull/139#issuecomment-6432918852)
+and complete source at merged revision above, read 2026-10-27 UTC. There are no
+inline review threads on PR #139; the advisory issue comment requires an explicit
+finding-by-finding reply rather than a fabricated thread-resolution claim.
+
+## Decision 117 (2026-10-27 UTC): admit inherited terminal work before child execution
+
+PR #140's Linux base run 40447328159 failed the real inherited Ctrl-Z/fg
+criterion. Its transcript records initial child foreground false, prompt return,
+and another stop after fg without resumed input. Direct Bash and both repeated-
+stop controls passed. The report does not retain the stop signal, so SIGTTIN is
+not asserted as the observed cause of that particular run. Keep the original
+failed evidence rather than retrying or extending its deadline.
+
+Two boundaries require independent qualification. The PTY observer waits for a
+child PID marker, takes one foreground snapshot and sends Ctrl-Z even when that
+snapshot is false. Require actual terminal foreground ownership within the
+existing observation allowance before injecting Ctrl-Z; retain a failure and
+transcript when ownership is not observed. Do not resume a child automatically,
+clear stop evidence, replace the immediate-input program or skip either platform.
+
+The runtime separately creates a new child process group, starts the child and
+only then transfers foreground from the parent. Child code can attempt inherited
+terminal input in that window. Independently force the real start boundary to
+retain the child's initial controlling-terminal group before allowing the parent
+to continue. This must produce an actual wrong-group RED on the old ordering,
+not merely a compilation failure or elapsed-time assumption. A private start seam
+may delegate to Cmd.Start unchanged alongside the existing process-operations
+seams; it is not a shipped flag or environment-controlled behavior.
+
+Capture eligible parent terminal ownership before Start. For an inherited TTY
+currently owned by the supervisor group, use the standard library's child-side
+SysProcAttr.Foreground/Ctty handoff before executable code can read input.
+Preserve non-TTY and background-caller behavior. Retain the saved parent group for
+normal cleanup and restore it if execution fails after the child-side handoff.
+Keep resumed-job handoff, fresh continuation and genuine immediate re-stop
+handling, sole exit/reap ownership, bounded cleanup and cancellation unchanged.
+Independently cover initial input, failed Start restoration and the existing real
+Ctrl-Z/fg/direct/re-stop controls. New helpers stay test-only; no dependency,
+interpreter, Cgo or public CLI surface is added.
+
+The existing Go 1.27.3 Linux and BSD syscall source was inspected before this
+change: Foreground implies Setpgid, Ctty names the parent descriptor, and the
+child performs TIOCSPGRP before exec and signal-mask restoration. API reference
+fetched 2026-10-27 UTC: https://pkg.go.dev/syscall#SysProcAttr . Preserve all other
+tool pins and platform requirements. A runtime correction requires a newly
+reviewed candidate; RC3's recorded twenty passing scenarios remain immutable
+evidence about its original source, not qualification of this correction.
+
+Local qualification retained the old-ordering RED: the child reported process
+group 28343 while its terminal foreground was supervisor group 28342, before
+the parent's Start callback returned. The corrected Darwin arm64 native race
+suite ran 37 criteria in 12.708 seconds: 37 passed, zero failed or skipped.
+Four new criteria cover initial real input with a duplicated parent descriptor,
+actual ENOEXEC restoration, a genuine background caller and cancellation after
+admission. Removing the saved-terminal restoration separately failed both real
+failed-exec and cancellation foreground assertions; the latter still proved
+SIGKILL reap and ESRCH, isolating restoration from process cleanup.
+
+The pinned native lint command returned `0 issues.` and Linux amd64 test-binary
+cross-compilation exited zero. Cross-compilation is not Linux execution; the
+replacement PR head must pass hosted Linux and macOS checks and receive its own
+completed review before merge. Local reports and negative-control overlays are
+retained under `.factory/qualification/pr140-foreground-20261027/`.

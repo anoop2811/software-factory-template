@@ -15,6 +15,7 @@ import (
 )
 
 type processOps struct {
+	start        func(*exec.Cmd) error
 	signalGroup  func(int) error
 	observeGroup func(context.Context, int) (bool, groupObservation)
 	wait         func(*exec.Cmd) error
@@ -23,6 +24,8 @@ type processOps struct {
 
 func defaultProcessOps() processOps {
 	return processOps{
+		// docs/DECISION_LOG.md:5083 — preserve real Start while qualifying admission ordering.
+		start: func(command *exec.Cmd) error { return command.Start() },
 		signalGroup: func(pid int) error {
 			err := syscall.Kill(-pid, syscall.SIGKILL)
 			if errors.Is(err, syscall.ESRCH) {
@@ -206,24 +209,31 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		command.Stdin, command.Stdout, command.Stderr = options.inherited.Stdin, options.inherited.Stdout, options.inherited.Stderr
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	}
+	var terminal *foreground
+	if options.inherited != nil {
+		terminal, err = captureForeground(options.inherited.Stdin)
+		if err != nil {
+			return result, err
+		}
+		if terminal != nil {
+			// Foreground uses the parent's controlling-terminal descriptor and
+			// completes before child code can read. docs/DECISION_LOG.md:5092.
+			command.SysProcAttr.Foreground = true
+			command.SysProcAttr.Ctty = int(options.inherited.Stdin.Fd())
+		}
+	}
 	if ctx.Err() != nil {
 		result.Outcome = contextOutcome(ctx.Err())
 		return result, errors.New("native execution context ended before launch")
 	}
-	if command.Start() != nil {
+	if terminal != nil {
+		// A failed exec can follow the kernel handoff; restore on that path too.
+		defer func() { returned = errors.Join(returned, terminal.restore()) }()
+	}
+	if ops.start(command) != nil {
 		return result, errors.New("cannot launch native harness")
 	}
 	result.ProcessPID = command.Process.Pid
-	var terminal *foreground
-	if options.inherited != nil {
-		terminal, err = takeForeground(options.inherited.Stdin, result.ProcessPID)
-		if err != nil {
-			returned = err
-		}
-		if terminal != nil {
-			defer func() { returned = errors.Join(returned, terminal.restore()) }()
-		}
-	}
 	pipes.closeChild()
 	waited := make(chan error, 1)
 	leaderDone := make(chan struct{})

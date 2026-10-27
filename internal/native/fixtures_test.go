@@ -303,7 +303,11 @@ func observeNativeTerminal(ctx context.Context, root, executable string, inherit
 	child, _ := strconv.Atoi(matches[1])
 	owner, _ := strconv.Atoi(matches[2])
 	terminal.groups[child], terminal.groups[owner] = true, true
-	observed.ChildForeground = terminal.foreground() == child
+	// per docs/DECISION_LOG.md:5078
+	_, observed.ChildForeground, err = until(func(string) bool { return terminal.foreground() == child })
+	if err != nil || !observed.ChildForeground {
+		return observed, err
+	}
 	if _, err := terminal.master.Write([]byte{0x1a}); err != nil {
 		return observed, err
 	}

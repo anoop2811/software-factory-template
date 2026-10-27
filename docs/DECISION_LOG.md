@@ -5063,3 +5063,63 @@ Provenance: [final-head review](https://github.com/anoop2811/software-factory-te
 and complete source at merged revision above, read 2026-10-27 UTC. There are no
 inline review threads on PR #139; the advisory issue comment requires an explicit
 finding-by-finding reply rather than a fabricated thread-resolution claim.
+
+## Decision 117 (2026-10-27 UTC): admit inherited terminal work before child execution
+
+PR #140's Linux base run 40447328159 failed the real inherited Ctrl-Z/fg
+criterion. Its transcript records initial child foreground false, prompt return,
+and another stop after fg without resumed input. Direct Bash and both repeated-
+stop controls passed. The report does not retain the stop signal, so SIGTTIN is
+not asserted as the observed cause of that particular run. Keep the original
+failed evidence rather than retrying or extending its deadline.
+
+Two boundaries require independent qualification. The PTY observer waits for a
+child PID marker, takes one foreground snapshot and sends Ctrl-Z even when that
+snapshot is false. Require actual terminal foreground ownership within the
+existing observation allowance before injecting Ctrl-Z; retain a failure and
+transcript when ownership is not observed. Do not resume a child automatically,
+clear stop evidence, replace the immediate-input program or skip either platform.
+
+The runtime separately creates a new child process group, starts the child and
+only then transfers foreground from the parent. Child code can attempt inherited
+terminal input in that window. Independently force the real start boundary to
+retain the child's initial controlling-terminal group before allowing the parent
+to continue. This must produce an actual wrong-group RED on the old ordering,
+not merely a compilation failure or elapsed-time assumption. A private start seam
+may delegate to Cmd.Start unchanged alongside the existing process-operations
+seams; it is not a shipped flag or environment-controlled behavior.
+
+Capture eligible parent terminal ownership before Start. For an inherited TTY
+currently owned by the supervisor group, use the standard library's child-side
+SysProcAttr.Foreground/Ctty handoff before executable code can read input.
+Preserve non-TTY and background-caller behavior. Retain the saved parent group for
+normal cleanup and restore it if execution fails after the child-side handoff.
+Keep resumed-job handoff, fresh continuation and genuine immediate re-stop
+handling, sole exit/reap ownership, bounded cleanup and cancellation unchanged.
+Independently cover initial input, failed Start restoration and the existing real
+Ctrl-Z/fg/direct/re-stop controls. New helpers stay test-only; no dependency,
+interpreter, Cgo or public CLI surface is added.
+
+The existing Go 1.27.3 Linux and BSD syscall source was inspected before this
+change: Foreground implies Setpgid, Ctty names the parent descriptor, and the
+child performs TIOCSPGRP before exec and signal-mask restoration. API reference
+fetched 2026-10-27 UTC: https://pkg.go.dev/syscall#SysProcAttr . Preserve all other
+tool pins and platform requirements. A runtime correction requires a newly
+reviewed candidate; RC3's recorded twenty passing scenarios remain immutable
+evidence about its original source, not qualification of this correction.
+
+Local qualification retained the old-ordering RED: the child reported process
+group 28343 while its terminal foreground was supervisor group 28342, before
+the parent's Start callback returned. The corrected Darwin arm64 native race
+suite ran 37 criteria in 12.708 seconds: 37 passed, zero failed or skipped.
+Four new criteria cover initial real input with a duplicated parent descriptor,
+actual ENOEXEC restoration, a genuine background caller and cancellation after
+admission. Removing the saved-terminal restoration separately failed both real
+failed-exec and cancellation foreground assertions; the latter still proved
+SIGKILL reap and ESRCH, isolating restoration from process cleanup.
+
+The pinned native lint command returned `0 issues.` and Linux amd64 test-binary
+cross-compilation exited zero. Cross-compilation is not Linux execution; the
+replacement PR head must pass hosted Linux and macOS checks and receive its own
+completed review before merge. Local reports and negative-control overlays are
+retained under `.factory/qualification/pr140-foreground-20261027/`.

@@ -34,6 +34,8 @@ type policy struct {
 	TotalTokens    int            `json:"total_max_tokens"`
 	TotalInput     int            `json:"total_input_bytes"`
 	TimeoutSeconds int            `json:"timeout_seconds"`
+	Parallelism    int            `json:"parallelism"`
+	BatchTimeout   int            `json:"batch_timeout_seconds"`
 	HTTPRetries    int            `json:"http_retries"`
 	Prompt         string         `json:"prompt"`
 }
@@ -109,6 +111,8 @@ func readPolicy(ctx context.Context, environment map[string]string) (policy, str
 		{"REVIEW_TOTAL_MAX_TOKENS", &p.TotalTokens, 524288, 1024, 2097152},
 		{"REVIEW_TOTAL_INPUT_BYTES", &p.TotalInput, 2097152, 4096, 16777216},
 		{"REVIEW_TIMEOUT_SECONDS", &p.TimeoutSeconds, 1200, 1, 1200},
+		{"REVIEW_PARALLELISM", &p.Parallelism, 1, 1, 4},
+		{"REVIEW_BATCH_TIMEOUT_SECONDS", &p.BatchTimeout, 1200, 1, 1200},
 		{"REVIEW_HTTP_RETRIES", &p.HTTPRetries, 0, 0, 1},
 	} {
 		*item.value, err = integer(e[item.key], item.fallback, item.min, item.max)

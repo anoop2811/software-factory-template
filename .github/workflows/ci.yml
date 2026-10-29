@@ -60,7 +60,10 @@ jobs:
           go-version: 'stable'
 
       - name: actionlint
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
+        # GitHub's new job cache-mode is not yet in the latest tagged parser.
+        # Independent workflow criteria validate its scope and value.
+        # docs/adr/0112-bounded-parallel-review.md:86.
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color -ignore 'unexpected key "cache-mode" for "job" section'
 
       - name: hook-existence-check
         run: ./scripts/hooks/hook-existence-check.sh

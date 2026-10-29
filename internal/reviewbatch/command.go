@@ -1,10 +1,7 @@
 package reviewbatch
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,8 +9,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/anoop2811/software-factory-template/internal/review"
 )
 
 // Run returns success only for an offline plan or complete exact-commit coverage.
@@ -81,69 +76,13 @@ func execute(ctx context.Context, r *report, p policy, shared, key string, cache
 		r.Status, r.Error = "failed", "missing review API key"
 		return
 	}
-	usageUnknown := false
-	for i := range r.Batches {
-		b := &r.Batches[i]
-		if ctx.Err() != nil {
-			r.Error = "review canceled or total deadline exceeded"
-			break
-		}
-		if saved, ok := loadCache(ctx, cache, b.ID, key); ok {
-			b.Status, b.Cached, b.Findings, b.Usage = "complete", true, saved.Findings, saved.Usage
-			continue
-		}
-		body := request(p, shared, *b)
-		if len(body) > 1<<20 {
-			b.Status, b.Error = "failed", "shared context and batch exceed the request limit"
-			r.Error = b.Error
-			break
-		}
-		var findings bytes.Buffer
-		var usage json.RawMessage
-		budgetBlocked := false
-		requestsBefore := r.Budget.RequestsUsed
-		err := review.RunWithOptions(ctx, bytes.NewReader(body), &findings, diagnostics, review.Options{
-			APIKey: key, TimeoutSeconds: p.TimeoutSeconds, HTTPRetries: p.HTTPRetries,
-			BeforeAttempt: func(requestBytes, maxTokens int) error {
-				if r.Budget.RequestsUsed+1 > r.Budget.MaxRequests || maxTokens > r.Budget.MaxTokens-r.Budget.TokensReserved || requestBytes > r.Budget.MaxInput-r.Budget.InputReserved {
-					budgetBlocked = true
-					return errors.New("run-wide review budget exhausted")
-				}
-				r.Budget.RequestsUsed++
-				r.Budget.TokensReserved += maxTokens
-				r.Budget.InputReserved += requestBytes
-				return nil
-			},
-			OnUsage: func(value json.RawMessage) { usage = reportedUsage(value) },
-		})
-		if err != nil || findings.Len() > 2<<20 {
-			if r.Budget.RequestsUsed > requestsBefore {
-				r.Usage = nil
-			}
-			b.Status, b.Error = "failed", "review request failed without complete findings"
-			if budgetBlocked {
-				b.Status, b.Error = "skipped", "run-wide review budget exhausted"
-			} else if ctx.Err() != nil {
-				b.Error = "review canceled or total deadline exceeded"
-			}
-			r.Error = b.Error
-			break
-		}
-		b.Status, b.Findings, b.Usage = "complete", strings.ReplaceAll(findings.String(), key, "[REDACTED]"), usage
-		if len(usage) == 0 {
-			usageUnknown = true
-			r.Usage = nil
-		} else if !usageUnknown {
-			r.Usage = addUsage(r.Usage, usage)
-			usageUnknown = len(r.Usage) == 0
-		}
-		if err := saveCache(cache, *b, key); err != nil {
-			_, _ = fmt.Fprintln(diagnostics, "review-batch: successful review retained; cache publication unavailable")
-		}
-	}
+	runBatches(ctx, r, p, shared, key, cache, diagnostics)
 	r.updateCoverage()
+	complete := r.Counts.FilesReviewed == r.Counts.FilesTotal && r.Counts.FilesTotal > 0 && r.Counts.BatchesCompleted == r.Counts.BatchesPlanned
 	switch {
-	case r.Counts.FilesReviewed == r.Counts.FilesTotal && r.Counts.FilesTotal > 0 && r.Counts.BatchesCompleted == r.Counts.BatchesPlanned:
+	case ctx.Err() != nil && complete:
+		r.Status, r.Error = "failed", "review canceled or total deadline exceeded"
+	case complete:
 		r.Status = "complete"
 	case r.Counts.BatchesCompleted > 0:
 		r.Status = "partial"

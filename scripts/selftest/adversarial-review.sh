@@ -654,7 +654,7 @@ timeout_workflow_wiring() {
   for file in "$ROOT/.github/workflows/adversarial-review.yml" "$ROOT/packs/review-lane/review-pr.yml"; do
     sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$file" |
       grep -q '^          REVIEW_TIMEOUT_SECONDS:.*vars.REVIEW_TIMEOUT_SECONDS' || return 1
-    grep -q 'timeout-minutes: 25' "$file" || return 1
+    grep -q 'timeout-minutes: 20' "$file" || return 1
   done
 }
 

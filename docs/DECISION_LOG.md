@@ -5205,6 +5205,14 @@ Rebase and repeat the Go-cutover PR after that trusted dependency is reviewed an
 merged. This is a completion dependency of the current cutover, not a new feature
 or permission to publish RC4.
 
+After PR #142 merged as `60f0e8be88a419ca92cf04603754fb4791906d5e`, the
+rebased cutover's offline plan at `f8e754efe967d7b70f2bc077fdad24f48c579293`
+observed 24 batches at 60,000 patch bytes and 14 at the already supported
+100,000-byte setting. Select `REVIEW_BATCH_BYTES=100000` explicitly for hosted
+review. Keep the existing 16 request/batch, response-token, aggregate-input and
+total-time limits. The offline forecast made no provider requests; actual hosted
+coverage and cache-resumed completion still require observation.
+
 ## Decision 120 (2026-10-29 UTC): supervise compiler process groups in local source packaging
 
 A private supported-project rehearsal of the public local initializer observed a

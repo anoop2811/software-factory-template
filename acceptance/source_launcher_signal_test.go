@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +24,27 @@ import (
 )
 
 const sourceCompilerHandshake = "--factory-source-compiler-handshake"
+
+var sourceCompilerHelperImage string
+
+// Capture the actual instrumented evaluator before nested Ginkgo builds can
+// replace or unlink their workspace artifact. Linux's kernel-owned image path
+// also remains readable if the artifact disappeared before suite setup.
+// per docs/adr/0108-default-go-cutover.md:270
+func captureSourceCompilerImage(destination string) {
+	GinkgoHelper()
+	image, err := os.Executable()
+	Expect(err).NotTo(HaveOccurred())
+	if runtime.GOOS == "linux" {
+		image = "/proc/self/exe"
+	}
+	body, err := os.ReadFile(image)
+	Expect(err).NotTo(HaveOccurred(), "capture the running evaluator, not a later workspace build")
+	writeFixture(destination, body, 0700)
+	Expect(os.ReadFile(destination)).To(Equal(body), "retain identical race instrumentation and helper behavior")
+	sourceCompilerHelperImage = destination
+	AddReportEntry("source-launcher.compiler-image", map[string]any{"source": image, "helper": destination, "sha256": fmt.Sprintf("%x", sha256.Sum256(body))})
+}
 
 // Re-execute the evaluator as a controlled compiler with real signal handling;
 // no production flag, sleeping child or downloaded executable supplies evidence.
@@ -65,8 +88,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		writeFixture(filepath.Join(root, "factory-go"), []byte("#!/bin/sh\nexit 96\n"), 0700)
 		tools := filepath.Join(root, "compiler tools")
 		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nexec \"$SOURCE_COMPILER_HELPER\" "+sourceCompilerHandshake+" \"$@\"\n"), 0700)
-		executable, err := os.Executable()
-		Expect(err).NotTo(HaveOccurred())
+		executable := sourceCompilerHelperImage
+		Expect(executable).NotTo(BeEmpty(), "BeforeSuite must retain the actual instrumented helper")
 		ready, readyWriter, err := os.Pipe()
 		Expect(err).NotTo(HaveOccurred())
 		releaseReader, release, err := os.Pipe()

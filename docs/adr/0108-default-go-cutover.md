@@ -264,3 +264,15 @@ unknown recipes still refuse. Current generation uses the corrected prelude and
 the current dependency guard. Re-run actual RC3 reconstruction, cache retirement
 and rollback criteria after the generator change. Never execute a historical
 archive's generator or infer compatibility from its version label alone.
+
+## Evaluator executable custody
+
+The source-launcher signal fixture re-executes the instrumented acceptance binary
+as its controlled compiler. Capture an identical executable in the suite's owned
+temporary directory before nested Ginkgo compilation/cleanup can unlink the
+workspace pathname. On Linux, read the running kernel image through
+`/proc/self/exe`; on other supported systems capture the initial executable path.
+Preserve the exact instrumentation and helper program, executable mode and
+suite-owned cleanup. Record image identity and retain all real handshake,
+signal-status, reap and prior-result preservation assertions. This is test-only
+custody, not a retry, skipped signal check or production behavior change.

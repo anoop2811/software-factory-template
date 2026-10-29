@@ -5183,6 +5183,13 @@ Keep the exact immutable oracle and all assertions; do not restore deleted
 controllers or introduce a shipping bypass to make old source fixtures pass.
 ADR 0108 records this classification and removal of unreachable CLI script fallback.
 
+Qualification clarification: nested Ginkgo discovery can unlink its compiled
+acceptance pathname while the outer evaluator is still running. Linux source-
+launcher signal fixtures then fail before their compiler handshake with ENOENT.
+Retain the exact instrumented evaluator in suite-owned temporary custody before
+that nested activity, preserving all real cancellation assertions. ADR 0108
+records this test-only correction and its independent unlink negative control.
+
 ## Decision 119 (2026-10-29 UTC): qualify complete review input beyond GitHub's diff limit
 
 PR #141's raw GitHub diff request failed with HTTP 406 at the service's 20,000-line
@@ -5197,6 +5204,28 @@ privileged workflow builds trusted main code. Do not run PR-head code with keys.
 Rebase and repeat the Go-cutover PR after that trusted dependency is reviewed and
 merged. This is a completion dependency of the current cutover, not a new feature
 or permission to publish RC4.
+
+## Decision 120 (2026-10-29 UTC): supervise compiler process groups in local source packaging
+
+A private supported-project rehearsal of the public local initializer observed a
+real compiler-version descendant keeping stdout open after parent-only SIGTERM.
+The compiler died, but the public factory remained blocked until the evaluator
+released its owned descendant. Extend the existing native bounded process
+supervision to compiler version, module inspection and build operations; retain
+literal tool selection, filtered environment, cancellation identity and confirmed
+cleanup. The standalone maintainer packager must translate INT/TERM into that
+same context instead of abandoning the newly owned groups.
+
+ADR 0110 defines the independent outside-in criteria, output bounds and refusal
+to publish on cancellation or uncertain process ownership. Reuse the native
+executor, not a new process-control implementation or dependency. This closes
+an observed local-source cutover defect; release publication remains pending.
+
+Provenance: observed 2026-10-29 via an actual public `init --local --source`
+rehearsal using source 67c27b201a3818d70ca90ea3ac292b1ecd826c4d, a real
+compiler/descendant handshake and parent-only SIGTERM. Local evidence records
+the compiler absent and descendant alive after two seconds, then factory exit 1
+only after controlled descendant release. No adopter source was changed.
 
 ## Decision 122 (2026-10-29 UTC): bound parallel review and retain automatic checkpoints
 

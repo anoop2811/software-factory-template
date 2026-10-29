@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -109,7 +110,34 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(releaseReader.Close()).To(Succeed())
 		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
 		var compiler struct{ PID, Group int }
-		Expect(json.NewDecoder(ready).Decode(&compiler)).To(Succeed(), "the actual compiler must announce readiness before parent-only signaling")
+		if readyErr := json.NewDecoder(ready).Decode(&compiler); readyErr != nil {
+			// Diagnose an actual launch failure before attempting a signal. Release
+			// the owned helper, and read output only after its sole waiter returns.
+			// per docs/adr/0108-default-go-cutover.md:181
+			releaseCompiler()
+			var launchErr error
+			select {
+			case launchErr = <-finished:
+				reaped = true
+			case <-time.After(3 * time.Second):
+				Expect(command.Process.Kill()).To(Or(Succeed(), MatchError(os.ErrProcessDone)))
+				select {
+				case launchErr = <-finished:
+					reaped = true
+				case <-time.After(3 * time.Second):
+					Fail("compiler readiness failed and the owned launcher was not reaped within bounded cleanup")
+				}
+			}
+			status := 0
+			var exited *exec.ExitError
+			if errors.As(launchErr, &exited) {
+				status = exited.ExitCode()
+			} else {
+				Expect(launchErr).NotTo(HaveOccurred())
+			}
+			AddReportEntry("source-launcher.readiness-failure", map[string]any{"error": readyErr.Error(), "launcher_reaped": reaped, "launcher_status": status, "stdout": stdout.String(), "stderr": stderr.String(), "helper": executable})
+			Fail(fmt.Sprintf("the actual compiler must announce readiness before parent-only signaling: %v; launcher status=%d; stdout=%q; stderr=%q", readyErr, status, stdout.String(), stderr.String()))
+		}
 		Expect(compiler.PID).To(BeNumerically(">", 1))
 		Expect(syscall.Kill(compiler.PID, 0)).To(Succeed())
 		Expect(command.Process.Signal(received)).To(Succeed())

@@ -59,3 +59,18 @@ cross-language evidence. Their retirement belongs to the corresponding legacy
 support decision. Qualified Python provisioning therefore remains in the full
 source CI gate. Tests that intentionally hide or poison Python, and references
 to retired migration assets, do not themselves require an interpreter.
+
+## Default-cutover preparation
+
+Decision 118 retires the four active factory Python runtime modules and the
+obsolete budget/loop developer runners. The installed native factory and its
+fourteen gate proofs do not require Python. The payload criteria in the dated
+fixture inventory above now exercise Go; [DEVELOPER_PROOFS.md](DEVELOPER_PROOFS.md)
+records the replacement owners and historical boundaries.
+
+Source CI still requires Python for retained compatibility references and the
+remaining evaluator fixtures. The template-only Maven quality job also invokes
+`scripts/selftest/maven-quality.sh`, whose Python standard-library driver builds
+an isolated Java project and checks the actual quality plugins. It is a developer
+proof runner, not an installed factory command. Its Maven/JDK/Python prerequisites
+remain separate from the compiler/interpreter-free installed runtime contract.

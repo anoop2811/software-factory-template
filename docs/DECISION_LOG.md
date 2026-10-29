@@ -5123,3 +5123,18 @@ cross-compilation exited zero. Cross-compilation is not Linux execution; the
 replacement PR head must pass hosted Linux and macOS checks and receive its own
 completed review before merge. Local reports and negative-control overlays are
 retained under `.factory/qualification/pr140-foreground-20261027/`.
+
+## Decision 119 (2026-10-29 UTC): qualify complete review input beyond GitHub's diff limit
+
+PR #141's raw GitHub diff request failed with HTTP 406 at the service's 20,000-line
+ceiling before any provider call. Retain complete coverage and trusted-base
+execution: the normal diff remains first, and only 406 permits bounded per-file
+reconstruction with exact tree/mode evidence and strict context/resulting-blob
+identity checks. Missing, stale, truncated or unsupported content still refuses
+before model spend. ADR 0109 records the contract and independent qualification.
+
+Ship the review repair through a small main-based prerequisite PR because the
+privileged workflow builds trusted main code. Do not run PR-head code with keys.
+Rebase and repeat the Go-cutover PR after that trusted dependency is reviewed and
+merged. This is a completion dependency of the current cutover, not a new feature
+or permission to publish RC4.

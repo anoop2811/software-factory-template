@@ -136,7 +136,7 @@ func recoveryWriteManifest(set string, manifest map[string]any) {
 	GinkgoHelper()
 	data, err := json.Marshal(manifest)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(os.WriteFile(filepath.Join(set, "manifest.json"), data, 0600)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(set, "manifest.json"), data, 0600)).To(Succeed()) // #nosec G703 -- all callers use recoverySet/restorationFixture paths under fixtureDirectories' private temp root; hostile manifest paths remain JSON data, per docs/adr/0083-go-recovery-set-inspection.md:32.
 }
 func recoveryOnlyRow(inventory map[string]any, classification string) map[string]any {
 	GinkgoHelper()

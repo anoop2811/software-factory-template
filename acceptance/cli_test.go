@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 func writeFixture(path string, contents []byte, mode os.FileMode) {
 	GinkgoHelper()
 	Expect(os.MkdirAll(filepath.Dir(path), 0755)).To(Succeed()) // #nosec G703 -- parent of the same test-owned temporary path as the adjacent WriteFile; hostile fixture operands never select a destination from an external request.
-	Expect(os.WriteFile(path, contents, mode)).To(Succeed()) // #nosec G703 -- fixture callers supply test-owned temporary paths, including deliberate path-traversal cases; no external request selects this destination.
+	Expect(os.WriteFile(path, contents, mode)).To(Succeed())    // #nosec G703 -- fixture callers supply test-owned temporary paths, including deliberate path-traversal cases; no external request selects this destination.
 }
 
 // Bare directories keep component-only fixtures independent without copying CLI

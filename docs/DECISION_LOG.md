@@ -5190,6 +5190,14 @@ Retain the exact instrumented evaluator in suite-owned temporary custody before
 that nested activity, preserving all real cancellation assertions. ADR 0108
 records this test-only correction and its independent unlink negative control.
 
+At rebased head `646185a`, the Linux installation acceptance command passed,
+then hosted lint reported G703 on shared fixture parent-directory creation.
+Independent caller audits found the same evaluator-owned temporary destination
+already documented for the adjacent file write. Pair that narrow test-only
+annotation with directory creation; keep production analysis enabled. Local
+Darwin and cross-GOOS Linux lint returned zero issues before the annotation,
+so no platform-specific analyzer cause is asserted.
+
 ## Decision 119 (2026-10-29 UTC): qualify complete review input beyond GitHub's diff limit
 
 PR #141's raw GitHub diff request failed with HTTP 406 at the service's 20,000-line

@@ -129,7 +129,7 @@ func (c client) api(ctx context.Context, method, path, accept string, body any) 
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return nil, fmt.Errorf("GitHub HTTP %d", response.StatusCode)
+		return nil, &apiStatusError{code: response.StatusCode}
 	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, apiLimit+1))
 	if err != nil || len(data) > apiLimit || !utf8.Valid(data) {
@@ -201,7 +201,7 @@ func (c client) run(ctx context.Context, o options, environment map[string]strin
 	if err != nil {
 		return err
 	}
-	diff, err := c.api(ctx, http.MethodGet, "/pulls/"+strconv.Itoa(o.pr), "application/vnd.github.v3.diff", nil)
+	diff, err := c.completeDiff(ctx, o, files)
 	if err != nil {
 		return err
 	}

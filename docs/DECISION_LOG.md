@@ -5138,3 +5138,24 @@ privileged workflow builds trusted main code. Do not run PR-head code with keys.
 Rebase and repeat the Go-cutover PR after that trusted dependency is reviewed and
 merged. This is a completion dependency of the current cutover, not a new feature
 or permission to publish RC4.
+
+## Decision 122 (2026-10-29 UTC): bound parallel review and retain automatic checkpoints
+
+The operator requires a complete review within twenty minutes. Current serial
+GLM calls and read-only automatic cache access produced repeated partial runs.
+Add opt-in bounded concurrency with one shared set of existing spend limits,
+per-batch cancellation, deterministic results and authenticated checkpoints.
+Keep GLM 5.3 Flash on DeepInfra at low reasoning: current authoritative model
+metadata reports mandatory reasoning and offers no disabled or minimal mode.
+
+ADR 0112 defines the independent outside-in criteria, four-worker repository
+selection, preserved conservative CLI default, twenty-minute hosted ceiling and
+eighteen-minute execution allowance. Correct automatic completed-batch cache
+writes only in the job that executes the trusted-base client. Preserve the
+no-PR-head-execution boundary and independently review that cache permission.
+
+Deliver the privileged review repair through a small trusted-main prerequisite,
+then qualify the repaired cutover's complete real model coverage and elapsed
+time. Do not claim an all-cached replay demonstrates uncached speed, or mark a
+partial result successful to satisfy the deadline. These are repairs to the
+active cutover's qualification, not permission to start an unrelated feature.

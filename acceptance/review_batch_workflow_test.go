@@ -16,12 +16,15 @@ import (
 
 type ciReviewWorkflow struct {
 	On          map[string]any    `yaml:"on"`
+	CacheMode   string            `yaml:"cache-mode"`
 	Permissions map[string]string `yaml:"permissions"`
 	Env         map[string]string `yaml:"env"`
 	Jobs        map[string]struct {
-		If    string            `yaml:"if"`
-		Env   map[string]string `yaml:"env"`
-		Steps []ciReviewStep    `yaml:"steps"`
+		If             string            `yaml:"if"`
+		CacheMode      string            `yaml:"cache-mode"`
+		TimeoutMinutes int               `yaml:"timeout-minutes"`
+		Env            map[string]string `yaml:"env"`
+		Steps          []ciReviewStep    `yaml:"steps"`
 	} `yaml:"jobs"`
 }
 
@@ -62,6 +65,26 @@ func ciReviewWorkflowEntries() []TableEntry {
 }
 
 var _ = Describe("Budgeted review workflow security and publication", func() {
+	// per docs/adr/0112-bounded-parallel-review.md:79
+	// per docs/adr/0112-bounded-parallel-review.md:94
+	DescribeTable("bounds hosted execution and grants cache write access only to the trusted review job", func(path string) {
+		workflow := ciReviewLoadWorkflow(path)
+		Expect(workflow.CacheMode).NotTo(BeElementOf("write", "write-only"), "write access must be scoped to the trusted review job")
+		for name, job := range workflow.Jobs {
+			if name != "review" {
+				Expect(job.CacheMode).NotTo(BeElementOf("write", "write-only"))
+				continue
+			}
+			Expect(job.CacheMode).To(Equal("write"))
+			Expect(job.TimeoutMinutes).To(BeNumerically(">", 0))
+			Expect(job.TimeoutMinutes).To(BeNumerically("<=", 20))
+		}
+		review := ciReviewNativeStep(workflow)
+		for _, key := range []string{"REVIEW_PARALLELISM", "REVIEW_BATCH_TIMEOUT_SECONDS"} {
+			Expect(review.Env[key]).To(ContainSubstring("vars." + key))
+		}
+		Expect(review.Env["REVIEW_TIMEOUT_SECONDS"]).To(ContainSubstring("'1080'"))
+	}, ciReviewWorkflowEntries())
 	// per docs/adr/0100-batched-review.md:112
 	// per docs/adr/0100-batched-review.md:116
 	It("publishes a safe legacy timeout reason without copying private provider stderr", func() {

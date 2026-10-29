@@ -168,7 +168,9 @@ tests cannot establish a provider's actual billing or availability.
 | --- | --- | --- | --- |
 | `REVIEW_GO_CLIENT` | Trusted-base compiled binary | Empty (legacy curl) | Absolute path to a trusted compatible factory Go binary |
 | `REVIEW_HTTP_RETRIES` | `1` | `0` | At most one retry for an initial HTTP 429/503; `0` disables |
-| `REVIEW_TIMEOUT_SECONDS` | `1200` | `1200` | One total deadline, including backoff and retry, range 1..1200 |
+| `REVIEW_TIMEOUT_SECONDS` | `1080` | `1080` in generated workflows | One total deadline, including backoff and retry, range 1..1200; hosted job ceiling is 20 minutes |
+| `REVIEW_PARALLELISM` | Explicit repository variable `4` | `1` | Concurrent requests, range 1..4, sharing the same run-wide budgets |
+| `REVIEW_BATCH_TIMEOUT_SECONDS` | Explicit repository variable `600` | `240` | Per-batch deadline including retry/backoff; the remaining total deadline also applies |
 
 Set the retries Actions variable to `0` for the cheapest single-attempt policy.
 The retry honors a valid Retry-After up to 60 seconds; absent headers use a
@@ -184,6 +186,21 @@ does not build, download or silently fall back after selecting that client.
 An empty client setting keeps the existing curl implementation, including its
 single-attempt behavior; REVIEW_HTTP_RETRIES applies only to the Go client.
 The Go installation/cleanup migration remains a separate acceptance boundary.
+
+The parallel client keeps all existing request, input-byte and token caps. A
+failed batch stops new paid requests; already admitted siblings finish within
+their deadlines and retain only completed, authenticated results. Reports stay
+in plan order. Batch progress records include status and elapsed time, without
+findings, reasoning or provider error text. Direct CLI use stays serial unless
+`REVIEW_PARALLELISM` is explicitly selected.
+
+The dedicated trusted-base review job requests cache write access so automatic
+PR reviews can retain completed batches. Other workflow jobs gain no cache
+permission from that setting. Restored data never executes and its HMAC must
+match the complete policy/context identity. GLM 5.3 Flash requires reasoning;
+the selected `low` setting remains in place. A cached replay demonstrates
+resumption; only an observed full uncached run establishes first-run timing.
+See [ADR 0112](adr/0112-bounded-parallel-review.md) for the latency contract.
 
 ## Source templates and remaining boundaries
 

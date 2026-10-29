@@ -155,3 +155,15 @@ incomplete coverage preserves the existing partial/nonzero result contract.
 The selected model has not yet run through the new trusted-main client. Full
 uncached hosted timing and automatic cache-save behavior still require that
 prerequisite's human review and merge, followed by fresh exact-head execution.
+
+The first hosted Linux base runs also detected three fixture-publication races:
+an HTTP handler captured the service pointer before its outer assignment had a
+Go synchronization edge. All behavior assertions passed, but race detection
+correctly failed both suites. Explicit ready-channel publication now precedes
+those three handler reads. The unchanged 29 criteria passed in both checkouts
+with four Go scheduler threads, and the affected three criteria passed all
+fifteen executions across five independent runs with no race warning.
+
+The main-based legacy review self-test separately contained a literal old
+25-minute job assertion. Its independent author corrected only that expected
+value to twenty; the complete suite then reported `53 passed, 0 failed`.

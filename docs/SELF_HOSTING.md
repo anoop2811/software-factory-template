@@ -98,10 +98,12 @@ these controls are not a strict dollar ceiling. Local fixtures never call a mode
 
 Set the GitHub Actions repository **variable** `REVIEW_TIMEOUT_SECONDS` to a
 whole number from 1 through 1200 to override the deadline. It is a variable, not
-a secret; an empty/unset value uses 1200. Locally, set the same environment
-variable. The Actions job allows 25 minutes, leaving five minutes beyond the
-maximum request deadline for setup and reporting. This transport setting is
-intentionally not a factory.yaml key.
+a secret. An empty/unset Actions variable selects the workflow's 1080-second
+deadline; direct local invocation retains its 1200-second default. Locally, set
+the same environment variable. The Actions job has a 20-minute ceiling, with
+two minutes beyond its default execution allowance for setup and reporting.
+A larger explicit deadline remains subject to that job ceiling. This transport
+setting is intentionally not a factory.yaml key.
 Generated review-lane workflows carry the same variable binding. Older installed
 workflows need their normal upgrade before that binding is available.
 

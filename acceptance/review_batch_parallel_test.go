@@ -333,8 +333,10 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 		arrivals := make(chan int, 8)
 		releases := []chan struct{}{make(chan struct{}), make(chan struct{}), make(chan struct{})}
 		var once [3]sync.Once
+		serviceReady := make(chan struct{})
 		var service *reviewService
 		service = reviewFixture(cwd, func(w http.ResponseWriter, r *http.Request, n int) {
+			<-serviceReady
 			index := parallelReviewIndex(service, n)
 			arrivals <- index
 			if index < 0 || index >= len(releases) {
@@ -346,6 +348,7 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 			case <-r.Context().Done():
 			}
 		})
+		close(serviceReady)
 		DeferCleanup(func() {
 			for i := range releases {
 				once[i].Do(func() { close(releases[i]) })
@@ -431,8 +434,10 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 		var once sync.Once
 		var failureOnce sync.Once
 		var replay atomic.Bool
+		serviceReady := make(chan struct{})
 		var service *reviewService
 		service = reviewFixture(cwd, func(w http.ResponseWriter, r *http.Request, n int) {
+			<-serviceReady
 			index := parallelReviewIndex(service, n)
 			if replay.Load() {
 				parallelReviewResponse(w, "resumed-"+strconv.Itoa(index))
@@ -453,6 +458,7 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 			case <-r.Context().Done():
 			}
 		})
+		close(serviceReady)
 		DeferCleanup(func() { once.Do(func() { close(release) }) })
 		DeferCleanup(func() { failureOnce.Do(func() { close(failure) }) })
 		cache, out := filepath.Join(cwd, "cache"), filepath.Join(cwd, "failed")
@@ -486,8 +492,10 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 		cache, out := filepath.Join(cwd, "cache"), filepath.Join(cwd, "canceled")
 		held, canceled := make(chan int, 8), make(chan int, 8)
 		var replay atomic.Bool
+		serviceReady := make(chan struct{})
 		var service *reviewService
 		service = reviewFixture(cwd, func(w http.ResponseWriter, r *http.Request, n int) {
+			<-serviceReady
 			index := parallelReviewIndex(service, n)
 			if replay.Load() || index == 0 {
 				parallelReviewResponse(w, "completed-"+strconv.Itoa(index)+" "+strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
@@ -500,6 +508,7 @@ var _ = Describe("Bounded parallel adversarial review", func() {
 			<-r.Context().Done()
 			canceled <- index
 		})
+		close(serviceReady)
 		environment := []string{"REVIEW_PARALLELISM=2", "REVIEW_TIMEOUT_SECONDS=8"}
 		process := parallelReviewStart(batchCommand(root, cwd, out, service, []string{"--cache", cache}, environment))
 		Eventually(func() bool { return parallelReviewCached(cache, "completed-0 [REDACTED]") }, 2*time.Second).Should(BeTrue())

@@ -222,3 +222,45 @@ Stable text advice preserves `--ref TAG`; an explicitly selected candidate keeps
 `--go-candidate TAG`. Advice must not silently change selection intent between
 preview, raw handoff and confirmation. Independent tests execute the printed
 inspection/recovery commands as read-only operations before trusting the guidance.
+
+## Developer proof cutover
+
+Developer test runners must follow the selected runtime. Replace obsolete
+budget/loop Python runner fixtures and the curl-specific review harness with
+focused Ginkgo/Gomega commands. Keep the existing developer script/Make names;
+a shared source-only helper selects fixed suite families, refuses unknown
+selectors and fails if the factory module or required test sources are absent.
+These developer commands require Go; they are not installed factory commands.
+
+Record the old budget32, loop40 and review53 outcome coverage before retiring
+their obsolete fixtures. Preserve applicable admission, ownership, ordering,
+privacy and transport outcomes in native tests. Add direct evidence for gaps;
+streaming-client tests do not qualify the separate provider-JSON client, and a
+pre-admission process death does not prove a charged reservation survives death.
+Curl argv/temporary-file mechanisms and Python syscall injection remain historical
+implementation evidence, not mandatory mechanisms of the native controller.
+Historical Python guard tests continue to read exact pinned Git blobs in private
+test directories; no runtime module is restored to the active source.
+
+The aggregate Linux/macOS Go base qualification already runs these native
+packages and acceptance families. Remove redundant legacy budget/loop workflow
+jobs and obsolete extra fixture steps from template CI rather than executing the
+whole native suite repeatedly. Retain every Go partition, race check and quality
+stage. Install the existing qualified Go toolchain before template source gates;
+this is source-development setup, not an adopter dependency. Optional-pack and
+Java developer proof entrypoints likewise select the existing native gate and
+initializer artifact criteria, with their historical component scope explicit.
+Do not present historical assets as qualification of a newly packaged release.
+
+Adapter path resolution preserves physical directory bytes, including trailing
+newlines where the existing installed-path contract permits them. Shell command
+substitution must not silently select a sibling root by trimming those bytes.
+Keep explicit release/source operand representation refusals unchanged.
+
+When this correction changes generated adapter bytes, preserve the exact compiled
+historical root-prelude serialization for the already qualified RC3 recipe. Only
+the complete eight-hash historical identity may select that bounded serialization;
+unknown recipes still refuse. Current generation uses the corrected prelude and
+the current dependency guard. Re-run actual RC3 reconstruction, cache retirement
+and rollback criteria after the generator change. Never execute a historical
+archive's generator or infer compatibility from its version label alone.

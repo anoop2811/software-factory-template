@@ -37,7 +37,7 @@ func orchestrationAdapter(path string, image staging.Inspection) ([]byte, error)
 	if strings.HasPrefix(path, "scripts/sync-") {
 		arguments = "" // Legacy synchronizers ignored every argument.
 	}
-	return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n_factory_root=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/%s\" && pwd -P)\"\nexec \"$_factory_root/factory\" %s%s\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, parent, command, arguments)), nil
+	return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n%sexec \"$_factory_root/factory\" %s%s\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, physicalRootShell(image, "_factory_root", parent, "exit", ""), command, arguments)), nil
 }
 
 func helperBridge(ctx context.Context, path string, image staging.Inspection) ([]byte, error) {
@@ -51,6 +51,13 @@ func helperBridge(ctx context.Context, path string, image staging.Inspection) ([
 	if start < 0 || end < start {
 		return nil, conflict("unsupported native helper bridge source")
 	}
+	gitRoot := `    _factory_helper_root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
+`
+	if !isRecipeV1(image) {
+		gitRoot = `    _factory_helper_root="$(git rev-parse --show-toplevel 2>/dev/null && printf '.')" || return
+    _factory_helper_root=${_factory_helper_root%??}
+`
+	}
 	// BASH_SOURCE supplies relocation for Bash hosts. POSIX callers can supply
 	// FACTORY_RUNTIME_BINARY; otherwise their caller repository selects factory.
 	// No locator assigns caller-owned configuration or protocol variables.
@@ -60,11 +67,9 @@ func helperBridge(ctx context.Context, path string, image staging.Inspection) ([
     [ -f "$FACTORY_RUNTIME_BINARY" ] && [ -x "$FACTORY_RUNTIME_BINARY" ] || return 2
     _factory_helper_runtime=$FACTORY_RUNTIME_BINARY
   elif [ -n "${BASH_VERSION-}" ]; then
-    _factory_helper_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || return
-    _factory_helper_runtime=$_factory_helper_root/factory
+` + physicalRootShell(image, "_factory_helper_root", "../..", "return", "    ") + `    _factory_helper_runtime=$_factory_helper_root/factory
   else
-    _factory_helper_root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
-    _factory_helper_runtime=$_factory_helper_root/factory
+` + gitRoot + `    _factory_helper_runtime=$_factory_helper_root/factory
   fi
   /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" "NO_COLOR=${NO_COLOR-}" \
     "FACTORY_EVENT_LOG=${FACTORY_EVENT_LOG-}" "FACTORY_EVENT_MAX_LINES=${FACTORY_EVENT_MAX_LINES-}" \

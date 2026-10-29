@@ -10,10 +10,14 @@ _factory_helper_call() (
     [ -f "$FACTORY_RUNTIME_BINARY" ] && [ -x "$FACTORY_RUNTIME_BINARY" ] || return 2
     _factory_helper_runtime=$FACTORY_RUNTIME_BINARY
   elif [ -n "${BASH_VERSION-}" ]; then
-    _factory_helper_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || return
+    _factory_helper_root=${BASH_SOURCE[0]%/*}
+    [ "$_factory_helper_root" != "${BASH_SOURCE[0]}" ] || _factory_helper_root=.
+    _factory_helper_root="$(CDPATH='' cd -- "$_factory_helper_root/../.." && pwd -P && printf '.')" || return
+    _factory_helper_root=${_factory_helper_root%??}
     _factory_helper_runtime=$_factory_helper_root/factory
   else
-    _factory_helper_root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
+    _factory_helper_root="$(git rev-parse --show-toplevel 2>/dev/null && printf '.')" || return
+    _factory_helper_root=${_factory_helper_root%??}
     _factory_helper_runtime=$_factory_helper_root/factory
   fi
   /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" "NO_COLOR=${NO_COLOR-}" \

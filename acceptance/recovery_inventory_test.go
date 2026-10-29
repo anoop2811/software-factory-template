@@ -402,10 +402,13 @@ var _ = Describe("G4 recovery inventory composition and limits", func() {
 		publicNoPoison(marker)
 	}, Entry("duplicate", "duplicate"), Entry("true value", "true"), Entry("false value", "false"), Entry("empty value", ""))
 	// per docs/adr/0083-go-recovery-set-inspection.md:19
-	It("delegates inspection-looking operands literally without dry-run", func() {
+	// per docs/adr/0108-default-go-cutover.md:207
+	It("retains historical inspection operands while native upgrade refuses inspection without dry-run", func() {
 		binary, root, _ := assessmentFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 43\n"), 0700)
-		Expect(upgradePreview(binary, root, "--inspect-backups", "--source=.")).To(Equal(cliResult{"--inspect-backups\n--source=.\n", "", 43}))
+		args := []string{"--inspect-backups", "--source=."}
+		Expect(invoke(binary, root, "legacy-factory", "", append([]string{"upgrade"}, args...)...)).To(Equal(cliResult{"--inspect-backups\n--source=.\n", "", 43}))
+		assertUpgradeRefusalWithoutLegacy(binary, root, args, "factory candidate: invalid candidate arguments\n")
 	})
 	// per docs/adr/0083-go-recovery-set-inspection.md:75
 	It("sorts held and ordinary sets and sums only all-six validated saved originals", func() {

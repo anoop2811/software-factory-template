@@ -17,26 +17,36 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Python-only component and cross-runtime admission checks use the final frozen
+// source implementation. Ordinary Go execution below still uses candidateBinary.
+// per docs/adr/0108-default-go-cutover.md:97
+// per docs/adr/0108-default-go-cutover.md:204
+const transitionHistoricalRevision = "95dbecffafb5a04191317b7e16397e684bf5191c"
+
+func transitionHistoricalScripts(root string) string {
+	GinkgoHelper()
+	repo, err := filepath.Abs("..")
+	Expect(err).NotTo(HaveOccurred())
+	scripts := filepath.Join(root, "historical-transition-component", "scripts")
+	for _, name := range []string{
+		"factory-budget.sh", "factory-loop.sh",
+		"lib/budget-config.sh", "lib/budget.py", "lib/budget_adapters.py",
+		"lib/color.sh", "lib/config.sh", "lib/events.sh", "lib/hookspath.sh",
+		"lib/loop.py", "lib/roles.sh", "lib/runtime_transition.py", "lib/timing.sh",
+	} {
+		command := exec.Command("git", "show", transitionHistoricalRevision+":scripts/"+name) // #nosec G204 -- immutable historical revision and fixed evaluator-owned asset list.
+		command.Dir = repo
+		data, readErr := command.Output()
+		Expect(readErr).NotTo(HaveOccurred(), "historical transition component: %s", name)
+		writeFixture(filepath.Join(scripts, name), data, 0600)
+	}
+	return scripts
+}
+
 func transitionFixture() (string, string, string) {
 	GinkgoHelper()
 	root, _, checkout := loopFixture()
-	repo, err := filepath.Abs("..")
-	Expect(err).NotTo(HaveOccurred())
-	scripts := filepath.Join(root, "current-legacy", "scripts")
-	for _, name := range []string{"factory-budget.sh", "factory-loop.sh"} {
-		data, err := os.ReadFile(filepath.Join(repo, "scripts", name))
-		Expect(err).NotTo(HaveOccurred())
-		writeFixture(filepath.Join(scripts, name), data, 0600)
-	}
-	entries, err := os.ReadDir(filepath.Join(repo, "scripts/lib"))
-	Expect(err).NotTo(HaveOccurred())
-	for _, entry := range entries {
-		if entry.Type().IsRegular() && (strings.HasSuffix(entry.Name(), ".py") || strings.HasSuffix(entry.Name(), ".sh")) {
-			data, err := os.ReadFile(filepath.Join(repo, "scripts/lib", entry.Name()))
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(filepath.Join(scripts, "lib", entry.Name()), data, 0600)
-		}
-	}
+	scripts := transitionHistoricalScripts(root)
 	for _, role := range []string{"implementer", "reviewer"} {
 		writeFixture(filepath.Join(checkout, ".opencode/agent", role+".md"), []byte("---\nname: role\n---\nCanonical role instructions\n"), 0600)
 		writeFixture(filepath.Join(checkout, ".claude/agents", role+".md"), []byte("Native instructions\n"), 0600)

@@ -14,13 +14,17 @@ set -uo pipefail
 # Exit 0 = every unconditional copy target is tracked (or skip), 1 = one is not.
 
 # Resolved before the cd below, which may move us out of this repo entirely.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR=${BASH_SOURCE[0]%/*}
+[ "$SCRIPT_DIR" != "${BASH_SOURCE[0]}" ] || SCRIPT_DIR=.
+SCRIPT_DIR="$(CDPATH='' cd -- "$SCRIPT_DIR" && pwd -P && printf '.')" || exit 1
+SCRIPT_DIR=${SCRIPT_DIR%??}
 # shellcheck source=../lib/events.sh
 if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
-ROOT="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
-cd "$ROOT" || exit 1
-ROOT="$(pwd -P)" || exit 1
+ROOT="${1:-$SCRIPT_DIR/../..}"
+cd -- "$ROOT" || exit 1
+ROOT="$(pwd -P && printf '.')" || exit 1
+ROOT=${ROOT%??}
 
 # Native source initialization has a compiled inventory, not shell cp statements.
 # Old/adopter layouts retain their explicit legacy proof below.

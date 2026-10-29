@@ -128,20 +128,30 @@ func previewSelectedArgs(source string, selection []string, digest string) []str
 
 var _ = Describe("G4 public upgrade preview admission", func() {
 	// per docs/adr/0082-go-public-upgrade-preview.md:32
-	DescribeTable("refuses malformed reserved previews before any legacy execution or writes", func(tail []string) {
+	// per docs/adr/0108-default-go-cutover.md:26
+	DescribeTable("routes default previews and refuses malformed component previews without legacy execution", func(tail []string) {
+		if len(tail) == 1 && tail[0] == "--dry-run" {
+			f := defaultCutoverSurface()
+			defaultCutoverRefusal(f, "v0.2.0", []string{"upgrade", "--dry-run"})
+			return
+		}
 		binary, root, _ := assessmentFixture()
 		marker := previewPoison(binary)
 		before := assessmentTree(root)
 		out := upgradePreview(binary, root, tail...)
 		Expect(out.status).To(Equal(2), "%+v", out)
 		Expect(out.stdout).To(BeEmpty())
-		Expect(out.stderr).To(HavePrefix("factory upgrade:"))
+		if tail[len(tail)-1] == "--ref=PRIVATE_REF" {
+			Expect(out.stderr).To(Equal(nativeStableSelectionRefusal))
+		} else {
+			Expect(out.stderr).To(HavePrefix("factory upgrade:"))
+		}
 		Expect(strings.Count(out.stderr, "\n")).To(Equal(1))
 		Expect(out.stderr).NotTo(ContainSubstring("PRIVATE_"))
 		Expect(assessmentTree(root)).To(Equal(before))
 		publicNoPoison(marker)
 	},
-		Entry("missing source", []string{"--dry-run"}),
+		Entry("default preview does not require a source operand", []string{"--dry-run"}),
 		Entry("empty source", []string{"--dry-run", "--source="}),
 		Entry("source lacking operand", []string{"--dry-run", "--source"}),
 		Entry("attached true dry run", []string{"--dry-run=true", "--source=."}),
@@ -154,7 +164,7 @@ var _ = Describe("G4 public upgrade preview admission", func() {
 		Entry("empty json", []string{"--dry-run", "--source=.", "--json="}),
 		Entry("unknown secret flag", []string{"--dry-run", "--source=.", "--PRIVATE_UNKNOWN"}),
 		Entry("unknown operand", []string{"--dry-run", "--source=.", "PRIVATE_OPERAND"}),
-		Entry("ref incompatible", []string{"--dry-run", "--source=.", "--ref=PRIVATE_REF"}),
+		Entry("explicit release selector owns invalid stable ref", []string{"--dry-run", "--source=.", "--ref=PRIVATE_REF"}),
 		Entry("separator", []string{"--dry-run", "--source=.", "--"}),
 		Entry("help", []string{"--dry-run", "--source=.", "--help"}),
 		Entry("short help", []string{"--dry-run", "--source=.", "-h"}),
@@ -169,11 +179,15 @@ var _ = Describe("G4 public upgrade preview admission", func() {
 		Entry("selection unknown", []string{"--dry-run", "--source=.", "--adopt-path=PRIVATE_UNKNOWN"}),
 		Entry("duplicate confirmation", []string{"--dry-run", "--source=.", "--adopt-path=scripts/factory-budget.sh", "--confirm-adoption=" + strings.Repeat("a", 64), "--confirm-adoption=" + strings.Repeat("a", 64)}))
 	// per docs/adr/0082-go-public-upgrade-preview.md:23
-	DescribeTable("keeps literal legacy dispatch when no standalone preview marker appears", func(args []string) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("retains historical literals while the current native owner refuses non-preview requests", func(args []string) {
 		binary, root, _ := assessmentFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
+		before := assessmentTree(root)
 		out := upgradePreview(binary, root, args...)
-		Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		Expect(assessmentTree(root)).To(Equal(before))
+		Expect(invoke(binary, root, "legacy-factory", "", append([]string{"upgrade"}, args...)...)).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		Expect(out).To(Equal(cliResult{"", "factory candidate: invalid candidate arguments\n", 2}))
 	}, Entry("unknown apply option", []string{"--PRIVATE_APPLY"}),
 		Entry("attached marker is source literal", []string{"--source=--dry-run"}),
 		Entry("prefixed literal marker", []string{"./--dry-run"}),

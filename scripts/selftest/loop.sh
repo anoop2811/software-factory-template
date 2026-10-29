@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Deterministic subprocess acceptance for docs/LOOPS.md:5; no paid model calls.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 "$SCRIPT_DIR/loop/acceptance.py" "$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Source-only native Ginkgo/Gomega proof runner.
+# docs/adr/0108-default-go-cutover.md:226.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+exec "$SCRIPT_DIR/go-acceptance.sh" loop

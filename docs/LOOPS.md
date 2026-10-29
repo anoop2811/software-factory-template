@@ -107,11 +107,12 @@ The existing eleven roadmap items and priorities remain unchanged.
 ## Runtime selection
 
 Loops are implemented natively in the Go CLI, including manual checks, bounded
-repair and checkpoint freshness. The current source launcher and ordinary source/ref
-updates still select the legacy script runtime. An explicitly selected authenticated
-Go installation reaches the native controller through the same `./factory loop`
-command. See [CLI.md](CLI.md) and [UPGRADING.md](UPGRADING.md); source implementation
-does not by itself establish default cutover or a published replacement release.
+repair and checkpoint freshness. The source launcher builds that developer CLI;
+qualified installed Go factories execute the packaged controller through the same
+`./factory loop` command without Go or Python. The public stable installer remains
+pinned to script-based v0.1.6 until replacement release qualification and acceptance.
+See [CLI.md](CLI.md) and the explicit migration steps in [UPGRADING.md](UPGRADING.md);
+prepared source does not establish a published replacement release.
 
 ## Usage and cost choices
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Deterministic subprocess acceptance for docs/BUDGETS.md:121.
-# Fake harness executables only: this suite never makes a paid model request.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 "$SCRIPT_DIR/budget/acceptance.py" "$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Source-only native Ginkgo/Gomega proof runner.
+# docs/adr/0108-default-go-cutover.md:226.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+exec "$SCRIPT_DIR/go-acceptance.sh" budget

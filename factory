@@ -4,7 +4,11 @@ set -euo pipefail
 # Source checkouts are developer tools; installed launchers execute their
 # authenticated packaged runtime without a compiler.
 # docs/adr/0108-default-go-cutover.md:53.
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+DIR=${BASH_SOURCE[0]%/*}
+[ "$DIR" != "${BASH_SOURCE[0]}" ] || DIR=.
+# Keep the physical root's literal newlines; remove only pwd's delimiter/frame.
+DIR="$(CDPATH='' cd -- "$DIR" && pwd -P && printf '.')" || exit
+DIR=${DIR%??}
 command -v go >/dev/null 2>&1 || {
   printf '%s\n' 'factory: source development requires the qualified Go toolchain; use the authenticated installer for a compiler-free installation' >&2
   exit 1
@@ -55,7 +59,12 @@ source_stop_build() {
         /bin/sleep 0.02
       else
         source_probe=$?
-        [ "$source_probe" -eq 1 ] || return 1
+        if [ "$source_probe" -ne 1 ]; then
+          # Inspection uncertainty remains uncertainty. A terminating group may
+          # become explicitly absent within this same bounded cleanup allowance.
+          /bin/sleep 0.02
+          continue
+        fi
         # Absence makes this wait a read of Bash's completed-child status;
         # an uncertain live group never enters an unbounded cleanup wait.
         wait "$SOURCE_CHILD" 2>/dev/null || :

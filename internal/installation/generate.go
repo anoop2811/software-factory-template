@@ -47,7 +47,7 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 	case "generate":
 		switch role.Generator {
 		case "installed-launcher":
-			return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n_factory_root=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd -P)\"\nexec \"$_factory_root/.factory/bin/factory-runtime\" --installed %s %s %s -- \"$@\"\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256)), nil
+			return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n%sexec \"$_factory_root/.factory/bin/factory-runtime\" --installed %s %s %s -- \"$@\"\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, physicalRootShell(image, "_factory_root", ".", "exit", ""), image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256)), nil
 		case "native-command-adapter":
 			name := strings.TrimSuffix(strings.TrimPrefix(path.Base(role.Path), "factory-"), ".sh")
 			parent := ".."
@@ -55,7 +55,7 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 				name = "selftest"
 				parent = "../.."
 			}
-			return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n_factory_root=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/%s\" && pwd -P)\"\nexec \"$_factory_root/factory\" %s \"$@\"\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, parent, name)), nil
+			return []byte(fmt.Sprintf("#!/bin/bash\n# Factory installation %s %s %s\nset -e\n%sexec \"$_factory_root/factory\" %s \"$@\"\n", image.Runtime.Version, image.Manifest.SourceRevision, image.Runtime.SHA256, physicalRootShell(image, "_factory_root", parent, "exit", ""), name)), nil
 		case "native-orchestration-adapter":
 			return orchestrationAdapter(role.Path, image)
 		case "sourceable-helper-bridge":
@@ -71,9 +71,7 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 			if start < 0 || end < start {
 				return nil, conflict("unsupported native bridge source")
 			}
-			source = source[:start] + `_factory_reader_call() (
-  _factory_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || return
-  /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" FACTORY_BRIDGE_PROTOCOL=1 "$_factory_root/factory" "$@"
+			source = source[:start] + "_factory_reader_call() (\n" + physicalRootShell(image, "_factory_root", "../..", "return", "  ") + `  /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" FACTORY_BRIDGE_PROTOCOL=1 "$_factory_root/factory" "$@"
 )
 ` + source[end:]
 			if role.Path == "scripts/lib/config.sh" {
@@ -95,6 +93,29 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 	}
 	return nil, conflict("unrecognized reviewed installation role")
 }
+
+// Frame pwd's delimiter separately from literal trailing newlines in a root.
+// The exact bounded RC3 recipe retains its original compiled serialization.
+// docs/adr/0108-default-go-cutover.md:264.
+func physicalRootShell(image staging.Inspection, name, parent, failure, indent string) string {
+	if isRecipeV1(image) {
+		relative, suffix := "", ""
+		if parent != "." {
+			relative = "/" + parent
+		}
+		if failure == "return" {
+			suffix = " || return"
+		}
+		return fmt.Sprintf("%s%s=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")%s\" && pwd -P)\"%s\n", indent, name, relative, suffix)
+	}
+	source := fmt.Sprintf(`%[1]s=${BASH_SOURCE[0]%%/*}
+[ "$%[1]s" != "${BASH_SOURCE[0]}" ] || %[1]s=.
+%[1]s="$(CDPATH='' cd -- "$%[1]s/%[2]s" && pwd -P && printf '.')" || %[3]s
+%[1]s=${%[1]s%%??}
+`, name, parent, failure)
+	return indent + strings.ReplaceAll(strings.TrimSuffix(source, "\n"), "\n", "\n"+indent) + "\n"
+}
+
 func descriptorBytes(image staging.Inspection, actions []Action) ([]byte, error) {
 	return descriptorForRoles(image, actions, roles)
 }

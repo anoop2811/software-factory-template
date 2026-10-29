@@ -22,17 +22,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Source factory gates compile the developer dispatcher; adopters do not.
+      # docs/adr/0108-default-go-cutover.md:245.
+      - name: Set up qualified Go for source gates
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+          cache: true
+          cache-dependency-path: go.sum
+
       - name: Break/fix self-tests (every gate proven)
         run: ./scripts/selftest/run.sh
-
-      - name: Adversarial review request fixtures (no API calls)
-        run: ./scripts/selftest/adversarial-review.sh
-
-      - name: Selftest with optional pack sources absent
-        run: ./scripts/selftest/optional-packs.sh
-
-      - name: Java build-tool installer fixtures
-        run: ./scripts/selftest/java-build-tool.sh
 
       - name: Structural harness eval (adapter wiring proven)
         run: make eval
@@ -53,11 +53,6 @@ jobs:
           shellcheck -s sh -S warning runtime/shell/readers.sh
           shellcheck -s bash -S warning runtime/shell/config.sh
           shellcheck -s bash -S warning runtime/shell/helpers.sh
-
-      - name: Set up Go (for pinned actionlint)
-        uses: actions/setup-go@v6
-        with:
-          go-version: 'stable'
 
       - name: actionlint
         # GitHub's new job cache-mode is not yet in the latest tagged parser.

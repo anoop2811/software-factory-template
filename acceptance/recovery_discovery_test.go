@@ -23,6 +23,9 @@ func discoveryFixture() string {
 		Expect(readErr).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, target), data, 0700)
 	}
+	// Sourceable configuration now delegates to its actual compiled Go reader.
+	// per docs/adr/0108-default-go-cutover.md:88
+	writeFixture(filepath.Join(root, "factory"), candidateBinary, 0755)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("docs_root: docs\ncitation_prefix: DISC_\n"), 0600)
 	writeFixture(filepath.Join(root, "docs/DISC_SPEC.md"), []byte("current canonical line\n"), 0600)
 	Expect(loopProcess(root, "git", []string{"init", "--quiet"}, nil).status).To(BeZero())
@@ -231,6 +234,19 @@ var _ = Describe("Recovery discovery citation target controls", func() {
 })
 
 var _ = Describe("Recovery discovery physical newline boundary", func() {
+	// per docs/adr/0084-exclude-inert-recovery-from-discovery.md:89
+	// per docs/adr/0108-default-go-cutover.md:55
+	It("reads configured citation policy through the native adapter at a root ending in multiple newlines", func() {
+		root := discoveryFixture()
+		moved := root + "\n\n"
+		Expect(os.Rename(root, moved)).To(Succeed())
+		DeferCleanup(os.RemoveAll, moved)
+		before := installationSnapshot(moved)
+		out := loopProcess(moved, "bash", []string{"-c", `. "$1"; factory_config_get citation_prefix`, "literal-config-root", filepath.Join(moved, "scripts/lib/config.sh")}, []string{"FACTORY_CONFIG=" + filepath.Join(moved, "factory.yaml")})
+		Expect(out).To(Equal(cliResult{"DISC_", "", 0}), "native configuration lookup must preserve every physical root byte")
+		Expect(installationSnapshot(moved)).To(Equal(before))
+	})
+
 	// per docs/adr/0084-exclude-inert-recovery-from-discovery.md:89
 	It("preserves the installation root newline when pruning ancestor document lookup", func() {
 		root := discoveryFixture()

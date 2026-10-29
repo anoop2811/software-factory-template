@@ -45,8 +45,11 @@ func installationHookFixture(local bool) string {
 	for _, path := range installationHookInvocationPaths {
 		writeFixture(filepath.Join(root, filepath.FromSlash(path)), []byte("#!/bin/sh\nexit 0\n"), 0755)
 	}
+	// The sourceable configuration adapter calls its actual compiled Go reader.
+	// per docs/adr/0108-default-go-cutover.md:88
+	writeFixture(filepath.Join(root, "factory"), candidateBinary, 0755)
 	// The gate and its sourceable collaborators are real production bytes. The
-	// fixture executables are only presence/mode inputs and are never invoked.
+	// hook executables are only presence/mode inputs and are never invoked.
 	for _, source := range []struct {
 		path string
 		mode os.FileMode
@@ -75,6 +78,7 @@ func installationHookGate(root string) cliResult {
 	return imageProcess(root, map[string]string{
 		"FACTORY_CONFIG":    filepath.Join(root, "factory.yaml"),
 		"FACTORY_EVENT_LOG": filepath.Join(root, "fixture-events.log"),
+		"GORACE":            "atexit_sleep_ms=0",
 	}, "bash", filepath.Join(root, "scripts/hooks/hook-existence-check.sh"))
 }
 

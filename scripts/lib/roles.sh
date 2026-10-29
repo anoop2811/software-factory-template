@@ -4,7 +4,10 @@
 # Explicit local runtime selection only. docs/DECISION_LOG.md:1970.
 
 _factory_reader_call() (
-  _factory_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || return
+  _factory_root=${BASH_SOURCE[0]%/*}
+  [ "$_factory_root" != "${BASH_SOURCE[0]}" ] || _factory_root=.
+  _factory_root="$(CDPATH='' cd -- "$_factory_root/../.." && pwd -P && printf '.')" || return
+  _factory_root=${_factory_root%??}
   /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" FACTORY_BRIDGE_PROTOCOL=1 "$_factory_root/factory" "$@"
 )
 

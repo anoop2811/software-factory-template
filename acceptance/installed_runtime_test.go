@@ -72,15 +72,25 @@ func installedRuntimeCustodyFixture() installedRuntimeFixture {
 	var roles installationRoleMapOracle
 	Expect(json.Unmarshal(canonical, &roles)).To(Succeed())
 	Expect(roles.CanonicalSourceAssets).NotTo(BeEmpty())
+	retained := []string{}
 	for _, role := range roles.CanonicalSourceAssets {
+		// The retired initializer cache is no longer current source authority.
+		// per docs/adr/0108-default-go-cutover.md:137
+		if role.Operation == "retire" {
+			Expect(role.SourcePath).To(BeNil(), role.Path)
+			Expect(role.Mode).To(BeNil(), role.Path)
+			continue
+		}
 		Expect(role.SourcePath).NotTo(BeNil(), role.Path)
 		Expect(role.Mode).NotTo(BeNil(), role.Path)
+		retained = append(retained, role.Path)
 		data, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(*role.SourcePath)))
 		Expect(err).NotTo(HaveOccurred(), role.Path)
 		mode, err := strconv.ParseUint(*role.Mode, 8, 32)
 		Expect(err).NotTo(HaveOccurred(), role.Path)
 		add(role.Path, data, os.FileMode(mode))
 	}
+	Expect(retained).To(ConsistOf(".factory/assets/scaffold/templates/metrics.html", ".factory/assets/scaffold/packs/review-lane/review-pr.yml"))
 	// One actual active gate distinguishes the installation from the many inert
 	// canonical hook files. This fixture never executes either hook selection.
 	gate, err := os.ReadFile("../scripts/hooks/hook-existence-check.sh")
@@ -93,6 +103,29 @@ func installedRuntimeCustodyFixture() installedRuntimeFixture {
 	writeFixture(filepath.Join(fixture.root, ".factory/installation.current"), imageMarshal(descriptor), 0600)
 	writeFixture(filepath.Join(fixture.root, ".factory-version"), []byte("ref="+version+"\ncommit="+revision+"\n"), 0600)
 	return fixture
+}
+
+// Observe exact release selection before a controlled network refusal. Host
+// compilers remain unavailable to every installed invocation in this fixture.
+// per docs/adr/0108-default-go-cutover.md:26
+// per docs/adr/0108-default-go-cutover.md:43
+func installedRuntimeReleaseProbe(fixture installedRuntimeFixture) (installedRuntimeFixture, string) {
+	GinkgoHelper()
+	tools := filepath.Join(filepath.Dir(fixture.root), "release probe tools")
+	request := filepath.Join(filepath.Dir(fixture.root), "release-probe-argv")
+	for _, name := range []string{"go", "python", "python3"} {
+		writeFixture(filepath.Join(tools, name), []byte("#!/bin/sh\nprintf '%s\\n' \"$0\" > \"$INSTALLED_FORBIDDEN_TOOL\"\nexit 97\n"), 0700)
+	}
+	writeFixture(filepath.Join(tools, "gh"), []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" > \"$INSTALLED_RELEASE_REQUEST\"\nprintf 'controlled installed release refusal\\n' >&2\nexit 1\n"), 0700)
+	filtered := []string{}
+	for _, entry := range fixture.environment {
+		if !strings.HasPrefix(entry, "PATH=") {
+			filtered = append(filtered, entry)
+		}
+	}
+	fixture.environment = filtered
+	fixture.environment = append(fixture.environment, "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "INSTALLED_RELEASE_REQUEST="+request, "INSTALLED_FORBIDDEN_TOOL="+filepath.Join(filepath.Dir(fixture.root), "forbidden-installed-tool"))
+	return fixture, request
 }
 
 func installedRuntimeInvoke(fixture installedRuntimeFixture, input string, extraEnvironment []string, args ...string) cliResult {
@@ -171,6 +204,36 @@ export FACTORY_ACCEPTANCE_UPGRADE_DEPTH=1
 }
 
 var _ = Describe("Installed runtime root separation", func() {
+	// per docs/adr/0108-default-go-cutover.md:55
+	// per docs/adr/0108-default-go-cutover.md:255
+	// per docs/adr/0084-exclude-inert-recovery-from-discovery.md:89
+	It("reads configured policy through actual generated installed adapters after moving the installation to a root ending in two newlines", func() {
+		image := handoffBuildImage()
+		f, driver := handoffNativeFixture(image)
+		target := filepath.Join(f.cwd, "actual installed newline boundary")
+		initial := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
+		Expect(initial.status).To(Equal(0), "a complete authenticated installation must exist before the path-boundary test: %+v", initial)
+		data, err := os.ReadFile(filepath.Join(target, ".factory/installation.current"))
+		Expect(err).NotTo(HaveOccurred())
+		var descriptor map[string]any
+		Expect(json.Unmarshal(data, &descriptor)).To(Succeed())
+		Expect(descriptor["kind"]).To(Equal("go-hybrid-v1"))
+		Expect(descriptor["version"]).To(Equal(handoffVersion))
+		Expect(descriptor["revision"]).To(Equal(image.revision))
+		Expect(os.ReadFile(filepath.Join(target, ".factory/bin/factory-runtime"))).To(Equal(image.binary))
+		reader := `. "$1"; factory_config_get project_name`
+		control := handoffNativeProcess(target, f.environment, "", "bash", "-c", reader, "installed-config-reader", filepath.Join(target, "scripts/lib/config.sh"))
+		Expect(control).To(Equal(cliResult{"native-project", "", 0}), "the unchanged complete installation is the healthy sibling")
+		moved := target + "\n\n"
+		Expect(os.Rename(target, moved)).To(Succeed())
+		before := installationSnapshot(moved)
+		actual := handoffNativeProcess(moved, f.environment, "", "bash", "-c", reader, "installed-config-reader", filepath.Join(moved, "scripts/lib/config.sh"))
+		Expect(actual).To(Equal(control), "generated adapters must locate the same validated runtime under the literal physical root")
+		Expect(installationSnapshot(moved)).To(Equal(before))
+		_, err = os.Lstat(filepath.Join(f.records, "forbidden-tool"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "installed adapter lookup must not require a compiler or interpreter fallback")
+	})
+
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:109
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:112
 	// per docs/adr/0087-go-native-report.md:22
@@ -220,41 +283,49 @@ var _ = Describe("Installed runtime root separation", func() {
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:106
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:260
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:435
-	// per docs/adr/0085-go-native-init.md:20
-	// per docs/adr/0085-go-native-init.md:99
-	// per docs/adr/0101-go-release-handoff.md:435
-	It("preserves canonical and application README custody while requiring an explicit installed initializer candidate", func() {
-		fixture := installedRuntimeCustodyFixture()
-		canonicalPath := filepath.Join(fixture.assets, "README.md")
+	// per docs/adr/0108-default-go-cutover.md:28
+	// per docs/adr/0108-default-go-cutover.md:140
+	It("preserves retained canonical data and application README while authenticating the installed initializer release", func() {
+		fixture, request := installedRuntimeReleaseProbe(installedRuntimeCustodyFixture())
+		canonicalPath := filepath.Join(fixture.assets, "templates/metrics.html")
 		canonical, err := os.ReadFile(canonicalPath)
-		Expect(err).NotTo(HaveOccurred(), "the installation still needs its canonical README asset")
+		Expect(err).NotTo(HaveOccurred(), "the installation retains its declared runtime data")
 		Expect(canonical).NotTo(BeEmpty())
 		existing := filepath.Join(filepath.Dir(fixture.root), "existing project")
 		readme := []byte("application README is retained verbatim\n")
 		writeFixture(filepath.Join(existing, "README.md"), readme, 0644)
 		before := nativeInitArtifacts(existing)
 		control := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", existing, "--pack=none")
-		Expect(control.status).To(Equal(2), "%+v", control)
-		Expect(control.stdout).To(BeEmpty(), "a missing candidate selection must refuse before initializer prompts")
-		Expect(control.stderr).To(ContainSubstring("--go-candidate"))
+		Expect(control.status).To(Equal(1), "controlled acquisition refusal must precede initializer prompts: %+v", control)
+		Expect(control.stdout).To(BeEmpty())
+		expectedRequest := []string{"api", "repos/anoop2811/software-factory-template/commits/refs/tags/v9.8.0", "--jq", ".sha"}
+		requestBytes, err := os.ReadFile(request)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Split(strings.TrimSuffix(string(requestBytes), "\x00"), "\x00")).To(Equal(expectedRequest), "installed init must authenticate its own validated release rather than the source default")
 		Expect(nativeInitArtifacts(existing)).To(Equal(before))
+		Expect(os.Remove(request)).To(Succeed())
 		empty := filepath.Join(filepath.Dir(fixture.root), "empty project")
 		actual := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", empty, "--pack=none")
-		Expect(actual.status).To(Equal(2), "%+v", actual)
+		Expect(actual.status).To(Equal(1), "%+v", actual)
 		Expect(actual.stdout).To(BeEmpty())
-		Expect(actual.stderr).To(ContainSubstring("--go-candidate"))
+		requestBytes, err = os.ReadFile(request)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Split(strings.TrimSuffix(string(requestBytes), "\x00"), "\x00")).To(Equal(expectedRequest))
 		_, err = os.Lstat(empty)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "refusal must not create the target")
 		retainedCanonical, err := os.ReadFile(canonicalPath)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(retainedCanonical).To(Equal(canonical))
+		_, err = os.Lstat(filepath.Join(filepath.Dir(fixture.root), "forbidden-installed-tool"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:33
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:457
+	// per docs/adr/0108-default-go-cutover.md:26
 	It("owns installed upgrade aliases through public and direct adapters without recursive fallback", func() {
 		fixture, log := installedRuntimeBoundedUpgradeFixture()
+		fixture, request := installedRuntimeReleaseProbe(fixture)
 		control := installedRuntimeInvoke(fixture, "", nil, "upgrade", "--installation", "--help")
 		Expect(control.status).To(Equal(0), "%+v", control)
 		Expect(control.stdout).To(ContainSubstring("--installation"))
@@ -263,10 +334,11 @@ var _ = Describe("Installed runtime root separation", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(calls)).To(Equal("0\n"), "explicit whole help must execute only the first public launcher")
 		type observation struct {
-			route string
-			args  []string
-			out   cliResult
-			calls string
+			route   string
+			args    []string
+			out     cliResult
+			calls   string
+			request []string
 		}
 		observations := []observation{}
 		for _, direct := range []bool{false, true} {
@@ -278,31 +350,52 @@ var _ = Describe("Installed runtime root separation", func() {
 			}
 			for _, operands := range [][]string{{}, {"--help"}, {"-h"}, {"--force"}} {
 				Expect(os.Remove(log)).To(Succeed())
+				if _, err := os.Lstat(request); err == nil {
+					Expect(os.Remove(request)).To(Succeed())
+				}
 				args := append([]string{}, operands...)
 				if !direct {
 					args = append([]string{"upgrade"}, args...)
 				}
+				before := installationSnapshot(fixture.root)
 				out := installedRuntimeInvoke(invocation, "", nil, args...)
 				calls, err := os.ReadFile(log)
 				Expect(err).NotTo(HaveOccurred())
-				observations = append(observations, observation{route, operands, out, string(calls)})
+				after := installationSnapshot(fixture.root)
+				delete(after, ".factory/upgrade-launches.log")
+				Expect(after).To(Equal(before), "release refusal, help and malformed aliases must preserve installation bytes and modes")
+				var releaseRequest []string
+				if body, err := os.ReadFile(request); err == nil {
+					releaseRequest = strings.Split(strings.TrimSuffix(string(body), "\x00"), "\x00")
+				} else {
+					Expect(os.IsNotExist(err)).To(BeTrue())
+				}
+				observations = append(observations, observation{route, operands, out, string(calls), releaseRequest})
 				_, _ = fmt.Fprintf(GinkgoWriter, "bounded upgrade route: %s; operands: %q; launcher depths: %q\n", route, operands, calls)
 			}
 		}
 		// Collect all bounded outcomes before asserting so initial RED includes
 		// both public/direct routes and all aliases, rather than stopping at bare.
 		for _, observed := range observations {
-			if len(observed.args) == 1 && observed.args[0] == "--force" {
+			if len(observed.args) == 0 {
+				Expect(observed.out.status).To(Equal(1), "%s bare upgrade must reach controlled default release refusal: %+v", observed.route, observed.out)
+				Expect(observed.out.stdout).To(BeEmpty())
+				Expect(observed.request).To(Equal([]string{"api", "repos/anoop2811/software-factory-template/commits/refs/tags/v0.2.0", "--jq", ".sha"}))
+			} else if observed.args[0] == "--force" {
 				Expect(observed.out.status).To(Equal(2), "%s %q: %+v", observed.route, observed.args, observed.out)
 				Expect(observed.out.stdout).To(BeEmpty())
-				Expect(observed.out.stderr).To(ContainSubstring("--installation"))
+				Expect(observed.out.stderr).To(ContainSubstring("invalid candidate arguments"))
+				Expect(observed.request).To(BeEmpty())
 			} else {
 				Expect(observed.out.status).To(Equal(0), "%s %q: %+v", observed.route, observed.args, observed.out)
-				Expect(observed.out.stdout).To(Equal(control.stdout), "%s %q must show native whole help", observed.route, observed.args)
+				Expect(observed.out.stdout).To(ContainSubstring("Usage: factory upgrade [--ref TAG | --go-candidate TAG] [options]"), "%s %q must show authenticated release help", observed.route, observed.args)
 				Expect(observed.out.stderr).To(BeEmpty())
+				Expect(observed.request).To(BeEmpty(), "help must stay local")
 			}
 			Expect(observed.calls).To(Equal("0\n"), "%s %q unexpectedly launched the upgrade adapter again", observed.route, observed.args)
 			Expect(observed.out.stderr).NotTo(ContainSubstring("BOUNDED_UPGRADE_RECURSION"))
 		}
+		_, err = os.Lstat(filepath.Join(filepath.Dir(fixture.root), "forbidden-installed-tool"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 })

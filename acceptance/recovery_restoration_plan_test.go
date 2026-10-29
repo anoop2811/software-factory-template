@@ -224,7 +224,9 @@ var _ = Describe("Read-only recovery restoration planning admission", func() {
 
 	// per docs/adr/0092-go-recovery-restoration-planning.md:36
 	// per docs/adr/0092-go-recovery-restoration-planning.md:104
-	DescribeTable("preserves detached legacy value ownership even when it resembles a native marker", func(option, value string) {
+	// per docs/adr/0108-default-go-cutover.md:78
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("preserves detached option ownership without restoring historical script fallback", func(option, value string) {
 		binary, root, _ := durableRecoveryFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		// Keep all original recovery-marker controls and exercise both new words
@@ -234,9 +236,13 @@ var _ = Describe("Read-only recovery restoration planning admission", func() {
 		for _, literal := range []string{value, "--keep-backup", "--prune-backup"} {
 			args := []string{option, literal}
 			before := assessmentTree(root)
-			out := publicCommand(binary, root, "upgrade", args, nil)
+			Expect(invoke(binary, root, "legacy-factory", "", append([]string{"upgrade"}, args...)...)).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+			diagnostic := "factory candidate: invalid candidate arguments\n"
+			if option == "--ref" {
+				diagnostic = nativeStableSelectionRefusal
+			}
+			assertUpgradeRefusalWithoutLegacy(binary, root, args, diagnostic)
 			Expect(assessmentTree(root)).To(Equal(before))
-			Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
 		}
 	}, Entry("source planning-like value", "--source", "--plan-restore"), Entry("ref planning-like value", "--ref", "--plan-restore"), Entry("source creation-like value", "--source", "--create-backup"), Entry("ref creation-like value", "--ref", "--create-backup"))
 

@@ -64,10 +64,12 @@ historical ownership or permission to replace active legacy files. A later
 transaction must separately establish explicit quiescence for unbridged work,
 state compatibility, backup integrity and exact forward/reverse ownership.
 
-The public installed `factory` entrypoint still uses scripts. Authenticated
-binary installation, activation, complete legacy backup, controlled restoration,
-retirement, retention and the adopter pilot remain pending. No release or
-seamless-upgrade claim follows from this component.
+Qualified Go installations now use the packaged runtime and whole-installation
+migration, recovery and retention. The source launcher also builds the developer
+Go CLI. The public stable installer remains pinned to script-based v0.1.6 while
+replacement release qualification and pilot acceptance remain open. See
+[release readiness](GO_RELEASE_READINESS.md); this historical component evidence
+does not itself establish a seamless published upgrade.
 
 ## Qualification status
 

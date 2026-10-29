@@ -3,8 +3,10 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,16 +19,18 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// This matrix is an independent compatibility oracle, not discovery from the
+// This matrix is an immutable historical script-dispatch oracle, not discovery from the
 // candidate's registrations. per specs/001-go-runtime-conversion.md:295
 // Budget/loop have native public qualification: per docs/adr/0078-go-public-budget-loop.md:43
 // Check now has a native orchestration contract: per docs/adr/0099-native-factory-orchestration.md:25
+// Current owners refuse fallback: per docs/adr/0108-default-go-cutover.md:207
 var commandRoutes = []struct{ command, script string }{
 	{"upgrade", "scripts/factory-upgrade.sh"},
 	{"selftest", "scripts/selftest/run.sh"},
 }
 
 // Independent expected public command inventory, including the new native routes.
+// per docs/adr/0108-default-go-cutover.md:207
 // per docs/adr/0099-native-factory-orchestration.md:22
 // per docs/adr/0100-batched-review.md:23
 const nativeCLIUsage = `factory — software factory control surface
@@ -36,8 +40,8 @@ Usage: factory <command> [args]
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
-  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
-              touches your factory.yaml, content, or customized files
+  upgrade     Preview an authenticated Go update; apply with fresh --confirm and --quiescent
+              Preserve your factory.yaml, content, history and customized files
               Preview locally with --dry-run --source PATH (run at installation root)
               Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
   sync        Synchronize harness adapters (all, opencode, claude, codex)
@@ -57,7 +61,8 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+Commands use the Go runtime with declared policy-gate and harness boundaries.
+Use init --help or upgrade --help for release selection and explicit local-source options.
 `
 
 type cliResult struct {
@@ -177,6 +182,51 @@ func normalizeBashDiagnostic(stderr, invocation string) (string, error) {
 	return strings.Join(lines, ""), nil
 }
 
+// The old process-boundary cases remain historical evidence. Their current CLI
+// counterpart must enter its native owner, never execute the adjacent script.
+// per docs/adr/0108-default-go-cutover.md:207
+func nativeOwnerRefusal(result cliResult, command string) {
+	GinkgoHelper()
+	Expect(result.stdout).To(BeEmpty())
+	if command == "upgrade" {
+		Expect(result).To(Equal(cliResult{"", "factory candidate: invalid candidate arguments\n", 2}))
+		return
+	}
+	Expect(result.status).To(Equal(1), "%+v", result)
+	Expect(result.stderr).To(HavePrefix("factory selftest:"))
+	Expect(result.stderr).NotTo(ContainSubstring("selftest/run.sh"))
+	Expect(strings.Count(result.stderr, "\n")).To(Equal(1))
+}
+
+// These intentionally incomplete source fixtures cannot pass the native gate
+// proof. Refusal must preserve the fixture and caller, even with a legacy body.
+// per docs/adr/0108-default-go-cutover.md:207
+func assertNativeNoLegacy(root, cwd, command, input string, args ...string) {
+	GinkgoHelper()
+	if command == "upgrade" && len(args) == 0 {
+		args = []string{"--PRIVATE_NOT_AN_UPGRADE_OPTION"}
+	}
+	beforeRoot, beforeCaller := assessmentTree(root), assessmentTree(cwd)
+	nativeOwnerRefusal(invoke(root, cwd, "factory", input, append([]string{command}, args...)...), command)
+	Expect(assessmentTree(root)).To(Equal(beforeRoot))
+	Expect(assessmentTree(cwd)).To(Equal(beforeCaller))
+}
+
+// per docs/adr/0108-default-go-cutover.md:31
+const nativeStableSelectionRefusal = "factory release: select an exact stable Go release; use --go-candidate for a prerelease or explicit rollback for a predecessor\n"
+
+// A marker-shaped source/ref value belongs to that option. It cannot select a
+// backup, recovery or preview owner and cannot activate the historical script.
+// per docs/adr/0108-default-go-cutover.md:78
+// per docs/adr/0108-default-go-cutover.md:207
+func assertUpgradeRefusalWithoutLegacy(binary, root string, args []string, diagnostic string) {
+	GinkgoHelper()
+	before := assessmentTree(root)
+	out := upgradePreview(binary, root, args...)
+	Expect(out).To(Equal(cliResult{"", diagnostic, 2}))
+	Expect(assessmentTree(root)).To(Equal(before))
+}
+
 var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:295
 	// per docs/adr/0099-native-factory-orchestration.md:22
@@ -234,7 +284,8 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
-	DescribeTable("dispatches each public command preserving the complete subprocess boundary", func(command, script string) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("retains historical script boundaries while the current native owner refuses fallback", func(command, script string) {
 		root, cwd := fixture()
 		recorder := "#!/bin/sh\nprintf '%s\\000' '" + script + "' \"$PWD\" \"$FACTORY_ACCEPTANCE_VALUE\" \"$#\"\nprintf '%s\\000' \"$@\"\ncat\nprintf 'child diagnostic\\n' >&2\nexit 37\n"
 		writeFixture(filepath.Join(root, script), []byte(recorder), 0755)
@@ -247,13 +298,14 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		expected := cliResult{strings.Join(fields, "\x00") + "\x00" + input, "child diagnostic\n", 37}
 		argv := append([]string{command}, args...)
 		Expect(invoke(root, cwd, "legacy-factory", input, argv...)).To(Equal(expected))
-		Expect(invoke(root, cwd, "factory", input, argv...)).To(Equal(expected))
+		assertNativeNoLegacy(root, cwd, command, input, args...)
 		_, err := os.Stat(filepath.Join(cwd, "never-created"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, routeEntries())
 
 	// per specs/001-go-runtime-conversion.md:95
-	DescribeTable("refuses missing and non-executable canonical scripts", func(command, script string) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("retains historical script availability checks without requiring those scripts for native ownership", func(command, script string) {
 		root, cwd := fixture()
 		path := filepath.Join(root, script)
 		expected := cliResult{"", fmt.Sprintf("factory: '%s' is not available in this repo (%s is missing or not executable)\n", command, path), 2}
@@ -262,7 +314,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 				writeFixture(path, []byte("#!/bin/sh\necho must-not-run\n"), 0644)
 			}
 			Expect(invoke(root, cwd, "legacy-factory", "", command)).To(Equal(expected), state)
-			Expect(invoke(root, cwd, "factory", "", command)).To(Equal(expected), state)
+			assertNativeNoLegacy(root, cwd, command, "")
 		}
 	}, routeEntries())
 
@@ -273,23 +325,37 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		input := "{\"budget\":null,\"runs\":[]}\n"
 		expected := cliResult{input, "", 0}
 		Expect(invoke(root, cwd, "legacy-factory", input, "selftest", "--json")).To(Equal(expected))
-		Expect(invoke(root, cwd, "factory", input, "selftest", "--json")).To(Equal(expected))
+		assertNativeNoLegacy(root, cwd, "selftest", input, "--json")
+		// Native machine-readable output is owned by its real JSON operation,
+		// rather than an adjacent shell script echoing the caller's stdin.
+		// per docs/adr/0078-go-public-budget-loop.md:29
+		out := publicCommand(root, cwd, "budget", []string{"report", "--json"}, nil)
+		Expect(out.status).To(BeZero(), "%+v", out)
+		Expect(out.stderr).To(BeEmpty())
+		decoder := json.NewDecoder(strings.NewReader(out.stdout))
+		var object map[string]any
+		Expect(decoder.Decode(&object)).To(Succeed())
+		Expect(object).To(HaveKey("runs"))
+		var extra any
+		Expect(decoder.Decode(&extra)).To(Equal(io.EOF))
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
-	It("retains Bash exec fallback for an executable script without a shebang", func() {
+	// per docs/adr/0108-default-go-cutover.md:207
+	It("retains historical Bash no-shebang behavior without enabling native script fallback", func() {
 		root, cwd := fixture()
 		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
 		args := []string{"selftest", "$(touch never-created)", "two words", ""}
 		expected := cliResult{"legacy script fallback\n$(touch never-created)\x00two words\x00\x00", "", 29}
 		Expect(invoke(root, cwd, "legacy-factory", "", args...)).To(Equal(expected))
-		Expect(invoke(root, cwd, "factory", "", args...)).To(Equal(expected))
+		assertNativeNoLegacy(root, cwd, "selftest", "", args[1:]...)
 		_, err := os.Stat(filepath.Join(cwd, "never-created"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
-	DescribeTable("retains OS execution-failure status with a useful script diagnostic", func(kind string) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("retains historical script execution failures while native proof refuses incomplete source", func(kind string) {
 		root, cwd := fixture()
 		path := filepath.Join(root, "scripts/selftest/run.sh")
 		if kind == "directory" {
@@ -302,29 +368,21 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			Expect(baseline.status).To(Equal(126))
 		} else {
 			// Darwin's system Bash reports 1; other observed Bash versions report
-			// 126 or 127. Require the candidate to match the actual local baseline.
+			// 126 or 127. Retain the observed platform-specific historical result.
 			Expect(baseline.status).To(BeElementOf(1, 126, 127))
 		}
-		for _, executable := range []string{"legacy-factory", "factory"} {
-			result := invoke(root, cwd, executable, "", "selftest")
-			Expect(result.status).To(Equal(baseline.status), executable)
-			Expect(result.stdout).To(BeEmpty(), executable)
-			Expect(result.stderr).To(ContainSubstring("selftest/run.sh"), executable)
-			Expect(result.stderr).NotTo(ContainSubstring("Usage:"), executable)
-			baselineDiagnostic, err := normalizeBashDiagnostic(baseline.stderr, filepath.Join(root, "legacy-factory"))
-			Expect(err).NotTo(HaveOccurred())
-			invocation := filepath.Join(root, "legacy-factory")
-			if executable == "factory" {
-				invocation = path
-			}
-			diagnostic, err := normalizeBashDiagnostic(result.stderr, invocation)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(diagnostic).To(Equal(baselineDiagnostic), executable)
-		}
+		Expect(baseline.stdout).To(BeEmpty())
+		Expect(baseline.stderr).To(ContainSubstring("selftest/run.sh"))
+		Expect(baseline.stderr).NotTo(ContainSubstring("Usage:"))
+		diagnostic, err := normalizeBashDiagnostic(baseline.stderr, filepath.Join(root, "legacy-factory"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(diagnostic).To(ContainSubstring(path))
+		assertNativeNoLegacy(root, cwd, "selftest", "")
 	}, Entry("executable directory", "directory"), Entry("missing interpreter", "interpreter"))
 
 	// per specs/001-go-runtime-conversion.md:95
-	It("uses the invocation directory when the dispatcher is a symlink", func() {
+	// per docs/adr/0108-default-go-cutover.md:207
+	It("retains historical symlink lookup without executing either legacy script in the native owner", func() {
 		root, cwd := fixture()
 		aliasRoot := filepath.Join(filepath.Dir(root), "symlink invocation root")
 		Expect(os.MkdirAll(aliasRoot, 0755)).To(Succeed())
@@ -335,11 +393,12 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		writeFixture(filepath.Join(aliasRoot, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf 'invocation root\\n'\n"), 0755)
 		expected := cliResult{"invocation root\n", "", 0}
 		Expect(invoke(aliasRoot, cwd, "legacy-factory", "", "selftest")).To(Equal(expected))
-		Expect(invoke(aliasRoot, cwd, "factory", "", "selftest")).To(Equal(expected))
+		assertNativeNoLegacy(aliasRoot, cwd, "selftest", "")
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
-	DescribeTable("locates co-located scripts after PATH invocation", func(relative bool) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("retains historical PATH lookup while selecting the native owner after current PATH invocation", func(relative bool) {
 		root, cwd := fixture()
 		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
 		lookupRoot := root
@@ -355,48 +414,56 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			cmd.Dir = cwd
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
-			Expect(cmd.Run()).To(Succeed(), "%s: %s", executable, stderr.String())
-			Expect(stdout.String()).To(Equal("PATH invocation\n"))
-			Expect(stderr.String()).To(BeEmpty())
+			err := cmd.Run()
+			Expect(ctx.Err()).NotTo(HaveOccurred())
+			if executable == "legacy-factory" {
+				Expect(err).NotTo(HaveOccurred(), "%s: %s", executable, stderr.String())
+				Expect(stdout.String()).To(Equal("PATH invocation\n"))
+				Expect(stderr.String()).To(BeEmpty())
+			} else {
+				var exited *exec.ExitError
+				Expect(errors.As(err, &exited)).To(BeTrue())
+				nativeOwnerRefusal(cliResult{stdout.String(), stderr.String(), exited.ExitCode()}, "selftest")
+			}
 		}
 	}, Entry("absolute PATH entry", false), Entry("relative PATH entry", true))
 
 	// per specs/001-go-runtime-conversion.md:95
-	It("preserves signal termination instead of converting it into a normal error exit", func() {
+	// per docs/adr/0108-default-go-cutover.md:207
+	It("retains historical script signal termination without running that script through the native owner", func() {
 		root, cwd := fixture()
 		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
-		for _, executable := range []string{"legacy-factory", "factory"} {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "selftest") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
-			cmd.Dir = cwd
-			err := cmd.Run()
-			Expect(ctx.Err()).NotTo(HaveOccurred())
-			var exitError *exec.ExitError
-			Expect(errors.As(err, &exitError)).To(BeTrue())
-			status, ok := exitError.Sys().(syscall.WaitStatus)
-			Expect(ok).To(BeTrue())
-			Expect(status.Signaled()).To(BeTrue())
-			Expect(status.Signal()).To(Equal(syscall.SIGTERM))
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, filepath.Join(root, "legacy-factory"), "selftest") // #nosec G204 -- test-owned self-terminating fixture; no external process is signaled.
+		cmd.Dir = cwd
+		err := cmd.Run()
+		Expect(ctx.Err()).NotTo(HaveOccurred())
+		var exitError *exec.ExitError
+		Expect(errors.As(err, &exitError)).To(BeTrue())
+		status, ok := exitError.Sys().(syscall.WaitStatus)
+		Expect(ok).To(BeTrue())
+		Expect(status.Signaled()).To(BeTrue())
+		Expect(status.Signal()).To(Equal(syscall.SIGTERM))
+		assertNativeNoLegacy(root, cwd, "selftest", "")
 	})
 
 	// per specs/001-go-runtime-conversion.md:95
-	It("replaces the dispatcher process with its script, preserving caller process ownership", func() {
+	// per docs/adr/0108-default-go-cutover.md:207
+	It("retains historical script process ownership without native dispatch to that script", func() {
 		root, cwd := fixture()
 		writeFixture(filepath.Join(root, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\"\n"), 0755)
-		for _, executable := range []string{"legacy-factory", "factory"} {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			cmd := exec.CommandContext(ctx, filepath.Join(root, executable), "selftest") // #nosec G204 -- isolated fixture; comparing PID requires a real process launch.
-			cmd.Dir = cwd
-			var stdout, stderr bytes.Buffer
-			cmd.Stdout, cmd.Stderr = &stdout, &stderr
-			Expect(cmd.Start()).To(Succeed())
-			pid := cmd.Process.Pid
-			Expect(cmd.Wait()).To(Succeed())
-			Expect(stderr.String()).To(BeEmpty())
-			Expect(stdout.String()).To(Equal(fmt.Sprint(pid)))
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, filepath.Join(root, "legacy-factory"), "selftest") // #nosec G204 -- isolated fixture; comparing PID requires a real process launch.
+		cmd.Dir = cwd
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		Expect(cmd.Start()).To(Succeed())
+		pid := cmd.Process.Pid
+		Expect(cmd.Wait()).To(Succeed())
+		Expect(stderr.String()).To(BeEmpty())
+		Expect(stdout.String()).To(Equal(fmt.Sprint(pid)))
+		assertNativeNoLegacy(root, cwd, "selftest", "")
 	})
 })

@@ -166,8 +166,10 @@ func interruptedRecoveryProposal(object map[string]any, root, direction, image s
 
 func interruptedRecoveryPythonAdmission(root string, admitted bool) {
 	GinkgoHelper()
-	repository, err := filepath.Abs("..")
-	Expect(err).NotTo(HaveOccurred())
+	// Keep historical component materialization outside the live publication tree
+	// whose exact before/after images these current Go recovery checks compare.
+	// per docs/adr/0108-default-go-cutover.md:204
+	scripts := transitionHistoricalScripts(GinkgoT().TempDir())
 	source := `import json,sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[1])
@@ -183,7 +185,7 @@ for acquire in (transition.shared,transition.exclusive):
   results.append(True)
 print(json.dumps(results))
 `
-	out := loopProcess(root, transitionPython(root), []string{"-B", "-c", source, filepath.Join(repository, "scripts/lib"), root}, nil)
+	out := loopProcess(root, transitionPython(root), []string{"-B", "-c", source, filepath.Join(scripts, "lib"), root}, nil)
 	Expect(out.status).To(BeZero(), "%+v", out)
 	var results []bool
 	Expect(json.Unmarshal([]byte(out.stdout), &results)).To(Succeed())

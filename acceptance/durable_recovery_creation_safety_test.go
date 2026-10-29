@@ -167,15 +167,19 @@ var _ = Describe("Durable local recovery creation admission", func() {
 	})
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:40
-	DescribeTable("keeps ordinary literal legacy dispatch without the reserved marker", func(arg string) {
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("refuses nonreserved native requests while retaining historical literal operands", func(arg string) {
 		binary, root, _ := durableRecoveryFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
-		out := durableRecoveryRun(binary, root, []string{arg})
-		Expect(out).To(Equal(cliResult{arg + "\n", "", 37}))
+		args := []string{arg}
+		Expect(invoke(binary, root, "legacy-factory", "", append([]string{"upgrade"}, args...)...)).To(Equal(cliResult{arg + "\n", "", 37}))
+		assertUpgradeRefusalWithoutLegacy(binary, root, args, "factory candidate: invalid candidate arguments\n")
 	}, Entry("similar switch", "--create-backups"), Entry("literal operand", "--source=--create-backup"))
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:192
-	DescribeTable("preserves detached legacy option values that spell the recovery marker", func(ref bool) {
+	// per docs/adr/0108-default-go-cutover.md:78
+	// per docs/adr/0108-default-go-cutover.md:207
+	DescribeTable("preserves detached option values without selecting recovery or historical script fallback", func(ref bool) {
 		binary, root, _ := durableRecoveryFixture()
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		args := []string{"--source", "--create-backup"}
@@ -183,8 +187,12 @@ var _ = Describe("Durable local recovery creation admission", func() {
 			args = []string{"--ref", "--create-backup", "--source", filepath.Join(root, "source")}
 		}
 		before := assessmentTree(root)
-		out := durableRecoveryRun(binary, root, args)
-		Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		Expect(invoke(binary, root, "legacy-factory", "", append([]string{"upgrade"}, args...)...)).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))
+		diagnostic := "factory candidate: invalid candidate arguments\n"
+		if ref {
+			diagnostic = nativeStableSelectionRefusal
+		}
+		assertUpgradeRefusalWithoutLegacy(binary, root, args, diagnostic)
 		Expect(assessmentTree(root)).To(Equal(before))
 	}, Entry("detached source value", false), Entry("detached ref value", true))
 })

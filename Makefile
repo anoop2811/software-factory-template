@@ -111,7 +111,10 @@ doctor:
 #
 # check_command comes from factory.yaml, which the language pack sets. Empty means
 # no pack is installed yet, and the factory gates alone are the honest answer.
-check: selftest budget-selftest loop-selftest adversarial-review-selftest go-runtime-check
+# The aggregate native Go partition includes budget, loop and review fixtures.
+# Focused developer targets above remain available without duplicating that run.
+# docs/adr/0108-default-go-cutover.md:245.
+check: selftest go-runtime-check
 	@CMD="$$(FACTORY_CONFIG=factory.yaml bash -c '. scripts/lib/config.sh; factory_config_get check_command')"; \
 	if [ -n "$$CMD" ]; then \
 		echo "check: running the configured product checks"; \

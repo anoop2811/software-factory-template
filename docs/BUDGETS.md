@@ -39,12 +39,12 @@ attempt stays in the report. Distinct task IDs share the same session limits.
 
 ## Interface and configuration
 
-The default source/script installation reads flat factory.yaml through the shared
-shell entry point and passes values as data to its Python implementation. The
-source-built or explicitly selected installed Go CLI reads the same configuration
-and owns budgeting natively without Python. Runtime selection and command
-availability are explained in [CLI.md](CLI.md); source/ref updates retain the
-script default until the replacement cutover is qualified.
+Budgeting is native in the source-built Go CLI and qualified installed Go
+factory. Both read the same flat factory.yaml configuration without Python.
+The source launcher requires the developer Go toolchain; packaged installations
+do not. The public stable installer remains pinned to the script-based v0.1.6
+until replacement release qualification and acceptance. See [CLI.md](CLI.md)
+and the explicit migration steps in [UPGRADING.md](UPGRADING.md).
 
 Commands (flags use separate values or `--flag=value`):
 

@@ -494,14 +494,16 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal, _ := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		// Forty-nine hosted large-review criteria join the base partition.
+		// The fixed census combines native cutover and forty-nine hosted large-review
+		// criteria; independent discovery checks every partition membership.
+		// per docs/adr/0108-default-go-cutover.md:150
 		// per docs/adr/0109-complete-large-review-inputs.md:72
-		Expect(negativeTotal).To(Equal(3079))
+		Expect(negativeTotal).To(Equal(3152))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3079))
-		expectedCounts := map[string]int{"base": 2937, "installation": 98, "release-handoff": 44}
+		Expect(allTotal).To(Equal(3152))
+		expectedCounts := map[string]int{"base": 3005, "installation": 103, "release-handoff": 44}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

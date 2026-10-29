@@ -27,6 +27,7 @@ const sourceGateBaselineCommit = "d60b200ac3a221520d183fca8c7738a5cf2bfdbb"
 // descriptions that must remain in base rather than matching a substring.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
+// per docs/adr/0113-local-cutover-qualification-partition.md:27
 var sourceGateCases = []struct {
 	Package string `json:"package"`
 	Name    string `json:"name"`
@@ -39,6 +40,11 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes accepts library", "installation"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initializes a real selected Go installation", "release-handoff"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff recovers interrupted selection", "release-handoff"},
+	{"./acceptance", "Go factory command acceptance Go local source cutover", "source-cutover"},
+	{"./acceptance", "Go factory command acceptance Go local source cutover packages committed source", "source-cutover"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go local source cutover", "base"},
+	{"./acceptance", "Go factory command acceptance Go local source cutovers unrelated behavior", "base"},
+	{"./acceptance", "Go factory command acceptance Go local source cutover-extra unrelated behavior", "base"},
 	{"./acceptance", "Go factory command acceptance Native Go report core renders events", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff", "base"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", "base"},
@@ -87,6 +93,7 @@ if args and (args[0]=='test' or is_runner):
    selected_groups.add(case['group'])
  if './...' not in packages and './acceptance' not in packages:record['group']='internal'
  if focus and selected_groups=={'release-handoff'}:record['group']='release-handoff'
+ if focus and selected_groups=={'source-cutover'}:record['group']='source-cutover'
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
 if is_helper:
  sys.stdout.buffer.write(helper.stdout);sys.stderr.buffer.write(helper.stderr);sys.exit(helper.returncode)
@@ -421,7 +428,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(call.Focus).To(BeEmpty())
 	} else {
 		Expect(call.Focus).NotTo(BeEmpty())
-		if group == "release-handoff" {
+		if group == "release-handoff" || group == "source-cutover" {
 			Expect(call.Skip).To(BeEmpty())
 		}
 	}
@@ -434,9 +441,10 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:549
 	// per docs/adr/0099-native-factory-orchestration.md:155
 	// per docs/adr/0101-go-release-handoff.md:560
-	It("executes disjoint base installation and release-handoff criteria while retaining every source quality stage", func() {
+	// per docs/adr/0113-local-cutover-qualification-partition.md:27
+	It("executes disjoint base installation release-handoff and source-cutover criteria while retaining every source quality stage", func() {
 		callsByGroup := map[string]sourceGateCall{}
-		for _, group := range []string{"base", "installation", "release-handoff"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "source-cutover"} {
 			fixture := sourceGateMakeFixture()
 			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, nil)
 			Expect(status).To(Equal(0))
@@ -445,7 +453,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			// per docs/adr/0102-parallel-go-qualification.md:23
 			// per docs/adr/0102-parallel-go-qualification.md:32
 			if group != "installation" {
-				Expect(tests[0].Args[0]).To(Equal("run"), "base and handoff must use the pinned Ginkgo CLI rather than serial package execution")
+				Expect(tests[0].Args[0]).To(Equal("run"), "base, handoff and source-cutover must use the pinned Ginkgo CLI rather than serial package execution")
 			}
 			sourceGateAssertPartition(tests[0], group)
 			sourceGateAssertInternal(calls, group == "base")
@@ -496,20 +504,21 @@ var _ = Describe("Go source qualification scheduling", func() {
 		Expect(negativeCount).To(Equal(0))
 		// The census includes forty-nine large-review, twelve compiler-process, nine
 		// source/adopter and twenty-two bounded-review additions; discovery checks
-		// every partition membership and the disjoint, exhaustive union.
+		// every partition membership and the four-way disjoint, exhaustive union.
 		// per docs/adr/0108-default-go-cutover.md:150
 		// per docs/adr/0109-complete-large-review-inputs.md:72
 		// per docs/adr/0110-local-compiler-process-ownership.md:44
 		// per docs/adr/0111-source-launcher-and-adopter-boundaries.md:64
 		// per docs/adr/0112-bounded-parallel-review.md:108
-		Expect(negativeTotal).To(Equal(3173))
+		// per docs/adr/0113-local-cutover-qualification-partition.md:27
+		Expect(negativeTotal).To(Equal(3174))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3173))
-		expectedCounts := map[string]int{"base": 3026, "installation": 103, "release-handoff": 44}
+		Expect(allTotal).To(Equal(3174))
+		expectedCounts := map[string]int{"base": 3019, "installation": 103, "release-handoff": 44, "source-cutover": 8}
 		seen, union := map[string]bool{}, []string{}
-		for _, group := range []string{"base", "installation", "release-handoff"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "source-cutover"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
 			Expect(status).To(Equal(0), group)
 			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
@@ -523,13 +532,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 		}
 		sort.Strings(union)
 		sort.Strings(allIdentities)
-		Expect(union).To(Equal(allIdentities), "three real discovered identity sets must be disjoint and exhaustive")
+		Expect(union).To(Equal(allIdentities), "four real discovered identity sets must be disjoint and exhaustive")
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
 	// per docs/adr/0101-go-release-handoff.md:560
-	DescribeTable("attempts the complete three-partition union and propagates every partition failure", func(selection, failing string) {
+	// per docs/adr/0113-local-cutover-qualification-partition.md:34
+	DescribeTable("attempts the complete four-partition union and propagates every partition failure", func(selection, failing string) {
 		fixture := sourceGateMakeFixture()
 		script := "make go-runtime-source-check"
 		if selection != "default" {
@@ -538,7 +548,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
 		sourceGateAssertWorkerPlan(calls, "auto", "4")
 		tests := sourceGateTests(calls)
-		Expect(tests).To(HaveLen(3), "all must attempt all three partitions even after any earlier failure")
+		Expect(tests).To(HaveLen(4), "all must attempt all four partitions even after any earlier failure")
 		sourceGateAssertInternal(calls, true)
 		seen, union, expected := map[string]bool{}, []string{}, []string{}
 		for _, call := range tests {
@@ -551,13 +561,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 		Expect(seen).To(HaveKey("base"))
 		Expect(seen).To(HaveKey("installation"))
 		Expect(seen).To(HaveKey("release-handoff"))
+		Expect(seen).To(HaveKey("source-cutover"))
 		Expect(union).To(ConsistOf(expected))
 		if failing == "" {
 			Expect(status).To(Equal(0))
 		} else {
 			Expect(status).NotTo(Equal(0), "a real selected runner failure must reach Make's exit status")
 		}
-	}, Entry("absent group defaults to the healthy complete union", "default", ""), Entry("explicit all keeps the complete union", "all", ""), Entry("base failure still attempts installation and fails", "all", "base"), Entry("internal package failure still attempts every acceptance partition", "all", "internal"), Entry("installation failure fails the default union", "default", "installation"), Entry("release-handoff failure fails the complete union", "all", "release-handoff"))
+	}, Entry("absent group defaults to the healthy complete union", "default", ""), Entry("explicit all keeps the complete union", "all", ""), Entry("base failure still attempts installation and fails", "all", "base"), Entry("internal package failure still attempts every acceptance partition", "all", "internal"), Entry("installation failure fails the default union", "default", "installation"), Entry("release-handoff failure fails the complete union", "all", "release-handoff"), Entry("source-cutover failure fails the complete union", "all", "source-cutover"))
 
 	// per docs/adr/0102-parallel-go-qualification.md:29
 	// per docs/adr/0104-adaptive-qualification-workers.md:36
@@ -637,7 +648,8 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
 	// per docs/adr/0101-go-release-handoff.md:560
 	// per docs/DECISION_LOG.md:4529
-	It("preserves OS check names and pinned setup while scheduling all three groups independently on both platforms", func() {
+	// per docs/adr/0113-local-cutover-qualification-partition.md:49
+	It("preserves OS check names and pinned setup while scheduling all four groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
 		baselineBytes, err := baselineCommand.Output()
@@ -706,7 +718,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			} else {
 				Expect(identifier).To(Equal("go-runtime-installation"))
 				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
-				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff"))
+				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "source-cutover"))
 				groups = job.Strategy.Matrix.Group
 			}
 			// per docs/adr/0101-go-release-handoff.md:597
@@ -737,9 +749,9 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			Expect(artifact).To(Equal(job.Steps[len(job.Steps)-1]), "report retention must follow the attempted source runner")
 			artifactName, artifactIf := "go-runtime-base-${{ runner.os }}-${{ runner.arch }}", "always()"
 			if identifier != "go-runtime" {
-				artifactName, artifactIf = "go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}", "always() && matrix.group == 'release-handoff'"
+				artifactName, artifactIf = "go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}", "always() && matrix.group != 'installation'"
 			}
-			Expect(artifact.If).To(Equal(artifactIf), "failed base and handoff runs still attempt artifact publication")
+			Expect(artifact.If).To(Equal(artifactIf), "failed base, handoff and source-cutover runs still attempt artifact publication")
 			Expect(artifact.With).To(Equal(map[string]any{"name": artifactName, "path": "${{ runner.temp }}/factory-go-reports/", "if-no-files-found": "warn", "retention-days": 7}))
 			Expect(cache.Uses).To(Equal("actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"))
 			Expect(cache.ID).To(Equal("quality-tools"))

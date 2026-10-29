@@ -5295,3 +5295,27 @@ then qualify the repaired cutover's complete real model coverage and elapsed
 time. Do not claim an all-cached replay demonstrates uncached speed, or mark a
 partial result successful to satisfy the deadline. These are repairs to the
 active cutover's qualification, not permission to start an unrelated feature.
+
+## Decision 123 (2026-10-29 UTC): isolate ordered local-cutover qualification
+
+The cutover's macOS base suite reached its twenty-five-minute deadline with
+2,866 passing criteria. Its two interrupted configuration cases had each run
+for less than a second. The actual report shows all seven launcher-custody and
+all nine inventory criteria passing, alongside eight ordered local-cutover
+scenarios consuming 550.911 seconds on one worker. Preserve every assertion,
+ordering boundary, race check and deadline; isolate that expensive family in
+its own repository-only Linux/macOS qualification group.
+
+ADR 0113 requires an independently checked four-way identity partition, the
+complete default/all union, failure propagation and unchanged quality stages.
+Reuse the existing Make runner and resource plan, retain actual per-group
+reports, and require fresh hosted timing. This is a scheduling repair to the
+active cutover, separate from the trusted-main review prerequisite #143.
+
+Independent criteria failed against the old three-group wiring, then all twelve
+passed after the split. Native discovery proved the complete identity union
+`3174 = 3019 base + 103 installation + 44 handoff + 8 source-cutover`.
+The eight real source-cutover scenarios separately passed with race
+instrumentation in 468.769 seconds. Both failure-propagation and missing-matrix
+negative controls failed before their restored checks passed. These are local
+results; the new hosted partition timing remains unqualified until observed.

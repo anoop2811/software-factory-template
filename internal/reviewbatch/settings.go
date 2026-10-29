@@ -112,7 +112,7 @@ func readPolicy(ctx context.Context, environment map[string]string) (policy, str
 		{"REVIEW_TOTAL_INPUT_BYTES", &p.TotalInput, 2097152, 4096, 16777216},
 		{"REVIEW_TIMEOUT_SECONDS", &p.TimeoutSeconds, 1200, 1, 1200},
 		{"REVIEW_PARALLELISM", &p.Parallelism, 1, 1, 4},
-		{"REVIEW_BATCH_TIMEOUT_SECONDS", &p.BatchTimeout, 240, 1, 1200},
+		{"REVIEW_BATCH_TIMEOUT_SECONDS", &p.BatchTimeout, 1200, 1, 1200},
 		{"REVIEW_HTTP_RETRIES", &p.HTTPRetries, 0, 0, 1},
 	} {
 		*item.value, err = integer(e[item.key], item.fallback, item.min, item.max)

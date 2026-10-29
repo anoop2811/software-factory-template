@@ -20,7 +20,7 @@ model, `low` effort and pinned DeepInfra routing. Do not invent support for
 
 The final cached-resume run completed all fourteen batches; its two remaining
 requests took 221.158 and 459.519 seconds. Use an explicit 600-second repository
-batch allowance with four workers, retaining the 240-second direct-CLI default.
+batch allowance with four workers, retaining the existing total-only CLI bound.
 That accommodates an observed legitimate response without extending the global
 hosted deadline. It does not prove uncached performance before measurement.
 
@@ -45,7 +45,7 @@ workers through its Actions variable; generated workflows expose the same
 option and retain the conservative default. Bound actual in-flight requests,
 not merely goroutine count. A single-worker run preserves early-stop behavior.
 
-Add `REVIEW_BATCH_TIMEOUT_SECONDS`, default 240, accepting 1 through 1,200
+Add `REVIEW_BATCH_TIMEOUT_SECONDS`, default 1200, accepting 1 through 1,200
 seconds. Each batch, including its permitted HTTP backoff/retry, gets the
 smaller of that allowance and the remaining run deadline. Cancellation must
 interrupt its real HTTP request. Do not retry an ambiguous generation, accept

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+SOURCE_MONITOR=0
+case "$-" in *m*) SOURCE_MONITOR=1 ;; esac
+set +m
 
 # Source checkouts are developer tools; installed launchers execute their
 # authenticated packaged runtime without a compiler.
@@ -23,10 +26,126 @@ BUILD="$(mktemp "$DIR/.factory-go.XXXXXXXX")"
 SOURCE_CHILD=''
 SOURCE_BUILDING=0
 SOURCE_RETAIN=0
+SOURCE_STDERR_FD=''
+SOURCE_DIAGNOSTICS=''
+SOURCE_ADMISSION=''
+SOURCE_COMPILER_PID=''
+SOURCE_PREVIOUS_ASYNC=''
 
+# Startup diagnostics and admission remain separate from compiler output.
+# docs/adr/0111-source-launcher-and-adopter-boundaries.md:32.
 # A background compiler has an owned group. Waiting with the builtin keeps
 # parent-only signal traps responsive while that compiler is blocked.
 # docs/adr/0108-default-go-cutover.md:179.
+# Fixed descriptor candidates never replace an inherited descriptor. Probe in
+# the C locale and accept only EBADF, rather than treating every failure as free.
+source_try_stderr() {
+  local observation LC_ALL=C
+  case "$1" in
+    20) if observation="$({ : <&20; } 2>&1)"; then return 1; fi ;;
+    21) if observation="$({ : <&21; } 2>&1)"; then return 1; fi ;;
+    22) if observation="$({ : <&22; } 2>&1)"; then return 1; fi ;;
+    23) if observation="$({ : <&23; } 2>&1)"; then return 1; fi ;;
+    24) if observation="$({ : <&24; } 2>&1)"; then return 1; fi ;;
+    25) if observation="$({ : <&25; } 2>&1)"; then return 1; fi ;;
+    26) if observation="$({ : <&26; } 2>&1)"; then return 1; fi ;;
+    27) if observation="$({ : <&27; } 2>&1)"; then return 1; fi ;;
+    28) if observation="$({ : <&28; } 2>&1)"; then return 1; fi ;;
+    29) if observation="$({ : <&29; } 2>&1)"; then return 1; fi ;;
+    *) return 2 ;;
+  esac
+  case "$observation" in
+    *": $1: Bad file descriptor") ;;
+    *) printf '%s\n' 'factory: descriptor availability is unconfirmed' >&2; return 2 ;;
+  esac
+  case "$1" in
+    20) exec 20>&2 || return 2 ;;
+    21) exec 21>&2 || return 2 ;;
+    22) exec 22>&2 || return 2 ;;
+    23) exec 23>&2 || return 2 ;;
+    24) exec 24>&2 || return 2 ;;
+    25) exec 25>&2 || return 2 ;;
+    26) exec 26>&2 || return 2 ;;
+    27) exec 27>&2 || return 2 ;;
+    28) exec 28>&2 || return 2 ;;
+    29) exec 29>&2 || return 2 ;;
+  esac
+}
+
+source_save_stderr() {
+  local candidate
+  for candidate in 20 21 22 23 24 25 26 27 28 29; do
+    if source_try_stderr "$candidate"; then
+      SOURCE_STDERR_FD=$candidate
+      return 0
+    else
+      [ "$?" -eq 1 ] || return 1
+    fi
+  done
+  printf '%s\n' 'factory: no unused descriptor is available for compiler startup' >&2
+  return 1
+}
+
+source_restore_stderr() {
+  local descriptor=$SOURCE_STDERR_FD
+  SOURCE_STDERR_FD=''
+  case "$descriptor" in
+    20) exec 2>&20 20>&- ;;
+    21) exec 2>&21 21>&- ;;
+    22) exec 2>&22 22>&- ;;
+    23) exec 2>&23 23>&- ;;
+    24) exec 2>&24 24>&- ;;
+    25) exec 2>&25 25>&- ;;
+    26) exec 2>&26 26>&- ;;
+    27) exec 2>&27 27>&- ;;
+    28) exec 2>&28 28>&- ;;
+    29) exec 2>&29 29>&- ;;
+  esac
+}
+
+source_admit_compiler() {
+  local compiler_pid compiler_group
+  compiler_pid="$(exec /bin/sh -c 'printf "%s" "$PPID"')" || return
+  case "$compiler_pid" in ''|*[!0-9]*) return 1 ;; esac
+  compiler_group="$(/bin/ps -o pgid= -p "$compiler_pid")" || return
+  compiler_group=${compiler_group//[[:space:]]/}
+  if [ "$compiler_pid" = "$$" ] || [ "$compiler_group" != "$compiler_pid" ]; then
+    printf '%s\n' 'factory: compiler process-group admission is unconfirmed' >&2
+    return 1
+  fi
+  printf '%s %s\n' "$compiler_pid" "$compiler_group" > "$SOURCE_ADMISSION"
+}
+
+source_validate_startup() {
+  local actual_pid actual_group extra
+  if ! IFS=' ' read -r actual_pid actual_group extra < "$SOURCE_ADMISSION" ||
+    [ "$actual_pid" != "$SOURCE_COMPILER_PID" ] || [ "$actual_group" != "$SOURCE_COMPILER_PID" ] || [ -n "$extra" ]; then
+    /bin/cat "$SOURCE_DIAGNOSTICS" >&2
+    printf '%s\n' 'factory: compiler process-group admission is missing or mismatched' >&2
+    return 1
+  fi
+  [ -s "$SOURCE_DIAGNOSTICS" ] || return 0
+  if printf '%s: child setpgid (%s to %s): Operation not permitted\n' "$0" "$SOURCE_COMPILER_PID" "$SOURCE_COMPILER_PID" |
+    /usr/bin/cmp -s - "$SOURCE_DIAGNOSTICS"; then
+    return 0
+  fi
+  /bin/cat "$SOURCE_DIAGNOSTICS" >&2
+  printf '%s\n' 'factory: unexpected compiler startup diagnostic; publication refused' >&2
+  return 1
+}
+
+source_spawn_compiler() {
+  (
+    trap - EXIT INT TERM HUP
+    source_admit_compiler || exit 125
+    source_restore_stderr
+    cd "$DIR"
+    exec go build -mod=readonly -o "$BUILD" ./cmd/factory
+  ) </dev/null &
+  SOURCE_CHILD=$!
+  SOURCE_COMPILER_PID=$SOURCE_CHILD
+}
+
 source_group_present() {
   local observation
   if observation="$(LC_ALL=C builtin kill -0 -- "-$SOURCE_CHILD" 2>&1)"; then
@@ -38,6 +157,48 @@ source_group_present() {
   esac
 }
 
+# Both state lists come from one subshell snapshot of our own Bash job table.
+# A stopped child remains active; group absence alone is never reap evidence.
+# docs/adr/0111-source-launcher-and-adopter-boundaries.md:38.
+source_child_active() {
+  local active
+  active="$(jobs -pr && jobs -ps)" || return 2
+  case $'\n'"$active"$'\n' in
+    *$'\n'"$SOURCE_CHILD"$'\n'*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+source_reap_child() {
+  local attempt status
+  for ((attempt=0; attempt<25; attempt++)); do
+    if source_child_active; then
+      /bin/sleep 0.02
+    else
+      status=$?
+      [ "$status" -eq 1 ] || return 1
+      wait "$SOURCE_CHILD" 2>/dev/null || :
+      SOURCE_CHILD=''
+      SOURCE_BUILDING=0
+      return 0
+    fi
+  done
+  return 1
+}
+
+source_finish_absent_group() {
+  # Allow a pending SIGCHLD observation to establish terminal status first.
+  source_reap_child && return 0
+  if source_child_active; then
+    # Only the child we spawned is authority here, never its borrowed group.
+    # Even after terminating this child, descendant ownership remains uncertain.
+    builtin kill -KILL "$SOURCE_CHILD" 2>/dev/null || :
+    source_reap_child || :
+    return 1
+  fi
+  return 1
+}
+
 source_stop_build() {
   [ -n "$SOURCE_CHILD" ] || return 0
   local source_signal source_attempt source_attempts=25 source_probe
@@ -46,10 +207,8 @@ source_stop_build() {
   else
     source_probe=$?
     [ "$source_probe" -eq 1 ] || return 1
-    wait "$SOURCE_CHILD" 2>/dev/null || :
-    SOURCE_CHILD=''
-    SOURCE_BUILDING=0
-    return 0
+    source_finish_absent_group
+    return
   fi
   for source_signal in "$1" KILL; do
     builtin kill -"$source_signal" -- "-$SOURCE_CHILD" 2>/dev/null || :
@@ -65,12 +224,8 @@ source_stop_build() {
           /bin/sleep 0.02
           continue
         fi
-        # Absence makes this wait a read of Bash's completed-child status;
-        # an uncertain live group never enters an unbounded cleanup wait.
-        wait "$SOURCE_CHILD" 2>/dev/null || :
-        SOURCE_CHILD=''
-        SOURCE_BUILDING=0
-        return 0
+        source_finish_absent_group
+        return
       fi
     done
     source_attempts=50
@@ -79,22 +234,33 @@ source_stop_build() {
 }
 
 source_cleanup() {
+  source_restore_stderr
+  set +m
   if [ "$SOURCE_RETAIN" -eq 0 ] && ! source_stop_build TERM; then
     SOURCE_RETAIN=1
   fi
   if [ "$SOURCE_RETAIN" -eq 0 ]; then
-    rm -f -- "$BUILD"
+    rm -f -- "$BUILD" "$SOURCE_DIAGNOSTICS" "$SOURCE_ADMISSION"
   else
     printf 'factory: compiler ownership is unconfirmed; preserve private source build %s\n' "$BUILD" >&2
   fi
 }
 
 source_cancel() {
+  local candidate
   trap '' INT TERM HUP
+  source_restore_stderr
+  set +m
   # Bash publishes $! before the next assignment; retain ownership even if the
   # signal arrives between spawning this one job and assigning SOURCE_CHILD.
   if [ "$SOURCE_BUILDING" -eq 1 ] && [ -z "$SOURCE_CHILD" ]; then
-    SOURCE_CHILD=${!:-}
+    set +u
+    candidate=$!
+    set -u
+    if [ -n "$candidate" ] && [ "$candidate" != "$SOURCE_PREVIOUS_ASYNC" ]; then
+      SOURCE_CHILD=$candidate
+      SOURCE_COMPILER_PID=$candidate
+    fi
   fi
   if ! source_stop_build "$2"; then
     SOURCE_RETAIN=1
@@ -107,23 +273,32 @@ trap source_cleanup EXIT
 trap 'source_cancel 130 INT' INT
 trap 'source_cancel 143 TERM' TERM
 trap 'source_cancel 129 HUP' HUP
-SOURCE_MONITOR=0
-case "$-" in *m*) SOURCE_MONITOR=1 ;; esac
+SOURCE_DIAGNOSTICS="$(mktemp "$DIR/.factory-startup.XXXXXXXX")"
+SOURCE_ADMISSION="$(mktemp "$DIR/.factory-admission.XXXXXXXX")"
+source_save_stderr
+set +u
+SOURCE_PREVIOUS_ASYNC=$!
+set -u
 set -m
 SOURCE_BUILDING=1
-(
-  cd "$DIR"
-  exec go build -mod=readonly -o "$BUILD" ./cmd/factory
-) </dev/null &
-SOURCE_CHILD=$!
+source_spawn_compiler 2>"$SOURCE_DIAGNOSTICS"
+source_restore_stderr
+set +m
 SOURCE_STATUS=0
 wait "$SOURCE_CHILD" 2>/dev/null || SOURCE_STATUS=$?
 if ! source_stop_build TERM; then
   SOURCE_RETAIN=1
   exit 125
 fi
-[ "$SOURCE_MONITOR" -eq 1 ] || set +m
-[ "$SOURCE_STATUS" -eq 0 ] || exit "$SOURCE_STATUS"
+if [ "$SOURCE_STATUS" -ne 0 ]; then
+  /bin/cat "$SOURCE_DIAGNOSTICS" >&2
+  exit "$SOURCE_STATUS"
+fi
+source_validate_startup || exit 1
+rm -f -- "$SOURCE_DIAGNOSTICS" "$SOURCE_ADMISSION"
+SOURCE_DIAGNOSTICS=''
+SOURCE_ADMISSION=''
 mv -f -- "$BUILD" "$DIR/factory-go"
 umask "$SOURCE_UMASK"
+[ "$SOURCE_MONITOR" -eq 0 ] || set -m
 exec "$DIR/factory-go" "$@"

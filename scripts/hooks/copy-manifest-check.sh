@@ -28,8 +28,11 @@ ROOT=${ROOT%??}
 
 # Native source initialization has a compiled inventory, not shell cp statements.
 # Old/adopter layouts retain their explicit legacy proof below.
-# docs/adr/0108-default-go-cutover.md:95.
-if [ -f go.mod ] || [ -d cmd/factory ] || [ -d internal/initcmd ]; then
+# A product Go module is not a factory source tree. Structural evidence keeps
+# damaged canonical module declarations on the fail-closed inventory path.
+# docs/adr/0111-source-launcher-and-adopter-boundaries.md:62.
+if { [ -f go.mod ] && [ ! -L go.mod ] && grep -Eq '^module[[:space:]]+github\.com/anoop2811/software-factory-template([[:space:]]|$)' go.mod; } ||
+  { [ -d cmd/factory ] && [ -d internal/initcmd ]; }; then
   if FACTORY_BRIDGE_PROTOCOL=1 "$ROOT/factory" inventory init "$ROOT"; then
     exit 0
   else

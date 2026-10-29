@@ -16,7 +16,7 @@ earlier Go installation. Complete these connected changes before one RC4.
 
 The approved specification remains authoritative: stable paths and literal
 arguments (specs/001-go-runtime-conversion.md:93), fetch-only installer consent
-(specs/001-go-runtime-conversion.md:251), native Cobra routing
+(specs/001-go-runtime-conversion.md:252), native Cobra routing
 (specs/001-go-runtime-conversion.md:334), revised platform scope and pilot criteria
 (specs/001-go-runtime-conversion.md:481). No policy gate or user-authored program
 is converted merely because it uses a shell.

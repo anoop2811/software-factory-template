@@ -87,10 +87,10 @@ history existed. Later rollback inspection preserved that new history as an
 explicit incompatibility rather than discarding it to permit downgrade.
 
 A temporary independent real-HTTP criterion required `Cache-Control: no-store`
-while preserving the existing health endpoint's200/status behavior. It failed
+while preserving the existing health endpoint's 200/status behavior. It failed
 before the separately authored header change, passed afterward, then failed on
 the same assertion after the implementation was reset. The temporary test and
-requirement were removed; all105 application/operator input hashes matched the
+requirement were removed; all 105 application/operator input hashes matched the
 original baseline again.
 
 Actual installed Go manual `loop plan`, `loop run` and `loop status` commands
@@ -106,7 +106,7 @@ A separate genuine legacy fixture used factory source
 `67c27b201a3818d70ca90ea3ac292b1ecd826c4d` as an explicit local-source package.
 The owned installer was observed stopped with an applying journal, two applied
 rows and a regular pending marker, then exited by SIGKILL. Durable evidence
-survived. A fresh read-only recovery preview preserved311 filesystem nodes;
+survived. A fresh read-only recovery preview preserved 311 filesystem nodes;
 confirmation with its fresh digest and explicit quiescence completed recovery.
 The resulting descriptor named that exact source revision, the journal was
 committed, and pending was absent. The owned process group was subsequently
@@ -122,16 +122,16 @@ make product-check
 exit 0
 ```
 
-Doctor, metrics and report also exited0. Compiler/Python poisons were not invoked
+Doctor, metrics and report also exited 0. Compiler/Python poisons were not invoked
 by the installed selftest, metrics or report. The product check used its normal
 Go/application dependencies and a separate disposable database: backend race
-suites excluding the existing E2E suite, lint, types,12 frontend tests and build.
+suites excluding the existing E2E suite, lint, types, 12 frontend tests and build.
 No browser/E2E success is claimed. Doctor retained warnings about the copied
 operator's optional review credentials and the clone's unconfigured Git hook
 path; they were not suppressed to produce a clean-looking report.
 
-All105 application/operator files, Git HEAD and index remained unchanged after
-recovery and product checks. All212 tracked files and Git state of the original
+All 105 application/operator files, Git HEAD and index remained unchanged after
+recovery and product checks. All 212 tracked files and Git state of the original
 project also matched the independent before snapshot. The installed scaffold
 cache contained exactly the metrics and review-workflow templates. All four
 retired Python runtime paths were absent in this supported fixture. The legacy
@@ -141,13 +141,13 @@ removed afterward; the original stopped service profile and Docker context
 were preserved.
 
 The rehearsal exposed incomplete low-level JSON `recovery_arguments`: exact
-replay omitted required local trust and project inputs and returned usage status2.
+replay omitted required local trust and project inputs and returned usage status 2.
 The correction retains those operands through one shared builder. Independent
 existing forward/reverse real-SIGKILL criteria replayed the emitted command with
-no writes and the same proposal digest:2 passed with suite and CLI race
+no writes and the same proposal digest: 2 passed with suite and CLI race
 instrumentation. A separate four-row source/predecessor trust matrix was seen
 failing under the broken-builder control and passing afterward; the complete
-installation package passed33 criteria.
+installation package passed 33 criteria.
 
 This is local-source execution evidence, not publisher authentication, minimum-OS
 qualification of a later candidate, or final operator acceptance. The source

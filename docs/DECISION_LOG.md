@@ -5243,6 +5243,38 @@ compiler/descendant handshake and parent-only SIGTERM. Local evidence records
 the compiler absent and descendant alive after two seconds, then factory exit 1
 only after controlled descendant release. No adopter source was changed.
 
+## Decision 121 (2026-10-29 UTC): preserve source-launcher custody and distinguish Go adopters
+
+Current-head hosted macOS qualification exposed a source Bash child-setup
+diagnostic that violates the configuration criterion's empty-stderr contract.
+Natural private reproduction observed the same EPERM diagnostic while kernel
+PGID still equaled the compiler PID. Require positive compiler-group admission,
+private startup diagnostic custody and exact reconciliation only after confirmed
+ownership; preserve real compiler stderr and every borrowed descriptor. Unknown
+diagnostics or ownership uncertainty still refuse publication. Do not weaken the
+configuration assertion or replace group supervision with parent-only killing.
+
+Independent full-source review also reproduced an installed Go adopter being
+mistaken for canonical factory source solely because it has a product `go.mod`.
+Use actual factory-source identity and structural evidence, while preserving
+damaged-source refusal and the installed/historical inventory contract. Correct
+the confirmed rehearsal-document spacing without changing evidence counts.
+
+ADR 0111 records these contracts and independent outside-in regression criteria.
+Group the actual repairs before requesting fresh exact-head hosted qualification;
+neither a partial model report nor these written requirements close a release
+gate. The source-launcher defect was reproduced on 2026-10-29 with two affected
+launches among 2,500; the adopter finding has a healthy installed-runtime control
+and an otherwise identical ordinary-Go-module failing case. Original adopter
+projects remained outside the mutation scope.
+
+Comprehensive independent fault qualification also reproduced a live child with
+an absent compiler group entering an unbounded cleanup wait, and a pre-fork
+signal adopting an older environment-started background job. Bound failed-
+admission cleanup separately from group absence and preserve that prior job.
+Both controls use evaluator-owned processes; neither authorizes killing an
+unrelated group or weakening the three normal signal criteria.
+
 ## Decision 122 (2026-10-29 UTC): bound parallel review and retain automatic checkpoints
 
 The operator requires a complete review within twenty minutes. Current serial

@@ -102,8 +102,7 @@ FACTORY_CLI_TEST_RACE=1 go test -race -count=1 -timeout=4m -v ./acceptance \
 Observed: `1 Passed | 0 Failed` in 106.807 seconds, including real committed-source
 packaging, installed initialization and installed self-tests with the compiler
 poisoned afterward. The real census assertion passed with 3,093 total criteria:
-2,946 base, 103 installation and 44 handoff. Independent correctness, security
-and coverage reviews found no remaining actionable finding in this correction.
+2,946 base, 103 installation and 44 handoff.
 `golangci-lint run --config packs/go/.golangci.yml ./...` returned `0 issues.`;
 `go vet ./...` and `gosec -quiet ./internal/packaging ./cmd/factory-package`
 both exited zero. Hosted qualification remains pending.

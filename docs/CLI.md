@@ -8,16 +8,17 @@ Start with `./factory help`. In particular, do not assume every command supports
 
 ## Which runtime am I using?
 
-As of 2026-10-26 UTC, v0.1.6 is the latest published stable release. The source checkout
-on `main` still launches scripts through its tracked `factory` file. Building the
-Go command does not activate it in an existing project. A successful explicit
-`--go-candidate TAG` installation selects the authenticated packaged Go runtime
-behind the same `./factory` entrypoint. The replacement v0.2.0 release and default
-cutover remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
+As of 2026-10-28 UTC, v0.1.6 is the latest published stable release. The public
+installer retains that stable pin until a qualified Go stable release exists.
+The replacement source launcher builds the developer Go CLI; building it does
+not activate a runtime in an existing project. An authenticated Go installation
+selects its packaged runtime behind the same `./factory` entrypoint. The
+replacement v0.2.0 release and public stable activation remain pending; see
+[release readiness](migration/GO_RELEASE_READINESS.md)
 and the [upgrade guide](UPGRADING.md).
 
 The table describes the current Go command surface. Entries marked **Go only**
-are not commands of the default source shell dispatcher. In a script installation,
+are not commands of the historical v0.1.6 shell dispatcher. In a script installation,
 use the retained script/Make entrypoints linked below. An older published release
 can have fewer features than current `main`.
 
@@ -26,9 +27,9 @@ can have fewer features than current `main`.
 | Command | When to use it | Example and effects |
 |---|---|---|
 | `help` | Discover the public commands | `./factory help` prints the selected runtime's command list. No model call. |
-| `init` | Set up a new project | `./factory init ../new-project --go-candidate TAG --pack go,typescript` selects a published Go candidate, prompts for settings and consent, writes configuration/adapters/hooks and proves gates. May install project dependencies; no model call. Source/script initialization has different delivery semantics; see [initialization](migration/INIT.md). |
+| `init` | Set up a new project | `./factory init ../new-project --pack go,typescript` uses the validated installed release, prompts for settings and consent, writes configuration/adapters/hooks and proves gates. Select a different exact stable release with `--ref TAG`, or a prerelease with `--go-candidate TAG`. May install project dependencies; no model call. |
 | `doctor` | Diagnose installed factory health | `./factory doctor` reports armed, inert and stale gates and runs isolated break/fix probes. It does not repair configuration. No model call. |
-| `upgrade` | Update the factory installation | `./factory upgrade --go-candidate TAG --dry-run --json` authenticates a published candidate and previews changes. Applying requires a fresh digest and `--quiescent`; see [UPGRADING.md](UPGRADING.md). Ordinary script updates refresh known framework paths and can overwrite custom edits there; save them first. The public installer pins stable, while direct script upgrade defaults to main. |
+| `upgrade` | Update the factory installation | `./factory upgrade --dry-run --json` authenticates the declared Go release and previews changes. `--ref TAG` selects an exact stable Go release; `--go-candidate TAG` selects a prerelease explicitly. Applying requires a fresh digest and `--quiescent`; see [UPGRADING.md](UPGRADING.md). Historical script upgrades keep their old in-place semantics. |
 | `sync` **Go only** | Regenerate harness adapters after canonical role/model changes | `./factory sync all`, or select `opencode`, `claude` or `codex`. Writes derived harness files; inspect their diff. Script equivalent: `make sync-harnesses`. See [orchestration](migration/ORCHESTRATION.md). |
 | `prereq` **Go only** | Find missing tools before setup/checks | `./factory prereq` checks tools and the configured product Go minimum. `FACTORY_HARNESS=codex ./factory prereq` selects Codex discovery. Executes tool discovery/version probes. Script equivalent: `make prereq-check`. |
 | `check` | Run the pre-push checks | `./factory check` runs the configured gate/build/test stages. These execute project commands and may generate their normal outputs. See [hooks](HOOKS.md). |
@@ -104,7 +105,9 @@ client; PR content is untrusted review data, never executable setup.
 
 ## Maintainer tools and compatibility adapters
 
-Contributors can build the native command beside the source assets:
+Contributors can build the native command beside the source assets, with the
+provisioned Go compiler, cached module dependencies and supported baseline Git
+objects present:
 
 ```sh
 go build -o factory-go ./cmd/factory
@@ -114,9 +117,12 @@ go build -o factory-go ./cmd/factory
 ./factory-go loop --help
 ```
 
-Keep the tracked `factory` launcher intact. Source-built init needs the checkout's
-assets and produces the existing source scaffold; authenticated packaged selection
-is separate. A detached development binary is not an installed release.
+The tracked source `factory` launcher builds the same developer command and keeps
+caller arguments and working directory. `./factory init TARGET --local` explicitly
+packages committed source and installs its qualified Go selection. Local upgrade
+uses `./factory upgrade --local --source DIR --dry-run --json`, then fresh digest
+confirmation and quiescence. These paths require the developer Go toolchain and
+report local trust. A detached development binary is not an installed release.
 
 `cmd/factory-stage` and `cmd/factory-package` are maintainer build/qualification
 utilities. They stage verified artifacts and construct release packages; regular

@@ -33,12 +33,24 @@ type options struct {
 	args              []string
 	dryRun, json      bool
 	quiescent         bool
+	requireStable     bool
 	projectInputs     []string
+}
+
+func (o options) selector() string {
+	if o.requireStable {
+		return "--ref"
+	}
+	return "--go-candidate"
 }
 
 // Run keeps acquisition and migration under one explicit public command.
 // docs/adr/0101-go-release-handoff.md:32.
 func Run(parent context.Context, verb string, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return run(parent, verb, args, environment, stdin, stdout, stderr, false)
+}
+
+func run(parent context.Context, verb string, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer, requireStable bool) int {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	option, help, err := parse(verb, args)
@@ -50,6 +62,7 @@ func Run(parent context.Context, verb string, args []string, environment map[str
 		fmt.Fprint(stdout, Usage(verb))
 		return 0
 	}
+	option.requireStable = requireStable
 	return execute(ctx, verb, option, environment, stdin, stdout, stderr)
 }
 
@@ -57,13 +70,13 @@ func Run(parent context.Context, verb string, args []string, environment map[str
 // docs/adr/0101-go-release-handoff.md:543.
 func Usage(verb string) string {
 	if verb == "init" {
-		return "Usage: factory init [TARGET] --go-candidate TAG [--pack PACKS]\n\nSelect one authenticated official Go release candidate.\n"
+		return "Usage: factory init [TARGET] [--ref TAG | --go-candidate TAG] [--pack PACKS]\n       factory init [TARGET] --local [--source DIR] [initializer options]\n\nSelect an authenticated official Go release. Explicit --ref overrides FACTORY_REF.\nInstalled init otherwise reuses its validated release; source init defaults to " + DefaultVersion + ".\nUse --go-candidate for an exact prerelease, or --local for a deliberate developer build.\n"
 	}
-	return "Usage: factory upgrade --go-candidate TAG [options]\n\nSelect one authenticated official Go release candidate.\nOptions: --dry-run --json --confirm DIGEST --quiescent --project-input KEY=VALUE\nJSON is preview-only; omit --json when confirming.\n"
+	return "Usage: factory upgrade [--ref TAG | --go-candidate TAG] [options]\n       factory upgrade --local --source DIR [options]\n\nAuthenticate and preview the selected release (default " + DefaultVersion + ").\nExplicit --ref overrides FACTORY_REF; --go-candidate permits an exact prerelease.\nOptions: --dry-run --json --confirm DIGEST --quiescent --project-input KEY=VALUE\nJSON is preview-only; omit --json when confirming. Local source builds require the developer Go toolchain.\n"
 }
 
 func parse(verb string, args []string) (options, bool, error) {
-	var result options
+	result := options{args: make([]string, 0, len(args))}
 	seen := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]

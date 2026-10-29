@@ -1,61 +1,120 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# factory — the software factory control surface. A thin, auditable shell
-# dispatcher (Decision 14): no compiled binary, nothing to install. Every
-# subcommand is a shell script you can read.
+# Source checkouts are developer tools; installed launchers execute their
+# authenticated packaged runtime without a compiler.
+# docs/adr/0108-default-go-cutover.md:53.
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+command -v go >/dev/null 2>&1 || {
+  printf '%s\n' 'factory: source development requires the qualified Go toolchain; use the authenticated installer for a compiler-free installation' >&2
+  exit 1
+}
+SOURCE_UMASK="$(umask)"
+umask 077
+[ ! -d "$DIR/factory-go" ] || {
+  printf '%s\n' 'factory: the developer build target factory-go is a directory; preserve it and choose a clean source checkout' >&2
+  exit 1
+}
+BUILD="$(mktemp "$DIR/.factory-go.XXXXXXXX")"
+SOURCE_CHILD=''
+SOURCE_BUILDING=0
+SOURCE_RETAIN=0
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
-
-usage() {
-  cat <<'EOF'
-factory — software factory control surface
-
-Usage: factory <command> [args]
-
-  init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
-  doctor      Report the health of an installed factory: armed/inert/stale gates,
-              hook + adapter integrity, and a break/fix proof that every gate fires
-  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
-              touches your factory.yaml, content, or customized files
-  check       Run the full pre-push gate suite
-  selftest    Run the break/fix self-test (watch every gate fire)
-  review-lane Enable or disable the advisory adversarial PR review (opt-in, costs tokens)
-  metrics     What the factory is doing to this repo (--json, --html); local only
-              (--html opens the page; --no-open just writes it)
-  report      Cost report: gates enforced at 0 tokens, blocks caught, one labeled
-              estimate (factory report --clear resets the block log)
-  budget      Plan, bound, and report opt-in Codex/Claude/OpenCode invocations
-  loop        Run manual checks or opt-in bounded implementation and repair
-  migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
-  help        Show this message
-
-Commands use auditable scripts. Inspect scripts/ for their implementation.
-EOF
+# A background compiler has an owned group. Waiting with the builtin keeps
+# parent-only signal traps responsive while that compiler is blocked.
+# docs/adr/0108-default-go-cutover.md:179.
+source_group_present() {
+  local observation
+  if observation="$(LC_ALL=C builtin kill -0 -- "-$SOURCE_CHILD" 2>&1)"; then
+    return 0
+  fi
+  case "$observation" in
+    *'No such process') return 1 ;;
+    *) return 2 ;;
+  esac
 }
 
-CMD="${1:-help}"
-[ "$#" -gt 0 ] && shift || true
+source_stop_build() {
+  [ -n "$SOURCE_CHILD" ] || return 0
+  local source_signal source_attempt source_attempts=25 source_probe
+  if source_group_present; then
+    :
+  else
+    source_probe=$?
+    [ "$source_probe" -eq 1 ] || return 1
+    wait "$SOURCE_CHILD" 2>/dev/null || :
+    SOURCE_CHILD=''
+    SOURCE_BUILDING=0
+    return 0
+  fi
+  for source_signal in "$1" KILL; do
+    builtin kill -"$source_signal" -- "-$SOURCE_CHILD" 2>/dev/null || :
+    builtin kill -CONT -- "-$SOURCE_CHILD" 2>/dev/null || :
+    for ((source_attempt=0; source_attempt<source_attempts; source_attempt++)); do
+      if source_group_present; then
+        /bin/sleep 0.02
+      else
+        source_probe=$?
+        [ "$source_probe" -eq 1 ] || return 1
+        # Absence makes this wait a read of Bash's completed-child status;
+        # an uncertain live group never enters an unbounded cleanup wait.
+        wait "$SOURCE_CHILD" 2>/dev/null || :
+        SOURCE_CHILD=''
+        SOURCE_BUILDING=0
+        return 0
+      fi
+    done
+    source_attempts=50
+  done
+  return 1
+}
 
-case "$CMD" in
-  init)     SCRIPT="$DIR/scripts/factory-init.sh" ;;
-  doctor)   SCRIPT="$DIR/scripts/factory-doctor.sh" ;;
-  upgrade)  SCRIPT="$DIR/scripts/factory-upgrade.sh" ;;
-  check)    SCRIPT="$DIR/scripts/pre-push-check.sh" ;;
-  selftest) SCRIPT="$DIR/scripts/selftest/run.sh" ;;
-  report)   SCRIPT="$DIR/scripts/factory-report.sh" ;;
-  budget)   SCRIPT="$DIR/scripts/factory-budget.sh" ;;
-  loop)     SCRIPT="$DIR/scripts/factory-loop.sh" ;;
-  metrics)  SCRIPT="$DIR/scripts/factory-metrics.sh" ;;
-  review-lane) SCRIPT="$DIR/scripts/factory-review-lane.sh" ;;
-  migrate-config) SCRIPT="$DIR/scripts/factory-migrate-config.sh" ;;
-  help|-h|--help) usage; exit 0 ;;
-  *) echo "factory: unknown command '$CMD' (try: factory help)" >&2; exit 2 ;;
-esac
+source_cleanup() {
+  if [ "$SOURCE_RETAIN" -eq 0 ] && ! source_stop_build TERM; then
+    SOURCE_RETAIN=1
+  fi
+  if [ "$SOURCE_RETAIN" -eq 0 ]; then
+    rm -f -- "$BUILD"
+  else
+    printf 'factory: compiler ownership is unconfirmed; preserve private source build %s\n' "$BUILD" >&2
+  fi
+}
 
-if [ ! -x "$SCRIPT" ]; then
-  echo "factory: '$CMD' is not available in this repo ($SCRIPT is missing or not executable)" >&2
-  exit 2
+source_cancel() {
+  trap '' INT TERM HUP
+  # Bash publishes $! before the next assignment; retain ownership even if the
+  # signal arrives between spawning this one job and assigning SOURCE_CHILD.
+  if [ "$SOURCE_BUILDING" -eq 1 ] && [ -z "$SOURCE_CHILD" ]; then
+    SOURCE_CHILD=${!:-}
+  fi
+  if ! source_stop_build "$2"; then
+    SOURCE_RETAIN=1
+    exit 125
+  fi
+  exit "$1"
+}
+
+trap source_cleanup EXIT
+trap 'source_cancel 130 INT' INT
+trap 'source_cancel 143 TERM' TERM
+trap 'source_cancel 129 HUP' HUP
+SOURCE_MONITOR=0
+case "$-" in *m*) SOURCE_MONITOR=1 ;; esac
+set -m
+SOURCE_BUILDING=1
+(
+  cd "$DIR"
+  exec go build -mod=readonly -o "$BUILD" ./cmd/factory
+) </dev/null &
+SOURCE_CHILD=$!
+SOURCE_STATUS=0
+wait "$SOURCE_CHILD" 2>/dev/null || SOURCE_STATUS=$?
+if ! source_stop_build TERM; then
+  SOURCE_RETAIN=1
+  exit 125
 fi
-
-exec "$SCRIPT" "$@"
+[ "$SOURCE_MONITOR" -eq 1 ] || set +m
+[ "$SOURCE_STATUS" -eq 0 ] || exit "$SOURCE_STATUS"
+mv -f -- "$BUILD" "$DIR/factory-go"
+umask "$SOURCE_UMASK"
+exec "$DIR/factory-go" "$@"

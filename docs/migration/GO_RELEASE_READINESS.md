@@ -20,10 +20,12 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Transition exclusion, live restoration, durable publication and interrupted
   recovery source engines are qualified and merged.
 
-The opt-in whole-installation consumer can select an installed Go runtime. The
-default source launcher, bare bootstrap and source upgrade still select the script
-installation until the release gates pass. Explicit candidate delivery is described
-in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
+The whole-installation consumer selects the installed Go runtime. Default-cutover
+preparation makes the source launcher a developer Go entrypoint and routes ordinary
+Go init/upgrade through exact authenticated release selection. The public bare
+installer keeps its active v0.1.6 stable pin until the Go release gates pass.
+Prepared code is separate from public stable activation. Explicit candidate
+delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Current release candidate
 
@@ -36,10 +38,13 @@ builds, authentication of twelve subjects, fourteen uploaded assets and all
 See [the exact RC3 results](PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 
 The observed systems are Ubuntu 24.04.5 on both architectures, macOS 14.8.9
-arm64 and macOS 15.7.9 amd64. The Intel result does not establish the approved
-macOS 14 Intel floor, so the full platform gate below remains open. The mandatory
-operator pilot, default selection, classified retirement and final audit also
-remain requirements. v0.1.6 remains latest stable.
+arm64 and macOS 15.7.9 amd64. RC3's original report retains the then-approved
+macOS 14 Intel gap. Decision 118 records the operator's revised minimums:
+Ubuntu 24.04+ on both architectures, macOS 15+ on Intel and macOS 14+ on Apple
+Silicon. Fresh qualification of the replacement candidate remains required;
+the policy change does not qualify later source using RC3's original results.
+The mandatory operator pilot, default selection, classified retirement and final
+audit also remain requirements. v0.1.6 remains latest stable.
 
 RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
 their recorded failures; its passing published results are separate evidence.
@@ -130,7 +135,7 @@ identical to the reviewed head used for RC2. The new published outcomes above
 remain distinct from that source qualification. Minimum-OS coverage, the mandatory
 operator pilot, default cutover and final audit remain open requirements.
 
-## Pending operator input
+## Approved pilot and remaining acceptance
 
 An isolated rehearsal has run against the operator-selected adopter; its detailed
 records remain local. A genuine v0.1.6 fixture migrated, while the actual older
@@ -140,11 +145,18 @@ checkout. Its reconciliation is separate adopter work. Decision 111 permits a
 separately labeled supported installation containing unchanged real application
 code as the pilot fixture.
 
-Q5 still requires an agreed evidence period/exit criteria and operator acceptance
-of a representative supported-project pilot using the current candidate. Earlier
-local rehearsal findings are historical evidence; passing application tests alone
-does not establish a completed current-release upgrade/workflow/recovery pilot or
-permit default cutover. No minimum calendar duration is specified.
+Q5 was resolved on 2026-10-28: the complete supported-project pilot checklist in
+Decision 118 must pass, with no additional calendar waiting period. Operator
+acceptance follows the recorded execution evidence; approval of these criteria
+does not accept an unexecuted pilot. Earlier local rehearsal findings remain
+historical evidence. Passing application tests alone does not establish a
+completed current-release upgrade/workflow/recovery pilot or permit cutover.
+
+Finish implementation, cleanup and a local packaged rehearsal before publishing
+RC4. The local rehearsal is labeled local-source evidence. After reviewed source
+is merged, RC4 must receive actual four-target published authentication and
+migration qualification plus final operator acceptance before stable publication.
+No extra candidate is published merely to record an intermediate preparation.
 
 ## Current installation-consumer qualification
 
@@ -166,5 +178,5 @@ The fixed denominator remains thirty; no new percentage is inferred here.
 explicit attested candidate lane under [ADR 0107](../adr/0107-published-release-qualification.md).
 Its implementation and ordinary hermetic contract checks do not close the native
 published-release gate. Record actual published outcomes and exact platform/OS
-evidence separately, including the outstanding macOS 14 Intel minimum-OS proof.
+evidence separately, using the architecture-specific floors approved in Q2.
 The mandatory adopter pilot and default cutover remain independent requirements.

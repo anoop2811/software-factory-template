@@ -510,214 +510,319 @@
   ],
   "canonical_source_assets": [
     {
-      "source_path": ".codex/agents/implementer.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/agents/implementer.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".codex/agents/refactorer.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/agents/refactorer.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".codex/agents/reviewer.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/agents/reviewer.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".codex/agents/spec-writer.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/agents/spec-writer.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".codex/agents/wiki-maintainer.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/agents/wiki-maintainer.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".codex/config.toml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.codex/config.toml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".githooks/pre-push",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.githooks/pre-push",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".github/CODEOWNERS",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.github/CODEOWNERS",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".github/workflows/ci.yml",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.github/workflows/ci.yml",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".gitignore",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.gitignore",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/.gitignore",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/.gitignore",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/agent/implementer.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/agent/implementer.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/agent/refactorer.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/agent/refactorer.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/agent/reviewer.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/agent/reviewer.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/agent/spec-writer.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/agent/spec-writer.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/agent/wiki-maintainer.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/agent/wiki-maintainer.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/package.json",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/package.json",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": ".opencode/plugin/factory-hooks.ts",
+      "source_path": null,
       "path": ".factory/assets/scaffold/.opencode/plugin/factory-hooks.ts",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "AGENTS.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/AGENTS.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "Makefile",
+      "source_path": null,
       "path": ".factory/assets/scaffold/Makefile",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "README.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/README.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "docs/BUDGETS.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/docs/BUDGETS.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "docs/FACTORY_RULES.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/docs/FACTORY_RULES.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "docs/LOOPS.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/docs/LOOPS.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/README.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/README.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/golden-tasks/reference-answer/task.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/task.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/golden-tasks/reference-answer/verify.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/verify.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/runners/claude.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/runners/claude.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/runners/codex.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/runners/codex.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/runners/example-harness.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/runners/example-harness.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/runners/mock.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/runners/mock.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "eval/runners/opencode.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/eval/runners/opencode.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "factory",
+      "source_path": null,
       "path": ".factory/assets/scaffold/factory",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "memory/lessons/001-verification-contract.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/memory/lessons/001-verification-contract.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "opencode.json",
+      "source_path": null,
       "path": ".factory/assets/scaffold/opencode.json",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
       "source_path": "packs/review-lane/review-pr.yml",
@@ -726,268 +831,400 @@
       "operation": "inert-data"
     },
     {
-      "source_path": "scripts/adversarial-review.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/adversarial-review.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/citation-lint.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/citation-lint.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-budget.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-budget.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-doctor.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-doctor.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-init.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-init.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-loop.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-loop.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-metrics.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-metrics.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-migrate-config.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-migrate-config.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-report.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-report.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-review-lane.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-review-lane.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/factory-upgrade.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/factory-upgrade.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/golden-task-eval.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/golden-task-eval.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/harness-structural-eval.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/harness-structural-eval.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/commit-message-lint.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/commit-message-lint.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/copy-manifest-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/copy-manifest-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/decision-log-gate.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/decision-log-gate.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/diff-aware-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/diff-aware-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/direct-main-push-block.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/direct-main-push-block.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/gate-instrumentation-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/gate-instrumentation-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/hook-existence-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/hook-existence-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/loop-close-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/loop-close-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/pending-lessons-push-block.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/pending-lessons-push-block.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/shared-script-enforcement.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/shared-script-enforcement.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/test-edit-denial.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/test-edit-denial.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/wiki-lint.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/wiki-lint.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/hooks/workflow-lint.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/hooks/workflow-lint.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/budget-config.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/budget-config.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/budget.py",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/budget.py",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/budget_adapters.py",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/budget_adapters.py",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/color.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/color.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/config.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/config.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/events.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/events.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/hookspath.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/hookspath.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/loop.py",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/loop.py",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/roles.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/roles.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/runtime_transition.py",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/runtime_transition.py",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/lib/timing.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/lib/timing.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/pre-push-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/pre-push-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/prereq-check.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/prereq-check.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/selftest/run.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/selftest/run.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/sync-claude.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/sync-claude.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/sync-codex.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/sync-codex.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "scripts/sync-opencode.sh",
+      "source_path": null,
       "path": ".factory/assets/scaffold/scripts/sync-opencode.sh",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "specs/TEMPLATE.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/specs/TEMPLATE.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
       "source_path": "templates/metrics.html",
@@ -996,28 +1233,40 @@
       "operation": "inert-data"
     },
     {
-      "source_path": "wiki/README.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/wiki/README.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "workflows/README.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/workflows/README.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "workflows/eval-fanout.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/workflows/eval-fanout.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     },
     {
-      "source_path": "workflows/review-diamond.md",
+      "source_path": null,
       "path": ".factory/assets/scaffold/workflows/review-diamond.md",
-      "mode": "0600",
-      "operation": "inert-data"
+      "mode": null,
+      "operation": "retire",
+      "generator": null,
+      "required": false,
+      "reason": "obsolete initializer cache"
     }
   ],
   "preserve_prefixes": [

@@ -22,6 +22,25 @@ var gates = []string{"test-edit-denial", "commit-message-lint", "decision-log-ga
 // It never executes the source selftest or saved recovery code.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:207.
 func Run(ctx context.Context, root string, out io.Writer) (returned error) {
+	return run(ctx, root, filepath.Join(root, ".factory/bin/factory-runtime"), out)
+}
+
+// RunSource shares the installed proof engine with the trusted source executable.
+// It never executes a second source selftest or requires an installed descriptor.
+// docs/adr/0108-default-go-cutover.md:86.
+func RunSource(ctx context.Context, root string, out io.Writer) error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		return err
+	}
+	return run(ctx, root, executable, out)
+}
+
+func run(ctx context.Context, root, executable string, out io.Writer) (returned error) {
 	source, err := installationfs.Open(ctx, root)
 	if err != nil {
 		return err
@@ -52,7 +71,12 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, destination.Close()) }()
-	binary, err := source.OpenFile(ctx, ".factory/bin/factory-runtime", 256<<20)
+	driver, err := installationfs.Open(ctx, filepath.Dir(executable))
+	if err != nil {
+		return err
+	}
+	defer func() { returned = errors.Join(returned, driver.Close()) }()
+	binary, err := driver.OpenFile(ctx, filepath.Base(executable), 256<<20)
 	if err != nil {
 		return err
 	}

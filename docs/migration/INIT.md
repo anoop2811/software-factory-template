@@ -1,32 +1,34 @@
 # Native Go initialization
 
-This is a developer-built native command; installed runtime activation remains separate.
-
 Decision 84 and [ADR-0085](../adr/0085-go-native-init.md) define the native
-initializer contract. From a factory source checkout, build alongside the
-tracked shell entry point:
+prompting and publication contract. [ADR 0108](../adr/0108-default-go-cutover.md)
+changes delivery so ordinary initialization selects a qualified Go installation.
+From an installed Go factory:
 
 ```sh
-go build -o factory-go ./cmd/factory
-./factory-go init /path/to/project --pack go,typescript
+./factory init /path/to/project --pack go,typescript
 ```
 
-Keep the tracked `factory` file intact. The source-built command needs the
-checkout's template assets beside it. A detached binary without those assets is
-not an installer. This command initializes the project selected by its target
-argument; it is not the read-only upgrade preview.
+The installed release version is reauthenticated before initializing another
+project. Use `--ref TAG` for an exact stable Go release, or `--go-candidate TAG`
+for an explicitly selected published prerelease. The public installer keeps its
+existing stable pin until the Go release is qualified and activated; unreleased
+tags refuse rather than selecting another implementation.
 
 The initializer collects project settings, waits for confirmation, installs the
 selected packs and factory assets, synchronizes OpenCode, Claude Code and Codex,
 and requires the installed gate selftests to pass. It does not invoke a model.
-Dependency installation through npm and shared synchronization/review-lane scripts
-remain explicit external operations. A nonzero attestation result means the
+Dependency installation through npm remains an explicit external operation.
+Synchronization and review-lane generation use their canonical Go implementations.
+A nonzero attestation result means the
 installation has not passed its checks; no automatic rollback is claimed.
 
-Native source initialization does not activate Go in the destination. The installed
-entry point remains the template's existing shell dispatcher until the separate
-runtime cutover is qualified. Existing installation upgrades, migration recovery
-creation, rollback and retention remain separate work.
+For development, the source checkout's `./factory` builds the Go CLI. Explicit
+`./factory init /path/to/project --local --pack go,typescript` packages committed
+source, stages it with local trust and installs the qualified Go selection. This
+requires the developer Go toolchain and reports its exact source identity; it is
+not published authentication. It does not create a Bash scaffold as an intermediate
+installation. Ordinary packaged execution needs neither Go nor Python.
 
 The intended compatibility boundaries preserve user README content and unmanaged
 Makefile/ignore rules. Unsafe source or destination paths and unrepresentable flat
@@ -34,7 +36,18 @@ configuration inputs must fail before installation writes. Reinitialization back
 are distinct from the migration recovery manifests; they do not establish authority
 to restore or prune an installation.
 
-## Evidence
+## Historical native prompting/publication evidence
+
+These results describe the earlier source-native initializer implementation.
+They do not substitute for ADR 0108's new qualified delivery, cleanup and pilot
+evidence, or for actual published release authentication.
+
+The retained 85-case historical-source component family uses a guarded test-only
+driver for the current initializer core and a frozen asset declaration. Its exact
+legacy oracle, unsafe-path, terminal, publication and child-ownership assertions
+remain in force. This is component evidence, not a claim that ordinary Go init
+still copies the Bash scaffold. Real public default/local delivery and qualified
+installation images have separate current acceptance cases.
 
 Independent outside-in tests first observed three failures: the compiled command
 still executed a poisoned legacy initializer. The corrected command does not

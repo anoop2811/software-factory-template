@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+# Activation is a separate release step after published qualification and pilot acceptance.
+# docs/adr/0108-default-go-cutover.md:35.
+INSTALLER_STABLE_VERSION='v0.1.6'
+INSTALLER_GO_VERSION='v0.2.0'
+
 # Candidate selection is reserved before the legacy parser (which re-splits its
 # arguments). Preserve literal argv and authenticate before the first execution.
 # docs/adr/0101-go-release-handoff.md:40, docs/adr/0101-go-release-handoff.md:80.
@@ -155,9 +160,15 @@ candidate_install() {
   candidate_revision=$(cat "$candidate_dir/command.stdout")
   case "$candidate_revision" in ''|*[!0-9a-f]*) printf '%s\n' 'install: invalid candidate revision' >&2; exit 1 ;; esac
   [ "${#candidate_revision}" -eq 40 ] || exit 1
-  candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv'
+  if [ "${candidate_stable:-0}" -eq 1 ]; then
+    candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json tagName,isDraft,isPrerelease --jq '[.tagName,.isDraft,.isPrerelease]|@tsv'
+    candidate_expected=$(printf '%s\tfalse\tfalse' "$candidate_tag")
+  else
+    candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv'
+    candidate_expected=$(printf '%s\tfalse' "$candidate_tag")
+  fi
   candidate_release=$(cat "$candidate_dir/command.stdout")
-  [ "$candidate_release" = "$(printf '%s\tfalse' "$candidate_tag")" ] || { printf '%s\n' 'install: candidate release is unavailable' >&2; exit 1; }
+  [ "$candidate_release" = "$candidate_expected" ] || { printf '%s\n' 'install: selected release is unavailable or violates the stable selection policy' >&2; exit 1; }
   candidate_raw=factory-bootstrap-$candidate_tag-$candidate_target
   candidate_image=factory-installation-$candidate_tag-$candidate_target.tar.gz
   candidate_gh release download "$candidate_tag" --repo "$candidate_repo" --pattern "$candidate_raw" --pattern "$candidate_image" --pattern runtime-attestations.jsonl --dir "$candidate_dir"
@@ -184,6 +195,23 @@ candidate_install() {
   chmod 700 "$candidate_dir/$candidate_raw"
   FACTORY_RELEASE_DIR=$candidate_dir
   export FACTORY_RELEASE_DIR
+  if [ "${candidate_stable:-0}" -eq 1 ]; then
+    # Retain stable intent across the authenticated raw handoff. Rotate only
+    # original operands; do not evaluate or re-split their contents.
+    candidate_remaining=$#
+    while [ "$candidate_remaining" -gt 0 ]; do
+      candidate_arg=$1; shift
+      candidate_remaining=$((candidate_remaining - 1))
+      case "$candidate_arg" in
+        --go-candidate)
+          shift
+          candidate_remaining=$((candidate_remaining - 1)) ;;
+        --go-candidate=*) ;;
+        *) set -- "$@" "$candidate_arg" ;;
+      esac
+    done
+    set -- "$@" --ref "$candidate_tag"
+  fi
   # Keep this parent alive to remove its private handoff after the native child.
   # Dash resets asynchronous stdin before a self-duplication; save it first.
   # docs/adr/0101-go-release-handoff.md:508.
@@ -239,7 +267,7 @@ legacy_install() {
 # moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
-FACTORY_REF="${FACTORY_REF:-v0.1.6}"
+FACTORY_REF="${FACTORY_REF:-$INSTALLER_STABLE_VERSION}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 # --ref <ref> (or --ref=<ref>): install from the given branch or tag instead of
@@ -385,10 +413,16 @@ if [ "$DO_INIT" -eq 0 ]; then
   say ""
   say "Next, from the repository you want to govern:"
   say ""
-  say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\""
+  say "    cd your-project"
+  NEXT_REF=$FACTORY_REF
+  case "$NEXT_REF" in
+    ''|*[!a-zA-Z0-9._+-]*)
+      NEXT_REF=$(printf '%s' "$NEXT_REF" | sed "s/'/'\\\\''/g")
+      NEXT_REF="'$NEXT_REF'" ;;
+  esac
+  say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref $NEXT_REF"
   say ""
-  say "Or re-run this installer with 'init' from inside that repository:"
-  say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init"
+  say "The checkout above is for inspection; the installer selects the declared release."
   exit 0
 fi
 
@@ -405,11 +439,44 @@ exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"
 # invocation unread script text must never become initializer answers.
 # docs/adr/0101-go-release-handoff.md:455.
 installer_main() {
+  candidate_stable=0
   for installer_arg do
     case "$installer_arg" in
       --go-candidate|--go-candidate=*) candidate_install "$@"; exit $? ;;
     esac
   done
+  installer_ref=${FACTORY_REF:-$INSTALLER_STABLE_VERSION}
+  installer_ref_seen=0
+  installer_remaining=$#
+  while [ "$installer_remaining" -gt 0 ]; do
+    installer_arg=$1; shift
+    installer_remaining=$((installer_remaining - 1))
+    case "$installer_arg" in
+      --ref|--ref=*)
+        [ "$installer_ref_seen" -eq 0 ] || { printf '%s\n' 'install: repeated release selector' >&2; exit 2; }
+        installer_ref_seen=1
+        case "$installer_arg" in
+          --ref)
+            [ "$installer_remaining" -gt 0 ] || { printf '%s\n' 'install: --ref requires a literal release' >&2; exit 2; }
+            installer_ref=$1; shift
+            installer_remaining=$((installer_remaining - 1)) ;;
+          *) installer_ref=${installer_arg#--ref=} ;;
+        esac ;;
+      *) set -- "$@" "$installer_arg" ;;
+    esac
+  done
+  case "${1-}" in
+    init|upgrade)
+      if [ "${#installer_ref}" -gt 128 ] || ! printf '%s\n' "$installer_ref" | LC_ALL=C grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
+        printf 'install: select an exact stable release (%s or later for Go), or use --go-candidate for a prerelease\n' "$INSTALLER_GO_VERSION" >&2
+        exit 2
+      fi
+      case "$installer_ref" in
+        v0.0.*|v0.1.*) : ;; # Explicit old release selection is compatibility, not fallback.
+        *) candidate_stable=1; candidate_install "$@" --go-candidate "$installer_ref"; exit $? ;;
+      esac ;;
+  esac
+  FACTORY_REF=$installer_ref
   legacy_install "$@"
 }
 installer_main "$@"

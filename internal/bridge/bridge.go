@@ -15,6 +15,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/budgetcmd"
 	"github.com/anoop2811/software-factory-template/internal/config"
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/review"
 	"github.com/anoop2811/software-factory-template/internal/roles"
 	"github.com/anoop2811/software-factory-template/internal/usage"
@@ -227,7 +228,21 @@ func Run(ctx context.Context, args []string) int {
 		return nil
 	}))
 	loopCommand := loopCommands(&status)
-	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand, assessmentCommands(&status), helperCommand(&status))
+	inventoryCommand := command("inventory", cobra.NoArgs, nil)
+	inventoryCommand.AddCommand(command("init", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+		count, err := initcmd.InventoryCommand(cmd.Context(), args[0])
+		if err != nil {
+			status = 1
+			_, writeErr := fmt.Fprintln(cmd.ErrOrStderr(), "COPY-MANIFEST FAIL:", err)
+			return writeErr
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "copy-manifest-check: %d canonical initializer assets are present and git-tracked\n", count)
+		if err != nil {
+			status = 1
+		}
+		return err
+	}))
+	root.AddCommand(configCommand, roleCommand, runtimeCommand, usageCommand, reviewCommand, budgetCommand, loopCommand, inventoryCommand, assessmentCommands(&status), helperCommand(&status))
 	// Cobra initializes hidden completion commands even when its default
 	// completion command is disabled. Admit only the literal registered request
 	// pair, keeping help, completion and flag-like command tokens out of protocol 1.

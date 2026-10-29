@@ -12,6 +12,11 @@ specification and development files: those are not part of this behavior baselin
 Release v0.1.6 and other supported adopter fixtures are additional compatibility
 inputs; this manifest does not claim to inventory or test their installations.
 
+Baseline path/line citations and the original sunset plan below describe that
+immutable source revision. Current default-cutover preparation and its qualified
+recipe/cache retirement contract are in [ADR 0108](../adr/0108-default-go-cutover.md).
+Do not treat a historical baseline computation as an active fallback requirement.
+
 ## Reading the manifest
 
 Each entry contains its repository-relative path, Git mode, SHA-256 of its exact

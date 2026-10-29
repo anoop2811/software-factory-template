@@ -63,6 +63,80 @@ func (fixture *publishedFixture) saveEvidence() {
 	Expect(os.WriteFile(filepath.Join(fixture.evidenceDirectory, "release.json"), append(data, '\n'), 0600)).To(Succeed())
 }
 
+// per docs/DECISION_LOG.md:5129
+func publishedMinimumOSQualified(goos, arch, observed string) bool {
+	if arch != "amd64" && arch != "arm64" {
+		return false
+	}
+	switch goos {
+	case "linux":
+		identity := map[string]string{}
+		for _, line := range strings.Split(observed, "\n") {
+			key, value, found := strings.Cut(strings.TrimSpace(line), "=")
+			if !found || (key != "ID" && key != "VERSION_ID") {
+				continue
+			}
+			if _, duplicate := identity[key]; duplicate {
+				return false
+			}
+			identity[key] = strings.Trim(strings.TrimSpace(value), `"'`)
+		}
+		return identity["ID"] == "ubuntu" && identity["VERSION_ID"] == "24.04"
+	case "darwin":
+		major := "14"
+		if arch == "amd64" {
+			major = "15"
+		}
+		parts := strings.Split(observed, ".")
+		if len(parts) < 2 || len(parts) > 3 || parts[0] != major {
+			return false
+		}
+		for _, part := range parts[1:] {
+			if part == "" {
+				return false
+			}
+			for _, digit := range part {
+				if digit < '0' || digit > '9' {
+					return false
+				}
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+// The same policy controls run offline and before every live acquisition.
+// per docs/DECISION_LOG.md:5129
+func publishedMinimumOSProof() {
+	GinkgoHelper()
+	for _, control := range []struct {
+		name, goos, arch, observed string
+		qualified                  bool
+	}{
+		{"Intel approved minimum", "darwin", "amd64", "15.7.9", true},
+		{"Apple Silicon approved minimum", "darwin", "arm64", "14.8.9", true},
+		{"Intel older OS", "darwin", "amd64", "14.8.9", false},
+		{"Intel newer OS does not prove the minimum", "darwin", "amd64", "16.0", false},
+		{"Apple Silicon older OS", "darwin", "arm64", "13.7.9", false},
+		{"Apple Silicon newer OS does not prove the minimum", "darwin", "arm64", "15.7.9", false},
+		{"Ubuntu Intel minimum", "linux", "amd64", "ID=ubuntu\nVERSION_ID=\"24.04\"\n", true},
+		{"Ubuntu arm64 minimum", "linux", "arm64", "ID=ubuntu\nVERSION_ID=\"24.04\"\n", true},
+		{"older Ubuntu", "linux", "amd64", "ID=ubuntu\nVERSION_ID=\"22.04\"\n", false},
+		{"newer Ubuntu does not prove the minimum", "linux", "arm64", "ID=ubuntu\nVERSION_ID=\"26.04\"\n", false},
+		{"different distribution", "linux", "amd64", "ID=debian\nVERSION_ID=\"24.04\"\n", false},
+		{"unknown Darwin architecture", "darwin", "other", "14.8.9", false},
+		{"unknown Linux architecture", "linux", "other", "ID=ubuntu\nVERSION_ID=\"24.04\"\n", false},
+		{"unknown OS", "other", "arm64", "14.8.9", false},
+		{"malformed macOS version", "darwin", "amd64", "15.not-a-version", false},
+		{"comment is not Ubuntu identity", "linux", "amd64", "# ID=ubuntu\nID=debian\nVERSION_ID=\"24.04\"\n", false},
+	} {
+		By(control.name)
+		Expect(publishedMinimumOSQualified(control.goos, control.arch, control.observed)).To(Equal(control.qualified), control.name)
+	}
+}
+
 // The evaluator invokes an independently installed verifier. No stub, local
 // package builder or candidate executable supplies this release identity.
 // per docs/adr/0107-published-release-qualification.md:59
@@ -100,12 +174,10 @@ func publishedAcquire() *publishedFixture {
 		body, readErr := os.ReadFile("/etc/os-release")
 		Expect(readErr).NotTo(HaveOccurred())
 		fixture.evidence.OSVersion = string(body) + "\n" + fixture.evidence.OSVersion
-		fixture.evidence.MinimumOSQualified = bytes.Contains(body, []byte(`ID=ubuntu`)) && bytes.Contains(body, []byte(`VERSION_ID="24.04"`))
-	} else {
-		fixture.evidence.MinimumOSQualified = strings.HasPrefix(fixture.evidence.OSVersion, "14.")
 	}
+	fixture.evidence.MinimumOSQualified = publishedMinimumOSQualified(runtime.GOOS, runtime.GOARCH, fixture.evidence.OSVersion)
 	if !fixture.evidence.MinimumOSQualified {
-		fixture.evidence.MinimumOSGap = "Observed newer/different OS does not establish the approved Ubuntu 24.04 or macOS 14 native minimum; that release gate remains open."
+		fixture.evidence.MinimumOSGap = "Observed OS/architecture does not establish the approved native minimum: Ubuntu 24.04 on amd64/arm64, macOS 15 on Intel or macOS 14 on Apple Silicon; that release gate remains open."
 	}
 	fixture.saveEvidence()
 	view := publishedExecute(root, fixture.environment, "", gh, "release", "view", tag, "--repo", publishedRepository, "--json", "databaseId,tagName,isDraft")
@@ -317,6 +389,7 @@ func publishedRequiredRoleConflict(conflict cliResult, path string) {
 // per docs/DECISION_LOG.md:4842
 func publishedEvaluatorProof() {
 	GinkgoHelper()
+	publishedMinimumOSProof()
 	path := "scripts/factory-report.sh"
 	issue := map[string]any{"path": path, "reason": "operator customization is preserved"}
 	proposal := map[string]any{
@@ -385,6 +458,7 @@ func publishedEvaluatorProof() {
 var _ = Describe("Published release qualification evaluator", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:264
 	// per docs/DECISION_LOG.md:4842
+	// per docs/DECISION_LOG.md:5129
 	It("distinguishes a machine-readable required conflict from malformed and operational failures", publishedEvaluatorProof)
 })
 

@@ -27,7 +27,25 @@ type acquired struct {
 	options             staging.Options
 	image               staging.Inspection
 	staged, raw, digest string
+	source              string
 	retain              bool
+}
+
+func newAcquired() (*acquired, error) {
+	directory, err := os.MkdirTemp("", "factory-release-")
+	if err != nil {
+		return nil, err
+	}
+	created := directory
+	directory, err = filepath.EvalSymlinks(directory)
+	if err != nil {
+		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
+	}
+	identity, err := os.Lstat(directory)
+	if err != nil {
+		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
+	}
+	return &acquired{directory: directory, identity: identity}, nil
 }
 
 func (a *acquired) close() error {
@@ -49,6 +67,10 @@ func (a *acquired) preservationNotice() string {
 // Acquisition authenticates independent inputs before closed-world staging.
 // docs/adr/0101-go-release-handoff.md:94, docs/adr/0101-go-release-handoff.md:119.
 func acquire(ctx context.Context, tag string, environment map[string]string) (result *acquired, returned error) {
+	return acquireWithPolicy(ctx, tag, environment, false)
+}
+
+func acquireWithPolicy(ctx context.Context, tag string, environment map[string]string, requireStable bool) (result *acquired, returned error) {
 	// Installed predecessor versions are untrusted hints too.
 	// docs/adr/0101-go-release-handoff.md:485.
 	if !validTag(tag) {
@@ -60,20 +82,11 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	default:
 		return nil, errors.New("unsupported candidate platform")
 	}
-	directory, err := os.MkdirTemp("", "factory-release-")
+	a, err := newAcquired()
 	if err != nil {
 		return nil, err
 	}
-	created := directory
-	directory, err = filepath.EvalSymlinks(directory)
-	if err != nil {
-		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
-	}
-	identity, err := os.Lstat(directory)
-	if err != nil {
-		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
-	}
-	a := &acquired{directory: directory, identity: identity}
+	directory := a.directory
 	defer func() {
 		if result == nil {
 			var ownership *native.OwnershipError
@@ -114,11 +127,15 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	if !revisionPattern.MatchString(sha) {
 		return nil, errors.New("invalid candidate source revision")
 	}
-	release, err := gh(ctx, 512, "release", "view", tag, "--repo", officialRepository, "--json", "tagName,isDraft", "--jq", "[.tagName,.isDraft]|@tsv")
+	fields, query, expected := "tagName,isDraft", "[.tagName,.isDraft]|@tsv", tag+"\tfalse\n"
+	if requireStable {
+		fields, query, expected = "tagName,isDraft,isPrerelease", "[.tagName,.isDraft,.isPrerelease]|@tsv", tag+"\tfalse\tfalse\n"
+	}
+	release, err := gh(ctx, 512, "release", "view", tag, "--repo", officialRepository, "--json", fields, "--jq", query)
 	if err != nil {
 		return nil, err
 	}
-	if string(release) != tag+"\tfalse\n" {
+	if string(release) != expected {
 		return nil, errors.New("candidate release is unavailable")
 	}
 	assetTarget := strings.ReplaceAll(target, "/", "-")

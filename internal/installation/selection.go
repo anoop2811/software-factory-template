@@ -23,9 +23,16 @@ func PrivateIgnoreRules() []string {
 
 // Selection shares the reviewed role generators between fresh init and upgrades.
 func Selection(ctx context.Context, image staging.Inspection, inputs map[string]string) ([]SelectedAsset, error) {
+	if isRecipeV1(image) {
+		return selectionForRoles(ctx, image, inputs, rolesV1)
+	}
+	return selectionForRoles(ctx, image, inputs, roles)
+}
+
+func selectionForRoles(ctx context.Context, image staging.Inspection, inputs map[string]string, recipe []role) ([]SelectedAsset, error) {
 	var result []SelectedAsset
 	var actions []Action
-	for _, row := range roles {
+	for _, row := range recipe {
 		if row.Operation == "retire" {
 			continue
 		}
@@ -42,7 +49,7 @@ func Selection(ctx context.Context, image staging.Inspection, inputs map[string]
 		actions = append(actions, Action{Path: row.Path, After: after})
 		result = append(result, SelectedAsset{Path: row.Path, Data: data, Mode: mode, Runtime: binary})
 	}
-	data, err := descriptorBytes(image, actions)
+	data, err := descriptorForRoles(image, actions, recipe)
 	if err != nil {
 		return nil, err
 	}

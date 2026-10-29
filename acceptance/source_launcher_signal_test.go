@@ -1,0 +1,148 @@
+package acceptance_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+const sourceCompilerHandshake = "--factory-source-compiler-handshake"
+
+// Re-execute the evaluator as a controlled compiler with real signal handling;
+// no production flag, sleeping child or downloaded executable supplies evidence.
+// per docs/adr/0108-default-go-cutover.md:56
+func init() {
+	if len(os.Args) < 2 || os.Args[1] != sourceCompilerHandshake {
+		return
+	}
+	ready, release := os.NewFile(3, "compiler-ready"), os.NewFile(4, "compiler-release")
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
+	released := make(chan struct{})
+	go func() { _, _ = io.Copy(io.Discard, release); close(released) }()
+	if err := json.NewEncoder(ready).Encode(map[string]int{"pid": os.Getpid(), "group": syscall.Getpgrp()}); err != nil {
+		os.Exit(94)
+	}
+	select {
+	case received := <-interrupts:
+		os.Exit(128 + int(received.(syscall.Signal)))
+	case <-released:
+		output := ""
+		for index, arg := range os.Args[2:] {
+			if arg == "-o" && index+3 < len(os.Args) {
+				output = os.Args[index+3]
+			}
+		}
+		if output == "" || os.WriteFile(output, []byte("#!/bin/sh\nexit 0\n"), 0700) != nil { // #nosec G306,G703 -- the source launcher supplied its own private executable output; this test-only compiler must produce executable bytes.
+			os.Exit(95)
+		}
+		os.Exit(0)
+	}
+}
+
+var _ = Describe("Go source launcher signal ownership", func() {
+	// per docs/adr/0108-default-go-cutover.md:56
+	DescribeTable("forwards a parent-only signal and reaps its compiler before discarding the private build", func(received syscall.Signal) {
+		root, cwd := fixtureDirectories()
+		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(filepath.Join(root, "factory"), launcher, 0700)
+		writeFixture(filepath.Join(root, "factory-go"), []byte("#!/bin/sh\nexit 96\n"), 0700)
+		tools := filepath.Join(root, "compiler tools")
+		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nexec \"$SOURCE_COMPILER_HELPER\" "+sourceCompilerHandshake+" \"$@\"\n"), 0700)
+		executable, err := os.Executable()
+		Expect(err).NotTo(HaveOccurred())
+		ready, readyWriter, err := os.Pipe()
+		Expect(err).NotTo(HaveOccurred())
+		releaseReader, release, err := os.Pipe()
+		Expect(err).NotTo(HaveOccurred())
+		for _, file := range []*os.File{ready, readyWriter, releaseReader} {
+			DeferCleanup(func() {
+				err := file.Close()
+				Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue(), "owned pipe cleanup: %v", err)
+			})
+		}
+		var releaseOnce sync.Once
+		releaseCompiler := func() { releaseOnce.Do(func() { _ = release.Close() }) }
+		DeferCleanup(releaseCompiler)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- acceptance-owned source launcher and fixed literal argv.
+		command.Dir = cwd
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_COMPILER_HELPER="+executable, "GORACE=atexit_sleep_ms=0")
+		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		var stdout, stderr bytes.Buffer
+		command.Stdout, command.Stderr = &stdout, &stderr
+		finished := make(chan error, 1)
+		reaped := false
+		DeferCleanup(func() {
+			releaseCompiler()
+			if command.Process == nil || reaped {
+				return
+			}
+			_ = command.Process.Kill()
+			select {
+			case <-finished:
+			case <-time.After(3 * time.Second):
+				Fail("the owned source launcher was not reaped during bounded cleanup")
+			}
+		})
+		before := installationSnapshot(root)
+		Expect(command.Start()).To(Succeed())
+		go func() { finished <- command.Wait() }()
+		Expect(readyWriter.Close()).To(Succeed())
+		Expect(releaseReader.Close()).To(Succeed())
+		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
+		var compiler struct{ PID, Group int }
+		Expect(json.NewDecoder(ready).Decode(&compiler)).To(Succeed(), "the actual compiler must announce readiness before parent-only signaling")
+		Expect(compiler.PID).To(BeNumerically(">", 1))
+		Expect(syscall.Kill(compiler.PID, 0)).To(Succeed())
+		Expect(command.Process.Signal(received)).To(Succeed())
+		var waitErr error
+		exitedBeforeRelease := false
+		select {
+		case waitErr = <-finished:
+			reaped, exitedBeforeRelease = true, true
+		case <-time.After(2 * time.Second):
+			releaseCompiler()
+			select {
+			case waitErr = <-finished:
+				reaped = true
+			case <-time.After(3 * time.Second):
+				Fail("the source launcher did not exit after its controlled compiler was released")
+			}
+		}
+		status := 0
+		var exit *exec.ExitError
+		if errors.As(waitErr, &exit) {
+			status = exit.ExitCode()
+			if state, ok := exit.Sys().(syscall.WaitStatus); ok && state.Signaled() {
+				status = 128 + int(state.Signal())
+			}
+		} else {
+			Expect(waitErr).NotTo(HaveOccurred())
+		}
+		compilerAbsent := errors.Is(syscall.Kill(compiler.PID, 0), syscall.ESRCH)
+		unchanged := installationSnapshot(root)
+		AddReportEntry("source-launcher.parent-only-signal", map[string]any{"signal": int(received), "status": status, "exited_before_release": exitedBeforeRelease, "compiler_pid": compiler.PID, "compiler_absent": compilerAbsent, "source_unchanged": reflect.DeepEqual(unchanged, before)})
+		Expect(exitedBeforeRelease).To(BeTrue(), "the launcher must handle the parent-only signal while its compiler's release pipe stays open; stderr=%s", strings.TrimSpace(stderr.String()))
+		Expect(status).To(Equal(128+int(received)), "signal %d must keep its conventional status", received)
+		Expect(compilerAbsent).To(BeTrue(), "the launcher must actually reap its owned compiler")
+		Expect(unchanged).To(Equal(before), "cancellation must preserve an existing developer binary and remove every temporary build")
+	}, Entry("TERM", syscall.SIGTERM), Entry("INT", syscall.SIGINT), Entry("HUP", syscall.SIGHUP))
+})

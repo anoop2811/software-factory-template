@@ -46,16 +46,7 @@ func predecessor(ctx context.Context, request Request, after staging.Inspection)
 	if err != nil {
 		return baseline{}, err
 	}
-	// Conservative V1 closure: changes to a generator, transformation, mode/hash
-	// helper or descriptor schema require an independently supported next recipe.
-	for _, path := range []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go"} {
-		old, oldOK := before.Assets[path]
-		current, currentOK := after.Assets[path]
-		if !oldOK || !currentOK || !bytes.Equal(old, current) {
-			return baseline{}, conflict("unsupported Go predecessor generation recipe; preserve the existing installation")
-		}
-	}
-	selection, err := Selection(ctx, before, request.Inputs)
+	selection, err := predecessorSelection(ctx, before, after, request.Inputs)
 	if err != nil {
 		return baseline{}, err
 	}

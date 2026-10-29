@@ -20,12 +20,11 @@ curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typ
 # later, from inside the repo — pull framework updates (a reviewable diff):
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
 
-# the installer uses its pinned stable release; --ref takes any branch or tag:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+# the installer uses its pinned stable release; select an exact published tag:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.1.6
 ```
 
-The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?
+Without `init` or `upgrade`, the installer only fetches into `~/.software-factory-template` and stops. It runs no downloaded initializer. Prefer to inspect first?
 
 ```bash
 curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh
@@ -44,24 +43,24 @@ init, upgrade, rollback and interruption/recovery. Minimum-OS coverage, the oper
 and default cutover remain open; track the
 [release checklist](docs/migration/GO_RELEASE_READINESS.md).
 
-An ordinary `upgrade` or `upgrade --ref main` continues to select the script
-installation. When v0.2.0 is published with its complete attested assets, use the
-explicit Go flow below from your existing project:
+The public installer's active stable pin remains v0.1.6 until the qualified Go
+release is available. When v0.2.0 is published with its complete attested assets,
+use the normal release selector below from your existing project:
 
 ```sh
 # Preview only; requires the complete published v0.2.0 release.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 
 # Review the proposal. Stop other factory work for the maintenance window.
 # Replace PROPOSAL_DIGEST with the complete proposal_digest from that preview.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
 
 # After successful activation, use the same public command.
 ./factory doctor
 ```
 
-For a published prerelease, substitute its exact tag in both commands. The
-preview authenticates assets and reports conflicts without changing your project.
+For a published prerelease, use `--go-candidate TAG` instead of `--ref v0.2.0`
+in both commands. The preview authenticates assets and reports conflicts without changing your project.
 Confirmation rechecks the proposal before activation. Unchanged owned obsolete
 implementations are replaced or retired; custom files are preserved. Compatible
 public script paths remain thin adapters to Go. Recovery copies are inert and
@@ -95,9 +94,9 @@ options, runtime availability and side effects.
 | Command | Purpose | Example |
 |---|---|---|
 | `help` | List the public commands. | `./factory help` |
-| `init` | Initialize a project, configure its packs and install/prove hooks. | `./factory init ../new-project --go-candidate TAG --pack go` |
+| `init` | Initialize a project with the selected authenticated Go release and install/prove hooks. | `./factory init ../new-project --pack go` |
 | `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
-| `upgrade` | Authenticate and preview an installation update; apply with fresh confirmation. | `./factory upgrade --go-candidate TAG --dry-run --json` |
+| `upgrade` | Authenticate and preview the declared Go release; apply with fresh confirmation. | `./factory upgrade --dry-run --json` |
 | `sync` **Go only** | Regenerate adapters for `all`, `codex`, `claude` or `opencode`; inspect the resulting diff. | `./factory sync all` |
 | `prereq` **Go only** | Check required tools and the configured product Go minimum. | `./factory prereq` |
 | `check` | Run factory gates and your configured project checks. | `./factory check` |

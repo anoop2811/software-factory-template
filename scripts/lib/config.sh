@@ -1,275 +1,199 @@
 #!/bin/bash
-# scripts/lib/config.sh
-# Reader for factory.yaml — the template's runtime configuration (Decision 2).
-#
-# factory.yaml is a deliberately constrained format so this parser stays tiny:
-#   - flat `key: value` pairs, one per line, no nesting
-#   - lists are space-separated values on one line
-#   - values may be double-quoted; a trailing ` # comment` is stripped
-# Anything more expressive belongs in a hook, not in configuration.
-#
-# Usage (from a hook, after sourcing this file):
-#   value="$(factory_config_get test_file_patterns)"
-#   value="$(factory_config_get check_command 'make check')"   # with default
-#
-# FACTORY_CONFIG overrides the config path (used by the break/fix self-tests).
+# Native Go source adapter; docs/adr/0108-default-go-cutover.md:86.
+# Candidate sourceable readers, with no work at source time.
+# Explicit local runtime selection only. docs/DECISION_LOG.md:1970.
+
+_factory_reader_call() (
+  _factory_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)" || return
+  /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" FACTORY_BRIDGE_PROTOCOL=1 "$_factory_root/factory" "$@"
+)
 
 factory_config_file() {
-  if [ -n "${FACTORY_CONFIG:-}" ]; then
-    printf '%s' "$FACTORY_CONFIG"
-    return
-  fi
-  local root
-  root="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
-  printf '%s/factory.yaml' "$root"
+  _factory_reader_call config file
 }
 
 factory_config_get() {
-  local key="$1"
-  local default="${2:-}"
-  local file value
-  file="$(factory_config_file)"
-  if [ ! -f "$file" ]; then
-    printf '%s' "$default"
-    return
-  fi
-  value="$(sed -n "s/^${key}:[[:space:]]*//p" "$file" | head -n 1)"
-  # Unwrap in the order the format defines: a quoted value ends at its closing
-  # quote and anything after it is a comment; an unquoted value ends at ` #`.
-  # Quotes are checked first so that a hash *inside* them stays part of the
-  # value — a model string or a prompt fragment may legitimately contain one.
-  case "$value" in
-    \"*)
-      value="${value#\"}"
-      value="${value%%\"*}"
-      ;;
-    *)
-      value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/[[:space:]]*$//')"
-      ;;
-  esac
-  if [ -z "$value" ]; then
-    printf '%s' "$default"
-    return
-  fi
-  printf '%s' "$value"
+  _factory_reader_call config get "$1" "${2-}"
 }
 
-# factory_config_export: load the settings scripts need as shell variables.
-#
-# These used to live in factory.config, which was *sourced* — configuration an
-# adopter edits, executed by every script that read it. They are now ordinary
-# factory.yaml keys, parsed like everything else (Decision 41). One file, read
-# and never run.
-#
-# Caller values, including explicit empty values, take priority over YAML and
-# legacy settings. Repositories that predate the move keep working: factory.config
-# is parsed first without overwriting caller values, then YAML overlays legacy
-# values. That fallback is deliberately quiet here; `factory doctor` is where it
-# is reported, so a deprecation cannot live forever by going unnoticed.
-# factory_config_load_legacy <file>: export the settings a pre-YAML factory.config
-# defines, by PARSING it — never by sourcing it.
-#
-# Sourcing was the original implementation and it undid the property the move to
-# factory.yaml exists to provide. factory.config lives in the repository, so it
-# can arrive from a branch, a patch or a pull request; sourcing it executed
-# whatever it contained, with the privileges of whatever called this — including
-# CI. `factory migrate-config` already parsed the same file for exactly this
-# reason ("parsing it beats sourcing it"), so this only makes the library agree
-# with the tool that replaces it.
-#
-# Same grammar as that parser: KEY=value, optional single or double quotes, a
-# trailing ` #` comment on unquoted values only, and keys restricted to shell
-# identifiers. Only the fixed key list below is exported, so an unexpected name
-# in the file cannot set an arbitrary variable.
-# The settings the factory recognises. Both the YAML and the legacy reader are
-# restricted to this list, so neither file can set a variable the factory did
-# not ask for.
+factory_config_has() {
+  _factory_reader_call config has "$1"
+}
+
+role_tier() {
+  _factory_reader_call role tier "$1"
+}
+
+resolve_tier() {
+  _factory_reader_call role resolve "$1" "$2"
+}
+
+# Expansion belongs to the host shell; grouping belongs to Go.
+# docs/adr/0062-go-local-hook-normalization.md:32.
+factory_local_hooks() (
+  # Positional parameters cannot inherit integer or nameref variable attributes.
+  # Frame status separately so a failed read never becomes hook data.
+  set -- "$(if factory_config_get local_hooks; then
+    printf '\n0'
+  else
+    printf '\n%d' "$?"
+  fi)"
+  case "${1##*
+}" in
+    0) ;;
+    *) return "${1##*
+}" ;;
+  esac
+  # Recapture only the value, retaining command substitution's LF trimming.
+  set -- "$(printf '%s' "${1%
+*}")"
+  case "$1" in
+    *,*)
+      set -- "$1" "${IFS+x}" "${IFS-}"
+      IFS=','
+      # shellcheck disable=SC2086 # Preserve baseline splitting and pathname expansion.
+      set -- "$2" "$3" $1
+      if [ "$1" = x ]; then
+        IFS=$2
+      else
+        unset IFS
+      fi
+      shift 2
+      _factory_reader_call config hooks commas "$@"
+      ;;
+    *)
+      # shellcheck disable=SC2086 # Preserve the caller's IFS and glob options.
+      set -- $1
+      _factory_reader_call config hooks words "$@"
+      ;;
+  esac
+)
+
+# Candidate Bash adapter: configuration stays data, Go selects ordered effects.
+# Source-time constant only; no runtime invocation. docs/adr/0056-go-configuration-export-plans.md:25.
+
 FACTORY_CONFIG_KEYS="COST_PROFILE MODEL_PROVIDER \
 OPENCODE_FRONTIER_MODEL OPENCODE_DEFAULT_MODEL OPENCODE_ECONOMY_MODEL \
 CLAUDE_FRONTIER_MODEL CLAUDE_DEFAULT_MODEL CLAUDE_ECONOMY_MODEL \
 CODEX_FRONTIER_MODEL CODEX_DEFAULT_MODEL CODEX_ECONOMY_MODEL \
 REVIEW_LANE REVIEW_MODEL REVIEW_API_KEY_SECRET REVIEW_REASONING_EFFORT REVIEW_OPENROUTER_PROVIDER REVIEW_MAX_TOKENS"
 
-factory_config_load_legacy() {
-  local file="$1" line key value upper preserved_keys="${2:-}"
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      ''|'#'*) continue ;;
-      *=*) : ;;
-      *) continue ;;
-    esac
-    key="${line%%=*}"
-    value="${line#*=}"
-    # Strip `export ` and surrounding whitespace, so `export FOO=bar` is read too.
-    key="${key#export }"
-    key="$(printf '%s' "$key" | tr -d '[:space:]')"
-    case "$key" in
-      ''|*[!A-Za-z0-9_]*) continue ;;
-    esac
-    case "$value" in
-      \"*) value="${value#\"}"; value="${value%%\"*}" ;;
-      \'*) value="${value#\'}"; value="${value%%\'*}" ;;
-      *) value="$(printf '%s' "$value" | sed 's/[[:space:]]#.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//')" ;;
-    esac
-    upper="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-    case " $FACTORY_CONFIG_KEYS " in
-      *" $upper "*) : ;;
-      *) continue ;;
-    esac
-    # The exporter passes its caller keys; standalone loading still replaces
-    # every parsed setting. Preserve the existing export effect for matched keys.
-    # Caller values take priority, including empty values. docs/DECISION_LOG.md:1903.
-    case " $preserved_keys " in
-      *" $upper "*) export "${upper?}"; continue ;;
-    esac
-    # Assign indirectly with printf -v: the value reaches the variable as data
-    # and is never passed through the parser at all. `eval` could be written
-    # safely here, but only by escaping `\$value` so it expands at assignment
-    # time — correctness that depends on the reader spotting one backslash. The
-    # name is safe by construction: it comes from FACTORY_CONFIG_KEYS above.
-    printf -v "$upper" '%s' "$value"
-    export "${upper?}"
-  done < "$file"
+_factory_config_call() { _factory_reader_call "$@"; }
+
+_factory_config_bad_plan() {
+  printf '%s\n' 'factory bridge: invalid configuration plan' >&2
+  return 2
 }
 
-# factory_local_hooks: prints one `local_hooks` entry per line — a hook path
-# followed by any arguments it was registered with.
-#
-# The list is whitespace-separated, as it always was, so `"a.sh b.sh"` is still
-# two hooks. A token starting with `-` belongs to the hook before it, which is
-# what lets a gate be registered in the mode it is meant to run in: pre-push
-# wants `internal-paths-ignored.sh --strict`, not the lenient default. A comma is
-# also accepted as an explicit separator, for the rare argument that is not a
-# flag. Both readers of the key go through this function, so the runner and the
-# existence check can never disagree about where one entry ends.
-factory_local_hooks() {
-  local raw tok out field
-  raw="$(factory_config_get local_hooks)"
-  case "$raw" in
-    *,*)
-      # A comma in the value makes commas the separator, and then everything
-      # between two commas is one entry — the way to register an argument that is
-      # not a flag.
-      local old_ifs="$IFS"
-      IFS=','
-      for field in $raw; do
-        IFS="$old_ifs"
-        # Collapse the surrounding whitespace an author leaves after a comma.
-        field="$(printf '%s' "$field" | tr -s '[:space:]' ' ')"
-        field="${field# }"; field="${field% }"
-        if [ -n "$field" ]; then printf '%s\n' "$field"; fi
-        IFS=','
-      done
-      IFS="$old_ifs"
-      ;;
-    *)
-      out=""
-      for tok in $raw; do
-        case "$tok" in
-          -*) if [ -n "$out" ]; then out="$out $tok"; fi ;;
-          *)  if [ -n "$out" ]; then printf '%s\n' "$out"; fi; out="$tok" ;;
-        esac
-      done
-      if [ -n "$out" ]; then printf '%s\n' "$out"; fi
-      ;;
-  esac
+# Arithmetic and reference attributes can interpret or redirect an assignment.
+# Refuse them at the candidate boundary before applying any record.
+# docs/adr/0056-go-configuration-export-plans.md:73.
+_factory_config_scalar() {
+  local _factory_config_declaration _factory_config_attributes
+  if _factory_config_declaration="$(declare -p "$1" 2>/dev/null)"; then
+    case "$_factory_config_declaration" in
+      'declare -'*) ;;
+      *) _factory_config_bad_plan; return ;;
+    esac
+    _factory_config_attributes="${_factory_config_declaration#declare -}"
+    _factory_config_attributes="${_factory_config_attributes%% *}"
+    case "$_factory_config_attributes" in
+      *[!rx-]*)
+        printf 'factory bridge: unsupported variable attributes for %s\n' "$1" >&2
+        return 2 ;;
+    esac
+  fi
   return 0
 }
 
-factory_config_export() {
-  local file legacy root
-  file="$(factory_config_file)"
-  root="$(dirname "$file")"
-  legacy="$root/factory.config"
+# Walk twice: all records must validate before any assignment is attempted.
+# Peel tabs literally; IFS tab splitting would discard value whitespace.
+# docs/adr/0056-go-configuration-export-plans.md:42.
+_factory_config_walk() {
+  local _factory_config_record _factory_config_key _factory_config_value
+  local _factory_config_state=header _factory_config_operation _factory_config_tab=$'\t'
+  while IFS= read -r _factory_config_record; do
+    case "$_factory_config_state" in
+      header)
+        [ "$_factory_config_record" = FACTORY_CONFIG_PLAN_V1 ] || { _factory_config_bad_plan; return; }
+        _factory_config_state=records
+        continue ;;
+      end) _factory_config_bad_plan; return ;;
+    esac
+    if [ "$_factory_config_record" = END ]; then
+      _factory_config_state=end
+      continue
+    fi
+    case "$_factory_config_record" in
+      set"$_factory_config_tab"*"$_factory_config_tab"*)
+        _factory_config_operation='set'
+        _factory_config_record="${_factory_config_record#*"$_factory_config_tab"}"
+        _factory_config_key="${_factory_config_record%%"$_factory_config_tab"*}"
+        _factory_config_value="${_factory_config_record#*"$_factory_config_tab"}" ;;
+      export"$_factory_config_tab"*)
+        _factory_config_operation='export'
+        _factory_config_key="${_factory_config_record#*"$_factory_config_tab"}" ;;
+      *) _factory_config_bad_plan; return ;;
+    esac
+    case "$_factory_config_key" in
+      ''|*[!A-Z0-9_]*) _factory_config_bad_plan; return ;;
+    esac
+    case " $FACTORY_CONFIG_KEYS " in
+      *" $_factory_config_key "*) ;;
+      *) _factory_config_bad_plan; return ;;
+    esac
+    if [ "$2" = validate ]; then
+      _factory_config_scalar "$_factory_config_key" || return
+    fi
+    if [ "$2" = apply ]; then
+      if [ "$_factory_config_operation" = set ]; then
+        printf -v "$_factory_config_key" '%s' "$_factory_config_value"
+      fi
+      export "${_factory_config_key?}"
+    fi
+  done <<< "$1"
+  [ "$_factory_config_state" = end ] || { _factory_config_bad_plan; return; }
+  return 0
+}
 
-  # Precedence has three sources, and they are not interchangeable:
-  #   caller environment  >  factory.yaml  >  legacy factory.config
-  # So the caller's variables have to be identified BEFORE the legacy file is
-  # loaded — once it exports, "already set" can no longer tell a deliberate
-  # override apart from the legacy value, and treating them alike would let the
-  # legacy file beat the YAML, which is the opposite of the documented order.
-  local caller_set="" k
-  for k in $FACTORY_CONFIG_KEYS; do
-    if [ -n "${!k+set}" ]; then
-      caller_set="$caller_set $k"
+_factory_config_plan() {
+  local _factory_config_payload
+  # The sentinel preserves trailing newlines during command substitution.
+  # A failed child never reaches validation or parent-variable application.
+  _factory_config_payload="$(_factory_config_call "$@" && printf '.')" || return
+  _factory_config_payload="${_factory_config_payload%.}"
+  case "$_factory_config_payload" in
+    *$'\n') _factory_config_payload="${_factory_config_payload%$'\n'}" ;;
+    *) _factory_config_bad_plan; return ;;
+  esac
+  _factory_config_walk "$_factory_config_payload" validate || return
+  _factory_config_walk "$_factory_config_payload" apply
+}
+
+factory_config_export() {
+  local _factory_config_caller_key
+  set --
+  for _factory_config_caller_key in $FACTORY_CONFIG_KEYS; do
+    if [ -n "${!_factory_config_caller_key+set}" ]; then
+      set -- "$@" "$_factory_config_caller_key"
     fi
   done
+  _factory_config_plan config export "$@"
+}
 
-  if [ -f "$legacy" ]; then
-    factory_config_load_legacy "$legacy" "$caller_set"
-  fi
-
-  local key var value
-  for key in \
-    cost_profile model_provider \
-    opencode_frontier_model opencode_default_model opencode_economy_model \
-    claude_frontier_model claude_default_model claude_economy_model \
-    codex_frontier_model codex_default_model codex_economy_model \
-    review_lane review_model review_api_key_secret review_reasoning_effort review_openrouter_provider review_max_tokens
-  do
-    value="$(factory_config_get "$key")"
-    [ -n "$value" ] || continue
-    var="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-    # A value the caller put in the environment wins, which is what the comment
-    # above this function promises — "anything already in the environment still
-    # wins ... that is what lets a caller override a model tier for one run". The
-    # assignment below used to overwrite it whenever the YAML had anything, so
-    # `MODEL_PROVIDER=anthropic ./script` silently used the file's value. Only
-    # variables recorded before the legacy load count, so the YAML still wins
-    # over factory.config.
-    case " $caller_set " in
-      *" $var "*)
-        export "${var?}"
-        continue ;;
+factory_config_load_legacy() {
+  local _factory_config_legacy_file="$1" _factory_config_preserved="${2-}" _factory_config_caller_key
+  set --
+  for _factory_config_caller_key in $FACTORY_CONFIG_KEYS; do
+    case " $_factory_config_preserved " in
+      *" $_factory_config_caller_key "*) set -- "$@" "$_factory_config_caller_key" ;;
     esac
-    # printf -v assigns indirectly without the value ever reaching the parser,
-    # so a model string containing spaces or shell metacharacters lands verbatim
-    # rather than being executed. The name is safe by construction — it comes
-    # from the fixed list above, never from the file.
-    printf -v "$var" '%s' "$value"
-    # ${var?} rather than $var: exporting by computed name is intended here, and
-    # the brace form is how that intent is stated (shellcheck SC2163).
-    export "${var?}"
   done
+  _factory_config_plan config legacy "$_factory_config_legacy_file" "$@"
 }
 
-# factory_config_set <key> <value>: record a setting in factory.yaml.
-#
-# Replaces the key in place when it exists, appends it otherwise, so the file
-# keeps its shape and its comments. Values are written quoted, which the reader
-# strips — a model string with a slash or a space survives the round trip.
-#
-# factory_config_has <key>: true when the key is present at all, including when
-# its value is empty. Presence is meaningful on its own: an opt-in recorded as
-# "off" is an answer that was given, not an answer that is missing, which is what
-# lets the upgrade ask once and never nag.
+# Literal arguments only; no caller-variable assignments or shell evaluation.
+# docs/adr/0063-go-configuration-writes.md:18.
 factory_config_set() {
-  local key="$1" value="$2" file
-  file="$(factory_config_file)"
-  if [ ! -f "$file" ]; then
-    echo "factory config: no $(basename "$file") here — run factory init first." >&2
-    return 1
-  fi
-  if grep -q "^${key}:" "$file"; then
-    # A literal replacement, not a regex one: model strings contain slashes, so
-    # the substitution needs a delimiter they cannot be mistaken for.
-    #
-    # The replacement side still has three special characters — `&` (the whole
-    # match), `\` (an escape) and the `|` delimiter itself — so a value containing
-    # any of them corrupted the file it was meant to update. Newlines are folded
-    # for the same reason: a flat key holds one line by definition.
-    local esc
-    esc="$(printf '%s' "$value" | tr '\n' ' ' | sed -e 's/[\\&|]/\\&/g')"
-    sed -i.factory-bak "s|^${key}:.*|${key}: \"${esc}\"|" "$file" &&
-      rm -f "$file.factory-bak"
-  else
-    printf '%s: "%s"\n' "$key" "$value" >> "$file"
-  fi
-}
-
-factory_config_has() {
-  local file
-  file="$(factory_config_file)"
-  [ -f "$file" ] || return 1
-  grep -q "^${1}:" "$file"
+  _factory_config_call config set "$1" "$2"
 }

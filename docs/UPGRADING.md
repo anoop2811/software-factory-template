@@ -2,12 +2,13 @@
 
 ## Availability and the command you keep
 
-As of 2026-10-26 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
+As of 2026-10-28 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
 the planned Go replacement and is not published. The explicit Go upgrade engine,
 rollback/recovery and retention are implemented on `main`.
 [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
-passed all twenty published scenarios on the observed Linux/macOS targets;
-macOS 14 Intel proof, operator pilot acceptance and default cutover remain open.
+passed all twenty published scenarios on the observed Linux/macOS targets.
+Fresh qualification under the approved platform minimums, operator pilot
+acceptance and default cutover remain open (Decision 118).
 See [the exact qualification evidence](migration/PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 [Release readiness](migration/GO_RELEASE_READINESS.md) is the delivery checklist.
 
@@ -30,8 +31,8 @@ not need the separate maintainer staging/packaging tools. See [CLI.md](CLI.md).
   customized required files can block automatic migration and are preserved.
 - Start from a reviewable working tree. Save/commit your own project work so its
   diff is distinguishable from the upgrade. The upgrader does not commit for you.
-- Use a supported Linux/macOS amd64/arm64 machine and the platform requirements
-  recorded in the conversion specification. Windows is outside this release's
+- Use Ubuntu 24.04+ on amd64/arm64, macOS 15+ on Intel or macOS 14+ on Apple
+  Silicon, as approved in Q2. Windows is outside this release's
   target set; published native minimum-OS qualification is still pending.
 - The candidate acquisition needs trusted `gh`, Bash and the existing platform
   tools, plus network access to official GitHub releases and verification roots.
@@ -48,11 +49,11 @@ not need the separate maintainer staging/packaging tools. See [CLI.md](CLI.md).
 From inside your existing project (a project subdirectory is also supported):
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 ```
 
-For a published prerelease, replace `v0.2.0` with its exact tag in both preview
-and confirmation. The command obtains the matching native binary and installation
+For a published prerelease, use `--go-candidate TAG` with its exact tag in both
+preview and confirmation. The command obtains the matching native binary and installation
 image, checks their attestation against the official release workflow, tag and
 source revision, and computes a proposal. The preview uses temporary private
 acquisition storage and leaves the project unchanged. It calls no model.
@@ -74,7 +75,7 @@ is your explicit affirmation of this maintenance condition.
 Replace `PROPOSAL_DIGEST` below with the full digest from your reviewed preview:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
 ```
 
 Repeat any `--project-input` overrides from the preview. Omit `--json` on apply;
@@ -113,9 +114,12 @@ Unchanged, proven-owned obsolete implementations are retired or replaced only as
 part of the compatible Go transaction. Supported public script paths become thin
 adapters; policy gates and native harness formats can intentionally remain shell,
 JSON, TOML or TypeScript. Their existence is not a fallback to the old controllers.
-The source repository retains compatibility implementations and fixtures until
-its separate source/default cutover; migration cleanup concerns the selected
-adopter installation, not every script in the repository.
+The replacement source keeps thin compatibility adapters and classified policy,
+development and frozen historical fixtures. It does not need a second active
+Bash/Python controller implementation. The old initializer cache is reduced to
+the two template assets used by installed commands; known earlier Go selections
+migrate through their explicitly qualified recipe. Unknown or changed cache
+entries are preserved conflicts, rather than deletion targets.
 
 Original replacement/retirement bytes are saved as inert reference/recovery data in
 private Git-ignored `.factory/backups/MIGRATION_ID/`. Backup scripts are not executed
@@ -164,23 +168,47 @@ previews `factory.config` conversion, and successful apply retains the adjacent
 `factory.config.migrated` file. It does not switch runtimes or become part of the
 runtime backup expiry policy. See [configuration migration](migration/CONFIG_MIGRATION.md).
 
-## Updating the script installation today
+## Updating the currently published script installation
 
 Existing source/ref updates keep their established behavior:
 
 ```sh
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
-# Explicitly try current source features, retaining script runtime selection:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+# Keep the currently published stable script version explicit:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.1.6
 ```
 
 The installer uses its pinned stable release (currently v0.1.6), unless an
-explicit ref or environment override selects another source. The second command
-selects `main`. Direct `./factory upgrade` in a script installation also defaults
+explicit ref or environment override selects another source. Direct
+`./factory upgrade` in a historical script installation defaults
 to `main`; pass an explicit `--ref` when matching a particular source matters.
 These legacy updates refresh known framework paths in place and can replace
 custom edits to those files, including shipped hooks. Save/reconcile those edits
 before running them, then review the diff and run `./factory doctor`. The
 preservation/conflict transaction described above belongs to the authenticated
 Go flow. Default Go selection will be advertised only after the replacement
-release gates pass.
+release gates pass. Do not use a historical in-place script copier to perform
+the Go runtime migration; use the authenticated installer preview/confirmation
+above so ownership, recovery and retirement remain checked as one transaction.
+
+## Developing from source before release
+
+The source checkout's `./factory` builds and runs the developer Go CLI. A source
+build uses the declared Go compiler, cached module dependencies and supported
+baseline Git objects; ordinary installed
+Go commands do not. Explicit local preparation packages committed source and
+reports `local-source`, rather than claiming published authenticity:
+
+```sh
+./factory init ../scratch-project --local --pack go
+./factory upgrade --local --source /path/to/factory-checkout --dry-run --json
+```
+
+Local upgrade still requires fresh `--confirm DIGEST --quiescent` before writes.
+Provision a shallow developer checkout's required history and dependencies before
+an offline local package build. The packager does not silently fetch missing
+baseline objects or replace the declared compiler.
+An earlier local Go installation needs its explicit before image through
+`upgrade --installation`; provenance is never guessed. Local builds do not advance
+release-based backup retention. These are development/rehearsal paths, not an
+alternative installer for regular users.

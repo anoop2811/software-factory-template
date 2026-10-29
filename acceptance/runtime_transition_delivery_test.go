@@ -14,27 +14,28 @@ func transitionInstallationSource() (string, string, []string) {
 	source, target, environment := nativeInitFixture()
 	repo, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
+	// Historical source delivery is an explicit compatibility proof, not current
+	// packaged Go delivery. Never repopulate the removed active source modules.
+	// per docs/adr/0108-default-go-cutover.md:192
+	const revision = "95dbecffafb5a04191317b7e16397e684bf5191c"
 	for _, name := range []string{"factory-budget.sh", "factory-loop.sh", "factory-upgrade.sh", "factory-init.sh"} {
-		data, err := os.ReadFile(filepath.Join(repo, "scripts", name))
-		Expect(err).NotTo(HaveOccurred())
+		data := []byte(imageGit(repo, "show", revision+":scripts/"+name))
 		if name == "factory-init.sh" {
 			name = "factory-init-legacy.sh"
 		}
 		writeFixture(filepath.Join(source, "scripts", name), data, 0700)
 	}
-	entries, err := os.ReadDir(filepath.Join(repo, "scripts/lib"))
-	Expect(err).NotTo(HaveOccurred())
-	for _, entry := range entries {
-		if entry.Type().IsRegular() && (strings.HasSuffix(entry.Name(), ".py") || strings.HasSuffix(entry.Name(), ".sh")) {
-			data, err := os.ReadFile(filepath.Join(repo, "scripts/lib", entry.Name()))
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(filepath.Join(source, "scripts/lib", entry.Name()), data, 0600)
+	listing := imageGit(repo, "ls-tree", "-r", "--name-only", revision, "scripts/lib/")
+	for _, path := range strings.Split(listing, "\n") {
+		if strings.HasSuffix(path, ".py") || strings.HasSuffix(path, ".sh") {
+			data := []byte(imageGit(repo, "show", revision+":"+path))
+			writeFixture(filepath.Join(source, filepath.FromSlash(path)), data, 0600)
 		}
 	}
 	return source, target, environment
 }
 
-var _ = Describe("Runtime transition source delivery", func() {
+var _ = Describe("Runtime transition source delivery", Label("historical-source-component"), func() {
 	// per docs/adr/0093-runtime-transition-guard.md:146
 	// per docs/adr/0093-runtime-transition-guard.md:162
 	DescribeTable("installs the actual Python shim and its controllers as an executable legacy exclusion boundary", func(route string) {

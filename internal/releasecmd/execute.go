@@ -16,25 +16,35 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
+	"golang.org/x/mod/semver"
 )
 
 func execute(ctx context.Context, verb string, option options, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
-	candidate, err := acquire(ctx, option.tag, environment)
+	candidate, err := acquireWithPolicy(ctx, option.tag, environment, option.requireStable)
 	if err != nil {
 		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
 		return 1
 	}
+	return executeSelection(ctx, verb, option, candidate, environment, stdin, stdout, stderr)
+}
+
+// Explicit local builds share the same qualified initializer, inference,
+// proposal consent, transaction and recovery owner as authenticated releases.
+// docs/adr/0108-default-go-cutover.md:68.
+func executeSelection(ctx context.Context, verb string, option options, candidate *acquired, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
 	defer func() { status = candidate.finish(stderr, status) }()
-	digest, err := currentDigest(ctx)
-	if ctx.Err() != nil {
-		fmt.Fprintln(stderr, "factory candidate: candidate handoff canceled")
-		return 1
-	}
-	// A trusted system/shared-directory caller need not satisfy private image
-	// custody. If it cannot prove the same private bytes, run the freshly
-	// authenticated candidate instead; never use it as an installation shortcut.
-	if err != nil || digest != candidate.digest {
-		return handoff(ctx, verb, option, candidate, environment, stdin, stdout, stderr)
+	if !candidate.options.Local {
+		digest, err := currentDigest(ctx)
+		if ctx.Err() != nil {
+			fmt.Fprintln(stderr, "factory candidate: candidate handoff canceled")
+			return 1
+		}
+		// A trusted system/shared-directory caller need not satisfy private image
+		// custody. If it cannot prove the same private bytes, run the freshly
+		// authenticated candidate instead; never use it as an installation shortcut.
+		if err != nil || digest != candidate.digest {
+			return handoff(ctx, verb, option, candidate, environment, stdin, stdout, stderr)
+		}
 	}
 	if verb == "init" {
 		return initcmd.RunQualified(ctx, option.args, filepath.Join(candidate.staged, "installation/assets"), filepath.Join(candidate.staged, "bin/factory-runtime"), candidate.image, environment, stdin, stdout, stderr)
@@ -51,6 +61,10 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	}
 	var previous *acquired
 	if request.Profile == "go-hybrid-v1" {
+		if candidate.options.Local {
+			fmt.Fprintln(stderr, "factory local-source: a Go predecessor requires its exact before-image; use upgrade --installation with explicit --before-source identity and trust options")
+			return 2
+		}
 		previous, err = acquire(ctx, request.Before.Version, withoutCache(environment))
 		if err != nil {
 			fmt.Fprintln(stderr, "factory candidate: predecessor acquisition failed: "+err.Error())
@@ -59,6 +73,10 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 		defer func() { status = previous.finish(stderr, status) }()
 		if previous.options.Revision != request.Before.Revision || previous.options.Target != request.Source.Target {
 			fmt.Fprintln(stderr, "factory candidate: predecessor release identity changed")
+			return 2
+		}
+		if option.requireStable && semver.Compare(candidate.options.Version, previous.options.Version) < 0 {
+			fmt.Fprintf(stderr, "factory release: refusing a downgrade from installed %s to %s; select the same or a newer release, or use an explicit rollback\n", previous.options.Version, candidate.options.Version)
 			return 2
 		}
 		request.Before = previous.options
@@ -76,11 +94,25 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 			data, err = json.Marshal(proposal)
 			data = append(data, '\n')
 		} else {
-			apply := []string{"upgrade", "--go-candidate", option.tag, "--confirm", proposal.ProposalDigest, "--quiescent"}
+			apply := []string{"upgrade", option.selector(), option.tag}
+			command, trust := "curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- ", "network acquisition"
+			if candidate.options.Local {
+				program, locateErr := os.Executable()
+				if locateErr == nil {
+					program, locateErr = filepath.EvalSymlinks(program)
+				}
+				if locateErr != nil || !filepath.IsAbs(program) {
+					fmt.Fprintln(stderr, "factory local-source: cannot locate the selected Go executable for apply advice")
+					return 1
+				}
+				apply = []string{program, "upgrade", "--local", "--source", candidate.source}
+				command, trust = "", "local-source"
+			}
+			apply = append(apply, "--confirm", proposal.ProposalDigest, "--quiescent")
 			for _, input := range option.projectInputs {
 				apply = append(apply, "--project-input", input)
 			}
-			data = []byte(fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- %s\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), quotedArguments(apply)))
+			data = []byte(fmt.Sprintf("candidate %s commit=%s target=%s (%s; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\n%s%s\n", option.tag, request.Source.Revision, request.Source.Target, trust, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), command, quotedArguments(apply)))
 		}
 		if !option.json {
 			data = append(data, installation.RetentionDiagnosticReport(proposal.Retention)...)
@@ -159,7 +191,12 @@ func reportRecovery(root string, request installation.Request, candidate, previo
 	args := append([]string{filepath.Join(candidate.staged, "bin/factory-runtime"), "upgrade", "--installation"}, preview...)
 	args = append(args, "--profile", request.Profile)
 	imageArgs := func(prefix string, image *acquired) {
-		args = append(args, "--"+prefix+"source", image.options.Archive, "--"+prefix+"version", image.options.Version, "--"+prefix+"revision", image.options.Revision, "--"+prefix+"target", image.options.Target, "--"+prefix+"attestation", image.options.Attestation, "--"+prefix+"trusted-root", image.options.TrustedRoot)
+		args = append(args, "--"+prefix+"source", image.options.Archive, "--"+prefix+"version", image.options.Version, "--"+prefix+"revision", image.options.Revision, "--"+prefix+"target", image.options.Target)
+		if image.options.Local {
+			args = append(args, "--"+prefix+"local")
+		} else {
+			args = append(args, "--"+prefix+"attestation", image.options.Attestation, "--"+prefix+"trusted-root", image.options.TrustedRoot)
+		}
 	}
 	imageArgs("", candidate)
 	if previous != nil {
@@ -208,7 +245,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	}
 	env := withoutCache(environment)
 	env["FACTORY_RELEASE_DIR"] = filepath.Dir(candidate.raw)
-	args := append([]string{candidate.raw, verb, "--go-candidate", option.tag}, option.args...)
+	args := append([]string{candidate.raw, verb, option.selector(), option.tag}, option.args...)
 	root, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintln(stderr, "factory candidate: cannot resolve handoff working directory: "+err.Error())

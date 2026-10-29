@@ -154,6 +154,15 @@ implementation, published RC qualification, human merge, adopter pilot, default
 cutover/audit and stable publication as separate observable states. No completion
 percentage is inferred merely from adding a workflow.
 
+## Revised platform approval (2026-10-28)
+
+Decision 118 and Q2 now approve Ubuntu 24.04+ on amd64/arm64, macOS 15+ on Intel
+and macOS 14+ on Apple Silicon. The earlier minimum-OS discussion above records
+the policy under which RC1-RC3 ran. Their reports remain unchanged. Future live
+qualification uses the revised architecture-specific floors and still requires
+actual execution at each minimum family; a policy revision does not qualify a
+new binary or establish the mandatory pilot's operator acceptance.
+
 ## Authoritative workflow references
 
 Fetched 2026-10-19 UTC before implementation:

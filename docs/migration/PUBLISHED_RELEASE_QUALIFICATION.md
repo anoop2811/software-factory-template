@@ -6,6 +6,13 @@ attestations. Regular users continue to use the single `factory` CLI.
 Adding the lane does not establish that a release passed it. The
 [replacement-release checklist](GO_RELEASE_READINESS.md) remains authoritative.
 
+Decision 118 records the 2026-10-28 operator approval of Ubuntu 24.04+ on both
+architectures, macOS 15+ on Intel and macOS 14+ on Apple Silicon. Historical
+candidate tables below retain their original policy and outcomes. Finish the
+remaining cutover implementation, cleanup and local supported-project pilot
+before one RC4; actual published authentication and migration qualification run
+after its reviewed source is merged and the candidate is published.
+
 ## First published candidate result
 
 On 2026-10-24, [v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
@@ -321,12 +328,14 @@ release gate.
 
 ## Keep minimum-OS evidence separate
 
-The approved floor remains Ubuntu 24.04+ and macOS 14+ on both architectures.
-The default Intel Mac runner is macOS 15; a pass there does not prove macOS 14
-Intel compatibility. Record that outstanding native minimum-OS evidence rather
-than marking the full platform gate complete. GitHub's announced retirement of
-hosted macOS 14 on 2026-11-02 also requires an explicit qualification plan; this
-lane does not silently raise the supported floor or provision paid runners.
+The current approved floors are Ubuntu 24.04+ on both architectures, macOS 15+
+on Intel and macOS 14+ on Apple Silicon (Decision 118 and Q2). Record the actual
+native OS family and architecture. A pass on a newer supported OS does not
+establish execution at the approved minimum. RC1-RC3 retain their original
+macOS 14 Intel gap; do not rewrite historical reports under the new policy.
+The announced retirement of the hosted macOS 14 runner requires an explicit
+qualification plan for future Apple Silicon minimum-OS runs; this lane neither
+silently raises that floor nor provisions paid runners.
 
 [GitHub's macOS 14 notice](https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/)
 was read on 2026-10-19 UTC.

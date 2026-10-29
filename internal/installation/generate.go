@@ -96,10 +96,14 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 	return nil, conflict("unrecognized reviewed installation role")
 }
 func descriptorBytes(image staging.Inspection, actions []Action) ([]byte, error) {
+	return descriptorForRoles(image, actions, roles)
+}
+
+func descriptorForRoles(image staging.Inspection, actions []Action, recipe []role) ([]byte, error) {
 	result := descriptor{SchemaVersion: 1, Kind: "go-hybrid-v1", Version: image.Runtime.Version, Revision: image.Manifest.SourceRevision, Target: image.Runtime.Target, RuntimeSHA256: image.Runtime.SHA256, Assets: []selectedAsset{}}
 	for _, action := range actions {
 		active := false
-		for _, row := range roles {
+		for _, row := range recipe {
 			if row.Path == action.Path && row.Operation != "retire" {
 				active = true
 				break

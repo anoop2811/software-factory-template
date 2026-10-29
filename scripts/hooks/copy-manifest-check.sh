@@ -20,6 +20,20 @@ if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh";
 
 ROOT="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$ROOT" || exit 1
+ROOT="$(pwd -P)" || exit 1
+
+# Native source initialization has a compiled inventory, not shell cp statements.
+# Old/adopter layouts retain their explicit legacy proof below.
+# docs/adr/0108-default-go-cutover.md:95.
+if [ -f go.mod ] || [ -d cmd/factory ] || [ -d internal/initcmd ]; then
+  if FACTORY_BRIDGE_PROTOCOL=1 "$ROOT/factory" inventory init "$ROOT"; then
+    exit 0
+  else
+    status=$?
+    factory_log_event "copy-manifest-check" "native initializer inventory refused"
+    exit "$status"
+  fi
+fi
 
 INIT="scripts/factory-init.sh"
 if [ ! -f "$INIT" ]; then

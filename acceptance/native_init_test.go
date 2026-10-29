@@ -23,6 +23,32 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var nativeInitComponentOnce sync.Once
+var nativeInitComponentBytes []byte
+
+// These subprocess criteria preserve the historical source-layout component
+// oracle. Public authenticated/local Go delivery has separate real image tests.
+// Build once per worker and retain requested child race instrumentation.
+// per docs/adr/0108-default-go-cutover.md:192
+func nativeInitComponent() []byte {
+	GinkgoHelper()
+	nativeInitComponentOnce.Do(func() {
+		work, err := os.MkdirTemp("", "factory-init-component-build-")
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(os.RemoveAll, work)
+		binary := filepath.Join(work, "factory-init-component")
+		args := []string{"test", "-c", "-o", binary, "./internal/initcmd"}
+		if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
+			args = append([]string{"test", "-race"}, args[1:]...)
+		}
+		build := imageProcess("..", nil, "go", args...)
+		Expect(build.status).To(Equal(0), "%+v", build)
+		nativeInitComponentBytes, err = os.ReadFile(binary)
+		Expect(err).NotTo(HaveOccurred())
+	})
+	return nativeInitComponentBytes
+}
+
 func nativeInitFixture() (string, string, []string) {
 	GinkgoHelper()
 	base, err := os.MkdirTemp("", "factory-native-init-")
@@ -58,14 +84,15 @@ func nativeInitFixture() (string, string, []string) {
 		writeFixture(filepath.Join(source, header.Name), data, os.FileMode(header.Mode&0777)) // #nosec G305 -- trusted local Git archive, no external archive or traversal names.
 	}
 	// per docs/adr/0093-runtime-transition-guard.md:146
-	// The candidate's declared source inventory adds this dependency; the archived
-	// initializer and its existing assets remain the immutable compatibility oracle.
-	repo, err := filepath.Abs("..")
-	Expect(err).NotTo(HaveOccurred())
-	shim, err := os.ReadFile(filepath.Join(repo, "scripts/lib/runtime_transition.py"))
+	// The historical component declaration adds this dependency; the archived
+	// initializer remains the immutable oracle, independently of current Go delivery.
+	shimCommand := exec.Command("git", "show", "95486ecdd3868a319a0e6362ee99cafd8f154200:scripts/lib/runtime_transition.py") // #nosec G204 -- immutable historical test input, never the removed active source path.
+	shimCommand.Dir = ".."
+	shim, err := shimCommand.Output()
 	Expect(err).NotTo(HaveOccurred())
 	writeFixture(filepath.Join(source, "scripts/lib/runtime_transition.py"), shim, 0600)
 	writeFixture(filepath.Join(source, "factory-go"), candidateBinary, 0700)
+	writeFixture(filepath.Join(source, "factory-init-component"), nativeInitComponent(), 0700)
 	original, err := os.ReadFile(filepath.Join(source, "scripts/factory-init.sh"))
 	Expect(err).NotTo(HaveOccurred())
 	writeFixture(filepath.Join(source, "scripts/factory-init-legacy.sh"), original, 0700)
@@ -94,7 +121,7 @@ func nativeInitRun(source, target, input string, environment, args []string) cli
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), append([]string{"init", target}, args...)...) // #nosec G204 -- isolated compiled CLI fixture path and literal argv, no shell.
+	command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), append([]string{"init", target}, args...)...) // #nosec G204 -- isolated compiled CLI fixture path and literal argv, no shell.
 	command.Dir = filepath.Dir(source)
 	command.Env = environment
 	command.Stdin = strings.NewReader(input)
@@ -111,7 +138,7 @@ func nativeInitRun(source, target, input string, environment, args []string) cli
 	return cliResult{stdout.String(), stderr.String(), status}
 }
 
-var _ = Describe("Native Go init core", func() {
+var _ = Describe("Native Go init core", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:17
 	It("initializes ordinary assets without invoking the poisoned legacy implementation", func() {
 		source, target, environment := nativeInitFixture()
@@ -267,7 +294,7 @@ func nativeInitPoisonSync(source, oracle string, environment []string) ([]string
 	return append(environment, "INIT_LEGACY_SYNC_MARKER="+marker), marker
 }
 
-var _ = Describe("Native Go init artifact compatibility", func() {
+var _ = Describe("Native Go init artifact compatibility", Label("historical-source-component"), func() {
 	// per docs/adr/0099-native-factory-orchestration.md:254
 	It("distinguishes adjacent large JSON integers while ignoring representation whitespace", func() {
 		_, cwd := fixture()
@@ -341,7 +368,7 @@ var _ = Describe("Native Go init artifact compatibility", func() {
 	})
 })
 
-var _ = Describe("Native Go init admission and safety", func() {
+var _ = Describe("Native Go init admission and safety", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:100
 	DescribeTable("refuses invalid inputs without creating an installation", func(kind string) {
 		source, target, environment := nativeInitFixture()
@@ -475,7 +502,7 @@ var _ = Describe("Native Go init admission and safety", func() {
 	})
 })
 
-var _ = Describe("Native Go init preservation", func() {
+var _ = Describe("Native Go init preservation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:101
 	// per docs/adr/0099-native-factory-orchestration.md:55
 	It("keeps adopter files and creates exclusive old-configuration backups across reruns", func() {
@@ -545,7 +572,7 @@ var _ = Describe("Native Go init preservation", func() {
 	})
 })
 
-var _ = Describe("Native Go init external boundaries", func() {
+var _ = Describe("Native Go init external boundaries", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:62
 	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("distinguishes advisory failures from mandatory gate attestation", func(which string, status int) {
@@ -606,7 +633,7 @@ var _ = Describe("Native Go init external boundaries", func() {
 	}, Entry("npm advisory", "npm", 0), Entry("sync advisory", "sync", 0), Entry("review advisory", "review", 0), Entry("selftest mandatory", "selftest", 1))
 })
 
-var _ = Describe("Native Go init shared synchronization", func() {
+var _ = Describe("Native Go init shared synchronization", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:62
 	// per docs/adr/0099-native-factory-orchestration.md:43
 	DescribeTable("produces the same synchronized harness artifacts as the immutable initializer", func(provider, profile string) {
@@ -631,7 +658,7 @@ var _ = Describe("Native Go init shared synchronization", func() {
 	}, Entry("inherit", "inherit", "standard"), Entry("economy", "openai", "economy"), Entry("standard", "anthropic", "standard"))
 })
 
-var _ = Describe("Native orchestration init synchronization", func() {
+var _ = Describe("Native orchestration init synchronization", Label("historical-source-component"), func() {
 	// per docs/adr/0099-native-factory-orchestration.md:43
 	// per docs/adr/0099-native-factory-orchestration.md:55
 	It("renders all new-target harness adapters without executing the copied legacy sync scripts", func() {
@@ -660,13 +687,13 @@ var _ = Describe("Native orchestration init synchronization", func() {
 	})
 })
 
-var _ = Describe("Native Go init input and child ownership", func() {
+var _ = Describe("Native Go init input and child ownership", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:46
 	It("refuses an oversized unterminated answer while the input pipe remains open", func() {
 		source, target, environment := nativeInitFixture()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		reader, writer, err := os.Pipe()
@@ -703,7 +730,7 @@ var _ = Describe("Native Go init input and child ownership", func() {
 		environment = append(environment, "INIT_PID_MARKER="+marker)
 		writeFixture(filepath.Join(source, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\" > \"$INIT_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		command.Stdin = strings.NewReader(nativeInitAnswers("y"))
@@ -741,7 +768,7 @@ var _ = Describe("Native Go init input and child ownership", func() {
 	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
 })
 
-var _ = Describe("Native Go init installed attestation", func() {
+var _ = Describe("Native Go init installed attestation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:62
 	It("runs real installed synchronization and gate selftests without contacting npm", func() {
 		source, target, environment := nativeInitFixture()
@@ -755,7 +782,7 @@ var _ = Describe("Native Go init installed attestation", func() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		command.Stdin = strings.NewReader(nativeInitAnswers("y"))
@@ -799,12 +826,12 @@ func (w *initBannerWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-var _ = Describe("Native Go init blocked prompt cancellation", func() {
+var _ = Describe("Native Go init blocked prompt cancellation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:76
 	DescribeTable("stops waiting for an inherited answer without creating the target", func(signal syscall.Signal) {
 		source, target, environment := nativeInitFixture()
 		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		reader, writer, err := os.Pipe()
@@ -850,7 +877,7 @@ func initArtifactChanges(before, after map[string]string) []string {
 	return changed
 }
 
-var _ = Describe("Native Go init child environment confinement", func() {
+var _ = Describe("Native Go init child environment confinement", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:65
 	DescribeTable("keeps review configuration and workflows inside the selected target", func(explicitGit bool) {
 		source, target, environment := nativeInitFixture()
@@ -882,7 +909,7 @@ var _ = Describe("Native Go init child environment confinement", func() {
 	}, Entry("parent repository discovery", false), Entry("explicit inherited Git routing", true))
 })
 
-var _ = Describe("Native Go init terminal input", func() {
+var _ = Describe("Native Go init terminal input", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:39
 	DescribeTable("keeps terminal pack eligibility aligned with the selected output surface", func(redirect bool) {
 		source, target, environment := nativeInitFixture()
@@ -896,7 +923,7 @@ var _ = Describe("Native Go init terminal input", func() {
 		captured := filepath.Join(filepath.Dir(source), "redirected-output")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "python3", "-B", "-c", driver, filepath.Join(source, "factory-go"), target, nativeInitAnswers("y"), mode, captured) // #nosec G204 -- fixed test-only PTY driver; literal fixture paths, no evaluated input.
+		command := exec.CommandContext(ctx, "python3", "-B", "-c", driver, filepath.Join(source, "factory-init-component"), target, nativeInitAnswers("y"), mode, captured) // #nosec G204 -- fixed test-only PTY driver; literal fixture paths, no evaluated input.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		output, err := command.CombinedOutput()
@@ -914,7 +941,7 @@ var _ = Describe("Native Go init terminal input", func() {
 	}, Entry("explicit none with controlling terminal", false), Entry("stdin terminal with redirected stdout and implicit no packs", true))
 })
 
-var _ = Describe("Native Go init flat configuration representation", func() {
+var _ = Describe("Native Go init flat configuration representation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:110
 	DescribeTable("refuses an unquoted field that the flat parser would truncate", func(index int) {
 		source, target, environment := nativeInitFixture()
@@ -927,7 +954,7 @@ var _ = Describe("Native Go init flat configuration representation", func() {
 	}, Entry("project slug", 1), Entry("docs root", 5))
 })
 
-var _ = Describe("Native Go init generated workflow representation", func() {
+var _ = Describe("Native Go init generated workflow representation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:111
 	DescribeTable("refuses input that would become active shell or YAML syntax", func(field, value string) {
 		source, target, environment := nativeInitFixture()
@@ -945,7 +972,7 @@ var _ = Describe("Native Go init generated workflow representation", func() {
 	}, Entry("protected shell separator", "protected", "p; touch INIT_LITERAL_MARKER; #"), Entry("protected command substitution", "protected", "$(touch INIT_LITERAL_MARKER)"), Entry("parent traversal", "protected", "../outside"), Entry("absolute protected path", "protected", "/outside"), Entry("version YAML comment", "version", "1.26 # ignored"), Entry("version expression", "version", "${{ secrets.PRIVATE }}"))
 })
 
-var _ = Describe("Native Go init Git worktree confinement", func() {
+var _ = Describe("Native Go init Git worktree confinement", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:70
 	It("refuses a repository configuration that redirects the target worktree before publication", func() {
 		source, target, environment := nativeInitFixture()
@@ -964,7 +991,7 @@ var _ = Describe("Native Go init Git worktree confinement", func() {
 	})
 })
 
-var _ = Describe("Native Go init structured artifact representation", func() {
+var _ = Describe("Native Go init structured artifact representation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:115
 	It("preserves a literal backslash in a JSON username instead of interpreting an escape", func() {
 		source, target, environment := nativeInitFixture()
@@ -987,7 +1014,7 @@ var _ = Describe("Native Go init structured artifact representation", func() {
 	})
 })
 
-var _ = Describe("Native Go init root representation", func() {
+var _ = Describe("Native Go init root representation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:108
 	DescribeTable("refuses a root containing a newline before publishing template assets", func(which string) {
 		source, target, environment := nativeInitFixture()
@@ -1005,7 +1032,7 @@ var _ = Describe("Native Go init root representation", func() {
 	}, Entry("source root", "source"), Entry("target root", "target"))
 })
 
-var _ = Describe("Native Go init linked worktree compatibility", func() {
+var _ = Describe("Native Go init linked worktree compatibility", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:72
 	It("supports an ordinary linked worktree whose resolved root is the selected target", func() {
 		source, target, environment := nativeInitFixture()
@@ -1026,7 +1053,7 @@ var _ = Describe("Native Go init linked worktree compatibility", func() {
 	})
 })
 
-var _ = Describe("Native Go init invalid UTF8 admission", func() {
+var _ = Describe("Native Go init invalid UTF8 admission", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:44
 	DescribeTable("refuses consumed invalid bytes before normalization while ignoring unrelated environment", func(field string, status int) {
 		source, target, environment := nativeInitFixture()
@@ -1088,7 +1115,7 @@ sys.stdout.buffer.write(output)
 sys.exit(status)
 `
 
-var _ = Describe("Native Go init interactive review choice", func() {
+var _ = Describe("Native Go init interactive review choice", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:52
 	DescribeTable("records the review model once after installation confirmation", func(model string) {
 		source, target, environment := nativeInitFixture()
@@ -1096,7 +1123,7 @@ var _ = Describe("Native Go init interactive review choice", func() {
 		input := nativeInitInput(fields, nil, "y") + model + "\n"
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "python3", "-B", "-c", nativeInitPTYDriver, filepath.Join(source, "factory-go"), target, input, "terminal", filepath.Join(filepath.Dir(source), "unused-output")) // #nosec G204 -- fixed test-only PTY driver, literal fixture args.
+		command := exec.CommandContext(ctx, "python3", "-B", "-c", nativeInitPTYDriver, filepath.Join(source, "factory-init-component"), target, input, "terminal", filepath.Join(filepath.Dir(source), "unused-output")) // #nosec G204 -- fixed test-only PTY driver, literal fixture args.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		output, err := command.CombinedOutput()
@@ -1108,7 +1135,7 @@ var _ = Describe("Native Go init interactive review choice", func() {
 	}, Entry("explicit model", "explicit-review-model"), Entry("frontier default", ""))
 })
 
-var _ = Describe("Native Go init review secret representation", func() {
+var _ = Describe("Native Go init review secret representation", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:120
 	It("refuses a malformed secret identifier before the retained workflow renderer runs", func() {
 		source, target, environment := nativeInitFixture()
@@ -1121,7 +1148,7 @@ var _ = Describe("Native Go init review secret representation", func() {
 	})
 })
 
-var _ = Describe("Native Go init exported prompt compatibility", func() {
+var _ = Describe("Native Go init exported prompt compatibility", Label("historical-source-component"), func() {
 	// per docs/adr/0085-go-native-init.md:72
 	// per docs/adr/0099-native-factory-orchestration.md:43
 	It("passes updated prompt values to synchronization when those variables were originally exported", func() {

@@ -62,8 +62,11 @@ installed Go runtime. To select a later candidate, use the same public interface
 
 Go-to-Go upgrades authenticate the predecessor too and require its supported
 generation recipe. An installed Go factory initializes another project with
-`./factory init TARGET --go-candidate TAG`; omitting the selector refuses before
-prompts or writes rather than publishing the inert legacy scaffold.
+`./factory init TARGET`, reauthenticating its validated selected release version.
+Use `--go-candidate TAG` to select another published prerelease explicitly, or
+`--ref TAG` for an exact stable Go release. Initialization never republishes the
+old cached Bash scaffold. The source developer path is separately explicit:
+`./factory init TARGET --local` packages committed source and reports local trust.
 
 Successful acquisition removes its temporary cache. Interrupted upgrades retain
 needed authenticated inputs and print a concrete read-only recovery preview.
@@ -77,9 +80,12 @@ predecessor recovery and prunes only qualified older sets. Standalone controls a
 `./factory upgrade --keep-backup MIGRATION_ID` and
 `./factory upgrade --prune-backup MIGRATION_ID`.
 
-The bare installer and existing source/ref defaults remain unchanged. Actual
-release authentication on all four targets, the mandatory adopter pilot and default
-cutover remain tracked in [GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
+The public bare installer's stable pin remains v0.1.6 until a qualified Go stable
+release exists. The prepared Go release-selection branch reuses this candidate
+acquisition and transaction; explicit frozen legacy installer refs retain their
+own compatibility boundary. Actual release authentication on all four targets,
+the mandatory adopter pilot and public stable activation remain tracked in
+[GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
 
 Release maintainers can use the
 [published-release qualification lane](PUBLISHED_RELEASE_QUALIFICATION.md) to

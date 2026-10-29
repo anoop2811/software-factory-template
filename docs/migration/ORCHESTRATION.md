@@ -43,10 +43,11 @@ available without a fallback to another provider or model.
 Intentional retained shell boundaries are policy gates, sourceable assignment
 adapters, Bash operand expansion for local-hook compatibility, generated
 invocation adapters, user Make/build commands and harness-native hook formats.
-The source checkout still carries the old default bootstrap/upgrade and frozen
-compatibility implementations until the separately qualified default cutover.
-Their presence does not establish release readiness or a runtime fallback in
-an opted-in Go installation. No Go or Python interpreter is required for the
+The source default-cutover preparation replaces duplicate controllers with Go
+adapters and keeps frozen historical compatibility evidence separately, under
+[ADR 0108](../adr/0108-default-go-cutover.md). The public installer's stable pin
+remains unchanged until release qualification and operator acceptance. Prepared
+source behavior does not establish release readiness. No Go or Python interpreter is required for the
 converted installed orchestration; retained JSON validation gates still require
 `jq`, and configured product packs can require their own toolchains.
 

@@ -5124,6 +5124,65 @@ replacement PR head must pass hosted Linux and macOS checks and receive its own
 completed review before merge. Local reports and negative-control overlays are
 retained under `.factory/qualification/pr140-foreground-20261027/`.
 
+## Decision 118 (2026-10-28 UTC): finish replacement preparation before RC4
+
+The operator approved revising Q2 to Ubuntu 24.04+ on amd64/arm64, macOS 15+
+on Intel and macOS 14+ on Apple Silicon. Preserve older qualification reports as
+observations of their original policy and source; do not rewrite signed assets,
+tags or historical minimum-OS results. Future qualification uses the approved
+architecture-specific floors.
+
+The operator also approved Q5 exit criteria without an additional calendar
+waiting period: a representative supported-project pilot must demonstrate a
+normal v0.1.6 upgrade, a reversible small development cycle, deterministic
+factory checks, budgets/loops/reports, customization and history preservation,
+interruption/recovery, compatible rollback, ignored inert recovery copies and
+classified retirement/retention. Record exact candidate/source identities and
+actual outcomes, including preserved failures and refused incompatible rollback.
+Operator acceptance remains mandatory after the evidence exists; approval of
+these criteria is not acceptance of an unexecuted pilot. No paid model request
+is required. The actual older customized adopter stays preserved; its forced
+migration is outside approved Q1.
+
+Before publication, complete the remaining implementation, cleanup and local
+supported-project rehearsal as one reviewed change. Do not publish RC4 while
+those preparations remain unfinished. A local packaged rehearsal is labeled
+local-source evidence, not published authenticity. After reviewed source is
+merged, one RC4 must receive fresh four-target authenticated published
+qualification and the final operator pilot acceptance before stable release.
+
+Prepare the ordinary installer and init/upgrade default selection through the
+existing authenticated release acquisition and whole-installation transaction.
+Retain explicit legacy/source compatibility as classified boundaries rather than
+silently falling back when a Go release is unavailable or fails authentication.
+Do not break the currently published stable installer while a future release
+does not exist. Keep user arguments literal, explicit mutation consent, proposal
+digests, ownership/customization preservation, interrupted recovery and backup
+retention. Reuse canonical Go implementations rather than duplicate migration,
+artifact verification, gate or orchestration logic in new shell code.
+
+Outside-in Ginkgo/Gomega criteria are authored independently before production
+changes; review correctness, trust/cleanup and coverage independently and verify
+findings against complete source. Document every active retained interpreter,
+adapter and dependency. This decision defines the preparation scope; it does
+not mark any of the eleven release gates complete without observed evidence.
+
+Provenance: operator conversation on 2026-10-28 approved the revised platform
+minimums and evidence-based pilot with no extra calendar delay, then explicitly
+requested finishing the remaining work before cutting RC4. PR #140 is merged
+as `95dbecffafb5a04191317b7e16397e684bf5191c`; the GitHub checks API observed
+nineteen successful exact-merge checks before this preparation began.
+
+Preparation clarification: preserve the existing 85 initializer prompt, literal
+data, publication, terminal and child-ownership cases as explicitly historical-
+source component evidence. A guarded cached test-only executable calls the same
+native initializer core with the frozen historical asset declaration; it is not
+compiled into the public CLI and changes no ordinary production inventory.
+Current Go delivery uses separate real CLI/image/default/cache/recipe tests.
+Keep the exact immutable oracle and all assertions; do not restore deleted
+controllers or introduce a shipping bypass to make old source fixtures pass.
+ADR 0108 records this classification and removal of unreachable CLI script fallback.
+
 ## Decision 119 (2026-10-29 UTC): qualify complete review input beyond GitHub's diff limit
 
 PR #141's raw GitHub diff request failed with HTTP 406 at the service's 20,000-line

@@ -5159,3 +5159,20 @@ then qualify the repaired cutover's complete real model coverage and elapsed
 time. Do not claim an all-cached replay demonstrates uncached speed, or mark a
 partial result successful to satisfy the deadline. These are repairs to the
 active cutover's qualification, not permission to start an unrelated feature.
+
+## Decision 124 (2026-10-29 UTC): split the cutover into complete function changes
+
+The operator requested smaller consumable PRs after the combined cutover grew
+to 134 files and roughly twenty thousand changed lines. Preserve PR #141's
+committed source `07e323a76bbaeb34b2ef12321d958b1539fa528d` as the reference;
+deliver complete functions independently from main, with their outside-in tests,
+compatibility behavior, cleanup and documentation in the same change. Finish
+reviews, responses and checks before each human merge and subsequent slice.
+
+ADR 0114 records the dependency order and intermediate-state constraints. Start
+with replayable structured recovery arguments through the existing installation
+API and CLI. Compiler supervision is another independent slice. Keep adapters
+coupled to working dispatch, retirement coupled to ownership/backup/recovery,
+and historical recipe support ahead of inventory changes. Do not publish an RC
+for every source merge or infer that smaller PRs resolve observed HTTP 429s.
+The final single-candidate qualification and stable activation gates remain.

@@ -71,6 +71,13 @@ Partial initialization reports its target and pending evidence, without claiming
 automatic rollback. Preserve that evidence and reconcile the reported state before
 removing a pending barrier.
 
+Whole-installation JSON reports provide `recovery_arguments` as literal argv for
+a fresh read-only preview from the installation root. The vector retains the
+selected image identities, local or authenticated trust operands, Go predecessor
+image and project-input overrides. `recovery_command` is a short description;
+use the structured vector for replay. Any later mutation still requires the new
+proposal's confirmation and explicit quiescent declaration.
+
 Candidate preview also reports [backup retention](BACKUP_RETENTION.md), including
 held and preserved exceptions. A successful later forward release keeps its usable
 predecessor recovery and prunes only qualified older sets. Standalone controls are

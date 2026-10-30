@@ -5,6 +5,7 @@
 - A project-agnostic scaffold that wraps AI coding agents in deterministic gates: shell hooks and CI checks that block, instead of prompts that ask.
 - Extracted from a factory that built a real product. Nothing here is speculative tooling.
 - Every gate is proven by a break/fix fixture — we've watched each one catch the defect it exists for.
+- Bounded delivery: one complete function per PR, with its tests, compatibility work and docs, so humans and AI reviewers can assess the whole change.
 - MIT licensed.
 
 ## Quick start
@@ -133,6 +134,19 @@ The second idea is the Verification Contract: only claim what you've observed. T
 
 The third idea is that this is already a graph. The vocabulary everyone's chasing — prompt, loop, harness, graph — maps straight onto what's here: roles are the nodes, gates are the verified edges, the reviewer is the skeptic that never wrote the code, and models tier by role. You don't adopt a graph framework; the graph is the floor, and it runs the same on Claude Code, opencode, and Codex because the roles are canonical. The mapping is in [docs/CONCEPTS.md](docs/CONCEPTS.md).
 
+## Bounded delivery
+
+Keep each PR focused on one complete, observable function. Include its independent
+tests, compatibility behavior, required cleanup and documentation in that PR.
+This gives human and AI reviewers one coherent change to follow from requirement
+to evidence. Independent functions can proceed on separate branches; dependent
+changes merge in order after their own reviews and checks pass.
+
+Use this planning practice with Codex, Claude Code or OpenCode. Review batching
+and request budgets provide separate computational limits; the factory does not
+enforce a universal PR line limit. See the [bounded delivery guide](docs/BOUNDED_DELIVERY.md)
+for scope examples and the merge workflow.
+
 ## What's inside
 
 | Piece | Where | What it does |
@@ -202,6 +216,7 @@ It's a routing change only — no gate is relaxed, so the same hooks check the o
 - [docs/LOOPS.md](docs/LOOPS.md) — manual checks, bounded repair and checkpoint handoffs
 - [docs/FEATURE_ROADMAP.md](docs/FEATURE_ROADMAP.md) — stable feature priorities and completion tracking
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) — workflow recipes (graph engineering) and the workflow-lint gate
+- [docs/BOUNDED_DELIVERY.md](docs/BOUNDED_DELIVERY.md) — complete-function PRs, parallel branches and ordered merges
 - [docs/HOOKS.md](docs/HOOKS.md) — every hook: when it fires, exit codes, what a failure looks like
 - [docs/PATTERNS.md](docs/PATTERNS.md) — failure patterns we hit in practice, and the fixes
 - [docs/FACTORY_RULES.md](docs/FACTORY_RULES.md) — the operational rulebook agents read

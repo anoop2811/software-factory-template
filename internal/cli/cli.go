@@ -43,6 +43,7 @@ const usage = `factory — software factory control surface
 Usage: factory <command> [args]
 
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
+              Explicit local Go install: init [TARGET] --local [--source DIR]
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
   upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
@@ -156,8 +157,18 @@ func Run(ctx context.Context, args []string) int {
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
-				if (name == "init" || name == "upgrade") && releasecmd.Claimed(forwarded) {
+				if (name == "init" && releasecmd.InitClaimed(forwarded)) || (name == "upgrade" && releasecmd.Claimed(forwarded)) {
 					status = releasecmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
+				// Explicit local init runs the selected committed initializer.
+				// docs/adr/0116-explicit-go-local-initialization.md:13.
+				if name == "init" && releasecmd.LocalClaimed(forwarded) {
+					var source func() (string, error)
+					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); !installed {
+						source = dispatcherDirectory
+					}
+					status = releasecmd.RunLocalInit(cmd.Context(), forwarded, source, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					return nil
 				}
 				// Whole-installation markers own malformed requests before older routes.

@@ -1,6 +1,6 @@
 # ADR-0060: Runtime source bundles and attested delivery
 
-Status: accepted for implementation, 2026-09-07. Anoop approved Q2/Q3 in chat.
+Status: accepted for implementation, 2026-09-07. Anoop approved Q2/Q3 in chat; Decision 128 supersedes the macOS floor with macOS 15+.
 
 ## Contract
 

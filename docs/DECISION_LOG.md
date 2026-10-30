@@ -5225,3 +5225,57 @@ Run the new heavy real-RC3 family in a dedicated `historical-recipe` source
 qualification partition on Linux and macOS. Reuse bounded worker selection,
 race/quality stages and report plumbing. Require actual four-way disjoint
 discovery and complete-union failure propagation without extending deadlines.
+
+## Decision 127 (2026-10-30 UTC): let the selected local build initialize its own installation
+
+After human merge of #146 as `38a1a59259e16021f0ca69ef00aae76eba375cc6`,
+implement explicit `factory init --local [--source DIR]` as its own function.
+Reuse native committed-source packaging, explicit-local staging, owned cache
+custody and the qualified initializer. Reject dirty or malformed inputs and keep
+local identity distinct from official publisher authentication.
+
+Design review refuted the preserved prototype's invoker-side initialization
+shortcut: role-recipe compatibility does not qualify another revision's complete
+initializer. Hand off to the exact built runtime through a small private,
+versioned local-image transport; bind archive/self/source identities and consume
+once without rebuilding. Keep sourceable and authenticated protocols separate,
+preserve installed admission and shared ownership-error retention, and clean
+only after confirmed child completion. ADR 0116 defines the contract and
+selected-source-only marker test before implementation.
+
+Run the heavy public scenarios in a dedicated `local-init` source CI partition
+on both operating systems, retaining bounded workers, reports and every quality
+stage. Require actual five-way disjoint discovery and full-union failure
+propagation. Local upgrade, defaults, inventory cleanup and release activation
+remain later boundaries; no new release or tool/library pin is introduced.
+
+The user's naming refinement keeps compatibility tests but names suites and
+test files after their behavior. Rename the historical family to `Supported
+predecessor recipe compatibility` and its data oracle to `Historical installation
+recipe integrity`; immutable RC3 identifiers remain fixture provenance. Keep
+the same criteria and update scheduler selectors atomically with their names.
+
+## Decision 128 (2026-10-30 UTC): support macOS 15 and replace retired hosted runners
+
+PR #147's native arm64 job `124215632371` was cancelled before any build step
+by GitHub's scheduled macOS 14 image brownout. The official runner-image notice,
+fetched on 2026-10-30 UTC, schedules that interruption until 2026-10-31 00:00 UTC
+and retires the image on 2026-11-02:
+https://github.com/actions/runner-images/issues/13518.
+GitHub's current runner documentation identifies `macos-15` as arm64 and
+`macos-15-intel` as Intel:
+https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job.
+
+The user explicitly approved ending macOS 14 support. Revise Q2's current
+supported floor to macOS 15+ on both architectures, retaining Ubuntu 24.04+.
+Use the pinned supported `macos-15` arm64 host for native bundle builds and
+published-release qualification; retain `macos-15-intel` for amd64. Keep all
+four target jobs, authenticity checks and existing scenario criteria. Do not
+provision paid runners or publish a release as part of this correction.
+
+Update current support claims, CI and the existing workflow contract together.
+Historical RC3 observations remain immutable evidence under their original
+criteria. They do not qualify the current binary or close a release gate;
+the next candidate still requires fresh native qualification at the revised
+minimums. Supersede the old macOS 14 evidence requirement explicitly rather
+than silently treating a newer host as proof of the old platform.

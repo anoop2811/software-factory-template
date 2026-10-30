@@ -94,13 +94,13 @@ with Go/Python absent from its PATH on all four targets:
 | --- | --- | --- |
 | linux/amd64 | Ubuntu 24.04 | CI execution required |
 | linux/arm64 | Ubuntu 24.04 ARM | CI execution required |
-| darwin/amd64 | macOS 15 Intel | macOS 14 Intel pilot still required |
-| darwin/arm64 | macOS 14 ARM | CI execution required |
+| darwin/amd64 | macOS 15 Intel | Native macOS 15 execution required |
+| darwin/arm64 | macOS 15 ARM | Native macOS 15 execution required |
 
-The approved support scope is Ubuntu 24.04+ and macOS 14+. A newer runner does
-not establish support for an older minimum. The Intel macOS 14 gap must close
-before claiming the whole platform set is qualified or enabling distribution
-as the default runtime.
+The approved support scope is Ubuntu 24.04+ and macOS 15+, on both architectures
+(Decision 128, 2026-10-30). macOS 14 is no longer supported. A newer runner does
+not establish support for an older minimum; fresh published native qualification
+at the current minimums remains required before closing the platform release gate.
 
 After a maintainer publishes a release, `runtime-release.yml` builds its exact
 tagged revision, runs the native checks, attests the four archives with GitHub's

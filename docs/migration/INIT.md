@@ -1,6 +1,8 @@
 # Native Go initialization
 
-This is a developer-built native command; installed runtime activation remains separate.
+Source initialization and explicit local-image initialization have different
+delivery behavior. Ordinary source initialization keeps the script installation;
+the explicit local selector below installs its selected Go build.
 
 Decision 84 and [ADR-0085](../adr/0085-go-native-init.md) define the native
 initializer contract. From a factory source checkout, build alongside the
@@ -27,6 +29,37 @@ Native source initialization does not activate Go in the destination. The instal
 entry point remains the template's existing shell dispatcher until the separate
 runtime cutover is qualified. Existing installation upgrades, migration recovery
 creation, rollback and retention remain separate work.
+
+## Initialize from committed local source
+
+The explicit developer interface builds and installs a native Go image:
+
+```sh
+go build -o factory-go ./cmd/factory
+./factory-go init ../new-project --local --pack go,typescript
+
+# Select another clean checkout, including from an installed Go caller:
+./factory-go init ../new-project --local --source /path/to/clean-factory --pack go
+```
+
+Commit source changes first. Tracked modifications and untracked files are
+refused. An omitted source means the invoked developer checkout; an installed
+caller must supply `--source DIR`. The host's provisioned Go toolchain and module
+cache are required. Packaging runs offline and does not download a toolchain,
+contact GitHub or call a model. The initializer may still install project
+dependencies through its declared setup operations.
+
+The exact built executable performs initialization and installs a
+`local-FULL_REVISION` runtime for the native host target. This is an explicit
+local build, with no publisher authentication claim. `--local --help` explains
+the selector without inspecting source or compiling. Local upgrade is not
+provided by this interface.
+
+Before publication, build or validation failures preserve the source and target.
+Once publication begins, an incomplete installation keeps the pending barrier
+and initializer backups for recovery; automatic rollback is not promised.
+Successful initialization removes its private build/staging inputs. User-owned
+caches are never adopted or deleted. See [ADR 0116](../adr/0116-explicit-go-local-initialization.md).
 
 The intended compatibility boundaries preserve user README content and unmanaged
 Makefile/ignore rules. Unsafe source or destination paths and unrepresentable flat

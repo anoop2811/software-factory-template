@@ -11,6 +11,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/bridge"
 	"github.com/anoop2811/software-factory-template/internal/cli"
+	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 )
 
 func main() { os.Exit(run(context.Background(), os.Args[1:])) }
@@ -67,6 +68,11 @@ func run(ctx context.Context, args []string) (status int) {
 	// invocation retains its public dispatcher. docs/DECISION_LOG.md:1960.
 	if os.Getenv("FACTORY_BRIDGE_PROTOCOL") != "" {
 		return bridge.Run(ctx, args)
+	}
+	// Installed custody and sourceable protocols retain their existing owners.
+	// docs/adr/0116-explicit-go-local-initialization.md:64.
+	if releasecmd.LocalImageClaimed(args) {
+		return releasecmd.RunLocalImage(ctx, args, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 	}
 	return cli.Run(ctx, args)
 }

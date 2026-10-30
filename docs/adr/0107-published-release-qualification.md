@@ -1,7 +1,7 @@
 # ADR 0107: qualify published attested releases through the public installer
 
 Date: 2026-10-19 UTC
-Status: user-authorized implementation contract; independent RED precedes wiring
+Status: user-authorized implementation contract; independent RED precedes wiring. Decision 128 supersedes the macOS floor with macOS 15+.
 Decision: 106
 
 ## Scope and completion boundary

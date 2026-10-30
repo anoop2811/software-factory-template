@@ -75,7 +75,7 @@ frozen role data with immutable RC3 source rather than deriving the oracle from
 the implementation under test.
 
 Derive the new acceptance census from actual discovery. Give the heavy ordered
-`Historical RC3 installation recipe compatibility` family its own
+`Supported predecessor recipe compatibility` family its own
 `historical-recipe` Linux/macOS partition, introduced with its scheduling proof.
 The previous macOS handoff job ran for 20m32s on #145, close to the existing
 25-minute test allowance. Exclude the new family from base; preserve the existing

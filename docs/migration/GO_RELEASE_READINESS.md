@@ -13,6 +13,9 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 
 - Native source commands exist for init, doctor, report, metrics, review-lane,
   configuration migration, budgets and loops.
+- Explicit committed-local initialization packages clean source and runs its exact
+  selected Go initializer; [ADR 0116](../adr/0116-explicit-go-local-initialization.md)
+  records focused source qualification. This does not activate ordinary defaults.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration
@@ -36,10 +39,12 @@ builds, authentication of twelve subjects, fourteen uploaded assets and all
 See [the exact RC3 results](PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 
 The observed systems are Ubuntu 24.04.5 on both architectures, macOS 14.8.9
-arm64 and macOS 15.7.9 amd64. The Intel result does not establish the approved
-macOS 14 Intel floor, so the full platform gate below remains open. The mandatory
-operator pilot, default selection, classified retirement and final audit also
-remain requirements. v0.1.6 remains latest stable.
+arm64 and macOS 15.7.9 amd64, under the then-approved macOS 14 floor. Decision
+128 (2026-10-30) now sets macOS 15+ on both architectures; macOS 14 is no longer
+supported. The next candidate needs fresh native qualification at the revised
+minimums, so the platform gate remains open. Operator pilot, default selection,
+classified retirement and final audit also remain requirements. v0.1.6 remains
+latest stable.
 
 RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
 their recorded failures; its passing published results are separate evidence.
@@ -166,5 +171,5 @@ The fixed denominator remains thirty; no new percentage is inferred here.
 explicit attested candidate lane under [ADR 0107](../adr/0107-published-release-qualification.md).
 Its implementation and ordinary hermetic contract checks do not close the native
 published-release gate. Record actual published outcomes and exact platform/OS
-evidence separately, including the outstanding macOS 14 Intel minimum-OS proof.
+evidence separately, including both architectures at the current macOS 15 minimum.
 The mandatory adopter pilot and default cutover remain independent requirements.

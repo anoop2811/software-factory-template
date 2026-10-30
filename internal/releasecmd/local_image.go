@@ -56,23 +56,23 @@ func RunLocalImage(parent context.Context, args []string, environment map[string
 	digest, _, err := file.Digest(ctx, 128<<20)
 	err = errors.Join(err, file.Close())
 	if err != nil || digest != archiveDigest {
-		fmt.Fprintln(stderr, "factory local-source: local archive digest mismatch")
+		localFailure(stderr, "local archive digest mismatch", err)
 		return 1
 	}
 	physical, head, err := inspectLocalSource(ctx, source, environment)
 	if err != nil || physical != source || head != revision {
-		fmt.Fprintln(stderr, "factory local-source: local source identity mismatch:", err)
+		localFailure(stderr, "local source identity mismatch", err)
 		return 1
 	}
 	option := staging.Options{Archive: filepath.Join(cache, filepath.FromSlash(archive)), Version: "local-" + revision, Revision: revision, Target: runtime.GOOS + "/" + runtime.GOARCH, Local: true, Installation: true}
 	image, err := staging.Inspect(ctx, option)
 	if err != nil || image.ArchiveSHA256 != archiveDigest {
-		fmt.Fprintln(stderr, "factory local-source: local archive identity mismatch:", err)
+		localFailure(stderr, "local archive identity mismatch", err)
 		return 1
 	}
 	self, err := currentDigest(ctx)
 	if err != nil || self != image.Runtime.SHA256 {
-		fmt.Fprintln(stderr, "factory local-source: selected initializer digest mismatch")
+		localFailure(stderr, "selected initializer digest mismatch", err)
 		return 1
 	}
 	// The selected process snapshots regular confined input before staging. It
@@ -91,7 +91,7 @@ func RunLocalImage(parent context.Context, args []string, environment map[string
 	option.Archive, option.Output = filepath.Join(owned.directory, "factory-runtime.tar.gz"), filepath.Join(owned.directory, "stage")
 	staged, err := staging.Stage(ctx, option)
 	if err != nil || staged.SHA256 != archiveDigest {
-		fmt.Fprintln(stderr, "factory local-source: local archive staging mismatch:", err)
+		localFailure(stderr, "local archive staging mismatch", err)
 		return 1
 	}
 	if err := tree.Check(ctx); err != nil {

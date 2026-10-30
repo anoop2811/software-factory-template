@@ -115,7 +115,7 @@ func RunLocalInit(parent context.Context, args []string, source string, environm
 	defer func() { status = image.finish(stderr, status) }()
 	digest, err := digestFile(ctx, image.raw, 256<<20)
 	if err != nil || digest != image.digest {
-		fmt.Fprintln(stderr, "factory local-source: selected executable changed")
+		localFailure(stderr, "selected executable could not be qualified", err)
 		return 1
 	}
 	if err := os.Chmod(image.raw, 0700); err != nil { // #nosec G302 -- Owner-only selected executable matched the locally qualified package digest.
@@ -206,4 +206,14 @@ func localEnvironment(environment map[string]string) map[string]string {
 	result := withoutCache(environment)
 	delete(result, "FACTORY_BRIDGE_PROTOCOL")
 	return result
+}
+
+// Refusal diagnostics preserve real causes without rendering a nil comparison
+// error as if it were an explanation. docs/adr/0116-explicit-go-local-initialization.md:75.
+func localFailure(diagnostics io.Writer, message string, err error) {
+	if err != nil {
+		fmt.Fprintf(diagnostics, "factory local-source: %s: %v\n", message, err)
+		return
+	}
+	fmt.Fprintln(diagnostics, "factory local-source: "+message)
 }

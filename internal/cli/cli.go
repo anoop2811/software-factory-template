@@ -156,7 +156,7 @@ func Run(ctx context.Context, args []string) int {
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
-				if name == "init" && releasecmd.InitClaimed(forwarded) || name == "upgrade" && releasecmd.Claimed(forwarded) {
+				if (name == "init" && releasecmd.InitClaimed(forwarded)) || (name == "upgrade" && releasecmd.Claimed(forwarded)) {
 					status = releasecmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					return nil
 				}

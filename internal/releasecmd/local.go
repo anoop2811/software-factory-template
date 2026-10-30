@@ -38,8 +38,8 @@ type localOptions struct {
 	help   bool
 }
 
-func parseLocalInit(args []string, source string) (localOptions, error) {
-	result := localOptions{source: source}
+func parseLocalInit(args []string) (localOptions, error) {
+	var result localOptions
 	localSeen, sourceSeen := false, false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -82,18 +82,15 @@ func parseLocalInit(args []string, source string) (localOptions, error) {
 	if !localSeen || sourceSeen && result.source == "" || strings.ContainsAny(result.source, "\x00\r\n") {
 		return result, errors.New("local init requires --local and a valid source directory")
 	}
-	if !result.help && result.source == "" {
-		return result, errors.New("installed local init requires --source DIR")
-	}
 	return result, nil
 }
 
 // RunLocalInit packages clean source, then delegates to that exact initializer.
 // docs/adr/0116-explicit-go-local-initialization.md:47.
-func RunLocalInit(parent context.Context, args []string, source string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
+func RunLocalInit(parent context.Context, args []string, source func() (string, error), environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	option, err := parseLocalInit(args, source)
+	option, err := parseLocalInit(args)
 	if err != nil {
 		fmt.Fprintln(stderr, "factory local-source:", err)
 		return 2
@@ -101,6 +98,17 @@ func RunLocalInit(parent context.Context, args []string, source string, environm
 	if option.help {
 		fmt.Fprintln(stdout, "Usage: factory init [TARGET] --local [--source DIR] [initializer options]\n\nBuild clean committed source using the provisioned Go toolchain; no publisher authentication is claimed.")
 		return 0
+	}
+	if option.source == "" {
+		if source == nil {
+			fmt.Fprintln(stderr, "factory local-source: installed local init requires --source DIR")
+			return 2
+		}
+		option.source, err = source()
+		if err != nil || option.source == "" || strings.ContainsAny(option.source, "\x00\r\n") {
+			localFailure(stderr, "cannot locate developer source", err)
+			return 1
+		}
 	}
 	physical, revision, err := inspectLocalSource(ctx, option.source, environment)
 	if err != nil {
@@ -148,7 +156,11 @@ func inspectLocalSource(ctx context.Context, source string, environment map[stri
 		command := []string{"git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}
 		value, err := native.ExecuteCommandBounded(child, physical, append(command, args...), env, 1<<20, 64<<10)
 		if err != nil || value.ExitCode == nil || *value.ExitCode != 0 || !value.ExitConfirmed || value.OwnershipUnconfirmed {
-			return "", errors.Join(err, errors.New("cannot inspect committed source Git identity"))
+			var diagnostic error
+			if detail := strings.TrimSpace(string(value.Stderr)); detail != "" {
+				diagnostic = errors.New(detail)
+			}
+			return "", errors.Join(errors.New("cannot inspect committed source Git identity"), err, diagnostic)
 		}
 		return string(value.Stdout), nil
 	}

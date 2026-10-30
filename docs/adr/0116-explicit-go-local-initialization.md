@@ -160,3 +160,12 @@ on the selected-only initializer marker; restoring the canonical code passed
 that same criterion. Primary production was never changed for this control.
 These local results do not qualify a published release, default activation,
 local upgrade, cache retirement or the supported-platform release matrix.
+
+Review clarification: resolve an omitted developer source lazily, only after
+valid selector help and explicit source selection are handled. Surface a real
+invocation-directory lookup failure; an installed caller's absent resolver still
+requires explicit source. Include bounded local Git failure diagnostics while
+preserving typed process-ownership errors. Keep the existing generic Cobra help
+surface, adding the local selector to its command summary. A flag-looking relative
+source remains representable with `--source=--name` or `--source ./--name`;
+ambiguous split selectors are not reinterpreted as source values.

@@ -7,7 +7,8 @@ the planned Go replacement and is not published. The explicit Go upgrade engine,
 rollback/recovery and retention are implemented on `main`.
 [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
 passed all twenty published scenarios on the observed Linux/macOS targets;
-macOS 14 Intel proof, operator pilot acceptance and default cutover remain open.
+fresh qualification for the next candidate, operator pilot acceptance and default
+cutover remain open.
 See [the exact qualification evidence](migration/PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
 [Release readiness](migration/GO_RELEASE_READINESS.md) is the delivery checklist.
 
@@ -24,6 +25,9 @@ not need the separate maintainer staging/packaging tools. See [CLI.md](CLI.md).
 
 ## Before upgrading
 
+- The Go replacement supports Ubuntu 24.04+ and macOS 15+, on amd64/arm64.
+  macOS 14 is outside the supported scope under Decision 128 (2026-10-30).
+  Historical candidate results do not qualify a newer binary.
 - The initial supported predecessors are v0.1.6 and the immutable Bash baseline
   `76952eaa63aebd1ecd282f5ab51dd7c3627cb497`. A marker claiming a version is not
   enough: observed files must identify a supported installation. Unknown or

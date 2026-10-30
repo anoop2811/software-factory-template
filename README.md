@@ -44,6 +44,9 @@ init, upgrade, rollback and interruption/recovery. Minimum-OS coverage, the oper
 and default cutover remain open; track the
 [release checklist](docs/migration/GO_RELEASE_READINESS.md).
 
+The Go replacement supports Ubuntu 24.04+ and macOS 15+, on amd64/arm64.
+macOS 14 is outside the supported scope.
+
 An ordinary `upgrade` or `upgrade --ref main` continues to select the script
 installation. When v0.2.0 is published with its complete attested assets, use the
 explicit Go flow below from your existing project:

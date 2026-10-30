@@ -1,6 +1,6 @@
 # ADR-0061: Authenticate and stage runtime bundles
 
-Status: accepted for implementation, 2026-09-07; Decision 56.
+Status: accepted for implementation, 2026-09-07; Decision 56. Decision 128 supersedes the macOS floor with macOS 15+.
 
 ## Boundary
 

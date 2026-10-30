@@ -35,7 +35,8 @@ jobs:
           - os: macos-15-intel
             target: darwin/amd64
             artifact: darwin-amd64
-          - os: macos-14
+          # specs/001-go-runtime-conversion.md:481 — current supported native floor.
+          - os: macos-15
             target: darwin/arm64
             artifact: darwin-arm64
     runs-on: ${{ matrix.os }}

@@ -102,10 +102,10 @@ func publishedAcquire() *publishedFixture {
 		fixture.evidence.OSVersion = string(body) + "\n" + fixture.evidence.OSVersion
 		fixture.evidence.MinimumOSQualified = bytes.Contains(body, []byte(`ID=ubuntu`)) && bytes.Contains(body, []byte(`VERSION_ID="24.04"`))
 	} else {
-		fixture.evidence.MinimumOSQualified = strings.HasPrefix(fixture.evidence.OSVersion, "14.")
+		fixture.evidence.MinimumOSQualified = strings.HasPrefix(fixture.evidence.OSVersion, "15.")
 	}
 	if !fixture.evidence.MinimumOSQualified {
-		fixture.evidence.MinimumOSGap = "Observed newer/different OS does not establish the approved Ubuntu 24.04 or macOS 14 native minimum; that release gate remains open."
+		fixture.evidence.MinimumOSGap = "Observed newer/different OS does not establish the approved Ubuntu 24.04 or macOS 15 native minimum; that release gate remains open."
 	}
 	fixture.saveEvidence()
 	view := publishedExecute(root, fixture.environment, "", gh, "release", "view", tag, "--repo", publishedRepository, "--json", "databaseId,tagName,isDraft")

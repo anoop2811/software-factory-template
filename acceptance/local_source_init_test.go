@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -222,6 +223,38 @@ var _ = Describe("Go explicit local source initialization", Ordered, ContinueOnF
 			Expect(installationSnapshot(f.cwd)).To(Equal(before))
 			localInitNoAcquisition(f)
 		}
+		missingInvoker := "factory-independent-missing-invoker-name"
+		runMissingInvoker := func(args ...string) cliResult {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			command := handoffCommand(ctx, f.cwd, f.environment, "", driver, args...)
+			command.Args[0] = missingInvoker
+			var stdout, stderr bytes.Buffer
+			command.Stdout, command.Stderr = &stdout, &stderr
+			err := command.Run()
+			Expect(ctx.Err()).NotTo(HaveOccurred())
+			status := 0
+			if err != nil {
+				var exit *exec.ExitError
+				Expect(errors.As(err, &exit)).To(BeTrue(), "%v", err)
+				status = exit.ExitCode()
+			}
+			return cliResult{stdout.String(), stderr.String(), status}
+		}
+		unresolved := runMissingInvoker("init", target, "--local", "--pack", "none")
+		AddReportEntry("local-init.missing-invoker", map[string]any{"argv0": missingInvoker, "status": unresolved.status, "stderr": unresolved.stderr}, ReportEntryVisibilityNever)
+		Expect(unresolved.status).To(Equal(1), "a source-built dispatcher lookup failure is operational, not installed-context usage: %+v", unresolved)
+		Expect(unresolved.stderr).To(ContainSubstring("locate dispatcher"))
+		Expect(unresolved.stderr).To(ContainSubstring(missingInvoker))
+		Expect(unresolved.stderr).NotTo(ContainSubstring("installed local init requires"))
+		for _, help := range []string{"--help", "-h"} {
+			out := runMissingInvoker("init", target, "--local", help)
+			Expect(out.status).To(Equal(0), "local help must not resolve the default source: %+v", out)
+			Expect(out.stdout).To(ContainSubstring("--local"))
+		}
+		Expect(installationSnapshot(f.cwd)).To(Equal(before))
+		Expect(installationSnapshot(f.environment["FACTORY_RELEASE_DIR"])).To(Equal(cache))
+		localInitNoAcquisition(f)
 		AddReportEntry("local-init.selector-refusals", receipts, ReportEntryVisibilityNever)
 	})
 

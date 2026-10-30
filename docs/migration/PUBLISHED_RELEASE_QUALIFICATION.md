@@ -6,6 +6,11 @@ attestations. Regular users continue to use the single `factory` CLI.
 Adding the lane does not establish that a release passed it. The
 [replacement-release checklist](GO_RELEASE_READINESS.md) remains authoritative.
 
+Current support is Ubuntu 24.04+ and macOS 15+ on both architectures under
+Decision 128 (2026-10-30). macOS 14 is no longer supported. Historical results
+below retain their actual observed systems and then-approved qualification
+criteria; the next candidate requires fresh evidence at the current minimums.
+
 ## First published candidate result
 
 On 2026-10-24, [v0.2.0-rc.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.1)
@@ -36,7 +41,7 @@ The retained `published-release-TARGET-40103396983-1` artifacts contain the exac
 subject digests, source/harness identity, OS and Ginkgo failure messages. Decision
 110 records the correction contract. A corrected source implementation and local
 stager checks do not repair RC1 or close the real release gate: publish a new
-candidate after review and repeat the full live matrix. The macOS 14 Intel gap,
+candidate after review and repeat the full live matrix. The then-required macOS 14 Intel gap,
 mandatory adopter pilot and default cutover remain separate requirements.
 
 ## Second published candidate result
@@ -100,7 +105,7 @@ published; all twelve authenticated subject names/digests match the checksum
 records. Candidate, harness and workflow source identities all match the expected
 commit.
 
-| Target | Observed OS | Actual live criteria | Minimum OS established |
+| Target | Observed OS | Actual live criteria | Then-approved minimum OS established |
 |---|---|---|---|
 | Linux amd64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
 | Linux arm64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
@@ -321,15 +326,17 @@ release gate.
 
 ## Keep minimum-OS evidence separate
 
-The approved floor remains Ubuntu 24.04+ and macOS 14+ on both architectures.
-The default Intel Mac runner is macOS 15; a pass there does not prove macOS 14
-Intel compatibility. Record that outstanding native minimum-OS evidence rather
-than marking the full platform gate complete. GitHub's announced retirement of
-hosted macOS 14 on 2026-11-02 also requires an explicit qualification plan; this
-lane does not silently raise the supported floor or provision paid runners.
+Decision 128 revises the supported floor to Ubuntu 24.04+ and macOS 15+ on both
+architectures. The native Mac hosts are `macos-15-intel` and `macos-15` (arm64).
+Only actual execution on the current minimum OS qualifies that floor; results
+from a newer/different OS retain a visible gap. Historical macOS 14 outcomes are
+preserved above, and fresh qualification is required for the next binary.
 
 [GitHub's macOS 14 notice](https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/)
-was read on 2026-10-19 UTC.
+was read on 2026-10-19 UTC. Its [runner-image notice](https://github.com/actions/runner-images/issues/13518),
+read on 2026-10-30 UTC after an observed job cancellation, confirms the brownout
+and 2026-11-02 retirement. The user explicitly approved macOS 15 as the new floor;
+no paid runners are provisioned by this lane.
 
 ## Local contract checks and live execution
 

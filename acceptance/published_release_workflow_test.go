@@ -133,7 +133,7 @@ var _ = Describe("Published release qualification workflow contract", func() {
 				Expect(actual).NotTo(HaveKey(row["target"]))
 				actual[row["target"]] = row["os"]
 			}
-			Expect(actual).To(Equal(map[string]string{"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm", "darwin/amd64": "macos-15-intel", "darwin/arm64": "macos-14"}))
+			Expect(actual).To(Equal(map[string]string{"linux/amd64": "ubuntu-24.04", "linux/arm64": "ubuntu-24.04-arm", "darwin/amd64": "macos-15-intel", "darwin/arm64": "macos-15"}))
 			checkouts := 0
 			for _, step := range job.Steps {
 				if !strings.HasPrefix(step.Uses, "actions/checkout@") {

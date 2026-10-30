@@ -34,6 +34,7 @@ const nativeCLIUsage = `factory — software factory control surface
 Usage: factory <command> [args]
 
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
+              Explicit local Go install: init [TARGET] --local [--source DIR]
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
   upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never

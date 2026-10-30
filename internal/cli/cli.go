@@ -177,6 +177,16 @@ func Run(ctx context.Context, args []string) int {
 					status = installationcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
 				}
+				// Local upgrade owns only its explicit selector, preserving assessment.
+				// docs/adr/0117-explicit-go-local-upgrade.md:31.
+				if name == "upgrade" && releasecmd.LocalUpgradeClaimed(forwarded) {
+					var source func() (string, error)
+					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); !installed {
+						source = dispatcherDirectory
+					}
+					status = releasecmd.RunLocalUpgrade(cmd.Context(), forwarded, source, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
 				// Standalone controls reserve malformed requests before legacy dispatch,
 				// after explicit selectors own their values. docs/adr/0106-go-backup-retention.md:133.
 				if name == "upgrade" && releasecmd.BackupClaimed(forwarded) {

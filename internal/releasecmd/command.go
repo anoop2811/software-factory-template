@@ -117,18 +117,25 @@ func parse(verb string, args []string) (options, bool, error) {
 	if verb != "upgrade" {
 		return result, false, errors.New("unsupported candidate operation")
 	}
-	var help bool
+	return parseUpgradeOptions(result, false)
+}
+
+// Local and authenticated upgrades share the same consent grammar.
+// docs/adr/0117-explicit-go-local-upgrade.md:26.
+func parseUpgradeOptions(result options, help bool) (options, bool, error) {
 	command := &cobra.Command{Use: "upgrade", Args: cobra.NoArgs, SilenceErrors: true, SilenceUsage: true}
 	command.SetOut(io.Discard)
 	command.SetErr(io.Discard)
-	command.Flags().BoolVarP(&help, "help", "h", false, "Show candidate help")
+	command.Flags().BoolVarP(&help, "help", "h", help, "Show upgrade help")
 	command.Flags().BoolVar(&result.dryRun, "dry-run", false, "Acquire and inspect without project changes")
 	command.Flags().BoolVar(&result.json, "json", false, "Report a candidate preview as JSON")
 	command.Flags().BoolVar(&result.quiescent, "quiescent", false, "Declare maintained maintenance exclusion")
 	command.Flags().StringVar(&result.confirmation, "confirm", "", "Confirm the current complete proposal digest")
 	command.Flags().StringArrayVar(&result.projectInputs, "project-input", nil, "Explicit missing project input KEY=VALUE")
 	command.Run = func(*cobra.Command, []string) {}
-	command.SetArgs(result.args)
+	// An explicitly empty argument vector must not fall back to os.Args.
+	// docs/adr/0117-explicit-go-local-upgrade.md:26.
+	command.SetArgs(append([]string{}, result.args...))
 	if err := command.Execute(); err != nil {
 		return result, false, err
 	}
@@ -139,7 +146,7 @@ func parse(verb string, args []string) (options, bool, error) {
 		confirmedJSON := result.json && confirmed
 		invalidDigest := confirmed && (len(result.confirmation) != 64 || strings.Trim(result.confirmation, "0123456789abcdef") != "")
 		if previewMutation || missingExclusion || confirmedJSON || invalidDigest {
-			return result, false, errors.New("invalid candidate consent")
+			return result, false, errors.New("invalid upgrade consent")
 		}
 	}
 	return result, help, nil

@@ -40,8 +40,10 @@ func run(ctx context.Context, args []string) (status int) {
 	}
 	if physical {
 		// Whole routes acquire EX directly; never upgrade a retained shared lease.
-		if len(args) > 1 && args[0] == "upgrade" && (installationcmd.Claimed(args[1:]) || releasecmd.Claimed(args[1:]) || releasecmd.BackupClaimed(args[1:])) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
-			return cli.Run(ctx, args)
+		if len(args) > 1 && args[0] == "upgrade" && (installationcmd.Claimed(args[1:]) || releasecmd.Claimed(args[1:]) || releasecmd.BackupClaimed(args[1:]) || releasecmd.LocalUpgradeClaimed(args[1:])) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
+			// Mark the physical caller without retaining SH; the transaction owns EX.
+			// docs/adr/0117-explicit-go-local-upgrade.md:59.
+			return cli.RunInstalled(ctx, args, root, "")
 		}
 		selected, err := installedlayout.Open(ctx, root, expected)
 		if err != nil {
@@ -73,6 +75,9 @@ func run(ctx context.Context, args []string) (status int) {
 	// docs/adr/0116-explicit-go-local-initialization.md:64.
 	if releasecmd.LocalImageClaimed(args) {
 		return releasecmd.RunLocalImage(ctx, args, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+	}
+	if releasecmd.LocalUpgradeImageClaimed(args) {
+		return releasecmd.RunLocalUpgradeImage(ctx, args, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 	}
 	return cli.Run(ctx, args)
 }

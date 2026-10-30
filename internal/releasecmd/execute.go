@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -65,9 +64,34 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	}
 	references := newRetentionAcquisitions(environment, candidate, previous)
 	defer func() { status = references.finish(stderr, status) }()
-	proposal, err := installation.ProposeRetaining(ctx, root, request, references.resolve)
+	operation := upgradeOperation{root: root, request: request, candidate: candidate, previous: previous, resolve: references.resolve, prefix: "factory candidate"}
+	operation.preview = func(proposal installation.RetentionProposal) string {
+		apply := []string{"upgrade", "--go-candidate", option.tag, "--confirm", proposal.ProposalDigest, "--quiescent"}
+		for _, input := range option.projectInputs {
+			apply = append(apply, "--project-input", input)
+		}
+		return fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- %s\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), quotedArguments(apply))
+	}
+	return operation.run(ctx, option, stdout, stderr)
+}
+
+// The image owner supplies acquisition and presentation; consent, transaction
+// and recovery remain shared. docs/adr/0117-explicit-go-local-upgrade.md:66.
+type upgradeOperation struct {
+	root                string
+	request             installation.Request
+	candidate, previous *acquired
+	resolve             installation.RetentionResolver
+	prefix              string
+	preview             func(installation.RetentionProposal) string
+	blockerHint         string
+}
+
+func (operation upgradeOperation) run(ctx context.Context, option options, stdout, stderr io.Writer) int {
+	root, request := operation.root, operation.request
+	proposal, err := installation.ProposeRetaining(ctx, root, request, operation.resolve)
 	if err != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
+		fmt.Fprintln(stderr, operation.prefix+": "+err.Error())
 		return installation.ErrorStatus(err)
 	}
 	if option.dryRun || option.confirmation == "" {
@@ -76,11 +100,7 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 			data, err = json.Marshal(proposal)
 			data = append(data, '\n')
 		} else {
-			apply := []string{"upgrade", "--go-candidate", option.tag, "--confirm", proposal.ProposalDigest, "--quiescent"}
-			for _, input := range option.projectInputs {
-				apply = append(apply, "--project-input", input)
-			}
-			data = []byte(fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- %s\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), quotedArguments(apply)))
+			data = []byte(operation.preview(proposal))
 		}
 		if !option.json {
 			data = append(data, installation.RetentionDiagnosticReport(proposal.Retention)...)
@@ -92,30 +112,36 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 			return 1
 		}
 		if len(proposal.Blockers) != 0 || len(proposal.RollbackBlockers) != 0 {
+			if operation.blockerHint != "" {
+				fmt.Fprintln(stderr, operation.prefix+": "+operation.blockerHint)
+			}
 			return 2
 		}
 		return 0
 	}
 	request.Confirmation, request.Quiescent = option.confirmation, option.quiescent
 	if request.Confirmation != proposal.ProposalDigest || len(proposal.Blockers) != 0 || len(proposal.RollbackBlockers) != 0 {
-		fmt.Fprintln(stderr, "factory candidate: proposal changed or has preserved blockers; request a fresh preview")
+		fmt.Fprintln(stderr, operation.prefix+": proposal changed or has preserved blockers; request a fresh preview")
 		return 2
 	}
 	request.MigrationID = "candidate-" + proposal.ProposalDigest[:24]
-	retention, applyErr := installation.ApplyRetaining(ctx, root, request, references.resolve)
+	if request.Source.Local {
+		request.MigrationID = "local-" + proposal.ProposalDigest[:24]
+	}
+	retention, applyErr := installation.ApplyRetaining(ctx, root, request, operation.resolve)
 	// Preserve pending recovery custody even if the diagnostic stream fails.
 	// docs/adr/0106-go-backup-retention.md:79.
 	if applyErr != nil && !installation.CleanupIncomplete(applyErr) {
-		reportRecovery(root, request, candidate, previous, stderr)
+		reportRecovery(root, request, operation.candidate, operation.previous, stderr)
 	}
 	if reportErr := output.WriteEvent(context.WithoutCancel(ctx), stderr, []byte(installation.RetentionDiagnosticReport(retention))); reportErr != nil {
 		return 1
 	}
 	if applyErr != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+applyErr.Error())
+		fmt.Fprintln(stderr, operation.prefix+": "+applyErr.Error())
 		return installation.ErrorStatus(applyErr)
 	}
-	fmt.Fprintln(stderr, "factory candidate: installation completed")
+	fmt.Fprintln(stderr, operation.prefix+": installation completed")
 	return 0
 }
 
@@ -157,22 +183,7 @@ func reportRecovery(root string, request installation.Request, candidate, previo
 		return
 	}
 	args := append([]string{filepath.Join(candidate.staged, "bin/factory-runtime"), "upgrade", "--installation"}, preview...)
-	args = append(args, "--profile", request.Profile)
-	imageArgs := func(prefix string, image *acquired) {
-		args = append(args, "--"+prefix+"source", image.options.Archive, "--"+prefix+"version", image.options.Version, "--"+prefix+"revision", image.options.Revision, "--"+prefix+"target", image.options.Target, "--"+prefix+"attestation", image.options.Attestation, "--"+prefix+"trusted-root", image.options.TrustedRoot)
-	}
-	imageArgs("", candidate)
-	if previous != nil {
-		imageArgs("before-", previous)
-	}
-	keys := make([]string, 0, len(request.Inputs))
-	for key := range request.Inputs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		args = append(args, "--project-input", key+"="+request.Inputs[key])
-	}
+	args = append(args, installation.RecoveryInputs(request)...)
 	fmt.Fprintf(stderr, "factory candidate: interrupted migration %s; preserve the project and recovery evidence.\nRecovery preview (no changes):\n%s\n", request.MigrationID, quotedArguments(args))
 }
 

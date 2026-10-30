@@ -168,6 +168,47 @@ previews `factory.config` conversion, and successful apply retains the adjacent
 `factory.config.migrated` file. It does not switch runtimes or become part of the
 runtime backup expiry policy. See [configuration migration](migration/CONFIG_MIGRATION.md).
 
+## Explicit developer upgrade from committed local source
+
+Use a built Go caller for this opt-in path. The tracked source `factory` launcher
+still selects scripts; it does not activate local Go upgrades. From inside the
+adopter, select a clean committed factory checkout:
+
+```sh
+/path/to/factory-go upgrade --local --source /path/to/clean-factory --dry-run --json
+```
+
+The source-built caller can omit `--source` when it lives beside its own source
+assets; installed Go callers require it explicitly. The selected source needs
+the provisioned pinned Go compiler and its module dependencies. This builds a
+native `local-FULL_REVISION` image and runs that exact build's own upgrader.
+No official release image is downloaded and no publisher authentication is
+claimed. Normal installed commands still need no compiler.
+
+Read the proposal and blockers, then repeat the same Go invocation with
+`--confirm PROPOSAL_DIGEST --quiescent`, removing `--dry-run --json`. This uses
+the existing preservation, transaction and inert-backup controls. Source changes,
+target changes or stale consent require a new preview. Local transitions never
+advance release-backup expiry.
+
+For an existing Go installation, also supply `--before-source
+/path/to/exact-before-checkout` in both preview and apply. That checkout must be
+clean and match the installed full revision. Its rebuilt image must reproduce
+the original version, native target, runtime bytes and required asset bytes.
+Matching metadata alone is insufficient. Compiler or recipe differences can
+prevent exact reconstruction; the installation is preserved. If you retained
+the original qualified archive, use the explicit before-image operands shown by
+`upgrade --installation --help` instead. Legacy predecessors do not take
+`--before-source`.
+
+If an interrupted transaction prints a recovery command, preserve its named
+private image directories and use that exact read-only preview. It uses retained
+archives and an executable outside the active selection, so recovery does not
+require recompiling. A hard kill cannot print new diagnostics; preserve the
+journal, backups and private inputs for the existing whole-installation recovery
+procedure. Never remove pending controls to force ordinary commands through.
+See [the local upgrade contract](adr/0117-explicit-go-local-upgrade.md).
+
 ## Updating the script installation today
 
 Existing source/ref updates keep their established behavior:
@@ -185,6 +226,6 @@ to `main`; pass an explicit `--ref` when matching a particular source matters.
 These legacy updates refresh known framework paths in place and can replace
 custom edits to those files, including shipped hooks. Save/reconcile those edits
 before running them, then review the diff and run `./factory doctor`. The
-preservation/conflict transaction described above belongs to the authenticated
-Go flow. Default Go selection will be advertised only after the replacement
+preservation/conflict transaction described above belongs to the explicit
+Go flows. Default Go selection will be advertised only after the replacement
 release gates pass.

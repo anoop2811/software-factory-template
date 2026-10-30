@@ -266,7 +266,7 @@ func qualifyLegacyMarker(ctx context.Context, planned *plan, reference baseline)
 }
 
 func releaseBinding(value staging.Options) staging.Options {
-	return staging.Options{Version: value.Version, Revision: value.Revision, Target: value.Target, Installation: true}
+	return staging.Options{Version: value.Version, Revision: value.Revision, Target: value.Target, Local: value.Local, Installation: true}
 }
 
 func proposeTransition(ctx context.Context, root string, request Request) (result Proposal, returned error) {

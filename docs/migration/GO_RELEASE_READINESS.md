@@ -16,6 +16,11 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Explicit committed-local initialization packages clean source and runs its exact
   selected Go initializer; [ADR 0116](../adr/0116-explicit-go-local-initialization.md)
   records focused source qualification. This does not activate ordinary defaults.
+- Explicit committed-local upgrade uses the selected build's own planner and
+  whole-installation transaction, with exact Go predecessor reconstruction,
+  preserved backups and replayable local recovery inputs. See
+  [ADR 0117](../adr/0117-explicit-go-local-upgrade.md); ordinary upgrade defaults
+  and the final integrated release rehearsal remain separate gates.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration

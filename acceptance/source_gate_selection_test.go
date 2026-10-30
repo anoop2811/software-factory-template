@@ -47,6 +47,10 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Go explicit local source initialization", "local-init"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source initialization-extra unrelated", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Go explicit local source initialization", "base"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades selected source", "local-upgrade"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade", "local-upgrade"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go explicit local source upgrade", "base"},
 	{"./acceptance", "Go factory command acceptance Native Go report core renders events", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff", "base"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", "base"},
@@ -94,7 +98,7 @@ if args and (args[0]=='test' or is_runner):
    record['selected'].append(case['package']+' :: '+case['name'])
    selected_groups.add(case['group'])
  if './...' not in packages and './acceptance' not in packages:record['group']='internal'
- if focus and selected_groups in [{'release-handoff'},{'historical-recipe'},{'local-init'}]:record['group']=next(iter(selected_groups))
+ if focus and selected_groups in [{'release-handoff'},{'historical-recipe'},{'local-init'},{'local-upgrade'}]:record['group']=next(iter(selected_groups))
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
 if is_helper:
  sys.stdout.buffer.write(helper.stdout);sys.stderr.buffer.write(helper.stderr);sys.exit(helper.returncode)
@@ -392,7 +396,7 @@ func sourceGateAssertWorkerPlan(calls []sourceGateCall, requested, maximum strin
 		if call.Group == "installation" {
 			continue
 		}
-		if call.Group == "release-handoff" || call.Group == "historical-recipe" || call.Group == "local-init" {
+		if call.Group == "release-handoff" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" {
 			expected = handoff
 		}
 		Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(strconv.Itoa(expected)), "%s dispatch must use the exact real helper plan %q", call.Group, plans[0].Plan)
@@ -419,7 +423,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workers).To(BeNumerically(">=", 1))
 		workerLimit := 32
-		if group == "release-handoff" || group == "historical-recipe" || group == "local-init" {
+		if group == "release-handoff" || group == "historical-recipe" || group == "local-init" || group == "local-upgrade" {
 			workerLimit = 2
 		}
 		Expect(workers).To(BeNumerically("<=", workerLimit))
@@ -429,7 +433,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(call.Focus).To(BeEmpty())
 	} else {
 		Expect(call.Focus).NotTo(BeEmpty())
-		if group == "release-handoff" || group == "historical-recipe" || group == "local-init" {
+		if group == "release-handoff" || group == "historical-recipe" || group == "local-init" || group == "local-upgrade" {
 			Expect(call.Skip).To(BeEmpty())
 		}
 	}
@@ -442,9 +446,9 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:549
 	// per docs/adr/0099-native-factory-orchestration.md:155
 	// per docs/adr/0101-go-release-handoff.md:560
-	It("executes five disjoint base installation release-handoff historical-recipe and local-init groups while retaining every source quality stage", func() {
+	It("executes six disjoint base installation release-handoff historical-recipe local-init and local-upgrade groups while retaining every source quality stage", func() {
 		callsByGroup := map[string]sourceGateCall{}
-		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade"} {
 			fixture := sourceGateMakeFixture()
 			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, nil)
 			Expect(status).To(Equal(0))
@@ -488,7 +492,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 					continue
 				}
 				expected := workers
-				if (call.Group == "release-handoff" || call.Group == "historical-recipe" || call.Group == "local-init") && workers == "3" {
+				if (call.Group == "release-handoff" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade") && workers == "3" {
 					expected = "2"
 				}
 				Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(expected))
@@ -502,16 +506,18 @@ var _ = Describe("Go source qualification scheduling", func() {
 		negativeStatus, negativeCount, negativeTotal, _ := sourceGateNativeDiscovery(sourceGateCall{Focus: "^NO_SUCH_SOURCE_QUALIFICATION_SPEC$", Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
-		// Forty-nine hosted large-review criteria join the base partition.
+		// Forty-nine hosted large-review criteria remain in the base partition.
+		// Thirteen local-upgrade criteria are independently discovered below.
+		// per docs/adr/0117-explicit-go-local-upgrade.md:94
 		// per docs/adr/0109-complete-large-review-inputs.md:72
-		Expect(negativeTotal).To(Equal(3110))
+		Expect(negativeTotal).To(Equal(3123))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3110))
-		expectedCounts := map[string]int{"base": 2954, "installation": 98, "release-handoff": 44, "historical-recipe": 4, "local-init": 10}
+		Expect(allTotal).To(Equal(3123))
+		expectedCounts := map[string]int{"base": 2954, "installation": 98, "release-handoff": 44, "historical-recipe": 4, "local-init": 10, "local-upgrade": 13}
 		seen, union := map[string]bool{}, []string{}
-		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
 			Expect(status).To(Equal(0), group)
 			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
@@ -525,16 +531,16 @@ var _ = Describe("Go source qualification scheduling", func() {
 		}
 		sort.Strings(union)
 		sort.Strings(allIdentities)
-		Expect(union).To(Equal(allIdentities), "five real discovered identity sets must be disjoint and exhaustive")
+		Expect(union).To(Equal(allIdentities), "six real discovered identity sets must be disjoint and exhaustive")
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
 	// per docs/adr/0101-go-release-handoff.md:560
-	DescribeTable("attempts the complete five-partition union and propagates every partition failure", func(selection, failing string) {
+	DescribeTable("attempts the complete six-partition union and propagates every partition failure", func(selection, failing string) {
 		failures := []string{failing}
 		if selection == "all" && failing == "" {
-			failures = append(failures, "historical-recipe", "local-init")
+			failures = append(failures, "historical-recipe", "local-init", "local-upgrade")
 		}
 		for _, failing := range failures {
 			fixture := sourceGateMakeFixture()
@@ -545,7 +551,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
 			sourceGateAssertWorkerPlan(calls, "auto", "4")
 			tests := sourceGateTests(calls)
-			Expect(tests).To(HaveLen(5), "all must attempt all five partitions even after any earlier failure")
+			Expect(tests).To(HaveLen(6), "all must attempt all six partitions even after any earlier failure")
 			sourceGateAssertInternal(calls, true)
 			seen, union, expected := map[string]bool{}, []string{}, []string{}
 			for _, call := range tests {
@@ -560,6 +566,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(seen).To(HaveKey("release-handoff"))
 			Expect(seen).To(HaveKey("historical-recipe"))
 			Expect(seen).To(HaveKey("local-init"))
+			Expect(seen).To(HaveKey("local-upgrade"))
 			Expect(union).To(ConsistOf(expected))
 			if failing == "" {
 				Expect(status).To(Equal(0))
@@ -647,7 +654,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
 	// per docs/adr/0101-go-release-handoff.md:560
 	// per docs/DECISION_LOG.md:4529
-	It("preserves OS check names and pinned setup while scheduling all five groups independently on both platforms", func() {
+	It("preserves OS check names and pinned setup while scheduling all six groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
 		baselineBytes, err := baselineCommand.Output()
@@ -716,7 +723,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			} else {
 				Expect(identifier).To(Equal("go-runtime-installation"))
 				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
-				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "historical-recipe", "local-init"))
+				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade"))
 				groups = job.Strategy.Matrix.Group
 			}
 			// per docs/adr/0101-go-release-handoff.md:597

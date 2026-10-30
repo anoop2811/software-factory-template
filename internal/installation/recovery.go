@@ -291,7 +291,14 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 // Recovery guidance retains fresh trust and identity without inventing consent.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:340.
 func recoveryArguments(request Request, id, direction string) []string {
-	args := []string{"factory", "upgrade", "--installation", "--recover", id, "--direction", direction, "--dry-run", "--profile", request.Profile}
+	args := []string{"factory", "upgrade", "--installation", "--recover", id, "--direction", direction, "--dry-run"}
+	return append(args, RecoveryInputs(request)...)
+}
+
+// RecoveryInputs preserves literal identities and trust operands, never consent.
+// It is replay advice, not authority. docs/adr/0117-explicit-go-local-upgrade.md:78.
+func RecoveryInputs(request Request) []string {
+	args := []string{"--profile", request.Profile}
 	imageArgs := func(prefix string, image staging.Options) {
 		args = append(args, "--"+prefix+"source", image.Archive, "--"+prefix+"version", image.Version, "--"+prefix+"revision", image.Revision, "--"+prefix+"target", image.Target)
 		if image.Local {

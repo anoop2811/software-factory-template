@@ -5279,3 +5279,26 @@ criteria. They do not qualify the current binary or close a release gate;
 the next candidate still requires fresh native qualification at the revised
 minimums. Supersede the old macOS 14 evidence requirement explicitly rather
 than silently treating a newer host as proof of the old platform.
+
+## Decision 129 (2026-10-30 UTC): let the selected local build upgrade its installation
+
+After human merge of #147 as `f18810ae3f7d08193e0575839a4731c9ab71c07a`,
+deliver explicit local upgrade as its own complete function. Reuse local-image
+packaging/custody and the whole-installation planner and transaction, but run
+the selected build's own upgrader through a distinct private versioned handoff.
+Installed callers must enter exclusive admission before retaining a shared lease.
+
+ADR 0117 requires embedded legacy ownership references and an explicit clean
+matching before checkout for Go predecessors. Reconstruct the exact predecessor
+version and require independently matching runtime/role bytes; compiler drift
+preserves and refuses instead of treating a source SHA as proof of installed
+bytes. The existing qualified before-archive route remains available. Keep local
+trust in proposal binding, retain exact replayable local recovery inputs, and
+never use a local transition to advance release-backup expiry or fetch history.
+
+Require independent failing public journeys before implementation and a separate
+heavy `local-upgrade` qualification partition with actual disjoint census and
+failure propagation. Ordinary defaults, inventory retirement, source bootstrap
+and release activation remain separate PRs. The user's latest instruction
+permits independent branches in parallel while keeping complete function
+boundaries and dependency-ordered, individually reviewed human merges.

@@ -38,7 +38,7 @@ type localOptions struct {
 	help   bool
 }
 
-func parseLocalInit(args []string) (localOptions, error) {
+func parseLocalSource(args []string, verb string) (localOptions, error) {
 	var result localOptions
 	localSeen, sourceSeen := false, false
 	for i := 0; i < len(args); i++ {
@@ -80,7 +80,7 @@ func parseLocalInit(args []string) (localOptions, error) {
 		}
 	}
 	if !localSeen || sourceSeen && result.source == "" || strings.ContainsAny(result.source, "\x00\r\n") {
-		return result, errors.New("local init requires --local and a valid source directory")
+		return result, fmt.Errorf("local %s requires --local and a valid source directory", verb)
 	}
 	return result, nil
 }
@@ -90,7 +90,7 @@ func parseLocalInit(args []string) (localOptions, error) {
 func RunLocalInit(parent context.Context, args []string, source func() (string, error), environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	option, err := parseLocalInit(args)
+	option, err := parseLocalSource(args, "init")
 	if err != nil {
 		fmt.Fprintln(stderr, "factory local-source:", err)
 		return 2
@@ -99,9 +99,16 @@ func RunLocalInit(parent context.Context, args []string, source func() (string, 
 		fmt.Fprintln(stdout, "Usage: factory init [TARGET] --local [--source DIR] [initializer options]\n\nBuild clean committed source using the provisioned Go toolchain; no publisher authentication is claimed.")
 		return 0
 	}
+	return runLocalSource(ctx, "init", localInitProtocol, option, source, environment, stdin, stdout, stderr)
+}
+
+// Every local operation runs the exact selected runtime once; the receiver owns
+// the operation. docs/adr/0117-explicit-go-local-upgrade.md:52.
+func runLocalSource(ctx context.Context, verb, protocol string, option localOptions, source func() (string, error), environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
+	var err error
 	if option.source == "" {
 		if source == nil {
-			fmt.Fprintln(stderr, "factory local-source: installed local init requires --source DIR")
+			fmt.Fprintf(stderr, "factory local-source: installed local %s requires --source DIR\n", verb)
 			return 2
 		}
 		option.source, err = source()
@@ -130,7 +137,7 @@ func RunLocalInit(parent context.Context, args []string, source func() (string, 
 		fmt.Fprintln(stderr, "factory local-source: cannot make selected executable runnable:", err)
 		return 1
 	}
-	forwarded := []string{image.raw, localInitProtocol, "1", image.directory, physical, revision, image.image.ArchiveSHA256, "--"}
+	forwarded := []string{image.raw, protocol, "1", image.directory, physical, revision, image.image.ArchiveSHA256, "--"}
 	forwarded = append(forwarded, option.args...)
 	return inheritedHandoff(ctx, image, forwarded, localEnvironment(environment), stdin, stdout, stderr, "factory local-source")
 }
@@ -180,6 +187,12 @@ func inspectLocalSource(ctx context.Context, source string, environment map[stri
 }
 
 func acquireLocal(ctx context.Context, source, revision string, diagnostics io.Writer) (result *acquired, returned error) {
+	return acquireLocalVersion(ctx, source, revision, "local-"+revision, diagnostics)
+}
+
+// A predecessor is packaged with its exact original identity before inspection;
+// never relabel a new image. docs/adr/0117-explicit-go-local-upgrade.md:33.
+func acquireLocalVersion(ctx context.Context, source, revision, version string, diagnostics io.Writer) (result *acquired, returned error) {
 	a, err := newAcquired()
 	if err != nil {
 		return nil, err
@@ -189,7 +202,7 @@ func acquireLocal(ctx context.Context, source, revision string, diagnostics io.W
 			returned = a.failed(returned)
 		}
 	}()
-	target, version := runtime.GOOS+"/"+runtime.GOARCH, "local-"+revision
+	target := runtime.GOOS + "/" + runtime.GOARCH
 	if _, err := fmt.Fprintf(diagnostics, "factory local-source: source=%s revision=%s version=%s target=%s (committed source; no publisher authentication)\n", source, revision, version, target); err != nil {
 		return nil, err
 	}

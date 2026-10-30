@@ -41,16 +41,11 @@ func boundedGitOutput(ctx context.Context, repository string, args []string) (da
 // docs/adr/0097-installation-source-image-bundles.md:205.
 func readGit(ctx context.Context, repository string, args []string, limit int, consume func(io.Reader) error) error {
 	command := gitCommand(ctx, repository, args...)
-	environment := make(map[string]string, len(command.Env))
-	for _, entry := range command.Env {
-		key, value, _ := strings.Cut(entry, "=")
-		environment[key] = value
-	}
 	root, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	result, err := native.ExecuteCommandBounded(ctx, root, command.Args, environment, limit, 64<<10)
+	result, err := native.ExecuteCommandBounded(ctx, root, command.Args, environmentMap(command.Env), limit, 64<<10)
 	if err != nil || result.Outcome != "completed" || !result.ExitConfirmed || result.OwnershipUnconfirmed || result.ExitCode == nil || *result.ExitCode != 0 {
 		if err == nil {
 			err = errors.New("git command did not establish completed process ownership")

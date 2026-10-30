@@ -5176,3 +5176,30 @@ coupled to working dispatch, retirement coupled to ownership/backup/recovery,
 and historical recipe support ahead of inventory changes. Do not publish an RC
 for every source merge or infer that smaller PRs resolve observed HTTP 429s.
 The final single-candidate qualification and stable activation gates remain.
+
+## Decision 125 (2026-10-30 UTC): supervise the existing compiler packager end to end
+
+After human merge of #144 as `78648c6c414f2ca94c4fbd49da27fef1c0e66298`,
+deliver compiler ownership as the next independent function. Reuse the existing
+native process-group executor for packaging's version, module-inspection and
+build operations; wire standalone Cobra cancellation into the same caller
+context. Preserve literal source/tool selection, bounded capture, typed ownership
+uncertainty, private workspace retention and refusal to publish incomplete output.
+
+ADR 0110 scopes ten independently authored API/standalone criteria to the
+currently available packager. Public local-init routing and its two prototype
+tests remain with that later slice. Production changes belong only to the
+packaging engine and standalone packager entrypoint, with tests and operator
+documentation in the same PR. Keep main's existing CI partitions and derive
+their updated census from actual discovery before claiming coverage.
+
+Pre-PR correctness review reproduced a signal-handling integration regression
+in the existing V1 Git source path: the base CLI exited immediately on SIGTERM,
+while the signal-aware candidate waited over six seconds for a real Git
+descendant's inherited capture. Extend this same packaging boundary to supervise
+the remaining V1 Git operations. Reuse the bounded native Git reader for fixed
+responses and supervise archives into private workspace files before extraction;
+preserve large-repository compatibility without an in-memory tar-size ceiling.
+Require independent failing Git-stage criteria before this additional repair,
+then healthy, cancellation, signal and large-archive controls. ADR 0110 records
+the integration contract; no new public route, dependency or release is added.

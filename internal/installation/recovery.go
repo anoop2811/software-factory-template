@@ -283,10 +283,41 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	result.proposal.ProposalDigest = hex.EncodeToString(sum[:])
 	if request.Recover != "" {
 		result.proposal.RecoveryCommand = "factory upgrade --installation --recover " + request.Recover + " --direction " + request.Direction + " --dry-run"
-		result.proposal.RecoveryArguments = []string{"factory", "upgrade", "--installation", "--recover", request.Recover, "--direction", request.Direction, "--dry-run", "--source", request.Source.Archive, "--profile", request.Profile, "--version", request.Source.Version, "--revision", request.Source.Revision, "--target", request.Source.Target}
+		result.proposal.RecoveryArguments = recoveryArguments(request, request.Recover, request.Direction)
 	}
 	return result, tree.Check(ctx)
 }
+
+// Recovery guidance retains fresh trust and identity without inventing consent.
+// docs/adr/0098-whole-installation-upgrade-and-rollback.md:340.
+func recoveryArguments(request Request, id, direction string) []string {
+	args := []string{"factory", "upgrade", "--installation", "--recover", id, "--direction", direction, "--dry-run", "--profile", request.Profile}
+	imageArgs := func(prefix string, image staging.Options) {
+		args = append(args, "--"+prefix+"source", image.Archive, "--"+prefix+"version", image.Version, "--"+prefix+"revision", image.Revision, "--"+prefix+"target", image.Target)
+		if image.Local {
+			args = append(args, "--"+prefix+"local")
+		} else {
+			args = append(args, "--"+prefix+"attestation", image.Attestation, "--"+prefix+"trusted-root", image.TrustedRoot)
+			if image.Verifier != "" {
+				args = append(args, "--"+prefix+"gh", image.Verifier)
+			}
+		}
+	}
+	imageArgs("", request.Source)
+	if request.Profile == "go-hybrid-v1" {
+		imageArgs("before-", request.Before)
+	}
+	keys := make([]string, 0, len(request.Inputs))
+	for key := range request.Inputs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		args = append(args, "--project-input", key+"="+request.Inputs[key])
+	}
+	return args
+}
+
 func legacyStateIssues(ctx context.Context, tree *installationfs.Tree, profile string) ([]Issue, error) {
 	issues := []Issue{}
 	if profile != "v0.1.6" {

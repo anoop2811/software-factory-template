@@ -137,7 +137,7 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 	sum := sha256.Sum256(encoded)
 	result.proposal.ProposalDigest = hex.EncodeToString(sum[:])
 	result.proposal.RecoveryCommand = "factory upgrade --installation --recover " + record.MigrationID + " --direction reverse --dry-run"
-	result.proposal.RecoveryArguments = []string{"factory", "upgrade", "--installation", "--recover", record.MigrationID, "--direction", "reverse", "--dry-run", "--source", request.Source.Archive, "--profile", request.Profile, "--version", request.Source.Version, "--revision", request.Source.Revision, "--target", request.Source.Target}
+	result.proposal.RecoveryArguments = recoveryArguments(request, record.MigrationID, "reverse")
 	return result, tree.Check(ctx)
 }
 func (owner *transaction) abandonPreparation(ctx context.Context) error {

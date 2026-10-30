@@ -536,6 +536,32 @@ func installationDecodeProposal(out cliResult) map[string]any {
 	return proposal
 }
 
+// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:340
+func installationReplayEmittedRecovery(fixture installationFixtureData, proposal map[string]any) map[string]any {
+	GinkgoHelper()
+	Expect(proposal["recovery_arguments"]).To(BeAssignableToTypeOf([]any{}))
+	values := proposal["recovery_arguments"].([]any)
+	Expect(len(values)).To(BeNumerically(">", 2))
+	args := make([]string, len(values))
+	for i, value := range values {
+		Expect(value).To(BeAssignableToTypeOf(""))
+		args[i] = value.(string)
+	}
+	Expect(args[:2]).To(Equal([]string{"factory", "upgrade"}))
+	Expect(args).To(ContainElement("--dry-run"))
+	Expect(args).NotTo(ContainElement("--confirm"))
+	Expect(args).NotTo(ContainElement("--quiescent"))
+	unchanged := installationPreservationWitness(fixture.root)
+	// installationCommand supplies only the independently compiled argv[0] and
+	// the asserted upgrade token; every emitted operand is replayed literally.
+	out := installationCommand(fixture.driver, fixture.root, fixture.sentinel, append(args[2:], "--json")...)
+	unchanged()
+	Expect(out.status).To(Equal(0), "the emitted read-only recovery must be directly executable without inferred trust or project operands: %+v", out)
+	replayed := installationDecodeProposal(out)
+	Expect(replayed["proposal_digest"]).To(Equal(proposal["proposal_digest"]), "replay must select the same exact recovery proposal")
+	return replayed
+}
+
 func installationRows(proposal map[string]any) map[string]map[string]any {
 	GinkgoHelper()
 	rows := map[string]map[string]any{}
@@ -1627,6 +1653,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		recovery := installationProposal(installed, "--recover", migration, "--direction", direction)
 		Expect(recovery).To(HaveKey("recovery_command"))
 		Expect(recovery).To(HaveKey("recovery_arguments"))
+		recovery = installationReplayEmittedRecovery(installed, recovery)
 		freshArgs := append(installed.arguments(), "--recover", migration, "--direction", direction, "--confirm", recovery["proposal_digest"].(string), "--quiescent")
 		out := installationMutationCommand(installed.driver, installed.root, installed.sentinel, freshArgs...)
 		Expect(out.status).To(Equal(0), "fresh interrupted recovery failed: %+v", out)

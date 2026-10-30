@@ -232,7 +232,11 @@ func inheritedHandoff(ctx context.Context, candidate *acquired, args []string, e
 	}
 	if err != nil || result.ExitCode == nil || !result.ExitConfirmed || result.OwnershipUnconfirmed {
 		candidate.retain = result.OwnershipUnconfirmed
-		fmt.Fprintln(stderr, prefix+": selected handoff did not complete safely")
+		message := "selected handoff did not complete safely"
+		if !candidate.options.Local {
+			message = "authenticated handoff did not complete safely"
+		}
+		fmt.Fprintln(stderr, prefix+": "+message)
 		return 1
 	}
 	return *result.ExitCode

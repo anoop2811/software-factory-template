@@ -46,8 +46,9 @@ qualification and lifecycle exits still remain.
 
 ## Build an exact committed source bundle
 
-The developer-only Cobra packager requires the pinned Go 1.27.2 toolchain, Git,
-and pre-provisioned module dependencies. Adopters do not need these tools.
+The developer-only Cobra packager requires the qualified toolchain declared in
+[go.mod](../../go.mod), Git and pre-provisioned module dependencies. Adopters do
+not need these tools.
 
 ```sh
 go mod download
@@ -70,6 +71,15 @@ The archive normalizes order, timestamps and ownership for repeatability.
 An interrupted publication can leave an incomplete newly created output folder;
 inspect it and choose a fresh output path before retrying. Existing files are
 never overwritten or recursively removed by the packager.
+
+Compiler operations and Git source reads share native process supervision.
+INT/TERM cancels the standalone packager and its owned process group. Compiler
+capture and fixed Git responses are bounded; source archives use private files
+so large unrelated repository files do not impose an in-memory archive limit.
+Cancellation, oversized capture or uncertain process ownership prevents a
+successful bundle result. Confirmed cleanup removes the private workspace; an
+unconfirmed process reports a retained workspace path. Preserve that evidence
+until the process state is reconciled before removing it.
 
 This is a candidate binary. Only the private Go bridge operations are standalone;
 the public dispatcher still delegates unmigrated commands to installed scripts.

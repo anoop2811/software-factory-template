@@ -2,7 +2,6 @@ package packaging
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
 func gitCommand(ctx context.Context, source string, args ...string) *exec.Cmd {
@@ -29,14 +30,7 @@ func gitCommand(ctx context.Context, source string, args ...string) *exec.Cmd {
 // Use only source objects: local attributes and replacement refs must never
 // change committed bytes (docs/adr/0060-runtime-source-bundles.md:13).
 func isolatedRepository(ctx context.Context, options Options, workspace *os.Root) (string, error) {
-	probe := gitCommand(ctx, options.Source, "rev-parse", "--path-format=absolute", "--git-path", "objects")
-	var objects []byte
-	var err error
-	if options.Installation {
-		objects, err = boundedGitOutput(ctx, options.Source, []string{"rev-parse", "--path-format=absolute", "--git-path", "objects"})
-	} else {
-		objects, err = probe.Output()
-	}
+	objects, err := boundedGitOutput(ctx, options.Source, []string{"rev-parse", "--path-format=absolute", "--git-path", "objects"})
 	if err != nil {
 		return "", fmt.Errorf("locate source objects: %w", err)
 	}
@@ -44,14 +38,7 @@ func isolatedRepository(ctx context.Context, options Options, workspace *os.Root
 	if !filepath.IsAbs(objectPath) || strings.ContainsAny(objectPath, "\r\n") {
 		return "", errors.New("unsupported source object directory")
 	}
-	command := gitCommand(ctx, workspace.Name(), "init", "--bare", "--quiet", "--template=", "repository")
-	var output []byte
-	var initErr error
-	if options.Installation {
-		output, initErr = boundedGitOutput(ctx, workspace.Name(), []string{"init", "--bare", "--quiet", "--template=", "repository"})
-	} else {
-		output, initErr = command.CombinedOutput()
-	}
+	output, initErr := boundedGitOutput(ctx, workspace.Name(), []string{"init", "--bare", "--quiet", "--template=", "repository"})
 	if initErr != nil {
 		return "", fmt.Errorf("initialize source view: %w: %s", initErr, output)
 	}
@@ -75,8 +62,7 @@ func extractSource(ctx context.Context, options Options, workspace *os.Root) err
 	if err != nil {
 		return err
 	}
-	typeCommand := gitCommand(ctx, repository, "cat-file", "-t", options.Revision)
-	output, err := typeCommand.CombinedOutput()
+	output, err := boundedGitOutput(ctx, repository, []string{"cat-file", "-t", options.Revision})
 	if err != nil {
 		return fmt.Errorf("read source revision: %w: %s", err, output)
 	}
@@ -88,26 +74,45 @@ func extractSource(ctx context.Context, options Options, workspace *os.Root) err
 		return err
 	}
 	defer root.Close()
-	command := gitCommand(ctx, repository, "archive", "--format=tar", options.Revision)
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	stdout, err := command.StdoutPipe()
+	return extractGitArchive(ctx, repository, options.Revision, workspace, root)
+}
+
+// Spool the archive without an in-memory size ceiling, then consume it only
+// after confirmed Git ownership. docs/adr/0110-local-compiler-process-ownership.md:89.
+func extractGitArchive(ctx context.Context, repository, revision string, workspace, source *os.Root) (err error) {
+	archive, err := workspace.OpenFile("committed-source.tar", os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
-	if err = command.Start(); err != nil {
-		return fmt.Errorf("archive source: %w", err)
+	defer func() { err = errors.Join(err, archive.Close()) }()
+	diagnostics, err := workspace.OpenFile("committed-source.stderr", os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	if err != nil {
+		return err
 	}
-	extractErr := extractArchive(ctx, root, tar.NewReader(stdout))
-	if extractErr != nil {
-		_ = command.Process.Kill()
+	defer func() { err = errors.Join(err, diagnostics.Close()) }()
+	input, err := os.Open(os.DevNull)
+	if err != nil {
+		return err
 	}
-	waitErr := command.Wait()
-	if extractErr != nil {
-		return fmt.Errorf("extract committed source: %w", extractErr)
+	defer func() { err = errors.Join(err, input.Close()) }()
+	directory, err := os.Getwd()
+	if err != nil {
+		return err
 	}
-	if waitErr != nil {
-		return fmt.Errorf("archive source: %w: %s", waitErr, stderr.String())
+	command := gitCommand(ctx, repository, "archive", "--format=tar", revision)
+	result, runErr := native.ExecuteInherited(ctx, directory, command.Args, environmentMap(command.Env), native.InheritedStreams{Stdin: input, Stdout: archive, Stderr: diagnostics}, 0)
+	if runErr != nil || result.Outcome != "completed" || !result.ExitConfirmed || result.OwnershipUnconfirmed || result.ExitCode == nil || *result.ExitCode != 0 {
+		if runErr == nil {
+			runErr = errors.New("git archive did not establish completed process ownership")
+		}
+		output, readErr := io.ReadAll(io.NewSectionReader(diagnostics, 0, 64<<10))
+		return fmt.Errorf("archive source: %w: %s", errors.Join(ctx.Err(), runErr, readErr), output)
+	}
+	if _, err = archive.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	if err = extractArchive(ctx, source, tar.NewReader(archive)); err != nil {
+		return fmt.Errorf("extract committed source: %w", err)
 	}
 	return nil
 }

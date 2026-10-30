@@ -2,16 +2,23 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/anoop2811/software-factory-template/internal/packaging"
 	"github.com/spf13/cobra"
 )
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	var options packaging.Options
 	status := 2
 	cmd := &cobra.Command{Use: "factory-package", Short: "Build an inert runtime bundle from committed source", Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
@@ -35,8 +42,9 @@ func main() {
 	flags.StringVar(&options.Version, "version", "", "Literal version label (default local-REVISION)")
 	flags.StringVar(&options.Compiler, "go", "", "Explicit pinned Go compiler")
 	flags.BoolVar(&options.Installation, "installation", false, "Include the inert committed installation source image")
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(status)
+		return status
 	}
+	return 0
 }

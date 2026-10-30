@@ -14,6 +14,7 @@ import (
 
 	"github.com/anoop2811/software-factory-template/internal/artifact"
 	"github.com/anoop2811/software-factory-template/internal/installationimage"
+	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
 // ErrInvalidRequest distinguishes malformed operands from operational failures.
@@ -63,6 +64,12 @@ func Build(ctx context.Context, options Options) (result Result, err error) {
 		return Result{}, err
 	}
 	defer func() {
+		var ownership *native.OwnershipError
+		if errors.As(err, &ownership) {
+			result = Result{}
+			err = fmt.Errorf("preserve unresolved packaging workspace %s: %w", workspace, err)
+			return
+		}
 		cleanupErr := os.RemoveAll(workspace)
 		if options.Installation {
 			err = errors.Join(err, cleanupErr)
@@ -194,10 +201,8 @@ func compile(ctx context.Context, options Options, workspace string) error {
 		return fmt.Errorf("resolve compiler: %w", err)
 	}
 	env := compilerEnvironment(options.Target)
-	// #nosec G204 -- Explicit developer-selected compiler; no shell or candidate execution.
-	version := exec.CommandContext(ctx, compiler, "version")
-	version.Env = env
-	output, err := version.CombinedOutput()
+	version, err := compilerCommand(ctx, ".", []string{compiler, "version"}, env, 64<<10, true)
+	output := version.Stdout
 	if err != nil {
 		return fmt.Errorf("compiler version: %w: %s", err, output)
 	}
@@ -208,11 +213,9 @@ func compile(ctx context.Context, options Options, workspace string) error {
 	if err = checkModuleReplacements(ctx, compiler, filepath.Join(workspace, "source"), env); err != nil {
 		return err
 	}
-	// #nosec G204 -- Fixed Go build operation with explicit target and owned output.
-	build := exec.CommandContext(ctx, compiler, "build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-o", filepath.Join(workspace, "factory-runtime"), "./cmd/factory")
-	build.Dir, build.Env = filepath.Join(workspace, "source"), env
-	if output, err = build.CombinedOutput(); err != nil {
-		return fmt.Errorf("compile runtime: %w: %s", err, output)
+	build, err := compilerCommand(ctx, filepath.Join(workspace, "source"), []string{compiler, "build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-o", filepath.Join(workspace, "factory-runtime"), "./cmd/factory"}, env, 16<<20, true)
+	if err != nil {
+		return fmt.Errorf("compile runtime: %w: %s", err, build.Stdout)
 	}
 	return nil
 }
@@ -220,23 +223,16 @@ func compile(ctx context.Context, options Options, workspace string) error {
 func checkModuleReplacements(ctx context.Context, compiler, source string, env []string) error {
 	// -json is read-only; versionless replacements name filesystem modules that
 	// could inject uncommitted bytes. docs/adr/0060-runtime-source-bundles.md:29.
-	// #nosec G204 -- Pinned explicit compiler, read-only module inspection in owned source.
-	command := exec.CommandContext(ctx, compiler, "mod", "edit", "-json")
-	command.Dir, command.Env = source, env
-	output, err := command.Output()
+	command, err := compilerCommand(ctx, source, []string{compiler, "mod", "edit", "-json"}, env, 1<<20, false)
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			return fmt.Errorf("inspect source module: %w: %s", err, exit.Stderr)
-		}
-		return fmt.Errorf("inspect source module: %w", err)
+		return fmt.Errorf("inspect source module: %w: %s", err, command.Stderr)
 	}
 	var module struct {
 		Replace []struct {
 			New struct{ Path, Version string }
 		}
 	}
-	if err = json.Unmarshal(output, &module); err != nil {
+	if err = json.Unmarshal(command.Stdout, &module); err != nil {
 		return fmt.Errorf("decode source module: %w", err)
 	}
 	for _, replacement := range module.Replace {
@@ -245,6 +241,28 @@ func checkModuleReplacements(ctx context.Context, compiler, source string, env [
 		}
 	}
 	return nil
+}
+
+// Compiler capture shares the native group's bounded cleanup and caller context.
+// docs/adr/0110-local-compiler-process-ownership.md:19.
+func compilerCommand(ctx context.Context, directory string, args, env []string, limit int, combined bool) (native.CommandResult, error) {
+	result, err := native.ExecuteCommandWithOptions(ctx, directory, args, environmentMap(env), native.CommandOptions{StdoutLimit: limit, StderrLimit: 64 << 10, MergeStderr: combined})
+	if result.ExitCode != nil && *result.ExitCode > 0 {
+		err = errors.Join(fmt.Errorf("exit status %d", *result.ExitCode), err)
+	}
+	if err == nil && (result.Outcome != "completed" || !result.ExitConfirmed || result.OwnershipUnconfirmed || result.ExitCode == nil || *result.ExitCode != 0) {
+		err = errors.New("compiler command did not establish completed process ownership")
+	}
+	return result, errors.Join(ctx.Err(), err)
+}
+
+func environmentMap(env []string) map[string]string {
+	environment := make(map[string]string, len(env))
+	for _, entry := range env {
+		key, value, _ := strings.Cut(entry, "=")
+		environment[key] = value
+	}
+	return environment
 }
 
 func compilerEnvironment(target string) []string {

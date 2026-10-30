@@ -88,7 +88,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        group: [installation, release-handoff]
+        # docs/adr/0115-frozen-rc3-recipe-compatibility.md:77.
+        group: [installation, release-handoff, historical-recipe]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30
@@ -141,7 +142,7 @@ jobs:
       - name: Outside-in compatibility, race, dialect, quality and candidate build
         run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
       - name: Retain acceptance outcomes and timings
-        if: always() && matrix.group == 'release-handoff'
+        if: always() && matrix.group != 'installation'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}

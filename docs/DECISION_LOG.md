@@ -5203,3 +5203,25 @@ preserve large-repository compatibility without an in-memory tar-size ceiling.
 Require independent failing Git-stage criteria before this additional repair,
 then healthy, cancellation, signal and large-archive controls. ADR 0110 records
 the integration contract; no new public route, dependency or release is added.
+
+## Decision 126 (2026-10-30 UTC): freeze RC3 reconstruction before changing installation recipes
+
+After human merge of #145 as `1cc0ebcc5b8dfc3fb528ee3cca5cd3f8752d87af`,
+deliver the historical compatibility boundary in ADR 0114. Recognize the exact
+eight-blob RC3 generation fingerprint from immutable source
+`95486ecdd3868a319a0e6362ee99cafd8f154200` and reconstruct its 141 reviewed
+role rows and original generated descriptor bytes through native code. Keep
+current-recipe equality strict, including the newly added selector and frozen
+role table; missing or unknown recipe members remain preserved conflicts.
+
+ADR 0115 defines independent real-RC3 initialization, preview/apply/rollback and
+tamper-refusal evidence before this prerequisite may merge. Reuse current
+ownership, consent, backup and transaction controls; never execute code from a
+supplied predecessor image to infer ownership. Keep the existing initializer
+inventory and all 85 cache rows in this slice. Their later qualified cleanup,
+default activation and the final replacement candidate remain separate work.
+
+Run the new heavy real-RC3 family in a dedicated `historical-recipe` source
+qualification partition on Linux and macOS. Reuse bounded worker selection,
+race/quality stages and report plumbing. Require actual four-way disjoint
+discovery and complete-union failure propagation without extending deadlines.

@@ -65,6 +65,16 @@ generation recipe. An installed Go factory initializes another project with
 `./factory init TARGET --go-candidate TAG`; omitting the selector refuses before
 prompts or writes rather than publishing the inert legacy scaffold.
 
+The current source consumer retains the closed RC3 generation recipe from
+`95486ecdd3868a319a0e6362ee99cafd8f154200`. It reconstructs the original
+141-role layout from a complete eight-file fingerprint and frozen native role
+data, so later target inventories need not be mistaken for the prior layout.
+Current-recipe matching also checks the selector and historical-role files.
+Unknown or altered unsupported recipes remain preserved conflicts; image
+authentication, project inputs and fresh mutation consent are still required.
+All 85 initializer-cache rows remain at this stage. Their later qualified
+retirement is separate from [historical recognition](../adr/0115-frozen-rc3-recipe-compatibility.md).
+
 Successful acquisition removes its temporary cache. Interrupted upgrades retain
 needed authenticated inputs and print a concrete read-only recovery preview.
 Partial initialization reports its target and pending evidence, without claiming

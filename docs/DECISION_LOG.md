@@ -5302,3 +5302,26 @@ failure propagation. Ordinary defaults, inventory retirement, source bootstrap
 and release activation remain separate PRs. The user's latest instruction
 permits independent branches in parallel while keeping complete function
 boundaries and dependency-ordered, individually reviewed human merges.
+
+## Decision 130 (2026-10-30 UTC): qualify the intended loop publication deadline boundary
+
+PR #149's macOS base job `124287845404` failed the existing bounded-loop
+deadline criterion: its expected publication error was nil, with no paid call.
+The fixture gives the entire bounded invocation 200 milliseconds and delays
+its second file sync by 250 milliseconds. An earlier fresh snapshot can consume
+that allowance and take the legitimate terminal handoff path; a second sync
+alone does not identify the intended implementer-phase publication.
+
+Authorize an independent, narrowly scoped test correction in the blocked PR.
+First reproduce the wrong-phase path, then synchronize the fixture with the
+actual phase and its real execution-context deadline. Preserve the no-paid-call,
+publication-error and durable-state assertions; prove the corrected criterion
+rejects a targeted deadline-guard defect. Keep the existing behavioral criterion
+and runtime policy. Change no production timeout, retry, budget, worker or model
+limit. Record observed RED/GREEN evidence before claiming this CI repair done.
+
+This is required qualification of the existing boundary in
+`docs/adr/0076-go-bounded-loop-controller.md:71`, not another conversion feature.
+The complete local-upgrade suite already passed all thirteen criteria on both
+Linux and macOS at the preceding reviewed source; rerun hosted checks and review
+for the final commit before human merge.

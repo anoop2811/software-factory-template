@@ -84,14 +84,42 @@ func boundedPaid(ctx context.Context, controller *Controller, request budget.Req
 
 var _ = Describe("Bounded loop lifecycle boundaries", func() {
 	// per docs/adr/0076-go-bounded-loop-controller.md:71
+	// per docs/DECISION_LOG.md:5317
 	It("does not invoke budget execution after phase persistence exhausts the total deadline", func() {
 		controller, request := boundedControllerFixture()
-		request.Environment["FACTORY_LOOP_TIMEOUT_SECONDS"] = "0.2"
-		saves, calls := 0, 0
+		request.Environment["FACTORY_LOOP_TIMEOUT_SECONDS"] = "5"
+		actualSnapshot := controller.ops.snapshot
+		var baseline Fingerprint
+		var boundedContext context.Context
+		// Qualify the real baseline before the loop clock starts. This criterion
+		// targets publication, so its freshness observer then reuses that stable
+		// image and captures the actual execution context without Git scheduling.
+		controller.ops.snapshot = func(ctx context.Context, root string, cfg Config, environment map[string]string) (Fingerprint, error) {
+			if _, bounded := ctx.Deadline(); bounded {
+				boundedContext = ctx
+				return baseline, nil
+			}
+			var err error
+			baseline, err = actualSnapshot(ctx, root, cfg, environment)
+			return baseline, err
+		}
+		phases, calls := []string{}, 0
+		var phaseDeadline time.Time
 		controller.store.ops.syncFile = func(file *os.File) error {
-			saves++
-			if saves == 2 {
-				time.Sleep(250 * time.Millisecond)
+			data, err := os.ReadFile(file.Name())
+			Expect(err).NotTo(HaveOccurred())
+			var history map[string]any
+			Expect(json.Unmarshal(data, &history)).To(Succeed())
+			phase := history["runs"].([]any)[0].(map[string]any)["phase"].(string)
+			phases = append(phases, phase)
+			if phase == "implementer" {
+				Expect(boundedContext).NotTo(BeNil(), "the actual execution context must reach the intended publication")
+				Expect(boundedContext.Err()).NotTo(HaveOccurred(), "setup must not exhaust the deadline before the sync barrier")
+				var bounded bool
+				phaseDeadline, bounded = boundedContext.Deadline()
+				Expect(bounded).To(BeTrue())
+				<-boundedContext.Done()
+				Expect(boundedContext.Err()).To(MatchError(context.DeadlineExceeded))
 			}
 			return file.Sync()
 		}
@@ -100,10 +128,27 @@ var _ = Describe("Bounded loop lifecycle boundaries", func() {
 			return budget.RunResult{}, errors.New("unexpected paid call")
 		}
 		result, err := controller.Run(context.Background(), request, false)
+		history, readErr := controller.store.Read(context.Background())
+		Expect(readErr).NotTo(HaveOccurred())
+		rows := history.data["runs"].([]any)
+		Expect(rows).To(HaveLen(1))
+		durable := rows[0].(map[string]any)
+		var publication *PublicationError
+		isPublication := errors.As(err, &publication)
+		committed := publication != nil && publication.MayHaveCommitted
+		AddReportEntry("phase-publication-deadline", map[string]any{"phases": phases, "paid_calls": calls, "phase_deadline": phaseDeadline, "publication_error": isPublication, "may_have_committed": committed, "durable_phase": durable["phase"]}, ReportEntryVisibilityNever)
 		Expect(calls).To(BeZero())
 		Expect(err).To(HaveOccurred())
+		Expect(isPublication).To(BeTrue())
+		Expect(committed).To(BeFalse(), "expired phase publication must stop before replacing the durable checkpoint")
 		Expect(result.Record).To(BeNil())
-		Expect(saves).To(Equal(2))
+		Expect(phases).To(Equal([]string{"starting", "implementer"}))
+		Expect(durable["phase"]).To(Equal("starting"))
+		Expect(durable["status"]).To(Equal("active"))
+		Expect(durable["attempts"]).To(Equal(json.Number("0")))
+		Expect(durable["budget_runs"]).To(BeEmpty())
+		_, budgetErr := os.Lstat(filepath.Join(controller.root, ".factory/budget.json"))
+		Expect(os.IsNotExist(budgetErr)).To(BeTrue(), "phase publication failure must not create paid accounting")
 	})
 	// per docs/adr/0076-go-bounded-loop-controller.md:108
 	It("retains paid accounting when the following loop save fails and never relaunches", func() {

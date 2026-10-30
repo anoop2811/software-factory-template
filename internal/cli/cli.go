@@ -156,8 +156,18 @@ func Run(ctx context.Context, args []string) int {
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
-				if (name == "init" || name == "upgrade") && releasecmd.Claimed(forwarded) {
+				if name == "init" && releasecmd.InitClaimed(forwarded) || name == "upgrade" && releasecmd.Claimed(forwarded) {
 					status = releasecmd.Run(cmd.Context(), name, forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
+				// Explicit local init runs the selected committed initializer.
+				// docs/adr/0116-explicit-go-local-initialization.md:13.
+				if name == "init" && releasecmd.LocalClaimed(forwarded) {
+					var source string
+					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); !installed {
+						source, _ = dispatcherDirectory()
+					}
+					status = releasecmd.RunLocalInit(cmd.Context(), forwarded, source, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					return nil
 				}
 				// Whole-installation markers own malformed requests before older routes.

@@ -1300,7 +1300,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 	}, Entry("runtime binary bytes", ".factory/bin/factory-runtime"), Entry("missing binary manifest", ".factory/bin/runtime.manifest"), Entry("descriptor bytes", ".factory/installation.current"), Entry("canonical native data", ".factory/assets/scaffold/templates/metrics.html"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:215
-	DescribeTable("blocks v0.1.6 downgrade when modern configuration requires unavailable controls", func(key string) {
+	DescribeTable("blocks legacy downgrade when modern configuration requires unavailable controls", func(key string) {
 		installed := fixture("v0.1.6")
 		installationApply(installed, "legacy-downgrade")
 		path := filepath.Join(installed.root, "factory.yaml")

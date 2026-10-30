@@ -13,6 +13,9 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 
 - Native source commands exist for init, doctor, report, metrics, review-lane,
   configuration migration, budgets and loops.
+- Explicit committed-local initialization packages clean source and runs its exact
+  selected Go initializer; [ADR 0116](../adr/0116-explicit-go-local-initialization.md)
+  records focused source qualification. This does not activate ordinary defaults.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration

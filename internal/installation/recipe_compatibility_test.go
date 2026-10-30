@@ -16,7 +16,7 @@ import (
 // This oracle reads literal data from the immutable trusted Git object. It
 // parses only Go syntax and never runs historical source or evaluates expressions.
 // per docs/adr/0115-frozen-rc3-recipe-compatibility.md:74
-var _ = Describe("Frozen RC3 installation recipe data", func() {
+var _ = Describe("Historical installation recipe integrity", func() {
 	It("equals all original fingerprint bytes and every ordered literal role field independently of the current image", func() {
 		const revision = "95486ecdd3868a319a0e6362ee99cafd8f154200"
 		read := func(path string) []byte {

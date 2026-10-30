@@ -27,6 +27,7 @@ adversarial-review-selftest:
 GO_RUNTIME_TEST_TIMEOUT ?= 25m
 # docs/adr/0101-go-release-handoff.md:559 — complete test partitions with headroom.
 # docs/adr/0115-frozen-rc3-recipe-compatibility.md:77 — isolate historical reconstruction.
+# docs/adr/0116-explicit-go-local-initialization.md:99 — isolate local compilation.
 GO_RUNTIME_TEST_GROUP ?= all
 # docs/adr/0104-adaptive-qualification-workers.md:22 — resource-aware workers.
 GO_RUNTIME_TEST_PROCS ?= auto
@@ -46,8 +47,8 @@ go-runtime-check:
 
 go-runtime-source-check:
 	@set -e; \
-	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|historical-recipe) ;; \
-		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff or historical-recipe" >&2; exit 2 ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|historical-recipe|local-init) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff, historical-recipe or local-init" >&2; exit 2 ;; esac; \
 	test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }; \
 	test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
@@ -67,12 +68,13 @@ go-runtime-source-check:
 	go vet ./...; \
 	GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
 		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
-		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance Historical RC3 installation recipe compatibility( |$$)'; \
-		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; \
+		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance Supported predecessor recipe compatibility( |$$)'; \
+		GO_LOCAL_INIT_FAMILY='^Go factory command acceptance Go explicit local source initialization( |$$)'; \
+		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; \
 		run_acceptance() { \
 			GO_REPORT_GROUP="$$1"; shift; \
 			GO_ACCEPTANCE_PROCS="$$GO_BASE_TEST_PROCS"; \
-			case "$$GO_REPORT_GROUP" in release-handoff|historical-recipe) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
+			case "$$GO_REPORT_GROUP" in release-handoff|historical-recipe|local-init) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
 			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
 				--procs="$$GO_ACCEPTANCE_PROCS" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
 				--keep-going --fail-on-empty --no-color "$$@"; \
@@ -89,17 +91,20 @@ go-runtime-source-check:
 			if [ -n "$$GO_OTHER_PACKAGES" ]; then \
 				go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) $$GO_OTHER_PACKAGES -ginkgo.fail-on-empty || GO_BASE_TEST_STATUS=$$?; \
 			else echo "go-runtime-check: expected non-acceptance Go packages" >&2; GO_BASE_TEST_STATUS=1; fi; \
-			run_acceptance base --skip="$$GO_INSTALLATION_FAMILIES|$$GO_HISTORICAL_RECIPE_FAMILY" || GO_BASE_TEST_STATUS=$$? ;; esac; \
+			run_acceptance base --skip="$$GO_INSTALLATION_FAMILIES|$$GO_HISTORICAL_RECIPE_FAMILY|$$GO_LOCAL_INIT_FAMILY" || GO_BASE_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
 			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.skip="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|release-handoff) \
 			run_acceptance release-handoff --focus="$$GO_RELEASE_HANDOFF_FAMILY" || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|historical-recipe) \
 			run_acceptance historical-recipe --focus="$$GO_HISTORICAL_RECIPE_FAMILY" || GO_HISTORICAL_RECIPE_TEST_STATUS=$$? ;; esac; \
+		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-init) \
+			run_acceptance local-init --focus="$$GO_LOCAL_INIT_FAMILY" || GO_LOCAL_INIT_TEST_STATUS=$$? ;; esac; \
 		if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
 		if [ "$$GO_INSTALLATION_TEST_STATUS" -ne 0 ]; then exit "$$GO_INSTALLATION_TEST_STATUS"; fi; \
 		if [ "$$GO_RELEASE_HANDOFF_TEST_STATUS" -ne 0 ]; then exit "$$GO_RELEASE_HANDOFF_TEST_STATUS"; fi; \
-		exit "$$GO_HISTORICAL_RECIPE_TEST_STATUS"
+		if [ "$$GO_HISTORICAL_RECIPE_TEST_STATUS" -ne 0 ]; then exit "$$GO_HISTORICAL_RECIPE_TEST_STATUS"; fi; \
+		exit "$$GO_LOCAL_INIT_TEST_STATUS"
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory
 	golangci-lint run --config packs/go/.golangci.yml ./...

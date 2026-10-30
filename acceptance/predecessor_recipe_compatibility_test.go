@@ -168,11 +168,11 @@ func recipeBeforePath(args []string, path string) []string {
 	return result
 }
 
-var _ = Describe("Historical RC3 installation recipe compatibility", Ordered, ContinueOnFailure, func() {
+var _ = Describe("Supported predecessor recipe compatibility", Ordered, ContinueOnFailure, func() {
 	var fixture recipeFixture
 	BeforeAll(func() { fixture = recipePrepare() })
 	// per docs/adr/0115-frozen-rc3-recipe-compatibility.md:64
-	It("reconstructs genuine RC3 bytes and modes through preview apply and rollback while retaining all cache and user history", func() {
+	It("reconstructs predecessor bytes and modes through preview apply and rollback while retaining all cache and user history", func() {
 		f, driver, root, args := fixture.predecessor()
 		preserved := map[string][]byte{"docs/recipe-user-note.md": []byte("user customization\n"), ".factory/loops.json": []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve history\"}\n"), ".factory/events.log": []byte("2026-10-30T00:00:00Z\toperator\tpreserve history\n")}
 		for path, data := range preserved {

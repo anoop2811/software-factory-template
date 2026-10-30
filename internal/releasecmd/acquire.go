@@ -46,6 +46,36 @@ func (a *acquired) preservationNotice() string {
 	return fmt.Sprintf("preserve private candidate recovery evidence at %s", a.directory)
 }
 
+// Official and explicit-local acquisition share ownership and failure cleanup.
+// docs/adr/0116-explicit-go-local-initialization.md:72.
+func newAcquired() (*acquired, error) {
+	directory, err := os.MkdirTemp("", "factory-release-")
+	if err != nil {
+		return nil, err
+	}
+	created := directory
+	directory, err = filepath.EvalSymlinks(directory)
+	if err != nil {
+		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
+	}
+	identity, err := os.Lstat(directory)
+	if err != nil {
+		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
+	}
+	return &acquired{directory: directory, identity: identity}, nil
+}
+
+func (a *acquired) failed(err error) error {
+	var ownership *native.OwnershipError
+	if errors.As(err, &ownership) {
+		a.retain = true
+	}
+	if a.retain {
+		err = errors.Join(err, errors.New(a.preservationNotice()))
+	}
+	return errors.Join(err, a.close())
+}
+
 // Acquisition authenticates independent inputs before closed-world staging.
 // docs/adr/0101-go-release-handoff.md:94, docs/adr/0101-go-release-handoff.md:119.
 func acquire(ctx context.Context, tag string, environment map[string]string) (result *acquired, returned error) {
@@ -60,30 +90,14 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	default:
 		return nil, errors.New("unsupported candidate platform")
 	}
-	directory, err := os.MkdirTemp("", "factory-release-")
+	a, err := newAcquired()
 	if err != nil {
 		return nil, err
 	}
-	created := directory
-	directory, err = filepath.EvalSymlinks(directory)
-	if err != nil {
-		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
-	}
-	identity, err := os.Lstat(directory)
-	if err != nil {
-		return nil, fmt.Errorf("preserve unqualified private candidate cache at %s: %w", created, err)
-	}
-	a := &acquired{directory: directory, identity: identity}
+	directory := a.directory
 	defer func() {
 		if result == nil {
-			var ownership *native.OwnershipError
-			if errors.As(returned, &ownership) {
-				a.retain = true
-			}
-			if a.retain {
-				returned = errors.Join(returned, errors.New(a.preservationNotice()))
-			}
-			returned = errors.Join(returned, a.close())
+			returned = a.failed(returned)
 		}
 	}()
 	env := make(map[string]string, len(environment)+2)

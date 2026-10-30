@@ -28,6 +28,19 @@ func Claimed(args []string) bool {
 	return false
 }
 
+// InitClaimed leaves terminated target operands to their initializer owner.
+// Upgrade selector/admission behavior is unchanged by this init-only boundary.
+// docs/adr/0116-explicit-go-local-initialization.md:26.
+func InitClaimed(args []string) bool {
+	for index, arg := range args {
+		if arg == "--" {
+			args = args[:index]
+			break
+		}
+	}
+	return Claimed(args)
+}
+
 type options struct {
 	tag, confirmation string
 	args              []string

@@ -95,7 +95,7 @@ options, runtime availability and side effects.
 | Command | Purpose | Example |
 |---|---|---|
 | `help` | List the public commands. | `./factory help` |
-| `init` | Initialize a project, configure its packs and install/prove hooks. | `./factory init ../new-project --go-candidate TAG --pack go` |
+| `init` | Initialize a project, configure its packs and install/prove hooks. Go callers can explicitly build clean committed local source with `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --go-candidate TAG --pack go` |
 | `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
 | `upgrade` | Authenticate and preview an installation update; apply with fresh confirmation. | `./factory upgrade --go-candidate TAG --dry-run --json` |
 | `sync` **Go only** | Regenerate adapters for `all`, `codex`, `claude` or `opencode`; inspect the resulting diff. | `./factory sync all` |

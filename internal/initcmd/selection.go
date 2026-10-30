@@ -26,9 +26,11 @@ type qualified struct {
 	started bool
 }
 
-// RunQualified consumes an already authenticated, privately staged release image.
+// RunQualified consumes a privately staged image qualified by its caller's
+// explicit release-authentication or committed-local-source boundary.
 // No Bash installation is published as an intermediate selection.
 // docs/adr/0101-go-release-handoff.md:148.
+// docs/adr/0116-explicit-go-local-initialization.md:58.
 func RunQualified(ctx context.Context, args []string, source, runtime string, image staging.Inspection, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return runCommand(ctx, args, source, environment, stdin, stdout, stderr, &qualified{image: image, runtime: runtime})
 }

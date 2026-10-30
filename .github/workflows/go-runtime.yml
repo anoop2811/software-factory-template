@@ -88,8 +88,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # docs/adr/0115-frozen-rc3-recipe-compatibility.md:77.
-        group: [installation, release-handoff, historical-recipe]
+        # docs/adr/0116-explicit-go-local-initialization.md:99.
+        group: [installation, release-handoff, historical-recipe, local-init]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

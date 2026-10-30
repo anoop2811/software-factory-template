@@ -209,9 +209,15 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	env := withoutCache(environment)
 	env["FACTORY_RELEASE_DIR"] = filepath.Dir(candidate.raw)
 	args := append([]string{candidate.raw, verb, "--go-candidate", option.tag}, option.args...)
+	return inheritedHandoff(ctx, candidate, args, env, stdin, stdout, stderr, "factory candidate")
+}
+
+// Local and authenticated images share process ownership and cleanup policy.
+// docs/adr/0116-explicit-go-local-initialization.md:75.
+func inheritedHandoff(ctx context.Context, candidate *acquired, args []string, env map[string]string, stdin io.Reader, stdout, stderr io.Writer, prefix string) int {
 	root, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintln(stderr, "factory candidate: cannot resolve handoff working directory: "+err.Error())
+		fmt.Fprintln(stderr, prefix+": cannot resolve handoff working directory: "+err.Error())
 		return 1
 	}
 	var result native.Execution
@@ -226,7 +232,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	}
 	if err != nil || result.ExitCode == nil || !result.ExitConfirmed || result.OwnershipUnconfirmed {
 		candidate.retain = result.OwnershipUnconfirmed
-		fmt.Fprintln(stderr, "factory candidate: authenticated handoff did not complete safely")
+		fmt.Fprintln(stderr, prefix+": selected handoff did not complete safely")
 		return 1
 	}
 	return *result.ExitCode

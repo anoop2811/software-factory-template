@@ -645,6 +645,12 @@
           <h3>Loop engineering: repair within bounds</h3>
           <p>Manual mode runs your configured check without calling a model. Explicit bounded mode coordinates implementation, checks, separate review, and repair through the same budget. It stops on exhausted limits or stalled progress and leaves evidence and a next action for handoff. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
         </div>
+        <!-- Delivery practice: docs/adr/0114-incremental-go-cutover-delivery.md:15. -->
+        <div class="cell c-blue span3">
+          <span class="mono-label">bounded delivery</span>
+          <h3>One complete function per pull request</h3>
+          <p>Give human and AI reviewers one coherent change: the behavior, independent tests, compatibility work, required cleanup and docs together. Work on independent functions in parallel; merge dependent changes in order after review and checks. Use the same practice with Codex, Claude Code or OpenCode. Scope is a planning discipline; configured review budgets bound model requests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BOUNDED_DELIVERY.md">Plan reviewable changes &rarr;</a></p>
+        </div>
       </div>
       <div class="qs" aria-label="Local feature previews without model calls"><span class="dim"># inspect limits; new runs are disabled until you opt in</span>
 <span class="prompt">$</span> ./factory budget plan --harness codex --session demo --task first

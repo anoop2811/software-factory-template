@@ -5342,3 +5342,20 @@ delivery; update old ordinary-init refusal expectations deliberately. Require
 independent public RED, exact selected-runtime proof and complete source CI
 partition coverage before human merge. Minimal new inventory and native source
 selftest are independent parallel branches with separate PRs and test authors.
+
+## Decision 134 (2026-10-31 UTC): measure local interruption after publisher admission
+
+PR #150's macOS source job 124380501158 failed only the existing forward local
+upgrade interruption readiness wait. Its sixty-second window begins before
+both local builds, predecessor reconstruction and preflight. The hosted artifact
+does not retain the child phase, so diagnose that measurement boundary through
+a controlled compiler delay rather than asserting an unobserved CI cause.
+
+ADR 0121 authorizes an independent test correction after meaningful RED: observe
+atomic admission at the selected publisher, then time the intended durable
+publication witnesses. Retain the existing ninety-second command context,
+sixty-second publication allowance, both durable rows, live child ownership,
+actual interruption and exact compiler-free recovery. Add failure evidence and
+a missing-witness control. Change no production, compiler, CI or model cap.
+Complete focused and family qualification plus exact-head hosted review before
+human merge.

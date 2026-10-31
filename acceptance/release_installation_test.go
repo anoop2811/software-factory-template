@@ -32,7 +32,7 @@ func handoffBuildImage() handoffReleaseImage {
 	Expect(err).NotTo(HaveOccurred())
 	work, err := os.MkdirTemp("", "factory-release-image-")
 	Expect(err).NotTo(HaveOccurred())
-	DeferCleanup(os.RemoveAll, work)
+	DeferCleanup(cleanupFixtureDirectory, work)
 	revision, binary, assets, payload := installationTargetSnapshot(repository, filepath.Join(work, "exact-source"))
 	baselines := []imageBaselineOracle{}
 	references := map[string]installationReference{}

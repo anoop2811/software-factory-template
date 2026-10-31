@@ -35,9 +35,9 @@ No tool version is changed by this decision.
 ## Consent and ownership of selectors
 
 The effective selection is one explicit `--ref TAG` or `--ref=TAG`, then
-`FACTORY_REF`, then the unchanged literal default `v0.1.6`. An explicit value
+nonempty `FACTORY_REF`, then the unchanged literal default `v0.1.6`. An explicit value
 wins over the environment, including when it deliberately chooses a legacy ref.
-An explicitly missing or empty ref value refuses status 2 before tools.
+A missing or empty explicit `--ref` value refuses status 2 before tools.
 Only tokens before the first user `--` may select a ref or candidate, request
 help or establish selector conflicts. Values after it remain literal native data.
 
@@ -150,7 +150,7 @@ parameterize input controls without multiplying an unnecessary cross product.
 Preserve every existing explicit-candidate bootstrap criterion.
 
 Derive actual registry identities from native discovery after writing tests;
-`3186 + 9` is only the proposed count, not observed execution. Measure runtime
+`3186 + 9 ordinary + 1 timer-publication` is a proposal, not execution. Measure runtime
 before choosing whether the existing lane has sufficient headroom; introduce a
 new heavy partition only if evidence requires it. Preserve existing race checks,
 all platform mappings, worker caps, empty/failure/union contracts, reports and
@@ -197,3 +197,31 @@ The old guards must still hold and the new invocation guard must fail before
 claiming this coverage. Restore the actual installer for the focused GREEN; no
 production bypass, new criterion, deadline, dependency or candidate policy is
 introduced.
+
+## Watchdog cancellation during timer publication
+
+The shared acquisition watchdog owns each timer from its creation through reaping.
+A stop signal between starting a sleep and publishing its PID must not leave that
+sleep alive. Defer cancellation during that publication window, then stop and
+join the recorded timer before the watchdog exits. Reuse one supervised pause
+for both the acquisition delay and escalation delay; retain every existing
+duration, signal, verifier-group policy and authentication condition.
+
+Independent public-bootstrap scheduling controls observed this ownership race in
+both locally available sh and dash: the authenticated child and installer exited
+successfully while the recorded timer survived. Both controls closed captured
+output normally, so they do not establish the cause of the separate hosted
+120-second candidate-test timeout. Do not equate those observations.
+
+Add one bounded criterion that forces the pre-publication signal through a
+private scheduling copy of the real installer, records the owned timer and proves
+it is absent before test teardown. Preserve literal upgrade argv and unrelated
+processes. Keep all existing criterion identities and derive the added registry
+and lane counts from actual discovery. Observe its semantic RED before production
+repair, then qualify it, the original candidate family and ordinary cancellation
+controls without increasing any allowance or adding production test hooks.
+
+The scheduling test must not signal a recorded group again after the body has
+joined its caller and observed all owned processes absent. Failure teardown must
+retain the fixture when forced termination leaves separate verifier-group
+custody uncertain; disappearance of only the outer group does not prove it.

@@ -570,12 +570,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:140
 		// Nine ordinary authenticated-installer criteria stay in base after their
 		// measured bounded qualification. per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:152
-		Expect(negativeTotal).To(Equal(3195))
+		// One timer-publication ownership criterion joins the actual base census.
+		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:216
+		Expect(negativeTotal).To(Equal(3196))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3195))
-		expectedCounts := map[string]int{"base": 2987, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
+		Expect(allTotal).To(Equal(3196))
+		expectedCounts := map[string]int{"base": 2988, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

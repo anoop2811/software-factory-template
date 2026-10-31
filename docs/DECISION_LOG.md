@@ -5618,3 +5618,27 @@ ambient-Git control must reproduce the failure before fixture correction, then
 remain uninvoked after it. Preserve the frozen oracle, every behavioral assertion,
 case identity, production safety deadline and independent Git-discovery tests;
 do not infer a production fix or a confirmed hosted root cause from this control.
+
+Decision 139 watchdog-ownership refinement: private full-bootstrap scheduling
+controls observed a timer survive cancellation before its PID assignment under
+both local sh and dash, after authenticated child and installer success. Capture
+closed in both controls; the hosted Linux timeout remains a separate unexplained
+observation. ADR 0124 now requires deferred cancellation through timer publication
+and one reused supervised pause for initial and escalation waits, preserving all
+durations and trust policy. Add one independent public scheduling criterion with
+owned-timer and outsider witnesses; its RED precedes production repair. Derive
+the new registry counts, preserve every prior identity and retain the original
+candidate and ordinary cancellation qualifications before delivery.
+
+Decision 139 test-custody refinement: once the scheduling criterion has joined
+its caller and observed timer and group absence, deferred teardown must not
+signal those recorded IDs again. If failure cleanup forces termination without
+establishing separate verifier-group closure, retain its fixture conservatively.
+ADR 0124 records these test-owner limits before the narrow cleanup refinement;
+keep every pre-teardown success assertion, criterion identity and duration.
+
+Decision 139 review clarification: explicitly name nonempty FACTORY_REF as the
+environment selector and missing/empty explicit --ref operands as refusals;
+retain the prior empty-environment fallback. Reconcile the initial nine ordinary
+criteria with the one later watchdog criterion in the census instructions.
+These wording corrections change no installer behavior, test identity or limit.

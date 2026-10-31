@@ -72,18 +72,27 @@ packaged_install() {
         candidate_sleep=
       fi
     }
-    trap candidate_stop_sleep 0
-    trap 'candidate_stop_sleep; exit 0' TERM HUP INT
-    sleep "$1" &
-    candidate_sleep=$!
-    wait "$candidate_sleep" || exit 0
-    candidate_sleep=
-    kill -"$3" "$2" 2>/dev/null || :
-    if [ "$3" = TERM ]; then
-      sleep 5 &
+    candidate_pause() {
+      # A stop between spawn and PID publication must wait for ownership.
+      # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:203.
+      candidate_stop_pending=0
+      trap 'candidate_stop_pending=1' TERM HUP INT
+      sleep "$1" &
       candidate_sleep=$!
+      trap 'candidate_stop_sleep; exit 0' TERM HUP INT
+      if [ "$candidate_stop_pending" -ne 0 ]; then
+        candidate_stop_sleep
+        exit 0
+      fi
       wait "$candidate_sleep" || exit 0
       candidate_sleep=
+    }
+    trap candidate_stop_sleep 0
+    trap 'candidate_stop_sleep; exit 0' TERM HUP INT
+    candidate_pause "$1"
+    kill -"$3" "$2" 2>/dev/null || :
+    if [ "$3" = TERM ]; then
+      candidate_pause 5
       kill -KILL "$2" 2>/dev/null || :
     fi
   }

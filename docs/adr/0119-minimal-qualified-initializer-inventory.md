@@ -136,7 +136,7 @@ Reuse the existing `historical-recipe` Linux/macOS CI lane for these bounded
 ordered scenarios if its observed runtime remains within the existing 25-minute
 test and 30-minute job allowances. Extend only the exact family selector if the
 new feature family needs its own name; do not add a job merely for organization.
-Derive the seven-partition census from real Ginkgo identities and preserve full
+Derive the eight-partition census from real Ginkgo identities and preserve full
 union/failure propagation, race checks, worker bounds and reports. Increase no
 deadline, retry, worker, model or budget limit in this function.
 
@@ -178,3 +178,8 @@ literal forwarding checks and source-custody assertions. Retain the hosted RED
 logs and independently run both corrected criteria, then the complete affected
 families and hosted matrix. Change no production code, cache ownership, timeout,
 worker, dependency, model or review limit to satisfy these stale expectations.
+
+The resource-isolation qualification in ADR 0121 subsequently separates the two
+durable local-recovery criteria from the remaining eleven local-upgrade criteria.
+This supersedes their earlier co-selection in one CI group; all thirteen cases
+and the complete 3141-case union remain required.

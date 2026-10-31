@@ -5423,3 +5423,23 @@ literal relative `opencode.json` through `os.Root` with the existing mode. Keep
 all adversarial data scenarios and scanner settings. Require focused behavior,
 configured lint and fresh hosted Linux qualification; change no production,
 dependency, suppression, exclusion or timeout.
+
+## Decision 136 (2026-10-31 UTC): isolate local recovery qualification from unrelated source builds
+
+PR #151 source `97c5cf1` passed 25 of 26 checks. The remaining macOS local-upgrade
+reverse interruption case expired before publisher admission under its existing
+ninety-second test context. Its untimed Complete marker does not isolate the
+slow stage. A reviewed evaluator-only timing probe passed all three selected
+cases, including both actual interruptions and compiler-free recovery, without
+reproducing that failure. Retain both outcomes; no runtime defect or unique
+contention cause is asserted.
+
+ADR 0121 records the bounded resource-isolation design before wiring changes.
+Append `local-recovery` to the existing source workflow matrix; select only the
+two durable recovery criteria there and leave the other eleven in local-upgrade.
+Independent outside-in scheduler tests precede implementation and prove the
+complete eight-group 3141-case identity union, reports, failure propagation and
+both OS mappings. Keep each group's existing worker policy and all 90-second,
+60-second, 25-minute and 30-minute limits. No runtime or compiler-environment
+change is required. Extra jobs isolate the resource domain; they do not prove
+why the earlier native run missed admission.

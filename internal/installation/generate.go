@@ -96,7 +96,7 @@ func generate(ctx context.Context, role role, image staging.Inspection, inputs m
 	return nil, conflict("unrecognized reviewed installation role")
 }
 func descriptorBytes(image staging.Inspection, actions []Action) ([]byte, error) {
-	return descriptorForRoles(image, actions, roles)
+	return descriptorForRoles(image, actions, rolesForImage(image))
 }
 
 // Use the selected generation's role filter for byte-exact predecessor data.

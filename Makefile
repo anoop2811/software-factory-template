@@ -47,10 +47,11 @@ go-runtime-check:
 		$(MAKE) go-runtime-source-check; \
 	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
 
+# docs/adr/0121-local-upgrade-readiness-boundary.md:117 -- isolated recovery resources.
 go-runtime-source-check:
 	@set -e; \
-	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|historical-recipe|local-init|local-upgrade|default-init) ;; \
-		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff, historical-recipe, local-init, local-upgrade or default-init" >&2; exit 2 ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|historical-recipe|local-init|local-upgrade|local-recovery|default-init) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery or default-init" >&2; exit 2 ;; esac; \
 	test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }; \
 	test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh || \
@@ -73,12 +74,13 @@ go-runtime-source-check:
 		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance Supported predecessor recipe compatibility( |$$)'; \
 		GO_LOCAL_INIT_FAMILY='^Go factory command acceptance Go explicit local source initialization( |$$)'; \
 		GO_LOCAL_UPGRADE_FAMILY='^Go factory command acceptance Go explicit local source upgrade( |$$)'; \
+		GO_LOCAL_RECOVERY_FAMILY='^Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler( |$$)'; \
 		GO_DEFAULT_INIT_FAMILY='^Go factory command acceptance Go default packaged initialization( |$$)'; \
-		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; GO_LOCAL_UPGRADE_TEST_STATUS=0; GO_DEFAULT_INIT_TEST_STATUS=0; \
+		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; GO_LOCAL_UPGRADE_TEST_STATUS=0; GO_LOCAL_RECOVERY_TEST_STATUS=0; GO_DEFAULT_INIT_TEST_STATUS=0; \
 		run_acceptance() { \
 			GO_REPORT_GROUP="$$1"; shift; \
 			GO_ACCEPTANCE_PROCS="$$GO_BASE_TEST_PROCS"; \
-			case "$$GO_REPORT_GROUP" in release-handoff|historical-recipe|local-init|local-upgrade|default-init) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
+			case "$$GO_REPORT_GROUP" in release-handoff|historical-recipe|local-init|local-upgrade|local-recovery|default-init) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
 			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
 				--procs="$$GO_ACCEPTANCE_PROCS" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
 				--keep-going --fail-on-empty --no-color "$$@"; \
@@ -105,7 +107,9 @@ go-runtime-source-check:
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-init) \
 			run_acceptance local-init --focus="$$GO_LOCAL_INIT_FAMILY" || GO_LOCAL_INIT_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-upgrade) \
-			run_acceptance local-upgrade --focus="$$GO_LOCAL_UPGRADE_FAMILY" || GO_LOCAL_UPGRADE_TEST_STATUS=$$? ;; esac; \
+			run_acceptance local-upgrade --focus="$$GO_LOCAL_UPGRADE_FAMILY" --skip="$$GO_LOCAL_RECOVERY_FAMILY" || GO_LOCAL_UPGRADE_TEST_STATUS=$$? ;; esac; \
+		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-recovery) \
+			run_acceptance local-recovery --focus="$$GO_LOCAL_RECOVERY_FAMILY" || GO_LOCAL_RECOVERY_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|default-init) \
 			run_acceptance default-init --focus="$$GO_DEFAULT_INIT_FAMILY" || GO_DEFAULT_INIT_TEST_STATUS=$$? ;; esac; \
 		if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
@@ -114,6 +118,7 @@ go-runtime-source-check:
 		if [ "$$GO_HISTORICAL_RECIPE_TEST_STATUS" -ne 0 ]; then exit "$$GO_HISTORICAL_RECIPE_TEST_STATUS"; fi; \
 		if [ "$$GO_LOCAL_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_INIT_TEST_STATUS"; fi; \
 		if [ "$$GO_LOCAL_UPGRADE_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_UPGRADE_TEST_STATUS"; fi; \
+		if [ "$$GO_LOCAL_RECOVERY_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_RECOVERY_TEST_STATUS"; fi; \
 		exit "$$GO_DEFAULT_INIT_TEST_STATUS"
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory

@@ -91,7 +91,8 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	}
 	targetActions := []Action{}
 	targetPayload := map[string][]byte{}
-	for _, row := range roles {
+	recipe := rolesForImage(image)
+	for _, row := range recipe {
 		data, err := generate(ctx, row, image, request.Inputs)
 		if err != nil {
 			return result, err
@@ -119,10 +120,10 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		targets[action.Path] = action.After
 	}
-	if len(record.Entries) != len(roles) {
+	if !matchesRoleEntries(record.Entries, recipe) {
 		return result, conflict("installation journal omits reviewed rows")
 	}
-	for _, row := range roles {
+	for _, row := range recipe {
 		original, found := originals[row.Path]
 		if !found {
 			return result, conflict("before-image manifest omits reviewed row")
@@ -239,6 +240,11 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		if err != nil {
 			return result, err
 		}
+		preserved, err := preservedPredecessorIssues(ctx, tree, reference, recipe, request.Inputs)
+		if err != nil {
+			return result, err
+		}
+		issues = append(issues, preserved...)
 		result.proposal.RollbackBlockers = issues
 	}
 	sort.Slice(result.proposal.Actions, func(i, j int) bool { return result.proposal.Actions[i].Path < result.proposal.Actions[j].Path })

@@ -75,10 +75,11 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 	if request.Source.Local {
 		result.proposal.Authentication = "local-source"
 	}
-	if len(record.Entries) != len(roles) {
+	recipe := rolesForImage(image)
+	if !matchesRoleEntries(record.Entries, recipe) {
 		return result, conflict("preparation journal omits complete selection")
 	}
-	for _, row := range roles {
+	for _, row := range recipe {
 		var saved *journalEntry
 		for index := range record.Entries {
 			if record.Entries[index].Path == row.Path {

@@ -75,6 +75,30 @@ and initializer backups for recovery; automatic rollback is not promised.
 Successful initialization removes its private build/staging inputs. User-owned
 caches are never adopted or deleted. See [ADR 0116](../adr/0116-explicit-go-local-initialization.md).
 
+## Private data in a new qualified Go installation
+
+Qualified initialization still plans from the complete, privately staged source
+image and produces the project scaffold, harness adapters and chosen language
+packs. Its persistent `.factory/assets/scaffold/` cache now contains only the
+two data files consumed by installed commands:
+
+- `templates/metrics.html` for `factory metrics --html`.
+- `packs/review-lane/review-pr.yml` for review-lane setup.
+
+These are two cached data files, not the entire installed factory. The reviewed
+inventory has 58 rows: three existing retirement rows and 55 active selections.
+The installed descriptor lists 53 assets because `.factory-version` and the
+descriptor itself are separate controls. Project-facing scaffold files remain
+available outside this private cache.
+
+Known RC3 and post-RC3 images retain their original 141-row generation, including
+85 cached assets, when reconstructed for recovery. Upgrading an existing
+installation leaves its 83 unused old cache files untouched; this change does
+not retire, overwrite or adopt them. A historical rollback that needs a changed,
+missing or unsafe old cache entry is blocked before publication and preserves
+that entry. Qualified cleanup of existing caches is a separate migration step.
+See [ADR 0119](../adr/0119-minimal-qualified-initializer-inventory.md).
+
 The intended compatibility boundaries preserve user README content and unmanaged
 Makefile/ignore rules. Unsafe source or destination paths and unrepresentable flat
 configuration inputs must fail before installation writes. Reinitialization backups

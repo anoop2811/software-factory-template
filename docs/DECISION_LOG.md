@@ -5343,6 +5343,55 @@ independent public RED, exact selected-runtime proof and complete source CI
 partition coverage before human merge. Minimal new inventory and native source
 selftest are independent parallel branches with separate PRs and test authors.
 
+## Decision 132 (2026-10-30 UTC): minimize new qualified initializer data without retiring existing caches
+
+After human merge of #149 as `9be9d0333d018c51dfccea18da966e6138e380ab`,
+publish only the metrics HTML and review-lane workflow data in a new qualified
+installation's private scaffold cache. Keep the complete source image available
+for private initialization planning and retain the project-facing scaffold.
+The current 141-row inventory becomes 58 rows by omitting 83 unused inert cache
+rows; do not delete or adopt existing cache entries in this function.
+
+Freeze the exact current post-RC3 generation before changing role data. Use a
+closed ten-blob fingerprint of immutable `9be9d033`, and independently compare
+its complete ordered roles with the existing frozen `rolesV1` table before
+reusing that identical inert data. Keep the original RC3 vector unchanged and
+unknown predecessor recipes blocked. Share one image-specific role selector
+across selection, descriptors, transactions, recovery and retention; old
+141-row journals/receipts keep their original image generation. Fresh images,
+not serialized row counts, remain qualification authority.
+
+ADR 0119 defines the complete function, production seams and independent RED
+before implementation. A historical rollback requiring a changed, missing or
+unsafe old cache asset must refuse before publication and preserve the asset.
+Keep existing backups, trust, admission, consent and expiry policy. Reuse the
+historical-recipe lane if observed runtime fits its existing allowance; prove
+the complete seven-partition census and failure propagation without raising caps.
+
+Source/default command routing, source selftest, active script retirement,
+release activation and dependency pins remain separate tasks. Independent
+branches may proceed in parallel, with individually reviewed, checked and
+dependency-ordered human merges.
+
+Integration follow-up (2026-10-31 UTC): human merge of #150 is
+`1cf03f52c6580040885b81533e12d82b8f0426d1`. Preserve its ten public
+default-init criteria and all readiness/cleanup corrections. Integrate the
+eight inventory criteria into historical-recipe, giving twelve in that family
+and 3141 total across seven partitions before Decision 136's recovery split.
+Requalify the source; standalone 3131-case discovery is historical evidence,
+not the combined registry. Keep the fixed ten-blob predecessor fingerprint intact.
+
+Hosted-regression follow-up (2026-10-31 UTC): source run 41161089293 at
+`c55943b` records one outdated expectation in each of the installation and
+local-upgrade families. The former reads a no-longer-selected private README
+before its refusal probes; the latter expects a newly unowned loop-cache path
+to behave as required. ADR 0119 records their bounded regression alignment
+before test edits: preserve the two consumed files and application README,
+prove omitted data stays read-only, and exercise the required-cache blocker
+with metrics HTML. Keep historical required-cache behavior and all existing
+refusal, source identity, count and custody checks. Require independent local
+and hosted evidence without changing production or limits.
+
 ## Decision 134 (2026-10-31 UTC): measure local interruption after publisher admission
 
 PR #150's macOS source job 124380501158 failed only the existing forward local
@@ -5374,3 +5423,29 @@ literal relative `opencode.json` through `os.Root` with the existing mode. Keep
 all adversarial data scenarios and scanner settings. Require focused behavior,
 configured lint and fresh hosted Linux qualification; change no production,
 dependency, suppression, exclusion or timeout.
+
+## Decision 136 (2026-10-31 UTC): isolate local recovery qualification from unrelated source builds
+
+PR #151 source `97c5cf1` passed 25 of 26 checks. The remaining macOS local-upgrade
+reverse interruption case expired before publisher admission under its existing
+ninety-second test context. Its untimed Complete marker does not isolate the
+slow stage. A reviewed evaluator-only timing probe passed all three selected
+cases, including both actual interruptions and compiler-free recovery, without
+reproducing that failure. Retain both outcomes; no runtime defect or unique
+contention cause is asserted.
+
+ADR 0121 records the bounded resource-isolation design before wiring changes.
+Append `local-recovery` to the existing source workflow matrix; select only the
+two durable recovery criteria there and leave the other eleven in local-upgrade.
+Independent outside-in scheduler tests precede implementation and prove the
+complete eight-group 3141-case identity union, reports, failure propagation and
+both OS mappings. Keep each group's existing worker policy and all 90-second,
+60-second, 25-minute and 30-minute limits. No runtime or compiler-environment
+change is required. Extra jobs isolate the resource domain; they do not prove
+why the earlier native run missed admission.
+
+Review follow-up: retain the earlier seven-partition observation as historical,
+cite the native artifact behind the additive scheduling estimate, and distinguish
+legitimate preparation-journal removal from unexpected inspection errors in the
+existing recovery criterion. These clarifications alter no runtime behavior,
+criterion count or deadline.

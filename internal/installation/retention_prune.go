@@ -35,7 +35,7 @@ type retentionProgress struct {
 }
 
 func retentionRows(snapshot retentionSnapshot) ([]retentionRemoval, error) {
-	if !ValidBackupID(snapshot.ID) || snapshot.Manifest.MigrationID != snapshot.ID || snapshot.Record.MigrationID != snapshot.ID || len(snapshot.Manifest.Entries) != len(roles) || snapshot.JournalImage == nil {
+	if !ValidBackupID(snapshot.ID) || snapshot.Manifest.MigrationID != snapshot.ID || snapshot.Record.MigrationID != snapshot.ID || !knownRoleEntries(snapshot.Manifest.Entries) || !knownRoleEntries(snapshot.Record.Entries) || len(snapshot.Manifest.Entries) != len(snapshot.Record.Entries) || snapshot.JournalImage == nil {
 		return nil, conflict("invalid retention progress selection")
 	}
 	allowed := map[string]bool{"installation.manifest": true}

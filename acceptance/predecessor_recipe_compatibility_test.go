@@ -190,6 +190,11 @@ var _ = Describe("Supported predecessor recipe compatibility", Ordered, Continue
 			if row.Operation == "retire" {
 				continue
 			}
+			if row.Operation == "inert-data" && row.Path != ".factory/assets/scaffold/templates/metrics.html" && row.Path != ".factory/assets/scaffold/packs/review-lane/review-pr.yml" {
+				// The new selection does not adopt this historical cache.
+				// per docs/adr/0119-minimal-qualified-initializer-inventory.md:26
+				continue
+			}
 			Expect(actions).To(HaveKey(row.Path))
 			original, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(row.Path)))
 			Expect(err).NotTo(HaveOccurred())
@@ -259,7 +264,7 @@ var _ = Describe("Supported predecessor recipe compatibility", Ordered, Continue
 	// per docs/adr/0115-frozen-rc3-recipe-compatibility.md:47
 	It("preserves an edited required cache asset as a visible conflict without inferring ownership from its filename", func() {
 		f, driver, root, args := fixture.predecessor()
-		path := ".factory/assets/scaffold/scripts/lib/loop.py"
+		path := ".factory/assets/scaffold/templates/metrics.html"
 		custom := []byte("operator maintained reference; never execute\n")
 		writeFixture(filepath.Join(root, filepath.FromSlash(path)), custom, 0600)
 		before := installationSnapshot(root)

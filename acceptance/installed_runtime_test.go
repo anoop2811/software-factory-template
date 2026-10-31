@@ -220,16 +220,24 @@ var _ = Describe("Installed runtime root separation", func() {
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:106
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:260
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:435
 	// per docs/adr/0085-go-native-init.md:20
 	// per docs/adr/0085-go-native-init.md:99
 	// per docs/adr/0118-default-packaged-go-initialization.md:66
-	It("preserves canonical and application README custody when the selected packaged initializer is unavailable", func() {
+	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:167
+	It("preserves consumed cache and application README custody when the selected packaged initializer is unavailable", func() {
 		fixture := installedRuntimeCustodyFixture()
-		canonicalPath := filepath.Join(fixture.assets, "README.md")
-		canonical, err := os.ReadFile(canonicalPath)
-		Expect(err).NotTo(HaveOccurred(), "the installation still needs its canonical README asset")
-		Expect(canonical).NotTo(BeEmpty())
+		canonicalPaths := []string{"templates/metrics.html", "packs/review-lane/review-pr.yml"}
+		canonical := map[string][]byte{}
+		for _, relative := range canonicalPaths {
+			data, err := os.ReadFile(filepath.Join(fixture.assets, filepath.FromSlash(relative)))
+			Expect(err).NotTo(HaveOccurred(), "installed commands consume %s", relative)
+			Expect(data).NotTo(BeEmpty(), relative)
+			canonical[relative] = data
+		}
+		privateReadme := filepath.Join(fixture.assets, "README.md")
+		_, err := os.Lstat(privateReadme)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "a new installation must not require the omitted private README")
+		cacheBefore := nativeInitArtifacts(fixture.assets)
 		existing := filepath.Join(filepath.Dir(fixture.root), "existing project")
 		readme := []byte("application README is retained verbatim\n")
 		writeFixture(filepath.Join(existing, "README.md"), readme, 0644)
@@ -242,6 +250,7 @@ var _ = Describe("Installed runtime root separation", func() {
 		Expect(control.status).To(Equal(1), "%+v", control)
 		Expect(control.stdout).To(BeEmpty(), "unavailable authenticated selection must refuse before initializer prompts")
 		Expect(nativeInitArtifacts(existing)).To(Equal(before))
+		Expect(nativeInitArtifacts(fixture.assets)).To(Equal(cacheBefore))
 		empty := filepath.Join(filepath.Dir(fixture.root), "empty project")
 		actual := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), environment, "init", empty, "--pack=none")
 		Expect(actual.status).To(Equal(1), "%+v", actual)
@@ -251,9 +260,15 @@ var _ = Describe("Installed runtime root separation", func() {
 		Expect(strings.Split(strings.TrimSuffix(string(arguments), "\x00"), "\x00")).To(ContainElement("repos/anoop2811/software-factory-template/commits/refs/tags/v9.8.0"))
 		_, err = os.Lstat(empty)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "failed selected release must not create the target or fall back to canonical scripts")
-		retainedCanonical, err := os.ReadFile(canonicalPath)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(retainedCanonical).To(Equal(canonical))
+		for _, relative := range canonicalPaths {
+			retained, err := os.ReadFile(filepath.Join(fixture.assets, filepath.FromSlash(relative)))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retained).To(Equal(canonical[relative]), relative)
+		}
+		Expect(nativeInitArtifacts(fixture.assets)).To(Equal(cacheBefore), "both consumed cache files retain bytes and modes")
+		_, err = os.Lstat(privateReadme)
+		Expect(os.IsNotExist(err)).To(BeTrue())
+		AddReportEntry("installed-runtime.consumed-cache-custody", map[string]any{"paths": canonicalPaths, "private_readme_absent": true, "refused_statuses": []int{control.status, actual.status}}, ReportEntryVisibilityNever)
 	})
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:33

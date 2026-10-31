@@ -2,7 +2,7 @@
 
 ## Availability and the command you keep
 
-As of 2026-10-26 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
+As of 2026-10-31 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
 the planned Go replacement and is not published. The explicit Go upgrade engine,
 rollback/recovery and retention are implemented on `main`.
 [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
@@ -52,11 +52,11 @@ not need the separate maintainer staging/packaging tools. See [CLI.md](CLI.md).
 From inside your existing project (a project subdirectory is also supported):
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 ```
 
-For a published prerelease, replace `v0.2.0` with its exact tag in both preview
-and confirmation. The command obtains the matching native binary and installation
+For a published prerelease, replace `--ref v0.2.0` with `--go-candidate TAG` in
+both preview and confirmation, using its exact tag. The command obtains the matching native binary and installation
 image, checks their attestation against the official release workflow, tag and
 source revision, and computes a proposal. The preview uses temporary private
 acquisition storage and leaves the project unchanged. It calls no model.
@@ -78,7 +78,7 @@ is your explicit affirmation of this maintenance condition.
 Replace `PROPOSAL_DIGEST` below with the full digest from your reviewed preview:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
 ```
 
 Repeat any `--project-input` overrides from the preview. Omit `--json` on apply;
@@ -111,6 +111,20 @@ reports activation succeeded but cleanup failed requires cleanup reconciliation;
 it is not permission to reinstall or discard recovery files.
 
 ## Ordinary Go upgrades
+
+The shell installer accepts the same exact stable Go selection:
+`install.sh init --ref TAG` or `install.sh upgrade --ref TAG`. Explicit `--ref`
+wins over `FACTORY_REF`. It authenticates stable publisher metadata and the
+native bootstrap before execution; the Go owner then validates the complete
+installation image. Go releases use the official repository; a conflicting
+`FACTORY_REPO` refuses. See the [bootstrap contract](adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
+
+The public default remains v0.1.6 until stable activation. Older stable tags and
+non-version branch refs retain their legacy route during this stage. Legacy
+execution rejects `--` operands that its initializer cannot preserve. A bare
+fetch, even for a Go tag, only caches source and gives an authenticated next step;
+it never executes the fetched initializer. The tracked source launcher and
+direct source scripts await their separate cutover.
 
 A Go release containing ordinary upgrade selection can preview its declared
 stable release with `./factory upgrade --dry-run --json`. Current source prepares

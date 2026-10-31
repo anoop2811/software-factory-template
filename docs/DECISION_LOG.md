@@ -5563,3 +5563,47 @@ cannot cover a required old cache merely because both unsigned records say
 retire; independently qualify canonical before/saved data or refuse before
 reverse publication. ADR 0123 records these boundaries before independent
 focused REDs and any follow-up production repair.
+
+
+## Decision 139 (2026-10-31 UTC): authenticate ordinary explicit Go installer requests
+
+After human merge of R1 as 21f2913, deliver the first bounded R2 function under
+ADR 0124 before source-factory/direct-entrypoint conversion. Stable init/upgrade
+requests selected by explicit ref or FACTORY_REF at or after v0.2.0 reuse the
+existing raw/image attestation and native handoff machinery. Keep literal stable
+public default v0.1.6 and Git-only bare-fetch consent; no public release activation
+or new persistent binary cache belongs here. Bare Go-tag fetch advice re-enters
+authenticated init with its selected ref instead of executing fetched scripts.
+
+Exact legacy stable refs below 0.2 and non-version branches retain the existing
+legacy path in this intermediate stage. Malformed/version-looking/prerelease
+execution refs, duplicate/mixed refs and conflicting selectors refuse before
+tools; no failed Go validation may fall back into legacy argument re-splitting.
+Stable Go refuses a conflicting repository override, authenticates exact tag,
+revision, raw subject and stable publisher metadata before first execution,
+then carries one explicit normalized --ref into the native owner. Preserve
+literal argv, terminators, stdin/cwd/status, process ownership and existing limits.
+
+Independent real compiled stable-init RED precedes installer production edits;
+qualification includes actual legacy preview/fresh-confirm/apply, preserved
+candidate regressions, bare-fetch safety and readiness-based cancellation.
+Derive real criterion/census counts and measure lane cost. R2 remains partial
+until its later coherent source/direct adapter function is human-merged; R7
+still owns stable pin activation and final operator/release gates.
+
+
+Decision 139 reviewed-routing refinement: a legacy execution terminator is an
+unsupported form and must refuse before tools, because its retained initializer
+does not implement native literal grammar. A downstream ref parser must not
+reinterpret its data into a Go-tag source path. Missing ref values cannot consume
+help options as legacy branch names; malformed literal Go execution verbs cannot
+be trimmed/re-split or treated as bare fetch. ADR 0124 records these limits before
+independent collected-path RED and parser repair; criterion counts and all native
+Go/candidate literal-operand guarantees remain unchanged.
+
+Decision 139 failure-oracle refinement: acquisition refusal must prove that
+no forbidden tool or cached-source initializer ran, rather than inferring that
+from a nonzero status. ADR 0124 records independent execution witnesses and
+cache preservation before strengthening the existing criterion. A private
+wrong-subject fallback mutant must fail its new guard while retaining every old
+assertion, followed by actual-installer GREEN; no runtime or case-count change.

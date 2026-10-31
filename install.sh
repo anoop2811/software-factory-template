@@ -1,18 +1,24 @@
 #!/bin/sh
 set -eu
 
+# Public stable activation remains a separate release step.
+# docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:21.
+FACTORY_DEFAULT_REF=v0.1.6
+
 # Candidate selection is reserved before the legacy parser (which re-splits its
 # arguments). Preserve literal argv and authenticate before the first execution.
 # docs/adr/0101-go-release-handoff.md:40, docs/adr/0101-go-release-handoff.md:80.
 candidate_install() {
   umask 077
   case "${1-}" in init|upgrade) ;; *) printf '%s\n' 'install: candidate requires init or upgrade' >&2; exit 2 ;; esac
-  candidate_tag='' candidate_pending=0 candidate_seen=0 candidate_help=0
+  candidate_tag='' candidate_pending=0 candidate_seen=0 candidate_help=0 candidate_terminated=0
   for candidate_arg do
     if [ "$candidate_pending" -eq 1 ]; then
       candidate_tag=$candidate_arg; candidate_pending=0; continue
     fi
+    [ "$candidate_terminated" -eq 0 ] || continue
     case "$candidate_arg" in
+      --) candidate_terminated=1 ;;
       --go-candidate|--go-candidate=*)
         [ "$candidate_seen" -eq 0 ] || { printf '%s\n' 'install: repeated candidate selector' >&2; exit 2; }
         candidate_seen=1
@@ -34,6 +40,16 @@ candidate_install() {
     printf '%s\n' 'Usage: install.sh init|upgrade [args] --go-candidate TAG'
     exit 0
   fi
+  packaged_install candidate "$candidate_tag" "$@"
+}
+
+# Both selectors cross the same first-execution trust and ownership boundary.
+# Stable requests keep their stricter publisher policy across the Go handoff.
+# docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:88.
+packaged_install() {
+  candidate_policy=$1 candidate_tag=$2
+  shift 2
+  umask 077
   command -v gh >/dev/null 2>&1 || { printf '%s\n' 'install: trusted GitHub CLI (gh) is required' >&2; exit 1; }
   candidate_verifier=$(command -v gh)
   [ -f "$candidate_verifier" ] && [ -x "$candidate_verifier" ] && [ -x /bin/bash ] || { printf '%s\n' 'install: trusted gh executable and /bin/bash are required' >&2; exit 1; }
@@ -155,9 +171,17 @@ candidate_install() {
   candidate_revision=$(cat "$candidate_dir/command.stdout")
   case "$candidate_revision" in ''|*[!0-9a-f]*) printf '%s\n' 'install: invalid candidate revision' >&2; exit 1 ;; esac
   [ "${#candidate_revision}" -eq 40 ] || exit 1
-  candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json tagName,isDraft --jq '[.tagName,.isDraft]|@tsv'
+  candidate_fields=tagName,isDraft
+  candidate_query='[.tagName,.isDraft]|@tsv'
+  candidate_expected=$(printf '%s\tfalse' "$candidate_tag")
+  if [ "$candidate_policy" = stable ]; then
+    candidate_fields=tagName,isDraft,isPrerelease
+    candidate_query='[.tagName,.isDraft,.isPrerelease]|@tsv'
+    candidate_expected=$(printf '%s\tfalse\tfalse' "$candidate_tag")
+  fi
+  candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json "$candidate_fields" --jq "$candidate_query"
   candidate_release=$(cat "$candidate_dir/command.stdout")
-  [ "$candidate_release" = "$(printf '%s\tfalse' "$candidate_tag")" ] || { printf '%s\n' 'install: candidate release is unavailable' >&2; exit 1; }
+  [ "$candidate_release" = "$candidate_expected" ] || { printf '%s\n' 'install: candidate release is unavailable' >&2; exit 1; }
   candidate_raw=factory-bootstrap-$candidate_tag-$candidate_target
   candidate_image=factory-installation-$candidate_tag-$candidate_target.tar.gz
   candidate_gh release download "$candidate_tag" --repo "$candidate_repo" --pattern "$candidate_raw" --pattern "$candidate_image" --pattern runtime-attestations.jsonl --dir "$candidate_dir"
@@ -239,7 +263,7 @@ legacy_install() {
 # moving branch.
 
 FACTORY_REPO="${FACTORY_REPO:-https://github.com/anoop2811/software-factory-template}"
-FACTORY_REF="${FACTORY_REF:-v0.1.6}"
+FACTORY_REF="${FACTORY_REF:-$FACTORY_DEFAULT_REF}"
 FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 
 # --ref <ref> (or --ref=<ref>): install from the given branch or tag instead of
@@ -382,9 +406,18 @@ else
 fi
 
 if [ "$DO_INIT" -eq 0 ]; then
+  installer_ref_kind "$FACTORY_REF"
   say ""
   say "Next, from the repository you want to govern:"
   say ""
+  if [ "$installer_kind" = go ]; then
+    # Git-only fetch did not authenticate runnable release artifacts.
+    # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:80.
+    say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref $FACTORY_REF"
+    say ""
+    say "Go initialization authenticates official release artifacts before execution."
+    exit 0
+  fi
   say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\""
   say ""
   say "Or re-run this installer with 'init' from inside that repository:"
@@ -401,15 +434,121 @@ say ""
 exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"
 }
 
+# Classify without shell arithmetic on version components. Native Go repeats
+# this validation; classification must never turn an invalid Go ref into Git.
+# docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:43.
+installer_ref_kind() {
+  installer_kind=legacy
+  case "$1" in v[0-9]*) ;; *) return 0 ;; esac
+  installer_kind=invalid
+  [ "${#1}" -le 128 ] || return 0
+  ref_version=${1#v}
+  case "$ref_version" in
+    *+*)
+      ref_build=${ref_version#*+}
+      ref_version=${ref_version%%+*}
+      case "$ref_build" in ''|*[!a-zA-Z0-9.-]*|.*|*.|*..*) return 0 ;; esac ;;
+  esac
+  case "$ref_version" in ''|*[!0-9.]*|.*|*.|*..*) return 0 ;; esac
+  ref_major=${ref_version%%.*}
+  ref_tail=${ref_version#*.}
+  [ "$ref_tail" != "$ref_version" ] || return 0
+  ref_minor=${ref_tail%%.*}
+  ref_patch=${ref_tail#*.}
+  [ "$ref_patch" != "$ref_tail" ] || return 0
+  case "$ref_patch" in *.*) return 0 ;; esac
+  for ref_number in "$ref_major" "$ref_minor" "$ref_patch"; do
+    case "$ref_number" in ''|0?*) return 0 ;; esac
+  done
+  case "$ref_major:$ref_minor" in 0:0|0:1) installer_kind=legacy ;; *) installer_kind=go ;; esac
+}
+
+# Remove only actual pre-terminator selector tokens, rotating the original argv
+# instead of serializing it. Quoting and empty operands survive unchanged.
+# docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:104.
+stable_install() {
+  stable_remaining=$# stable_terminated=0
+  while [ "$stable_remaining" -gt 0 ]; do
+    stable_value=$1
+    shift
+    stable_remaining=$((stable_remaining - 1))
+    if [ "$stable_terminated" -eq 0 ]; then
+      case "$stable_value" in
+        --ref) shift; stable_remaining=$((stable_remaining - 1)); continue ;;
+        --ref=*) continue ;;
+        --) stable_terminated=1 ;;
+      esac
+    fi
+    set -- "$@" "$stable_value"
+  done
+  case "${1-}" in init|upgrade) ;; *) printf '%s\n' 'install: Go bootstrap requires init or upgrade' >&2; exit 2 ;; esac
+  stable_verb=$1
+  shift
+  packaged_install stable "$installer_ref" "$stable_verb" --ref "$installer_ref" "$@"
+}
+
 # Parse the complete source before a candidate can inherit stdin. In a curl|sh
 # invocation unread script text must never become initializer answers.
 # docs/adr/0101-go-release-handoff.md:455.
 installer_main() {
+  installer_ref=${FACTORY_REF:-$FACTORY_DEFAULT_REF}
+  installer_ref_count=0 installer_pending='' installer_terminated=0
+  installer_candidate=0 installer_help=0 installer_conflict=0 installer_first=0 installer_verb=''
   for installer_arg do
+    if [ -n "$installer_pending" ]; then
+      if [ "$installer_pending" = ref ]; then installer_ref=$installer_arg; fi
+      installer_pending=''
+      continue
+    fi
+    [ "$installer_terminated" -eq 0 ] || continue
     case "$installer_arg" in
-      --go-candidate|--go-candidate=*) candidate_install "$@"; exit $? ;;
+      --) installer_terminated=1 ;;
+      --ref) installer_ref_count=$((installer_ref_count + 1)); installer_pending=ref ;;
+      --ref=*) installer_ref_count=$((installer_ref_count + 1)); installer_ref=${installer_arg#--ref=} ;;
+      --go-candidate) installer_candidate=1; installer_pending=candidate ;;
+      --go-candidate=*) installer_candidate=1 ;;
+      --help|-h) installer_help=1 ;;
+      --source|--source=*|--local|--local=*|--installation|--installation=*) installer_conflict=1 ;;
+      *)
+        if [ "$installer_first" -eq 0 ]; then installer_verb=$installer_arg; installer_first=1; fi ;;
     esac
   done
+  if [ "$installer_candidate" -eq 1 ]; then candidate_install "$@"; return; fi
+  if [ "$installer_pending" = ref ] || [ "$installer_ref_count" -gt 1 ] || [ -z "$installer_ref" ]; then
+    printf '%s\n' 'install: select one nonempty --ref value' >&2
+    exit 2
+  fi
+  case "$installer_ref" in
+    -*) printf '%s\n' 'install: --ref requires a value, not an option' >&2; exit 2 ;;
+  esac
+  installer_ref_kind "$installer_ref"
+  # Legacy word splitting must never repair a malformed Go verb into execution.
+  # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:173.
+  case "$installer_kind:$installer_first:$installer_verb" in
+    go:1:init|go:1:upgrade|invalid:1:init|invalid:1:upgrade) ;;
+    go:1:*|invalid:1:*) printf '%s\n' 'install: Go bootstrap requires literal init or upgrade' >&2; exit 2 ;;
+  esac
+  case "$installer_verb:$installer_kind" in
+    init:invalid|upgrade:invalid)
+      printf '%s\n' 'install: --ref requires an exact stable release tag; use --go-candidate for prereleases' >&2
+      exit 2 ;;
+    init:go|upgrade:go)
+      [ "$installer_conflict" -eq 0 ] || { printf '%s\n' 'install: conflicting Go release source' >&2; exit 2; }
+      case "${FACTORY_REPO-}" in
+        ''|https://github.com/anoop2811/software-factory-template|https://github.com/anoop2811/software-factory-template.git) ;;
+        *) printf '%s\n' 'install: Go releases require the official repository' >&2; exit 2 ;;
+      esac
+      if [ "$installer_help" -eq 1 ]; then
+        printf '%s\n' 'Usage: install.sh init|upgrade [args] --ref TAG' 'Select an authenticated stable Go release at or after v0.2.0.'
+        exit 0
+      fi
+      stable_install "$@"
+      return ;;
+  esac
+  # Frozen legacy controllers cannot preserve end-of-options operands safely.
+  # Authenticated paths already returned with their literal argv intact.
+  # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:164.
+  [ "$installer_terminated" -eq 0 ] || { printf '%s\n' 'install: legacy releases do not support -- operands; select an explicit Go release' >&2; exit 2; }
   legacy_install "$@"
 }
 installer_main "$@"

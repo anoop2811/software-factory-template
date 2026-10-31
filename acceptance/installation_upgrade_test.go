@@ -239,7 +239,7 @@ type installationRoleMapOracle struct {
 // Build the exact owned fixture commit rather than attaching HEAD identity to
 // an uncommitted binary. User settings and test-writer changes stay excluded.
 // per docs/adr/0097-installation-source-image-bundles.md:123
-func installationTargetSnapshot(repository, destination string) (string, []byte, []imageAssetOracle, map[string][]byte) {
+func installationTargetSnapshot(repository, destination string, patches ...func(string)) (string, []byte, []imageAssetOracle, map[string][]byte) {
 	GinkgoHelper()
 	assets, payload := installationGitCatalog(repository, "HEAD")
 	installationMaterializeReference(destination, installationReference{assets: assets, payload: payload})
@@ -270,6 +270,9 @@ func installationTargetSnapshot(repository, destination string) (string, []byte,
 		body, err := os.ReadFile(filepath.Join(repository, filepath.FromSlash(path)))
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(destination, filepath.FromSlash(path)), body, info.Mode().Perm())
+	}
+	for _, patch := range patches {
+		patch(destination)
 	}
 	imageGit(destination, "init", "--quiet")
 	imageGit(destination, "add", "--force", "--all")

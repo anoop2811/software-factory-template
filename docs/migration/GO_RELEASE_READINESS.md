@@ -37,6 +37,13 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   preserved backups and replayable local recovery inputs. See
   [ADR 0117](../adr/0117-explicit-go-local-upgrade.md). The final integrated
   release rehearsal remains a separate gate.
+- Declared obsolete-cache retirement uses the same transaction and ignored inert
+  backups for the 83 unused files actually selected by a qualified older Go
+  installation. Two consumed cache files remain; edited, unknown and unowned
+  leftovers are preserved. Historical 141-row and minimal 58-row records retain
+  their original source generation. See
+  [ADR 0123](../adr/0123-owned-obsolete-initializer-cache-retirement.md). This
+  source prerequisite does not activate bootstrap or close the final cleanup audit.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration

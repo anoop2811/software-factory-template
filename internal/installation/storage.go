@@ -153,7 +153,7 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 	return record, nil
 }
 func selectedPath(path string) bool {
-	return rolePath(roles, path) || rolePath(rolesV1, path)
+	return rolePath(roles, path) || rolePath(rolesV1, path) || rolePath(rolesV3, path)
 }
 func imageEqual(a, b *Image, identities bool) bool {
 	if a == nil || b == nil {

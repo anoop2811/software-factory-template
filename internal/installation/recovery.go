@@ -15,6 +15,34 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const retainedRetirementReason = "unowned optional retirement is preserved; no mutation authority"
+
+// A qualified optional retirement that was retained stays outside active custody.
+// Reverse still observes any path selected by the freshly qualified predecessor.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:150.
+func (planned *plan) preserveRetirement(ctx context.Context, row role, original journalEntry, reverse bool) (bool, error) {
+	if row.Operation != "retire" || row.Required || original.Action != "retain" {
+		return false, nil
+	}
+	if original.Path != row.Path || !imageEqual(original.Before, original.ExpectedAfter, false) {
+		return false, conflict("retained retirement record does not describe an unchanged entry")
+	}
+	if reverse {
+		_, _, known, err := planned.reference.expected(ctx, row.Path, planned.request.Inputs)
+		if err != nil {
+			return false, err
+		}
+		if known {
+			return false, nil
+		}
+	}
+	if planned.opaqueRetirements == nil {
+		planned.opaqueRetirements = make(map[string]bool)
+	}
+	planned.opaqueRetirements[row.Path] = true
+	return true, nil
+}
+
 // Recovery observes fresh images and actual entries; serialized records are never grants.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:223.
 func buildTransitionPlan(ctx context.Context, root string, request Request, record journal, reverse bool) (result plan, returned error) {
@@ -137,6 +165,14 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		if progress == nil || progress.Action != original.Action || !imageEqual(progress.Before, original.Before, true) || !imageEqual(progress.ExpectedAfter, original.ExpectedAfter, false) {
 			return result, conflict("installation journal differs from complete before-image manifest")
 		}
+		opaque, err := result.preserveRetirement(ctx, row, original, reverse)
+		if err != nil {
+			return result, err
+		}
+		if opaque {
+			result.proposal.Actions = append(result.proposal.Actions, Action{Path: row.Path, SourcePath: row.Source, Action: "retain", Reason: retainedRetirementReason})
+			continue
+		}
 		current, currentData, err := observe(ctx, tree, row.Path, leafLimit(row.Path))
 		if err != nil {
 			return result, err
@@ -240,7 +276,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		if err != nil {
 			return result, err
 		}
-		preserved, err := preservedPredecessorIssues(ctx, tree, reference, recipe, request.Inputs)
+		preserved, err := preservedPredecessorIssues(ctx, tree, reference, reverseCoveredRoles(recipe, record.Entries), request.Inputs)
 		if err != nil {
 			return result, err
 		}

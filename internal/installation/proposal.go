@@ -21,6 +21,8 @@ type plan struct {
 	request           Request
 	reference         baseline
 	completedRecovery bool
+	// Freshly classified nonmutation rows; never read from serialized metadata.
+	opaqueRetirements map[string]bool
 }
 
 // Propose is read-only; imported archive bytes establish neither origin nor custody.
@@ -148,7 +150,7 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 			}
 		}
 		if before == nil && role.Operation == "retire" {
-			reason = "legacy controller is absent"
+			reason = "obsolete factory entry is absent"
 		}
 		result.before[role.Path] = data
 		result.payload[role.Path] = afterData

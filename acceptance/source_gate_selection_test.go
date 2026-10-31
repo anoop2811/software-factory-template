@@ -43,6 +43,10 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Supported predecessor recipe compatibility", "historical-recipe"},
 	{"./acceptance", "Go factory command acceptance Supported predecessor recipe compatibility-extra unrelated", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Supported predecessor recipe compatibility", "base"},
+	{"./acceptance", "Go factory command acceptance Qualified obsolete initializer cache retirement restores qualified originals", "historical-recipe"},
+	{"./acceptance", "Go factory command acceptance Qualified obsolete initializer cache retirement", "historical-recipe"},
+	{"./acceptance", "Go factory command acceptance Qualified obsolete initializer cache retirement-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Qualified obsolete initializer cache retirement", "base"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source initialization installs selected source", "local-init"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source initialization", "local-init"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source initialization-extra unrelated", "base"},
@@ -495,7 +499,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(commands).To(ContainElements("list", "vet", "build"))
 		}
 		// per docs/adr/0121-local-upgrade-readiness-boundary.md:134
-		for _, negativeGroup := range []string{"local-recovery", "default-upgrade"} {
+		for _, negativeGroup := range []string{"historical-recipe", "local-recovery", "default-upgrade"} {
 			for _, empty := range []bool{false, true} {
 				fixture := sourceGateMakeFixture()
 				environment := []string{"SOURCE_GATE_FAIL_GROUP=" + negativeGroup}
@@ -562,12 +566,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0122-default-packaged-go-upgrade.md:180
 		// Twenty-six source proof criteria replace two obsolete mapped-script
 		// entries and stay in base. per docs/adr/0120-native-source-gate-proof.md:101
-		Expect(negativeTotal).To(Equal(3179))
+		// Seven owned-cache retirement criteria join the measured historical lane.
+		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:140
+		Expect(negativeTotal).To(Equal(3186))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3179))
-		expectedCounts := map[string]int{"base": 2978, "installation": 98, "release-handoff": 44, "historical-recipe": 12, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
+		Expect(allTotal).To(Equal(3186))
+		expectedCounts := map[string]int{"base": 2978, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -595,7 +601,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			failures = append(failures, "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade")
 		}
 		if selection == "default" && failing == "" {
-			failures = append(failures, "local-recovery", "default-upgrade")
+			failures = append(failures, "historical-recipe", "local-recovery", "default-upgrade")
 		}
 		for _, failing := range failures {
 			fixture := sourceGateMakeFixture()

@@ -5532,3 +5532,34 @@ explicit statement that removing dry-run never applies the partial plan. Preserv
 its JSON/status/scope and all existing current assertions; independent public
 text RED precedes the narrow presentation correction. No new acceptance case,
 route, mutating command, dependency, limit or release change is introduced.
+
+
+## Decision 138 (2026-10-31 UTC): retire qualified obsolete initializer cache without inventing ownership
+
+After human merge of PR #153 as 777af387, deliver R1 under ADR 0123 before
+source-bootstrap or direct-entrypoint conversion. Freeze that immutable 58-row
+recipe before changing roles. Preserve historical 141/58 role data and records;
+select generations only from freshly qualified complete images. The new current
+inventory declares 83 optional obsolete-cache retirements alongside the original
+56 noncache rows and two consumed cache assets, leaving 55 active assets and 53
+descriptor entries. Keep the JSON order and role fields independently checked.
+
+Only canonical unchanged paths actually selected by the qualified predecessor
+may retire. Current58 lookalikes, edited/unknown/unsafe paths and outside
+referents remain preserved. Reuse the existing ignored inert backup, consent,
+exclusive transaction, recovery and retention machinery. Actually retired cache
+restores from qualified saved bytes before old descriptor activation; retained
+old-required cache must still block unusable reverse publication. Preserve the
+closed journal generation despite equal141 path sets. First observe a compiled
+public semantic RED, retain meaningful old assertions, and qualify bounded
+fixtures without raising limits or changing release/default/entrypoint policy.
+
+
+Decision 138 review refinement: no-write forward replay, terminal cleanup and
+preparation abandonment must preserve optional unsafe retained cache without
+misclassifying it as a mutation. All active-installation, owned journal/check,
+root/pending and changing-path authority checks remain. A nil recorded original
+cannot cover a required old cache merely because both unsigned records say
+retire; independently qualify canonical before/saved data or refuse before
+reverse publication. ADR 0123 records these boundaries before independent
+focused REDs and any follow-up production repair.

@@ -1,65 +1,49 @@
 package installation
 
-// Reviewed selection, generated from docs/migration/INSTALLATION_ROLE_MAP.json.
-// docs/adr/0099-native-factory-orchestration.md:31.
-var roles = []role{
-	{Source: "", Path: ".factory-version", Operation: "runtime-control", Generator: "qualified-runtime-layout", Mode: "0644", Required: true, Reason: "explicit binary/control role; never general private-state ownership"},
-	{Source: "", Path: ".factory/bin/factory-runtime", Operation: "runtime-control", Generator: "qualified-runtime-layout", Mode: "0700", Required: true, Reason: "explicit binary/control role; never general private-state ownership"},
-	{Source: "", Path: ".factory/bin/runtime.manifest", Operation: "runtime-control", Generator: "qualified-runtime-layout", Mode: "0600", Required: true, Reason: "explicit binary/control role; never general private-state ownership"},
-	{Source: "", Path: ".factory/bin/source.json", Operation: "runtime-control", Generator: "qualified-runtime-layout", Mode: "0600", Required: true, Reason: "explicit binary/control role; never general private-state ownership"},
-	{Source: "", Path: ".factory/installation.current", Operation: "runtime-control", Generator: "qualified-runtime-layout", Mode: "0600", Required: true, Reason: "explicit binary/control role; never general private-state ownership"},
-	{Source: ".githooks/pre-push", Path: ".githooks/pre-push", Operation: "copy", Generator: "literal", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "", Path: "eval/runners/claude.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy runner invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "eval/runners/codex.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy runner invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "eval/runners/example-harness.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy runner invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "eval/runners/mock.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy runner invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "eval/runners/opencode.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy runner invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "factory", Operation: "generate", Generator: "installed-launcher", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "packs/review-lane/review-pr.yml", Path: "packs/review-lane/review-pr.yml", Operation: "copy", Generator: "literal", Mode: "0644", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "", Path: "scripts/adversarial-review.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "scripts/citation-lint.sh", Path: "scripts/citation-lint.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "", Path: "scripts/factory-budget.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-doctor.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-init.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-loop.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-metrics.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-migrate-config.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-report.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-review-lane.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/factory-upgrade.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/golden-task-eval.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "scripts/harness-structural-eval.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "scripts/hooks/commit-message-lint.sh", Path: "scripts/hooks/commit-message-lint.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/copy-manifest-check.sh", Path: "scripts/hooks/copy-manifest-check.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/decision-log-gate.sh", Path: "scripts/hooks/decision-log-gate.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/diff-aware-check.sh", Path: "scripts/hooks/diff-aware-check.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/direct-main-push-block.sh", Path: "scripts/hooks/direct-main-push-block.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/gate-instrumentation-check.sh", Path: "scripts/hooks/gate-instrumentation-check.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/hook-existence-check.sh", Path: "scripts/hooks/hook-existence-check.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/loop-close-check.sh", Path: "scripts/hooks/loop-close-check.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/pending-lessons-push-block.sh", Path: "scripts/hooks/pending-lessons-push-block.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/shared-script-enforcement.sh", Path: "scripts/hooks/shared-script-enforcement.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/test-edit-denial.sh", Path: "scripts/hooks/test-edit-denial.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/wiki-lint.sh", Path: "scripts/hooks/wiki-lint.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "scripts/hooks/workflow-lint.sh", Path: "scripts/hooks/workflow-lint.sh", Operation: "copy", Generator: "baseline-project-substitution", Mode: "0755", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "", Path: "scripts/lib/budget-config.sh", Operation: "generate", Generator: "sourceable-helper-bridge", Mode: "0644", Required: true, Reason: "preserve caller-shell functions with canonical Go helpers"},
-	{Source: "", Path: "scripts/lib/budget.py", Operation: "retire", Generator: "", Mode: "", Required: false, Reason: "known legacy controller superseded by qualified Go implementation"},
-	{Source: "", Path: "scripts/lib/budget_adapters.py", Operation: "retire", Generator: "", Mode: "", Required: false, Reason: "known legacy controller superseded by qualified Go implementation"},
-	{Source: "", Path: "scripts/lib/color.sh", Operation: "generate", Generator: "sourceable-helper-bridge", Mode: "0644", Required: true, Reason: "preserve caller-shell functions with canonical Go helpers"},
-	{Source: "", Path: "scripts/lib/config.sh", Operation: "generate", Generator: "sourceable-go-bridge", Mode: "0644", Required: true, Reason: "preserve supported caller-shell functions and effects"},
-	{Source: "", Path: "scripts/lib/events.sh", Operation: "generate", Generator: "sourceable-helper-bridge", Mode: "0644", Required: true, Reason: "preserve caller-shell functions with canonical Go helpers"},
-	{Source: "", Path: "scripts/lib/hookspath.sh", Operation: "generate", Generator: "sourceable-helper-bridge", Mode: "0644", Required: true, Reason: "preserve caller-shell functions with canonical Go helpers"},
-	{Source: "", Path: "scripts/lib/loop.py", Operation: "retire", Generator: "", Mode: "", Required: false, Reason: "known legacy controller superseded by qualified Go implementation"},
-	{Source: "", Path: "scripts/lib/roles.sh", Operation: "generate", Generator: "sourceable-go-bridge", Mode: "0644", Required: true, Reason: "preserve supported caller-shell functions and effects"},
-	{Source: "", Path: "scripts/lib/timing.sh", Operation: "generate", Generator: "sourceable-helper-bridge", Mode: "0644", Required: true, Reason: "preserve caller-shell functions with canonical Go helpers"},
-	{Source: "", Path: "scripts/pre-push-check.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "scripts/prereq-check.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "scripts/selftest/run.sh", Operation: "generate", Generator: "native-command-adapter", Mode: "0755", Required: true, Reason: "stable public invocation of the canonical installed implementation"},
-	{Source: "", Path: "scripts/sync-claude.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "scripts/sync-codex.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "", Path: "scripts/sync-opencode.sh", Operation: "generate", Generator: "native-orchestration-adapter", Mode: "0755", Required: true, Reason: "legacy invocation delegates to canonical Go orchestration"},
-	{Source: "templates/metrics.html", Path: "templates/metrics.html", Operation: "copy", Generator: "literal", Mode: "0644", Required: true, Reason: "declared shell validation/orchestration boundary or native runtime data"},
-	{Source: "packs/review-lane/review-pr.yml", Path: ".factory/assets/scaffold/packs/review-lane/review-pr.yml", Operation: "inert-data", Generator: "", Mode: "0600", Required: true, Reason: "canonical initializer data"},
-	{Source: "templates/metrics.html", Path: ".factory/assets/scaffold/templates/metrics.html", Operation: "inert-data", Generator: "", Mode: "0600", Required: true, Reason: "canonical initializer data"},
+// The closed minimal generation remains independent of current retirement policy.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:41.
+var rolesV3 = minimalRecipeRoles()
+
+// Reviewed current selection mirrors docs/migration/INSTALLATION_ROLE_MAP.json.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:51.
+var roles = retirementRecipeRoles()
+
+const obsoleteCacheReason = "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+
+// Reconstruct the original minimal generation from frozen, inert V1 values.
+// No current role or local installation metadata can enlarge this selection.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:41.
+func minimalRecipeRoles() []role {
+	result := make([]role, 0, len(rolesV1))
+	for _, row := range rolesV1 {
+		if row.Operation != "inert-data" || consumedInitializerData(row.Source) {
+			result = append(result, row)
+		}
+	}
+	return result
 }
+
+// Current rows keep the original noncache selection, declare unused cache retired,
+// and retain the two consumed data rows. Range values are copies of frozen data.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:51.
+func retirementRecipeRoles() []role {
+	result := make([]role, 0, len(rolesV1))
+	consumed := make([]role, 0, 2)
+	for _, row := range rolesV1 {
+		if row.Operation == "inert-data" {
+			if consumedInitializerData(row.Source) {
+				consumed = append(consumed, row)
+				continue
+			}
+			row = role{Path: row.Path, Operation: "retire", Reason: obsoleteCacheReason}
+		}
+		result = append(result, row)
+	}
+	return append(result, consumed...)
+}
+
+func consumedInitializerData(source string) bool {
+	return source == "templates/metrics.html" || source == "packs/review-lane/review-pr.yml"
+}
+
 var preservePaths = []string{"factory.yaml", "factory.config", "AGENTS.md", "CLAUDE.md", "README.md", "Makefile", "opencode.json", ".mcp.json", ".opencode/package.json", ".opencode/.gitignore", ".github/CODEOWNERS", ".github/workflows/ci.yml", "docs/DECISION_LOG.md"}

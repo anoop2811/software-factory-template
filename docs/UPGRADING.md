@@ -149,6 +149,14 @@ The source repository retains compatibility implementations and fixtures until
 its separate source/default cutover; migration cleanup concerns the selected
 adopter installation, not every script in the repository.
 
+The current Go implementation also declares the 83 unused private scaffold-cache
+files from older full-cache Go installations retired. The metrics HTML template
+and review-lane workflow template remain installed. A cache file retires only
+when its bytes, type and mode match a freshly qualified predecessor that actually
+selected it. A minimal-generation predecessor never owned those omitted paths;
+equal-looking leftovers there remain preserved. See the
+[cache retirement contract](adr/0123-owned-obsolete-initializer-cache-retirement.md).
+
 Original replacement/retirement bytes are saved as inert reference/recovery data in
 private Git-ignored `.factory/backups/MIGRATION_ID/`. Backup scripts are not executed
 as a rollback mechanism. Application files, customizations and runtime/accounting

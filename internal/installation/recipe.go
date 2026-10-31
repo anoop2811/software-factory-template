@@ -39,13 +39,39 @@ var recipeV2 = map[string]string{
 	"internal/installation/roles_v1.go":      "9fcb4a7cbaf4c0eb34160f47d2e496ac9148a1e0e719299b9101b52a8ec8c853",
 }
 
+// The minimal generation is frozen from immutable 777af387 before retirement.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:25.
+var recipeV3 = map[string]string{
+	"internal/installation/generate.go":      "6143094ba89cbe989b640aee2a354b05b605b19bf1770518f06608b7e42b7cc4",
+	"internal/installation/roles.go":         "64c6033f26c41bc3967e88e2f3ec25f390a75777350074cbe54aac5ab9dd6cb8",
+	"internal/installation/orchestration.go": "9510b0f141ccbba2a53862175d2bbea043c807f1ca0408ad80e416b637575e96",
+	"internal/installation/reference.go":     "6195dd7d6d2b3f80ecb5e1ba570cc40cd389963159a5042a34a6d3889e206926",
+	"internal/installation/model.go":         "3684d7faf3d4426533852efba153a14c0cbdd1dcdc1579fcbfa2d5cda2f44c33",
+	"internal/installation/observe.go":       "80023a90d6982a1a7c022e4d5901b5d01c8a0757d0e73161d1a68616b978006f",
+	"internal/installation/selection.go":     "2dd81ebb67c67bcdb0a26a9141129b4f45b4cce1c88abf5fc317b6dbd6c4ac5f",
+	"internal/installedlayout/layout.go":     "c1ffbbb9a2bf4d3776367dd594df9c71135a02b90fad4d8433b7f4f501cde620",
+	"internal/installation/recipe.go":        "a636a21ccafb26069a3b649c973c63fe9353768ff0047bb5a871bf76f92da68b",
+	"internal/installation/roles_v1.go":      "9fcb4a7cbaf4c0eb34160f47d2e496ac9148a1e0e719299b9101b52a8ec8c853",
+}
+
 // Original source-image generation controls selection and transaction shape.
 // docs/adr/0119-minimal-qualified-initializer-inventory.md:61.
 func rolesForImage(image staging.Inspection) []role {
-	if isRecipeV1(image) || isRecipeV2(image) {
-		return rolesV1
+	if recipe, known := historicalRoles(image); known {
+		return recipe
 	}
 	return roles
+}
+
+func historicalRoles(image staging.Inspection) ([]role, bool) {
+	switch {
+	case isRecipeV1(image), isRecipeV2(image):
+		return rolesV1, true
+	case isRecipeV3(image):
+		return rolesV3, true
+	default:
+		return nil, false
+	}
 }
 
 func predecessorSelection(ctx context.Context, before, after staging.Inspection, inputs map[string]string) ([]SelectedAsset, error) {
@@ -66,10 +92,11 @@ func predecessorSelection(ctx context.Context, before, after staging.Inspection,
 	if current {
 		return Selection(ctx, before, inputs)
 	}
-	if !isRecipeV1(before) && !isRecipeV2(before) {
+	recipe, known := historicalRoles(before)
+	if !known {
 		return nil, conflict("unsupported Go predecessor generation recipe; preserve the existing installation")
 	}
-	return selectionForRoles(ctx, before, inputs, rolesV1)
+	return selectionForRoles(ctx, before, inputs, recipe)
 }
 
 func isRecipeV1(image staging.Inspection) bool {
@@ -78,6 +105,10 @@ func isRecipeV1(image staging.Inspection) bool {
 
 func isRecipeV2(image staging.Inspection) bool {
 	return matchesRecipe(image, recipeV2)
+}
+
+func isRecipeV3(image staging.Inspection) bool {
+	return matchesRecipe(image, recipeV3)
 }
 
 func matchesRecipe(image staging.Inspection, recipe map[string]string) bool {
@@ -114,7 +145,7 @@ func matchesRoleEntries(entries []journalEntry, recipe []role) bool {
 }
 
 func knownRoleEntries(entries []journalEntry) bool {
-	return matchesRoleEntries(entries, roles) || matchesRoleEntries(entries, rolesV1)
+	return matchesRoleEntries(entries, roles) || matchesRoleEntries(entries, rolesV1) || matchesRoleEntries(entries, rolesV3)
 }
 
 func rolePath(recipe []role, path string) bool {
@@ -124,6 +155,25 @@ func rolePath(recipe []role, path string) bool {
 		}
 	}
 	return false
+}
+
+// Retained rows and rows without an original cannot restore an old required asset.
+// Nonnil retired originals reach this point only after saved-image qualification.
+// docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:158.
+func reverseCoveredRoles(recipe []role, entries []journalEntry) []role {
+	uncovered := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		if entry.Action == "retain" || entry.Before == nil {
+			uncovered[entry.Path] = true
+		}
+	}
+	covered := make([]role, 0, len(recipe))
+	for _, row := range recipe {
+		if row.Operation != "retire" || !uncovered[row.Path] {
+			covered = append(covered, row)
+		}
+	}
+	return covered
 }
 
 // An old descriptor may still require preserved cache outside the new selection.

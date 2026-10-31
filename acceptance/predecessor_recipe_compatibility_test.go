@@ -173,7 +173,12 @@ var _ = Describe("Supported predecessor recipe compatibility", Ordered, Continue
 	BeforeAll(func() { fixture = recipePrepare() })
 	// per docs/adr/0115-frozen-rc3-recipe-compatibility.md:64
 	It("reconstructs predecessor bytes and modes through preview apply and rollback while retaining all cache and user history", func() {
-		f, driver, root, args := fixture.predecessor()
+		f, driver, root, _ := fixture.predecessor()
+		// Preserve this generation's original omitted-cache behavior with a
+		// freshly qualified 58-row target and the current consumer.
+		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:135
+		minimal := historicalInstallationImage(fixture.after, minimalInventoryGeneration, handoffVersion)
+		args := recipeOperands(fixture.before, minimal, recipeRC3Version)
 		preserved := map[string][]byte{"docs/recipe-user-note.md": []byte("user customization\n"), ".factory/loops.json": []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve history\"}\n"), ".factory/events.log": []byte("2026-10-30T00:00:00Z\toperator\tpreserve history\n")}
 		for path, data := range preserved {
 			writeFixture(filepath.Join(root, filepath.FromSlash(path)), data, 0600)

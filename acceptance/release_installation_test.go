@@ -26,14 +26,14 @@ type handoffReleaseImage struct {
 }
 
 // per docs/adr/0101-go-release-handoff.md:210
-func handoffBuildImage() handoffReleaseImage {
+func handoffBuildImage(patches ...func(string)) handoffReleaseImage {
 	GinkgoHelper()
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
 	work, err := os.MkdirTemp("", "factory-release-image-")
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(cleanupFixtureDirectory, work)
-	revision, binary, assets, payload := installationTargetSnapshot(repository, filepath.Join(work, "exact-source"))
+	revision, binary, assets, payload := installationTargetSnapshot(repository, filepath.Join(work, "exact-source"), patches...)
 	baselines := []imageBaselineOracle{}
 	references := map[string]installationReference{}
 	for _, reference := range []installationReference{{profile: "v0.1.6", revision: "b71ecc32e07ecd87eb330ba8e497c86612f92acd"}, {profile: "bash-baseline", revision: "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"}} {

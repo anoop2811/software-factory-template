@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/sys/unix"
 )
 
 // This literal contract is independent of the proof implementation's inventory.
@@ -732,7 +733,7 @@ var _ = Describe("Native source selftest gate proofs", func() {
 
 	// per docs/adr/0120-native-source-gate-proof.md:69
 	// per docs/adr/0120-native-source-gate-proof.md:88
-	DescribeTable("handles a parent-only signal after its real owned Git child is ready", func(signal syscall.Signal) {
+	DescribeTable("handles a parent-only signal after its real owned Git child is ready", func(signal syscall.Signal, blockedStderr bool) {
 		f := newSourceSelftestFixture()
 		ready := filepath.Join(filepath.Dir(f.root), "actual-git-ready")
 		f.environment["SOURCE_SELFTEST_READY"] = ready
@@ -747,6 +748,22 @@ var _ = Describe("Native source selftest gate proofs", func() {
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
+		var pipeReader, pipeWriter *os.File
+		var descriptor uintptr
+		var originalFlags, filled int
+		var err error
+		if blockedStderr {
+			pipeReader, pipeWriter, err = os.Pipe()
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() { _ = pipeReader.Close(); _ = pipeWriter.Close() })
+			descriptor = pipeWriter.Fd()
+			filled = sourceSelftestFillPipe(pipeWriter)
+			// Compare the exact post-fill flags inherited by the child, using
+			// the saved descriptor so a later Fd call cannot alter the observation.
+			originalFlags, err = unix.FcntlInt(descriptor, unix.F_GETFL, 0)
+			Expect(err).NotTo(HaveOccurred())
+			command.Stderr = pipeWriter
+		}
 		Expect(command.Start()).To(Succeed())
 		finished := make(chan error, 1)
 		go func() { finished <- command.Wait() }()
@@ -770,14 +787,42 @@ var _ = Describe("Native source selftest gate proofs", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(relative).NotTo(Equal(".."))
 		Expect(relative).NotTo(HavePrefix(".." + string(filepath.Separator)))
+		deadline := time.Now().Add(6 * time.Second)
 		Expect(command.Process.Signal(signal)).To(Succeed())
+		if blockedStderr {
+			// Observe native reconciliation before testing caller exit, so a
+			// full diagnostic pipe cannot masquerade as a still-running Git child.
+			// per docs/adr/0120-native-source-gate-proof.md:138
+			Eventually(func() error { return syscall.Kill(-receipt.Group, 0) }, 2*time.Second).Should(MatchError(syscall.ESRCH), "native children must reconcile before diagnostic publication")
+			Expect(syscall.Kill(unrelated.Process.Pid, 0)).To(Succeed())
+			Expect(installationSnapshot(f.root)).To(Equal(sourceBefore))
+			Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
+			Expect(os.ReadFile(filepath.Join(f.scratch, "unrelated-sentinel"))).To(Equal([]byte("caller-owned temporary data\n")))
+			AddReportEntry("source-selftest.full-stderr-native-reconciled", map[string]any{"signal": signal.String(), "parent_pid": command.Process.Pid, "parent_alive": syscall.Kill(command.Process.Pid, 0) == nil, "owned_group": receipt.Group, "owned_group_absent": true, "filled_bytes": filled, "inherited_flags": originalFlags, "reader_idle": true, "source_and_caller_preserved": true, "unrelated_process_and_sentinel_preserved": true}, ReportEntryVisibilityNever)
+		}
+		allowance := 6 * time.Second
+		if blockedStderr {
+			allowance = time.Until(deadline)
+			Expect(allowance).To(BeNumerically(">", 0))
+		}
 		var returned error
-		Eventually(finished, 6*time.Second).Should(Receive(&returned), "parent-only cancellation must not wait for blocked Git input")
+		Eventually(finished, allowance).Should(Receive(&returned), "parent-only cancellation must not wait for blocked Git input or diagnostic output")
 		completed = true
 		Expect(returned).To(HaveOccurred())
 		Expect(command.ProcessState.ExitCode()).To(Equal(1), "cancellation is an operational failure: %s", stderr.String())
 		Expect(stdout.String()).NotTo(ContainSubstring("selftest: 14 shipped gates proved, 0 failed"))
-		Expect(stderr.String()).To(HavePrefix("factory selftest:"))
+		if blockedStderr {
+			restoredFlags, err := unix.FcntlInt(descriptor, unix.F_GETFL, 0)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(restoredFlags).To(Equal(originalFlags), "bounded diagnostics must restore the inherited file description")
+			Expect(pipeWriter.Close()).To(Succeed())
+			captured, err := io.ReadAll(pipeReader)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(captured)).To(Equal(strings.Repeat("x", filled)), "the reader remains idle until the CLI is reaped")
+			AddReportEntry("source-selftest.full-stderr-caller-reaped", map[string]any{"signal": signal.String(), "status": command.ProcessState.ExitCode(), "flags_before": originalFlags, "flags_after": restoredFlags, "filled_bytes": filled, "captured_bytes": len(captured)}, ReportEntryVisibilityNever)
+		} else {
+			Expect(stderr.String()).To(HavePrefix("factory selftest:"))
+		}
 		for _, pid := range []int{receipt.Leader, receipt.Git} {
 			Eventually(func() error { return syscall.Kill(pid, 0) }, 2*time.Second).Should(MatchError(syscall.ESRCH), "owned PID %d survived", pid)
 		}
@@ -786,7 +831,7 @@ var _ = Describe("Native source selftest gate proofs", func() {
 		Expect(installationSnapshot(f.root)).To(Equal(sourceBefore))
 		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
 		f.expectClean()
-	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
+	}, Entry("SIGINT", syscall.SIGINT, false), Entry("SIGTERM", syscall.SIGTERM, false), Entry("SIGINT with blocked stderr", syscall.SIGINT, true), Entry("SIGTERM with blocked stderr", syscall.SIGTERM, true))
 
 	// per docs/adr/0120-native-source-gate-proof.md:71
 	// per docs/adr/0120-native-source-gate-proof.md:91

@@ -5471,3 +5471,9 @@ claims full shell-suite parity nor changes the source bootstrap, public release
 pin, support floors, dependencies, paid limits or release gates. Independent
 Tasks 2, 4 and 6 may progress on separate branches; each still requires its own
 review, findings responses, green checks and human merge.
+
+Review refinement: bound the selftest error diagnostic as well as successful
+output. Reuse the existing context-aware writer with an independent one-second
+diagnostic deadline after cancellation. Independent full-stderr SIGINT/SIGTERM
+regressions must first reproduce the unbounded path with actual owned-child
+readiness and reconciliation; retain ordinary diagnostics and operational status.

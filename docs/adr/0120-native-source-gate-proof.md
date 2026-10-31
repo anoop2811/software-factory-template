@@ -125,3 +125,19 @@ context-aware output helper. A borrowed stdout pipe must remain cancellable,
 with its original descriptor flags restored. Keep the real-child signal cases
 and independently exercise the late result and blocked-output boundaries; do
 not replace them with a single early-cancellation happy path.
+
+## Review refinement: bounded cancellation diagnostics
+
+The controller owns signals until it returns, including error publication. A
+full inherited stderr pipe must not keep it alive after proof children have
+been reconciled. Publish the existing diagnostic prefix and error through the
+shared context-aware output helper, using a one-second timeout derived from
+`context.WithoutCancel`. Preserve operational status 1 even when that bounded
+diagnostic cannot be written.
+
+Independent SIGINT and SIGTERM criteria must fill a real inherited stderr pipe
+before invocation and leave its reader idle. Wait for the real owned Git child
+to report readiness, signal only the CLI, and observe owned-group disappearance
+and bounded exit. Drain stderr only after the caller has been reaped. Require
+the borrowed writer's original descriptor flags, unrelated process and sentinel,
+source and caller data, and the absence of a successful proof summary.

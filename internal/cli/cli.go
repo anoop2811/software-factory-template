@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/adversarialreviewcmd"
 	"github.com/anoop2811/software-factory-template/internal/checkcmd"
@@ -25,6 +26,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installedproof"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
 	"github.com/anoop2811/software-factory-template/internal/migrateconfigcmd"
+	"github.com/anoop2811/software-factory-template/internal/output"
 	"github.com/anoop2811/software-factory-template/internal/prereqcmd"
 	"github.com/anoop2811/software-factory-template/internal/recoverycmd"
 	"github.com/anoop2811/software-factory-template/internal/releasecmd"
@@ -252,7 +254,11 @@ func Run(ctx context.Context, args []string) int {
 						}
 					}
 					if err != nil {
-						fmt.Fprintln(os.Stderr, "factory selftest:", err)
+						// Cancellation also bounds borrowed diagnostic streams.
+						// docs/adr/0120-native-source-gate-proof.md:134.
+						diagnostic, cancel := context.WithTimeout(context.WithoutCancel(cmd.Context()), time.Second)
+						defer cancel()
+						_ = output.WriteEvent(diagnostic, os.Stderr, []byte(fmt.Sprintf("factory selftest: %v\n", err)))
 						status = 1
 					}
 					return nil

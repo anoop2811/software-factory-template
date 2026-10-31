@@ -82,6 +82,7 @@ func historicalInstallationImage(after handoffReleaseImage, revision, version st
 
 func minimalInventoryOldProject(before, after handoffReleaseImage, prepared string, consumers ...handoffReleaseImage) (handoffBootstrapFixture, string, string, []string) {
 	GinkgoHelper()
+	Expect(len(consumers)).To(BeNumerically("<=", 1), "historical-project fixture accepts at most one current consumer")
 	consumer := after
 	if len(consumers) == 1 {
 		consumer = consumers[0]

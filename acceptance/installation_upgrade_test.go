@@ -927,10 +927,18 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		canon, err := os.ReadFile(filepath.Join(repository, "docs/migration/INSTALLATION_ROLE_MAP.json"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(json.Unmarshal(canon, &roleMap)).To(Succeed())
-		// per docs/adr/0099-native-factory-orchestration.md:38
-		Expect(roleMap.Roles).To(HaveLen(56))
-		// per docs/adr/0119-minimal-qualified-initializer-inventory.md:11
+		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:57
+		Expect(roleMap.Roles).To(HaveLen(139))
 		Expect(roleMap.CanonicalSourceAssets).To(HaveLen(2))
+		declared := append(append([]installationRoleOracle{}, roleMap.Roles...), roleMap.CanonicalSourceAssets...)
+		Expect(declared).To(HaveLen(141))
+		active := 0
+		for _, role := range declared {
+			if role.Operation != "retire" {
+				active++
+			}
+		}
+		Expect(active).To(Equal(55), "optional retirement declarations must not expand the active installation")
 		stager = filepath.Join(work, "factory-stage")
 		out := imageProcess(repository, nil, "go", "build", "-o", stager, "./cmd/factory-stage")
 		Expect(out.status).To(Equal(0), out.stderr)
@@ -1035,6 +1043,13 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			}
 			Expect(info.Mode().Perm()).To(Equal(want), path)
 		}
+		descriptorBytes, descriptorErr := os.ReadFile(filepath.Join(installed.root, ".factory/installation.current"))
+		Expect(descriptorErr).NotTo(HaveOccurred())
+		var descriptor struct {
+			Assets []json.RawMessage `json:"assets"`
+		}
+		Expect(json.Unmarshal(descriptorBytes, &descriptor)).To(Succeed())
+		Expect(descriptor.Assets).To(HaveLen(53), "retirement declarations are not active descriptor entries")
 		out := imageProcess(installed.root, map[string]string{"FACTORY_BRIDGE_PROTOCOL": ""}, filepath.Join(installed.root, "factory"), "selftest")
 		Expect(out.status).To(Equal(0), "installed native proof failed: %+v", out)
 		Expect(out.stdout).NotTo(BeEmpty(), "installed proof cannot succeed from status alone")

@@ -21,7 +21,7 @@ type plan struct {
 	request           Request
 	reference         baseline
 	completedRecovery bool
-	// Freshly classified nonmutation rows; never read from serialized metadata.
+	// Computed nonmutation rows; this private map is never deserialized.
 	opaqueRetirements map[string]bool
 }
 

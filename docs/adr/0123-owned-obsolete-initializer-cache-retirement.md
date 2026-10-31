@@ -54,12 +54,12 @@ original noncache role and both consumed cache roles. Transform only the other
 Required false, with a reason naming independently qualified obsolete cache.
 Do not mutate the frozen V1 slice or its role values.
 
-The new current order is original 56 noncache rows, the 83 retirement rows in
-their original relative order, then the two consumed cache rows in their original
-relative order. The JSON map has 139 roles plus two canonical_source_assets,
-141 total declared rows, of which 86 are retirement declarations. It still has
-55 active assets and 53 descriptor entries. These counts are independently
-checked diagnostics, never generation or deletion authority.
+The new current order is the original 56 noncache rows (including three existing
+retirements), the 83 new retirements, then the two consumed cache rows; both cache
+groups retain relative order. The JSON map has 139 roles plus two canonical_source_assets,
+141 total. Its 86 retirements comprise 83 cache files and three existing controllers.
+Active assets remain 55, with 53 descriptor entries. These independently checked
+counts are diagnostics, never generation or deletion authority.
 
 ## Ownership, preview and safe publication
 

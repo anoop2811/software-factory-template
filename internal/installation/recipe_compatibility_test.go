@@ -148,7 +148,7 @@ var _ = Describe("Historical installation recipe integrity", func() {
 				newActive++
 			}
 		}
-		Expect(roles).To(Equal(expected), "no active or retirement role changes accompany the83 removed cache declarations")
+		Expect(roles).To(Equal(expected), "no active or retirement role changes accompany the 83 removed cache declarations")
 		Expect(expected).To(HaveLen(58))
 		Expect(retired).To(ConsistOf("scripts/lib/budget.py", "scripts/lib/budget_adapters.py", "scripts/lib/loop.py"))
 		Expect(oldActive).To(Equal(138))

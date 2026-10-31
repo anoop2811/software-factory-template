@@ -11,6 +11,7 @@ and replacement-release qualification remain separate gates.
 | `factory sync [all\|opencode\|claude\|codex]` | `internal/synccmd` | Generated harness Markdown, JSON and TOML |
 | `factory prereq` | `internal/prereqcmd` | Tool discovery and the configured product Go minimum |
 | `factory check` | `internal/checkcmd` | Adopter Make targets, policy gates and local hooks |
+| Go `factory selftest` | `internal/installedproof` | Fourteen required policy gates, actual Git and isolated violation/healthy-control fixtures |
 | `factory eval structural --harness=NAME` | `internal/evalcmd` | Real shared test-edit gate and native adapter wiring |
 | `factory eval golden [options]` | `internal/evalcmd` | Selected runner, task oracle and optional live harness |
 | `factory eval run HARNESS WORKDIR` | `internal/evalcmd` | Explicitly selected Codex, Claude or OpenCode executable |
@@ -39,6 +40,24 @@ Review keeps the configured model, token limits, reasoning and pinned provider
 semantics. Native HTTP requests have fixed endpoints, bounded responses,
 disabled redirects and sanitized errors. The explicit streaming client remains
 available without a fallback to another provider or model.
+
+The source-built Go `selftest` shares the installed gate-proof engine. It reads
+assets beside the invoked dispatcher and snapshots the already-running physical
+executable into a private proof directory. A source-tree runtime lookalike or
+environment variable cannot select its driver. Installed invocation keeps its
+validated installation-root-relative driver lookup. Neither path executes the
+historical selftest controller, invokes a compiler/Python or calls a model.
+SIGINT/SIGTERM cancels owned proof children before scratch cleanup; uncertain
+ownership fails and retains the private workspace with bounded diagnostics.
+See [ADR 0120](../adr/0120-native-source-gate-proof.md) for the fixed gate inventory.
+
+The tracked source shell launcher, direct `scripts/selftest/run.sh` and
+`make selftest` retain the broader historical shell regression suite until their
+separate activation. Its configuration, packs, sync, upgrade, evaluation,
+review-lane, metrics, event and implementation-text checks are distinct from
+the fourteen core gate pairs. Current public native proofs do not establish
+parity with that entire suite; retain each regression until independently
+replaced under the [conversion coverage rule](../../specs/001-go-runtime-conversion.md#decision-4-reuse-behavior-contracts-independently-prove-go-conformance).
 
 Intentional retained shell boundaries are policy gates, sourceable assignment
 adapters, Bash operand expansion for local-hook compatibility, generated

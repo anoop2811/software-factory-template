@@ -14,6 +14,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/filepublish"
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/native"
+	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
 var gates = []string{"test-edit-denial", "commit-message-lint", "decision-log-gate", "diff-aware-check", "direct-main-push-block", "pending-lessons-push-block", "loop-close-check", "shared-script-enforcement", "hook-existence-check", "wiki-lint", "workflow-lint", "copy-manifest-check", "gate-instrumentation-check", "citation-lint"}
@@ -22,11 +23,42 @@ var gates = []string{"test-edit-denial", "commit-message-lint", "decision-log-ga
 // It never executes the source selftest or saved recovery code.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:207.
 func Run(ctx context.Context, root string, out io.Writer) (returned error) {
+	return run(ctx, root, "", out)
+}
+
+// RunSource proves source gates using a snapshot of the already-running binary.
+// Invoked-source assets and executable identity have separate authority roots.
+// docs/adr/0120-native-source-gate-proof.md:55.
+func RunSource(ctx context.Context, root string, out io.Writer) error {
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		return err
+	}
+	return run(ctx, root, executable, out)
+}
+
+func run(ctx context.Context, root, executable string, out io.Writer) (returned error) {
 	source, err := installationfs.Open(ctx, root)
 	if err != nil {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, source.Close()) }()
+	// Installed readers retain the validated installation's complete relative
+	// path. Only the source entry supplies its actual physical executable.
+	// docs/adr/0120-native-source-gate-proof.md:61.
+	driverSource, driverPath := source, ".factory/bin/factory-runtime"
+	if executable != "" {
+		driverSource, err = installationfs.Open(ctx, filepath.Dir(executable))
+		if err != nil {
+			return err
+		}
+		defer func() { returned = errors.Join(returned, driverSource.Close()) }()
+		driverPath = filepath.Base(executable)
+	}
 	scratch, err := os.MkdirTemp("", "factory-installed-proof-")
 	if err != nil {
 		return err
@@ -40,6 +72,11 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 		return err
 	}
 	defer func() {
+		var ownership *native.OwnershipError
+		if errors.As(returned, &ownership) {
+			returned = errors.Join(returned, fmt.Errorf("preserve private proof evidence at %s", scratch))
+			return
+		}
 		current, err := os.Lstat(scratch)
 		if err != nil || !os.SameFile(identity, current) {
 			returned = errors.Join(returned, errors.New("proof scratch changed; cleanup refused"), err)
@@ -52,7 +89,7 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, destination.Close()) }()
-	binary, err := source.OpenFile(ctx, ".factory/bin/factory-runtime", 256<<20)
+	binary, err := driverSource.OpenFile(ctx, driverPath, 256<<20)
 	if err != nil {
 		return err
 	}
@@ -107,12 +144,11 @@ func Run(ctx context.Context, root string, out io.Writer) (returned error) {
 		if err := p.pair(ctx, name); err != nil {
 			return fmt.Errorf("installed proof %s: %w", name, ownershipDiagnostic(err))
 		}
-		if _, err := fmt.Fprintf(out, "proof: %s refused its violation and accepted its healthy control\n", name); err != nil {
+		if err := output.WriteEvent(ctx, out, []byte(fmt.Sprintf("proof: %s refused its violation and accepted its healthy control\n", name))); err != nil {
 			return err
 		}
 	}
-	_, err = fmt.Fprintf(out, "selftest: %d shipped gates proved, 0 failed\n", len(gates))
-	return err
+	return output.WriteEvent(ctx, out, []byte(fmt.Sprintf("selftest: %d shipped gates proved, 0 failed\n", len(gates))))
 }
 
 var sharedFiles = []string{"scripts/lib/budget-config.sh", "scripts/sync-opencode.sh", "scripts/adversarial-review.sh", "eval/runners/mock.sh", "eval/runners/example-harness.sh", "eval/runners/claude.sh", "eval/runners/codex.sh", "eval/runners/opencode.sh", ".githooks/pre-push", "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/events.sh", "scripts/lib/color.sh", "scripts/lib/hookspath.sh", "scripts/lib/timing.sh", "scripts/citation-lint.sh", "scripts/selftest/run.sh", "scripts/factory-init.sh", "scripts/prereq-check.sh", "scripts/pre-push-check.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh", "scripts/harness-structural-eval.sh", "scripts/golden-task-eval.sh", "scripts/hooks/test-edit-denial.sh", "scripts/hooks/commit-message-lint.sh", "scripts/hooks/decision-log-gate.sh", "scripts/hooks/diff-aware-check.sh", "scripts/hooks/direct-main-push-block.sh", "scripts/hooks/pending-lessons-push-block.sh", "scripts/hooks/loop-close-check.sh", "scripts/hooks/shared-script-enforcement.sh", "scripts/hooks/hook-existence-check.sh", "scripts/hooks/wiki-lint.sh", "scripts/hooks/workflow-lint.sh", "scripts/hooks/copy-manifest-check.sh", "scripts/hooks/gate-instrumentation-check.sh"}
@@ -164,12 +200,28 @@ func (p *proof) run(ctx context.Context, expected int, args ...string) error {
 	if err != nil {
 		return err
 	}
+	if err := proofResult(ctx, result.Execution, expected); err != nil {
+		return fmt.Errorf("%w: %s%s", err, result.Stdout, result.Stderr)
+	}
+	return nil
+}
+
+// A confirmed exit alone cannot authorize a canceled or incomplete proof.
+// Native ownership errors remain intact at each call site before this check.
+// docs/adr/0120-native-source-gate-proof.md:115.
+func proofResult(ctx context.Context, result native.Execution, expected int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if result.Outcome != "completed" && result.Outcome != "failed" {
+		return fmt.Errorf("proof execution did not complete (%s)", result.Outcome)
+	}
 	if result.OwnershipUnconfirmed || !result.ExitConfirmed || result.ExitCode == nil || *result.ExitCode != expected {
 		actual := "unavailable"
 		if result.ExitCode != nil {
 			actual = fmt.Sprint(*result.ExitCode)
 		}
-		return fmt.Errorf("expected status %d, got %s (%s): %s%s", expected, actual, result.Outcome, result.Stdout, result.Stderr)
+		return fmt.Errorf("expected status %d, got %s (%s)", expected, actual, result.Outcome)
 	}
 	return nil
 }
@@ -204,8 +256,8 @@ func (p *proof) pair(ctx context.Context, name string) error {
 			if err != nil {
 				return err
 			}
-			if result.ExitCode == nil || *result.ExitCode != pair.status || result.OwnershipUnconfirmed {
-				return errors.New("direct push control did not hold")
+			if err := proofResult(ctx, result, pair.status); err != nil {
+				return fmt.Errorf("direct push control did not hold: %w", err)
 			}
 		}
 		return nil

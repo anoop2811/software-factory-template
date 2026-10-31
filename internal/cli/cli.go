@@ -67,7 +67,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, selftest, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
 `
 
 var scripts = map[string]string{
@@ -75,7 +75,7 @@ var scripts = map[string]string{
 	"doctor":         "factory-doctor.sh",
 	"upgrade":        "factory-upgrade.sh",
 	"check":          "pre-push-check.sh",
-	"selftest":       "selftest/run.sh",
+	"selftest":       "",
 	"report":         "factory-report.sh",
 	"budget":         "factory-budget.sh",
 	"loop":           "factory-loop.sh",
@@ -121,7 +121,7 @@ func Run(ctx context.Context, args []string) int {
 	// New orchestration owns cancellation until every child has been reconciled.
 	// docs/adr/0099-native-factory-orchestration.md:81.
 	switch command {
-	case "sync", "prereq", "check", "eval", "review":
+	case "sync", "prereq", "check", "eval", "review", "selftest":
 		var stop context.CancelFunc
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -240,13 +240,23 @@ func Run(ctx context.Context, args []string) int {
 					return nil
 				}
 				if name == "selftest" {
+					var err error
 					if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
-						if err := installedproof.Run(cmd.Context(), selected.root, os.Stdout); err != nil {
-							fmt.Fprintln(os.Stderr, "factory selftest:", err)
-							status = 1
+						err = installedproof.Run(cmd.Context(), selected.root, os.Stdout)
+					} else {
+						var directory string
+						directory, err = dispatcherDirectory()
+						if err == nil {
+							// Reuse native gate pairs without the historical controller.
+							// docs/adr/0120-native-source-gate-proof.md:9.
+							err = installedproof.RunSource(cmd.Context(), directory, os.Stdout)
 						}
-						return nil
 					}
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "factory selftest:", err)
+						status = 1
+					}
+					return nil
 				}
 				if name == "migrate-config" {
 					status = migrateconfigcmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)

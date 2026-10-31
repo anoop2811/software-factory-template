@@ -13,6 +13,12 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 
 - Native source commands exist for init, doctor, report, metrics, review-lane,
   configuration migration, budgets and loops.
+- Source-built Go `selftest` shares the installed native engine for fourteen
+  required gate violation/healthy-control pairs, with separate source/executable
+  custody and native cancellation. The broader historical shell regressions
+  remain until the controller/proof cutover; this does not activate the source
+  launcher or close a release gate. See
+  [ADR 0120](../adr/0120-native-source-gate-proof.md).
 - Explicit committed-local initialization packages clean source and runs its exact
   selected Go initializer; [ADR 0116](../adr/0116-explicit-go-local-initialization.md)
   records focused source qualification. This does not activate ordinary defaults.

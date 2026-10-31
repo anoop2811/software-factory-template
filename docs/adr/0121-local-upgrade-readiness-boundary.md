@@ -56,3 +56,27 @@ Run focused RED/GREEN controls and the complete affected family. Repeat hosted
 checks and review for the new head. Keep PR #150 in draft while qualification is
 incomplete; independently developed inventory and source-proof functions do
 not authorize merging this failed check.
+
+## Linux fixture writer qualification
+
+At head `e917e83`, the Linux base behavioral suite passed 2939 criteria and
+configured lint reported G703 at the generic `writeFixture` directory creation.
+Fresh local Linux-target scans did not reproduce it. An evaluator-only expanded
+caller trace identified the chain from an HTTP test callback's `r.URL.Path`
+through a same-signature call-graph edge to `syncWriteJSON`, then the generic
+writer. Actual callers are three sync scenarios and a doctor staging helper,
+all using existing private roots and literal `opencode.json`; no observed production path
+traversal is asserted. The emulated native Linux attempt stalled in package
+loading and supplies no scanner verdict.
+
+Refine only the sync test helper to marshal the same JSON bytes, open its
+already allocated fixture root with `os.OpenRoot`, and create/truncate the
+literal relative `opencode.json` through that confined root. Preserve mode 0600,
+all configuration values and adversarial traversal-agent scenarios. Eliminate
+the unnecessary generic directory-creation path; add no suppression, dependency,
+scanner exclusion, production behavior or CI limit change.
+
+Retain the hosted RED and diagnostic trace. Require the configured analyzer and
+sync behavioral family after the helper change, with native hosted Linux lint
+remaining the final platform proof. Do not relabel diagnostic-only expanded
+analysis as an exact pinned-native reproduction.

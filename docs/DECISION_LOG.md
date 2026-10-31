@@ -5359,3 +5359,18 @@ actual interruption and exact compiler-free recovery. Add failure evidence and
 a missing-witness control. Change no production, compiler, CI or model cap.
 Complete focused and family qualification plus exact-head hosted review before
 human merge.
+
+## Decision 135 (2026-10-31 UTC): confine the fixed sync JSON test writer
+
+PR #150 head `e917e83` passed Linux base behavior but failed configured G703
+lint at generic fixture directory creation. Fresh local Linux-target scans did
+not reproduce the pinned hosted result. Expanded diagnostic tracing identified
+an HTTP callback path connected by a same-signature call-graph edge to the sync
+JSON helper; actual callers allocate independent fixture roots.
+
+ADR 0121 records the evidence and its limits before a bounded test-only repair:
+marshal unchanged configuration data, open the existing fixture root, and write
+literal relative `opencode.json` through `os.Root` with the existing mode. Keep
+all adversarial data scenarios and scanner settings. Require focused behavior,
+configured lint and fresh hosted Linux qualification; change no production,
+dependency, suppression, exclusion or timeout.

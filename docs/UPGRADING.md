@@ -110,6 +110,34 @@ If a command fails, preserve the diagnostics and migration evidence. An exit tha
 reports activation succeeded but cleanup failed requires cleanup reconciliation;
 it is not permission to reinstall or discard recovery files.
 
+## Ordinary Go upgrades
+
+A Go release containing ordinary upgrade selection can preview its declared
+stable release with `./factory upgrade --dry-run --json`. Current source prepares
+v0.2.0; that release must be published before this default can be acquired.
+Selection is one explicit `--ref TAG`, then `FACTORY_REF`, then the declared
+default. Upgrade does not implicitly reuse the installed version.
+
+Pin the same exact stable selection for preview and confirmation:
+
+```sh
+./factory upgrade --ref v0.2.0 --dry-run --json
+./factory upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+```
+
+Ordinary refs reject moving aliases such as `main`, old Bash tags and
+prereleases. Use explicit `--go-candidate TAG` for a published candidate. An
+authenticated Go prerelease predecessor can advance to stable; a stable
+downgrade refuses and directs you to explicit rollback. Equal-release retries
+remain eligible without advancing backup retention.
+
+Local or unsupported Go version labels cannot identify an official before-image.
+Preserve the original source and use `--local --source DIR --before-source DIR`
+or the documented whole-installation archive route. Unavailable or unauthenticated
+official images preserve the project and fail without a script fallback.
+The existing `--dry-run --source DIR` assessment remains a separate read-only
+source inspection; it does not select an authenticated release or authorize apply.
+
 ## What happens to the old scripts and backups?
 
 The reviewed installation map classifies each supported predecessor asset.

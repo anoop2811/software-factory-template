@@ -3,15 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/anoop2811/software-factory-template/internal/installation"
-	"github.com/anoop2811/software-factory-template/internal/installationcmd"
-	"github.com/anoop2811/software-factory-template/internal/installedlayout"
-	"github.com/anoop2811/software-factory-template/internal/releasecmd"
 	"os"
 
 	"github.com/anoop2811/software-factory-template/internal/bridge"
 	"github.com/anoop2811/software-factory-template/internal/cli"
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/installation"
+	"github.com/anoop2811/software-factory-template/internal/installedlayout"
+	"github.com/anoop2811/software-factory-template/internal/releasecmd"
 )
 
 func main() { os.Exit(run(context.Background(), os.Args[1:])) }
@@ -39,10 +38,10 @@ func run(ctx context.Context, args []string) (status int) {
 		args = args[5:]
 	}
 	if physical {
-		// Whole routes acquire EX directly; never upgrade a retained shared lease.
-		if len(args) > 1 && args[0] == "upgrade" && (installationcmd.Claimed(args[1:]) || releasecmd.Claimed(args[1:]) || releasecmd.BackupClaimed(args[1:]) || releasecmd.LocalUpgradeClaimed(args[1:])) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
+		// Modern upgrade owners choose admission before retaining an ordinary SH lease.
+		if len(args) > 0 && args[0] == "upgrade" && cli.UpgradeOwnsAdmission(args[1:]) && os.Getenv("FACTORY_BRIDGE_PROTOCOL") == "" {
 			// Mark the physical caller without retaining SH; the transaction owns EX.
-			// docs/adr/0117-explicit-go-local-upgrade.md:59.
+			// docs/adr/0122-default-packaged-go-upgrade.md:71.
 			return cli.RunInstalled(ctx, args, root, "", "")
 		}
 		selected, err := installedlayout.Open(ctx, root, expected)

@@ -63,7 +63,7 @@ func installedRuntimeCustodyFixture() installedRuntimeFixture {
 		selected = append(selected, map[string]any{"path": path, "mode": uint32(0100000 | mode.Perm()), "sha256": fmt.Sprintf("%x", sha256.Sum256(data)), "bytes": len(data)})
 	}
 	add(".factory/bin/factory-runtime", candidateBinary, 0700)
-	manifest := fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%s\nEND\n", version, target, digest)
+	manifest := fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion	%s\ntarget	%s\nbinary	bin/factory-runtime\nsha256	%s\nEND\n", version, target, digest)
 	add(".factory/bin/runtime.manifest", []byte(manifest), 0600)
 	add(".factory/bin/source.json", imageMarshal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.3", "kind": "installation-source-build"}), 0600)
 
@@ -177,9 +177,9 @@ var _ = Describe("Installed runtime root separation", func() {
 	It("reports actual installation events and active gates from a separate application cwd", func() {
 		fixture := installedRuntimeCustodyFixture()
 		log := filepath.Join(fixture.root, ".factory/events.log")
-		writeFixture(log, []byte("today\tactual-installed-gate\tactual installed event\n"), 0600)
-		writeFixture(filepath.Join(fixture.caller, ".factory/events.log"), []byte("caller\tforeign\tfirst\ncaller\tforeign\tsecond\n"), 0600)
-		writeFixture(filepath.Join(fixture.assets, ".factory/events.log"), []byte("canonical\tforeign\tfirst\ncanonical\tforeign\tsecond\ncanonical\tforeign\tthird\n"), 0600)
+		writeFixture(log, []byte("today	actual-installed-gate	actual installed event\n"), 0600)
+		writeFixture(filepath.Join(fixture.caller, ".factory/events.log"), []byte("caller	foreign	first\ncaller	foreign	second\n"), 0600)
+		writeFixture(filepath.Join(fixture.assets, ".factory/events.log"), []byte("canonical	foreign	first\ncanonical	foreign	second\ncanonical	foreign	third\n"), 0600)
 		control := installedRuntimeInvoke(fixture, "", []string{"FACTORY_EVENT_LOG=" + log}, "report")
 		Expect(control.status).To(Equal(0), "%+v", control)
 		Expect(control.stdout).To(ContainSubstring("Gate blocks recorded:           1"))
@@ -271,8 +271,8 @@ var _ = Describe("Installed runtime root separation", func() {
 		AddReportEntry("installed-runtime.consumed-cache-custody", map[string]any{"paths": canonicalPaths, "private_readme_absent": true, "refused_statuses": []int{control.status, actual.status}}, ReportEntryVisibilityNever)
 	})
 
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:33
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:457
+	// per docs/adr/0122-default-packaged-go-upgrade.md:71
+	// per docs/adr/0122-default-packaged-go-upgrade.md:9
 	It("owns installed upgrade aliases through public and direct adapters without recursive fallback", func() {
 		fixture, log := installedRuntimeBoundedUpgradeFixture()
 		control := installedRuntimeInvoke(fixture, "", nil, "upgrade", "--installation", "--help")
@@ -282,11 +282,23 @@ var _ = Describe("Installed runtime root separation", func() {
 		calls, err := os.ReadFile(log)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(calls)).To(Equal("0\n"), "explicit whole help must execute only the first public launcher")
+		tools := filepath.Join(filepath.Dir(fixture.root), "bounded acquisition tools")
+		trace := filepath.Join(tools, "gh-arguments")
+		writeFixture(filepath.Join(tools, "gh"), []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" > \"$BOUNDED_GH_ARGUMENTS\"\nexit 44\n"), 0700)
+		env := []string{"PATH=" + tools + string(os.PathListSeparator) + os.Getenv("PATH"), "BOUNDED_GH_ARGUMENTS=" + trace}
+		Expect(os.Remove(log)).To(Succeed())
+		help := installedRuntimeInvoke(fixture, "", env, "upgrade", "--help")
+		Expect(help.status).To(Equal(0), "%+v", help)
+		Expect(help.stdout).To(ContainSubstring("authenticated packaged Go upgrader"))
+		Expect(help.stderr).To(BeEmpty())
+		_, err = os.Lstat(trace)
+		Expect(os.IsNotExist(err)).To(BeTrue())
 		type observation struct {
-			route string
-			args  []string
-			out   cliResult
-			calls string
+			route    string
+			args     []string
+			out      cliResult
+			calls    string
+			acquired []byte
 		}
 		observations := []observation{}
 		for _, direct := range []bool{false, true} {
@@ -298,28 +310,44 @@ var _ = Describe("Installed runtime root separation", func() {
 			}
 			for _, operands := range [][]string{{}, {"--help"}, {"-h"}, {"--force"}} {
 				Expect(os.Remove(log)).To(Succeed())
+				if _, err := os.Lstat(trace); err == nil {
+					Expect(os.Remove(trace)).To(Succeed())
+				} else {
+					Expect(os.IsNotExist(err)).To(BeTrue())
+				}
 				args := append([]string{}, operands...)
 				if !direct {
 					args = append([]string{"upgrade"}, args...)
 				}
-				out := installedRuntimeInvoke(invocation, "", nil, args...)
+				out := installedRuntimeInvoke(invocation, "", env, args...)
 				calls, err := os.ReadFile(log)
 				Expect(err).NotTo(HaveOccurred())
-				observations = append(observations, observation{route, operands, out, string(calls)})
-				_, _ = fmt.Fprintf(GinkgoWriter, "bounded upgrade route: %s; operands: %q; launcher depths: %q\n", route, operands, calls)
+				acquired, err := os.ReadFile(trace)
+				if err != nil {
+					Expect(os.IsNotExist(err)).To(BeTrue())
+				}
+				observations = append(observations, observation{route, operands, out, string(calls), acquired})
 			}
 		}
-		// Collect all bounded outcomes before asserting so initial RED includes
-		// both public/direct routes and all aliases, rather than stopping at bare.
+		// Collect both public and direct owners before checking their classified
+		// results. The fake GH failure prevents network access; complete archive
+		// trust and mutation are independently proved by the public release family.
 		for _, observed := range observations {
-			if len(observed.args) == 1 && observed.args[0] == "--force" {
+			switch {
+			case len(observed.args) == 0:
+				Expect(observed.out.status).To(Equal(1), "%s: %+v", observed.route, observed.out)
+				Expect(observed.out.stdout).To(BeEmpty())
+				Expect(string(observed.acquired)).To(HavePrefix("api\x00repos/anoop2811/software-factory-template/commits/refs/tags/v0.2.0\x00"))
+			case observed.args[0] == "--force":
 				Expect(observed.out.status).To(Equal(2), "%s %q: %+v", observed.route, observed.args, observed.out)
 				Expect(observed.out.stdout).To(BeEmpty())
-				Expect(observed.out.stderr).To(ContainSubstring("--installation"))
-			} else {
+				Expect(observed.out.stderr).To(ContainSubstring("factory upgrade:"))
+				Expect(observed.acquired).To(BeEmpty())
+			default:
 				Expect(observed.out.status).To(Equal(0), "%s %q: %+v", observed.route, observed.args, observed.out)
-				Expect(observed.out.stdout).To(Equal(control.stdout), "%s %q must show native whole help", observed.route, observed.args)
+				Expect(observed.out.stdout).To(Equal(help.stdout))
 				Expect(observed.out.stderr).To(BeEmpty())
+				Expect(observed.acquired).To(BeEmpty())
 			}
 			Expect(observed.calls).To(Equal("0\n"), "%s %q unexpectedly launched the upgrade adapter again", observed.route, observed.args)
 			Expect(observed.out.stderr).NotTo(ContainSubstring("BOUNDED_UPGRADE_RECURSION"))

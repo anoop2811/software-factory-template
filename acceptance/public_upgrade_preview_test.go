@@ -130,6 +130,12 @@ var _ = Describe("G4 public upgrade preview admission", func() {
 	// per docs/adr/0082-go-public-upgrade-preview.md:32
 	DescribeTable("refuses malformed reserved previews before any legacy execution or writes", func(tail []string) {
 		binary, root, _ := assessmentFixture()
+		// The no-source row belongs to the source-required historical grammar;
+		// current ordinary dry-run is independently proved by the release family.
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		if len(tail) == 1 && tail[0] == "--dry-run" {
+			useHistoricalDispatcher(binary)
+		}
 		marker := previewPoison(binary)
 		before := assessmentTree(root)
 		out := upgradePreview(binary, root, tail...)
@@ -141,7 +147,7 @@ var _ = Describe("G4 public upgrade preview admission", func() {
 		Expect(assessmentTree(root)).To(Equal(before))
 		publicNoPoison(marker)
 	},
-		Entry("missing source", []string{"--dry-run"}),
+		Entry("historical component source-required preview grammar", Label("historical-dispatcher"), []string{"--dry-run"}),
 		Entry("empty source", []string{"--dry-run", "--source="}),
 		Entry("source lacking operand", []string{"--dry-run", "--source"}),
 		Entry("attached true dry run", []string{"--dry-run=true", "--source=."}),
@@ -169,8 +175,10 @@ var _ = Describe("G4 public upgrade preview admission", func() {
 		Entry("selection unknown", []string{"--dry-run", "--source=.", "--adopt-path=PRIVATE_UNKNOWN"}),
 		Entry("duplicate confirmation", []string{"--dry-run", "--source=.", "--adopt-path=scripts/factory-budget.sh", "--confirm-adoption=" + strings.Repeat("a", 64), "--confirm-adoption=" + strings.Repeat("a", 64)}))
 	// per docs/adr/0082-go-public-upgrade-preview.md:23
-	DescribeTable("keeps literal legacy dispatch when no standalone preview marker appears", func(args []string) {
+	DescribeTable("retains historical literal dispatch without a standalone preview marker", Label("historical-dispatcher"), func(args []string) {
 		binary, root, _ := assessmentFixture()
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		useHistoricalDispatcher(binary)
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		out := upgradePreview(binary, root, args...)
 		Expect(out).To(Equal(cliResult{strings.Join(args, "\n") + "\n", "", 37}))

@@ -224,8 +224,10 @@ var _ = Describe("Read-only recovery restoration planning admission", func() {
 
 	// per docs/adr/0092-go-recovery-restoration-planning.md:36
 	// per docs/adr/0092-go-recovery-restoration-planning.md:104
-	DescribeTable("preserves detached legacy value ownership even when it resembles a native marker", func(option, value string) {
+	DescribeTable("retains historical detached value ownership when it resembles a native marker", Label("historical-dispatcher"), func(option, value string) {
 		binary, root, _ := durableRecoveryFixture()
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		useHistoricalDispatcher(binary)
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		// Keep all original recovery-marker controls and exercise both new words
 		// as literal source/ref operands rather than selecting standalone controls.

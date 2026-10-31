@@ -167,16 +167,20 @@ var _ = Describe("Durable local recovery creation admission", func() {
 	})
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:40
-	DescribeTable("keeps ordinary literal legacy dispatch without the reserved marker", func(arg string) {
+	DescribeTable("retains historical literal dispatch without the creation marker", Label("historical-dispatcher"), func(arg string) {
 		binary, root, _ := durableRecoveryFixture()
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		useHistoricalDispatcher(binary)
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		out := durableRecoveryRun(binary, root, []string{arg})
 		Expect(out).To(Equal(cliResult{arg + "\n", "", 37}))
 	}, Entry("similar switch", "--create-backups"), Entry("literal operand", "--source=--create-backup"))
 
 	// per docs/adr/0091-durable-local-recovery-creation.md:192
-	DescribeTable("preserves detached legacy option values that spell the recovery marker", func(ref bool) {
+	DescribeTable("retains historical detached option values that spell the recovery marker", Label("historical-dispatcher"), func(ref bool) {
 		binary, root, _ := durableRecoveryFixture()
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		useHistoricalDispatcher(binary)
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n"), 0700)
 		args := []string{"--source", "--create-backup"}
 		if ref {

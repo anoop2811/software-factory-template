@@ -1,13 +1,11 @@
-// Package cli preserves the existing factory command boundary while individual
-// implementations migrate. specs/001-go-runtime-conversion.md:91.
+// Package cli owns the factory command boundary and its native Cobra routes.
+// specs/001-go-runtime-conversion.md:91.
 package cli
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/anoop2811/software-factory-template/internal/native"
-	"github.com/anoop2811/software-factory-template/internal/transition"
 	"io"
 	"os"
 	"os/exec"
@@ -47,8 +45,8 @@ Usage: factory <command> [args]
               Explicit local Go install: init [TARGET] --local [--source DIR]
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
-  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
-              touches your factory.yaml, content, or customized files
+  upgrade     Preview authenticated Go framework updates; apply with fresh consent
+              Preserve project content and customized files
               Preview locally with --dry-run --source PATH (run at installation root)
               Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
   sync        Synchronize harness adapters (all, opencode, claude, codex)
@@ -68,30 +66,28 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, selftest, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+All commands use the Go runtime.
 `
 
-var scripts = map[string]string{
-	"init":           "factory-init.sh",
-	"doctor":         "factory-doctor.sh",
-	"upgrade":        "factory-upgrade.sh",
-	"check":          "pre-push-check.sh",
-	"selftest":       "",
-	"report":         "factory-report.sh",
-	"budget":         "factory-budget.sh",
-	"loop":           "factory-loop.sh",
-	"metrics":        "factory-metrics.sh",
-	"review-lane":    "factory-review-lane.sh",
-	"migrate-config": "factory-migrate-config.sh",
-	"sync":           "",
-	"prereq":         "",
-	"eval":           "",
-	"review":         "",
-	"review-batch":   "",
+var commands = map[string]struct{}{
+	"init":           {},
+	"doctor":         {},
+	"upgrade":        {},
+	"check":          {},
+	"selftest":       {},
+	"report":         {},
+	"budget":         {},
+	"loop":           {},
+	"metrics":        {},
+	"review-lane":    {},
+	"migrate-config": {},
+	"sync":           {},
+	"prereq":         {},
+	"eval":           {},
+	"review":         {},
+	"review-batch":   {},
 }
 
-// Run routes the legacy first command token without reinterpreting script flags.
-// Cobra defaults must not change this contract. specs/001-go-runtime-conversion.md:293.
 type installationKey struct{}
 type installationContext struct{ root, assets, version string }
 
@@ -107,6 +103,8 @@ func assetDirectory(ctx context.Context) (string, error) {
 	return dispatcherDirectory()
 }
 
+// Run preserves top-level command admission; native owners parse their arguments.
+// Cobra defaults must not change this contract. specs/001-go-runtime-conversion.md:293.
 func Run(ctx context.Context, args []string) int {
 	command := "help"
 	if len(args) > 0 && args[0] != "" {
@@ -115,7 +113,7 @@ func Run(ctx context.Context, args []string) int {
 	if command == "help" || command == "-h" || command == "--help" {
 		// The shell dispatcher ignores all remaining arguments for these aliases.
 		args = []string{"help"}
-	} else if _, ok := scripts[command]; !ok {
+	} else if _, ok := commands[command]; !ok {
 		fmt.Fprintf(os.Stderr, "factory: unknown command '%s' (try: factory help)\n", command)
 		return 2
 	}
@@ -150,7 +148,7 @@ func Run(ctx context.Context, args []string) int {
 			return err
 		},
 	})
-	for name, script := range scripts {
+	for name := range commands {
 		root.AddCommand(&cobra.Command{
 			Use:                name,
 			DisableFlagParsing: true,
@@ -325,48 +323,25 @@ func Run(ctx context.Context, args []string) int {
 					}
 					return nil
 				}
-				// Installed adapters cannot dispatch back into their own upgrade adapter.
-				// docs/adr/0098-whole-installation-upgrade-and-rollback.md:457.
-				if name == "upgrade" && !installationcmd.Claimed(forwarded) {
-					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
-						if len(forwarded) == 0 || len(forwarded) == 1 && (forwarded[0] == "--help" || forwarded[0] == "-h") {
-							status = installationcmd.Run(cmd.Context(), []string{"--installation", "--help"}, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
-						} else {
+				// Source-only assessments retain their prior installed restriction;
+				// ordinary upgrades use the authenticated controller.
+				// docs/adr/0122-default-packaged-go-upgrade.md:31.
+				if name == "upgrade" {
+					if legacyUpgradeClaimed(forwarded) {
+						if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
 							fmt.Fprintln(os.Stderr, "factory upgrade: installed upgrades require --installation (use upgrade --installation --help)")
 							status = 2
+						} else if recoverycmd.Claimed(forwarded) {
+							status = recoverycmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
+						} else {
+							status = upgradecmd.Run(cmd.Context(), forwarded, os.Stdout, os.Stderr)
 						}
-						return nil
+					} else {
+						status = releasecmd.RunDefaultUpgrade(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					}
-				}
-				// Recovery markers reserve handling before preview and legacy dispatch.
-				// docs/adr/0091-durable-local-recovery-creation.md:25.
-				// docs/adr/0092-go-recovery-restoration-planning.md:25.
-				if name == "upgrade" && recoverycmd.Claimed(forwarded) {
-					status = recoverycmd.Run(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
 				}
-				// A preview marker owns the route even when its arguments are invalid.
-				// docs/adr/0082-go-public-upgrade-preview.md:23.
-				if name == "upgrade" && upgradecmd.Claimed(forwarded) {
-					status = upgradecmd.Run(cmd.Context(), forwarded, os.Stdout, os.Stderr)
-					return nil
-				}
-				if selected, ok := cmd.Context().Value(installationKey{}).(installationContext); ok {
-					guard, err := transition.Shared(cmd.Context(), selected.root)
-					if err != nil {
-						return err
-					}
-					result, runErr := native.ExecuteInherited(cmd.Context(), mustCwd(), append([]string{filepath.Join(selected.root, "scripts", script)}, forwarded...), configuredcmd.CaptureEnvironment(), native.InheritedStreams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}, 0)
-					closeErr := guard.Close(context.WithoutCancel(cmd.Context()), !result.OwnershipUnconfirmed && result.ExitConfirmed)
-					if result.ExitCode != nil {
-						status = *result.ExitCode
-						if status < 0 {
-							status = 128 - status
-						}
-					}
-					return errors.Join(runErr, closeErr)
-				}
-				return dispatch(cmd.Context(), name, script, forwarded)
+				return fmt.Errorf("factory: native command %q has no owner", name)
 			},
 		})
 	}
@@ -376,41 +351,6 @@ func Run(ctx context.Context, args []string) int {
 		return 2
 	}
 	return status
-}
-
-func dispatch(ctx context.Context, command, script string, args []string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	directory, err := dispatcherDirectory()
-	if selected, ok := ctx.Value(installationKey{}).(installationContext); ok {
-		directory, err = selected.root, nil
-	}
-	if err != nil {
-		return err
-	}
-	path := filepath.Join(directory, "scripts", script)
-	if err := syscall.Access(path, 1); err != nil {
-		return fmt.Errorf("factory: '%s' is not available in this repo (%s is missing or not executable)", command, path)
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	// Replace this process, just as the existing shell exec does, preserving
-	// PID, inherited streams, working directory, environment and signal delivery.
-	// Exec returns only on failure; Bash below supplies the compatible diagnostic.
-	// #nosec G204 G702 -- A fixed command map selects the colocated trusted script; argv is passed directly without shell evaluation.
-	_ = syscall.Exec(path, append([]string{path}, args...), os.Environ())
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	// The legacy env-selected Bash supplies no-shebang interpretation and native
-	// execution-failure statuses, which differ across supported platforms.
-	// Keep the exec program constant: the script and all arguments are positional.
-	fallback := append([]string{"env", "bash", "-c", `exec "$0" "$@"`, path}, args...)
-	// #nosec G204 G702 -- The shell program is constant; trusted script path and literal argv are separate positional parameters.
-	err = syscall.Exec("/usr/bin/env", fallback, os.Environ())
-	return fmt.Errorf("factory: execute '%s': %w", command, err)
 }
 
 func dispatcherDirectory() (string, error) {
@@ -429,12 +369,4 @@ func dispatcherDirectory() (string, error) {
 		return "", fmt.Errorf("factory: locate dispatcher directory: %w", err)
 	}
 	return directory, nil
-}
-
-func mustCwd() string {
-	path, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return path
 }

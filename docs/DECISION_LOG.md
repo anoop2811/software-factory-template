@@ -5449,3 +5449,31 @@ cite the native artifact behind the additive scheduling estimate, and distinguis
 legitimate preparation-journal removal from unexpected inspection errors in the
 existing recovery criterion. These clarifications alter no runtime behavior,
 criterion count or deadline.
+
+## Decision 133 (2026-10-30 UTC): run source selftest through the native gate-proof engine
+
+Deliver the source Go CLI's fourteen required gate break/fix pairs as a complete
+independent function. ADR 0120 requires real outside-in failure before code,
+shared native proof logic, invoked-source asset custody, and a digest-checked
+snapshot of the actual running executable. Preserve the installed root-relative
+driver authority rather than copying the preserved prototype's weaker lookup.
+
+Own SIGINT/SIGTERM through native supervision, reconcile child groups before
+identity-checked scratch cleanup, and retain uncertainty evidence and workspace.
+Prove real gate allow/refuse faults, source selection, required assets, hostile
+driver lookalikes and cancellation after a real Git child is ready. Preserve
+generic process-boundary criteria through the still-mapped source upgrade
+command without a production test escape hatch.
+
+The historical shell suite includes broader regression and text checks; keep
+them explicit until the remaining controller/proof cutover. This change neither
+claims full shell-suite parity nor changes the source bootstrap, public release
+pin, support floors, dependencies, paid limits or release gates. Independent
+Tasks 2, 4 and 6 may progress on separate branches; each still requires its own
+review, findings responses, green checks and human merge.
+
+Review refinement: bound the selftest error diagnostic as well as successful
+output. Reuse the existing context-aware writer with an independent one-second
+diagnostic deadline after cancellation. Independent full-stderr SIGINT/SIGTERM
+regressions must first reproduce the unbounded path with actual owned-child
+readiness and reconciliation; retain ordinary diagnostics and operational status.

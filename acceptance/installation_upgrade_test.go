@@ -926,7 +926,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		Expect(json.Unmarshal(canon, &roleMap)).To(Succeed())
 		// per docs/adr/0099-native-factory-orchestration.md:38
 		Expect(roleMap.Roles).To(HaveLen(56))
-		// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:440
+		// per docs/adr/0119-minimal-qualified-initializer-inventory.md:11
 		Expect(roleMap.CanonicalSourceAssets).To(HaveLen(2))
 		stager = filepath.Join(work, "factory-stage")
 		out := imageProcess(repository, nil, "go", "build", "-o", stager, "./cmd/factory-stage")

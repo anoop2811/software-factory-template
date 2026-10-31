@@ -135,7 +135,7 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 		AddReportEntry("minimal-inventory.fresh-cache", paths, ReportEntryVisibilityNever)
 		Expect(paths).To(ConsistOf(minimalInitializerCache), "new qualified initialization must persist only data consumed by installed commands")
 		descriptor := minimalInventoryJSON(filepath.Join(root, ".factory/installation.current"))
-		Expect(descriptor["assets"]).To(HaveLen(53), "55 active rows exclude the launcher and self-describing descriptor")
+		Expect(descriptor["assets"]).To(HaveLen(53), "55 active rows exclude the version marker and self-describing descriptor")
 		cacheRows := []string{}
 		for _, raw := range descriptor["assets"].([]any) {
 			path := raw.(map[string]any)["path"].(string)

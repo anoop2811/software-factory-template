@@ -15,6 +15,10 @@ type InheritedStreams struct{ Stdin, Stdout, Stderr *os.File }
 // ExecuteInherited retains the existing ownership/cleanup engine and caller streams.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:157.
 func ExecuteInherited(ctx context.Context, root string, argv []string, environment map[string]string, streams InheritedStreams, allowance time.Duration) (Execution, error) {
+	return executeInherited(ctx, root, argv, environment, streams, allowance, false)
+}
+
+func executeInherited(ctx context.Context, root string, argv []string, environment map[string]string, streams InheritedStreams, allowance time.Duration, cooperative bool) (Execution, error) {
 	if streams.Stdin == nil || streams.Stdout == nil || streams.Stderr == nil {
 		return Execution{}, errors.New("inherited streams unavailable")
 	}
@@ -22,7 +26,13 @@ func ExecuteInherited(ctx context.Context, root string, argv []string, environme
 	if err != nil {
 		return Execution{}, err
 	}
-	return supervise(ctx, plan, allowance, func(context.Context, int) error { return nil }, defaultProcessOps(), runOptions{limit: outputLimit, environment: variables, inherited: &streams, parentContextOnly: allowance == 0})
+	return supervise(ctx, plan, allowance, func(context.Context, int) error { return nil }, defaultProcessOps(), runOptions{limit: outputLimit, environment: variables, inherited: &streams, parentContextOnly: allowance == 0, cooperative: cooperative})
+}
+
+// ExecuteInheritedCooperative owns a managed Go runtime handoff.
+// docs/adr/0122-default-packaged-go-upgrade.md:146.
+func ExecuteInheritedCooperative(ctx context.Context, root string, argv []string, environment map[string]string, streams InheritedStreams, allowance time.Duration) (Execution, error) {
+	return executeInherited(ctx, root, argv, environment, streams, allowance, true)
 }
 
 type foreground struct {

@@ -27,11 +27,16 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   prepared source default v0.2.0 refuses until published; source/bootstrap and
   public stable activation remain separate. See
   [ADR 0118](../adr/0118-default-packaged-go-initialization.md).
+- Ordinary Go upgrade selects an authenticated stable release, preserves explicit
+  selector ownership, refuses downgrades and gives the transaction its own
+  admission without retaining an installed shared lease. The prepared v0.2.0
+  default does not claim publication or activate the source bootstrap. See
+  [ADR 0122](../adr/0122-default-packaged-go-upgrade.md).
 - Explicit committed-local upgrade uses the selected build's own planner and
   whole-installation transaction, with exact Go predecessor reconstruction,
   preserved backups and replayable local recovery inputs. See
-  [ADR 0117](../adr/0117-explicit-go-local-upgrade.md); ordinary upgrade defaults
-  and the final integrated release rehearsal remain separate gates.
+  [ADR 0117](../adr/0117-explicit-go-local-upgrade.md). The final integrated
+  release rehearsal remains a separate gate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration

@@ -402,8 +402,10 @@ var _ = Describe("G4 recovery inventory composition and limits", func() {
 		publicNoPoison(marker)
 	}, Entry("duplicate", "duplicate"), Entry("true value", "true"), Entry("false value", "false"), Entry("empty value", ""))
 	// per docs/adr/0083-go-recovery-set-inspection.md:19
-	It("delegates inspection-looking operands literally without dry-run", func() {
+	It("retains historical literal dispatch for inspection-looking operands without dry-run", Label("historical-dispatcher"), func() {
 		binary, root, _ := assessmentFixture()
+		// per docs/adr/0122-default-packaged-go-upgrade.md:196
+		useHistoricalDispatcher(binary)
 		writeFixture(filepath.Join(binary, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 43\n"), 0700)
 		Expect(upgradePreview(binary, root, "--inspect-backups", "--source=.")).To(Equal(cliResult{"--inspect-backups\n--source=.\n", "", 43}))
 	})

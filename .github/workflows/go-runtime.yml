@@ -92,7 +92,8 @@ jobs:
         # docs/adr/0117-explicit-go-local-upgrade.md:94.
         # docs/adr/0118-default-packaged-go-initialization.md:76.
         # docs/adr/0121-local-upgrade-readiness-boundary.md:117.
-        group: [installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery, default-init]
+        # docs/adr/0122-default-packaged-go-upgrade.md:172.
+        group: [installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

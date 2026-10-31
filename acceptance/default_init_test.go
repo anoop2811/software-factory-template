@@ -32,7 +32,7 @@ type defaultInitFixtures struct {
 // A selected-only message witnesses the actual initializer owner, while the
 // invoking public binary was compiled before this fixture commit.
 // per docs/adr/0118-default-packaged-go-initialization.md:15
-func prepareDefaultInit() *defaultInitFixtures {
+func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 	GinkgoHelper()
 	image := handoffBuildImage()
 	Expect(string(image.binary)).NotTo(ContainSubstring(defaultInitMarker))
@@ -49,7 +49,11 @@ func prepareDefaultInit() *defaultInitFixtures {
 	changed := strings.Replace(string(data), `message := "factory-init:`, `message := "`+defaultInitMarker+`\nfactory-init:`, 1)
 	Expect(changed).NotTo(Equal(string(data)))
 	writeFixture(path, []byte(changed), 0644)
-	imageGit(source, "add", "internal/initcmd/command.go")
+	changedFiles := []string{"internal/initcmd/command.go"}
+	for _, patch := range patches {
+		changedFiles = append(changedFiles, patch(source)...)
+	}
+	imageGit(source, append([]string{"add", "--"}, changedFiles...)...)
 	imageGit(source, "commit", "--quiet", "-m", "independent selected default initializer witness")
 	revision := strings.TrimSpace(imageGit(source, "rev-parse", "HEAD"))
 	cache := filepath.Join(image.work, "qualified default images")

@@ -98,14 +98,15 @@ Use one public entrypoint: `./factory`. This table describes the selected Go
 installation; commands marked **Go only** are absent from the default script
 dispatcher. Use an actual published release tag for `TAG`. Start with
 `./factory help`; flags vary by command. The [CLI reference](docs/CLI.md) explains
-options, runtime availability and side effects.
+options, runtime availability and side effects. The table follows current Go
+source; older published candidates can have fewer features.
 
 | Command | Purpose | Example |
 |---|---|---|
 | `help` | List the public commands. | `./factory help` |
 | `init` | Initialize a project with its selected authenticated Go release. Override with stable `--ref TAG`, prerelease `--go-candidate TAG` or clean committed `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --pack go` |
 | `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
-| `upgrade` | Authenticate and preview an installation update; apply with fresh confirmation. | `./factory upgrade --go-candidate TAG --dry-run --json` |
+| `upgrade` | Authenticate a stable Go update and preview changes; override with `--ref TAG`, then apply with fresh confirmation. See [ordinary upgrades](docs/UPGRADING.md#ordinary-go-upgrades). | `./factory upgrade --dry-run --json` |
 | `sync` **Go only** | Regenerate adapters for `all`, `codex`, `claude` or `opencode`; inspect the resulting diff. | `./factory sync all` |
 | `prereq` **Go only** | Check required tools and the configured product Go minimum. | `./factory prereq` |
 | `check` | Run factory gates and your configured project checks. | `./factory check` |

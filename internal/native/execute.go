@@ -47,6 +47,7 @@ type runOptions struct {
 	parentContextOnly bool
 	consume           func(context.Context, []byte) (bool, error)
 	inherited         *InheritedStreams
+	cooperative       bool
 }
 
 // Execute supervises an already-admitted process; publication precedes stdin.
@@ -307,9 +308,29 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 	// Termination is required even after ordinary leader exit, before pipe drainage.
 	// docs/adr/0068-go-native-harness-execution.md:122.
 	reapedBeforeSignal := reaped
-	signalErr := ops.signalGroup(result.ProcessPID)
+	var cleanupCtx context.Context
+	var finishCleanup context.CancelFunc
+	var signalErr error
+	cooperationFinished := reaped
+	if options.cooperative {
+		// Reserve a single cleanup budget before allowing the selected Go
+		// supervisor to reconcile its own separately grouped work.
+		// docs/adr/0122-default-packaged-go-upgrade.md:155.
+		cleanupCtx, finishCleanup = context.WithTimeout(context.Background(), ops.waitLimit)
+		if !reaped {
+			waitErr, reaped, signalErr = cooperate(cleanupCtx, result.ProcessPID, waited, ops.waitLimit)
+			cooperationFinished = reaped
+		}
+	}
+	if killErr := ops.signalGroup(result.ProcessPID); signalErr == nil {
+		signalErr = killErr
+	} else {
+		signalErr = errors.Join(signalErr, killErr)
+	}
 	_ = pipes.inputW.Close()
-	cleanupCtx, finishCleanup := context.WithTimeout(context.Background(), ops.waitLimit)
+	if cleanupCtx == nil {
+		cleanupCtx, finishCleanup = context.WithTimeout(context.Background(), ops.waitLimit)
+	}
 	defer finishCleanup()
 	if !reaped {
 		select {
@@ -386,6 +407,12 @@ func supervise(parent context.Context, plan Plan, allowance time.Duration, onSpa
 		} else if reconcileDarwinExit && ctx.Err() != nil {
 			evidence.phase = "signal"
 		}
+	}
+	// A forced or signaled selected runtime cannot acknowledge cooperation,
+	// even if its direct group disappeared. Its parent's inputs remain evidence.
+	// docs/adr/0122-default-packaged-go-upgrade.md:163.
+	if evidence.phase == "" && options.cooperative && (!cooperationFinished || command.ProcessState == nil || !command.ProcessState.Exited()) {
+		evidence.phase = "cooperation"
 	}
 	if evidence.phase != "" {
 		result.OwnershipUnconfirmed = true

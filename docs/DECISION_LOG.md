@@ -5477,3 +5477,58 @@ output. Reuse the existing context-aware writer with an independent one-second
 diagnostic deadline after cancellation. Independent full-stderr SIGINT/SIGTERM
 regressions must first reproduce the unbounded path with actual owned-child
 readiness and reconciliation; retain ordinary diagnostics and operational status.
+
+## Decision 137 (2026-10-31 UTC): select authenticated packaged Go for ordinary upgrade
+
+After human merge of PR #152 as `00f6ef995ec4aab4c3fac2f65ca0b31008a849d7`,
+deliver ordinary Go upgrade as one complete function under ADR 0122. Select an
+exact stable explicit ref, environment ref or prepared v0.2.0 default, without
+implicit installed-version reuse. Preserve explicit mode owners and strict
+read-only source assessment; authenticate a supported official Go predecessor
+before negative-only downgrade refusal and leave all asset authority with the
+existing proposal/transaction. Unsupported local/nonrelease hints refuse
+without guessed downloads; unavailable authenticated releases remain operational
+failures. Exact official Go prereleases remain supported before images; only
+the selected ordinary target must be stable. Installed modern upgrades must not retain their own shared lease
+before exclusive mutation, while physical/bridge/pending controls remain intact.
+
+Retain fourteen current public CLI root-boundary criteria and explicitly retain
+the eleven now-obsolete mapped-script process criteria against the immutable
+00f6 Go dispatcher as historical component evidence. New public native journeys
+must prove selected ownership, consent, streams, custody, rollback and real-child
+cancellation, including actual stderr backpressure before any diagnostic repair.
+No shipping legacy escape, script/installer activation, retirement, dependency,
+release or budget change belongs in this function. Independent public RED must
+precede production; derive the actual full partition census and repeat relevant
+qualification/review before merge rather than weakening old guards.
+
+
+Decision 137 observed-boundary refinement: independent real selected-handoff
+cancellation returned 247 after the selected group disappeared while its real
+nested Git group remained alive. ADR 0122 now requires bounded optional
+cooperation within the same five-second native cleanup budget, uncertainty and
+parent-input retention after forced/abnormal termination, and operational status
+1. Independent ignored-TERM/external-SIGKILL controls precede this optional mode;
+no ordinary native kill policy or deadline changes. The independent 3179-case
+acceptance registry gains a dedicated fourteen-case default-upgrade family under
+the existing heavy worker policy, preserving the prior eight groups and every
+quality/report/platform/failure obligation. Scheduler RED precedes wiring.
+
+
+Decision 137 integration audit: retain fourteen further obsolete source-required
+preview and raw mode-dispatch cases against the immutable 00f6 historical Go
+component, preserving every old assertion and clearly labelling all twenty-five
+historical dispatcher cases. Current assessment/adoption/recovery owners remain
+on the current executable; ordinary release semantics have independent public
+criteria. ADR 0122 records this before classification edits. Acceptance remains
+3179 identities; final local current53 and historical25 passes are distinct,
+sequential qualifications, with default-init shared-parser regression included.
+
+
+Decision 137 review refinement: the retained source-assessment text still claimed
+removing --dry-run selects a script, which is false for the ordinary Go upgrade
+owner. ADR 0122 now requires same-Go fresh authenticated preview advice and an
+explicit statement that removing dry-run never applies the partial plan. Preserve
+its JSON/status/scope and all existing current assertions; independent public
+text RED precedes the narrow presentation correction. No new acceptance case,
+route, mutating command, dependency, limit or release change is introduced.

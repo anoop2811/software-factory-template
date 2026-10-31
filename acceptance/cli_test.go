@@ -17,8 +17,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// This matrix is an independent compatibility oracle, not discovery from the
-// candidate's registrations. per specs/001-go-runtime-conversion.md:295
+// Historical mapped-script compatibility data remains independent of current
+// native registrations. per docs/adr/0122-default-packaged-go-upgrade.md:95
 // Budget/loop have native public qualification: per docs/adr/0078-go-public-budget-loop.md:43
 // Check now has a native orchestration contract: per docs/adr/0099-native-factory-orchestration.md:25
 // Source selftest has native gate-proof criteria: per docs/adr/0120-native-source-gate-proof.md:94
@@ -38,8 +38,8 @@ Usage: factory <command> [args]
               Explicit local Go install: init [TARGET] --local [--source DIR]
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
-  upgrade     Pull framework updates (hooks, scripts, docs) over this repo; never
-              touches your factory.yaml, content, or customized files
+  upgrade     Preview authenticated Go framework updates; apply with fresh consent
+              Preserve project content and customized files
               Preview locally with --dry-run --source PATH (run at installation root)
               Plan recovery with --plan-restore --migration-id ID (read-only; always blocked)
   sync        Synchronize harness adapters (all, opencode, claude, codex)
@@ -59,7 +59,7 @@ Usage: factory <command> [args]
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
-Init, doctor, report, metrics, review-lane, migrate-config, budget, loop, sync, prereq, check, selftest, eval, review, review-batch, read-only upgrade preview and recovery operations use the Go runtime. Other commands use auditable scripts.
+All commands use the Go runtime.
 `
 
 type cliResult struct {
@@ -229,9 +229,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 			Expect(result.status).To(Equal(0), executable)
 			Expect(result.stderr).To(BeEmpty(), executable)
 			Expect(result.stdout).To(ContainSubstring("Usage: factory <command> [args]"), executable)
-			for _, route := range commandRoutes {
-				Expect(result.stdout).To(ContainSubstring(route.command), executable)
-			}
+			Expect(result.stdout).To(ContainSubstring("upgrade"), executable)
 			Expect(result.stdout).To(ContainSubstring("budget"), executable)
 			Expect(result.stdout).To(ContainSubstring("loop"), executable)
 			Expect(strings.ToLower(result.stdout)).NotTo(ContainSubstring("completion"), executable)
@@ -269,10 +267,16 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 		Expect(invoke(root, cwd, "factory", "", "--bogus", "budget")).To(Equal(expected))
 	})
 
+})
+
+// Retained process semantics are historical component qualification; the current
+// public default-upgrade family proves native transaction behavior separately.
+// per docs/adr/0122-default-packaged-go-upgrade.md:95
+var _ = Describe("Historical Go mapped-script dispatcher component boundary", Label("historical-dispatcher"), func() {
 	// per specs/001-go-runtime-conversion.md:95
 	// per docs/adr/0120-native-source-gate-proof.md:94
-	DescribeTable("dispatches each public command preserving the complete subprocess boundary", func(command, script string) {
-		root, cwd := fixture()
+	DescribeTable("dispatches each historically mapped command preserving the complete subprocess boundary", func(command, script string) {
+		root, cwd := historicalDispatcherFixture()
 		recorder := "#!/bin/sh\nprintf '%s\\000' '" + script + "' \"$PWD\" \"$FACTORY_ACCEPTANCE_VALUE\" \"$#\"\nprintf '%s\\000' \"$@\"\ncat\nprintf 'child diagnostic\\n' >&2\nexit 37\n"
 		writeFixture(filepath.Join(root, script), []byte(recorder), 0755)
 		// A script in the caller's directory must never shadow the candidate's root.
@@ -292,7 +296,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per specs/001-go-runtime-conversion.md:95
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	DescribeTable("refuses missing and non-executable canonical scripts", func(command, script string) {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		path := filepath.Join(root, script)
 		expected := cliResult{"", fmt.Sprintf("factory: '%s' is not available in this repo (%s is missing or not executable)\n", command, path), 2}
 		for _, state := range []string{"missing", "non-executable"} {
@@ -307,7 +311,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:297
 	It("leaves successful piped JSON stdout free of CLI banners", func() {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		writeFixture(filepath.Join(root, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\ncat\n"), 0755)
 		input := "{\"budget\":null,\"runs\":[]}\n"
 		expected := cliResult{input, "", 0}
@@ -318,7 +322,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	It("retains Bash exec fallback for an executable script without a shebang", func() {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		writeFixture(filepath.Join(root, "scripts/factory-upgrade.sh"), []byte("printf 'legacy script fallback\\n'\nprintf '%s\\000' \"$@\"\nexit 29\n"), 0755)
 		args := []string{"upgrade", "$(touch never-created)", "two words", ""}
 		expected := cliResult{"legacy script fallback\n$(touch never-created)\x00two words\x00\x00", "", 29}
@@ -331,7 +335,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("retains OS execution-failure status with a useful script diagnostic", func(kind string) {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		path := filepath.Join(root, "scripts/factory-upgrade.sh")
 		if kind == "directory" {
 			Expect(os.MkdirAll(path, 0755)).To(Succeed())
@@ -367,7 +371,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	It("uses the invocation directory when the dispatcher is a symlink", func() {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		aliasRoot := filepath.Join(filepath.Dir(root), "symlink invocation root")
 		Expect(os.MkdirAll(aliasRoot, 0755)).To(Succeed())
 		for _, executable := range []string{"legacy-factory", "factory"} {
@@ -383,7 +387,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	DescribeTable("locates co-located scripts after PATH invocation", func(relative bool) {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		writeFixture(filepath.Join(root, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf 'PATH invocation\\n'\n"), 0755)
 		lookupRoot := root
 		if relative {
@@ -407,7 +411,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	It("preserves signal termination instead of converting it into a normal error exit", func() {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		writeFixture(filepath.Join(root, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nkill -TERM \"$$\"\n"), 0755)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -428,7 +432,7 @@ var _ = Describe("The developer-built Cobra command boundary", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:94
 	// per specs/001-go-runtime-conversion.md:95
 	It("replaces the dispatcher process with its script, preserving caller process ownership", func() {
-		root, cwd := fixture()
+		root, cwd := historicalDispatcherFixture()
 		writeFixture(filepath.Join(root, "scripts/factory-upgrade.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\"\n"), 0755)
 		for _, executable := range []string{"legacy-factory", "factory"} {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

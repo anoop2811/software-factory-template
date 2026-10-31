@@ -15,18 +15,19 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/output"
+	"golang.org/x/mod/semver"
 )
 
 func execute(ctx context.Context, verb string, option options, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
 	candidate, err := acquireWithPolicy(ctx, option.tag, environment, option.requireStable)
 	if err != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
+		_ = writeDiagnostic(stderr, "factory candidate: %s\n", err)
 		return 1
 	}
 	defer func() { status = candidate.finish(stderr, status) }()
 	digest, err := currentDigest(ctx)
 	if ctx.Err() != nil {
-		fmt.Fprintln(stderr, "factory candidate: candidate handoff canceled")
+		_ = writeDiagnostic(stderr, "factory candidate: candidate handoff canceled\n")
 		return 1
 	}
 	// A trusted system/shared-directory caller need not satisfy private image
@@ -40,24 +41,34 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	}
 	root, err := projectRoot(ctx, environment)
 	if err != nil {
-		fmt.Fprintln(stderr, "factory candidate: target root unavailable")
+		_ = writeDiagnostic(stderr, "factory candidate: target root unavailable\n")
 		return 1
 	}
 	request, err := installation.InferCandidate(ctx, root, candidate.options, option.projectInputs)
 	if err != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
+		_ = writeDiagnostic(stderr, "factory candidate: %s\n", err)
 		return installation.ErrorStatus(err)
 	}
 	var previous *acquired
 	if request.Profile == "go-hybrid-v1" {
+		// Descriptive labels cannot authorize an invented official predecessor.
+		// docs/adr/0122-default-packaged-go-upgrade.md:52.
+		if option.requireStable && !supportedGoRelease(request.Before.Version) {
+			_ = writeDiagnostic(stderr, "factory upgrade: selected installation has no supported official release; use --local with --before-source or an explicit --installation archive\n")
+			return 2
+		}
 		previous, err = acquire(ctx, request.Before.Version, withoutCache(environment))
 		if err != nil {
-			fmt.Fprintln(stderr, "factory candidate: predecessor acquisition failed: "+err.Error())
+			_ = writeDiagnostic(stderr, "factory candidate: predecessor acquisition failed: %s\n", err)
 			return 1
 		}
 		defer func() { status = previous.finish(stderr, status) }()
 		if previous.options.Revision != request.Before.Revision || previous.options.Target != request.Source.Target {
-			fmt.Fprintln(stderr, "factory candidate: predecessor release identity changed")
+			_ = writeDiagnostic(stderr, "factory candidate: predecessor release identity changed\n")
+			return 2
+		}
+		if option.requireStable && semver.Compare(candidate.options.Version, previous.options.Version) < 0 {
+			_ = writeDiagnostic(stderr, "factory upgrade: refusing a downgrade from installed %s to %s; select the same or a newer release, or use explicit rollback\n", previous.options.Version, candidate.options.Version)
 			return 2
 		}
 		request.Before = previous.options
@@ -66,11 +77,18 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 	defer func() { status = references.finish(stderr, status) }()
 	operation := upgradeOperation{root: root, request: request, candidate: candidate, previous: previous, resolve: references.resolve, prefix: "factory candidate"}
 	operation.preview = func(proposal installation.RetentionProposal) string {
-		apply := []string{"upgrade", "--go-candidate", option.tag, "--confirm", proposal.ProposalDigest, "--quiescent"}
+		apply := []string{"upgrade", option.selector(), option.tag, "--confirm", proposal.ProposalDigest, "--quiescent"}
 		for _, input := range option.projectInputs {
 			apply = append(apply, "--project-input", input)
 		}
-		return fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\nApply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- %s\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers), quotedArguments(apply))
+		header := fmt.Sprintf("candidate %s commit=%s target=%s (network acquisition; project unchanged)\nprofile=%s proposal_digest=%s\nactions=%d blockers=%d\n", option.tag, request.Source.Revision, request.Source.Target, proposal.Profile, proposal.ProposalDigest, len(proposal.Actions), len(proposal.Blockers))
+		// Ordinary preview advice preserves stable policy and the caller's Go
+		// executable; the public installer activates separately.
+		// docs/adr/0122-default-packaged-go-upgrade.md:133.
+		if option.requireStable {
+			return header + "Re-run the same Go executable from this repository with these arguments:\n" + quotedArguments(apply) + "\n"
+		}
+		return header + "Apply with:\ncurl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- " + quotedArguments(apply) + "\n"
 	}
 	return operation.run(ctx, option, stdout, stderr)
 }
@@ -91,7 +109,7 @@ func (operation upgradeOperation) run(ctx context.Context, option options, stdou
 	root, request := operation.root, operation.request
 	proposal, err := installation.ProposeRetaining(ctx, root, request, operation.resolve)
 	if err != nil {
-		fmt.Fprintln(stderr, operation.prefix+": "+err.Error())
+		_ = writeDiagnostic(stderr, "%s: %s\n", operation.prefix, err)
 		return installation.ErrorStatus(err)
 	}
 	if option.dryRun || option.confirmation == "" {
@@ -113,7 +131,7 @@ func (operation upgradeOperation) run(ctx context.Context, option options, stdou
 		}
 		if len(proposal.Blockers) != 0 || len(proposal.RollbackBlockers) != 0 {
 			if operation.blockerHint != "" {
-				fmt.Fprintln(stderr, operation.prefix+": "+operation.blockerHint)
+				_ = writeDiagnostic(stderr, "%s: %s\n", operation.prefix, operation.blockerHint)
 			}
 			return 2
 		}
@@ -121,7 +139,7 @@ func (operation upgradeOperation) run(ctx context.Context, option options, stdou
 	}
 	request.Confirmation, request.Quiescent = option.confirmation, option.quiescent
 	if request.Confirmation != proposal.ProposalDigest || len(proposal.Blockers) != 0 || len(proposal.RollbackBlockers) != 0 {
-		fmt.Fprintln(stderr, operation.prefix+": proposal changed or has preserved blockers; request a fresh preview")
+		_ = writeDiagnostic(stderr, "%s: proposal changed or has preserved blockers; request a fresh preview\n", operation.prefix)
 		return 2
 	}
 	request.MigrationID = "candidate-" + proposal.ProposalDigest[:24]
@@ -134,14 +152,16 @@ func (operation upgradeOperation) run(ctx context.Context, option options, stdou
 	if applyErr != nil && !installation.CleanupIncomplete(applyErr) {
 		reportRecovery(root, request, operation.candidate, operation.previous, stderr)
 	}
-	if reportErr := output.WriteEvent(context.WithoutCancel(ctx), stderr, []byte(installation.RetentionDiagnosticReport(retention))); reportErr != nil {
+	if reportErr := writeDiagnostic(stderr, "%s", installation.RetentionDiagnosticReport(retention)); reportErr != nil {
 		return 1
 	}
 	if applyErr != nil {
-		fmt.Fprintln(stderr, operation.prefix+": "+applyErr.Error())
+		_ = writeDiagnostic(stderr, "%s: %s\n", operation.prefix, applyErr)
 		return installation.ErrorStatus(applyErr)
 	}
-	fmt.Fprintln(stderr, operation.prefix+": installation completed")
+	if err := writeDiagnostic(stderr, "%s: installation completed\n", operation.prefix); err != nil {
+		return 1
+	}
 	return 0
 }
 
@@ -149,10 +169,10 @@ func (operation upgradeOperation) run(ctx context.Context, option options, stdou
 // the operation's classified status; only actual cleanup failure overrides it.
 func (a *acquired) finish(stderr io.Writer, status int) int {
 	if a.retain {
-		fmt.Fprintln(stderr, "factory candidate: "+a.preservationNotice())
+		_ = writeDiagnostic(stderr, "factory candidate: %s\n", a.preservationNotice())
 	}
 	if err := a.close(); err != nil {
-		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
+		_ = writeDiagnostic(stderr, "factory candidate: %s\n", err)
 		return 1
 	}
 	return status
@@ -179,12 +199,12 @@ func reportRecovery(root string, request installation.Request, candidate, previo
 	defer cancel()
 	preview, err := installation.RecoveryPreview(ctx, root, request.MigrationID)
 	if err != nil {
-		fmt.Fprintf(stderr, "factory candidate: preserve migration %s and private inputs; durable recovery state needs manual reconciliation before a fresh recovery preview.\n", request.MigrationID)
+		_ = writeDiagnostic(stderr, "factory candidate: preserve migration %s and private inputs; durable recovery state needs manual reconciliation before a fresh recovery preview.\n", request.MigrationID)
 		return
 	}
 	args := append([]string{filepath.Join(candidate.staged, "bin/factory-runtime"), "upgrade", "--installation"}, preview...)
 	args = append(args, installation.RecoveryInputs(request)...)
-	fmt.Fprintf(stderr, "factory candidate: interrupted migration %s; preserve the project and recovery evidence.\nRecovery preview (no changes):\n%s\n", request.MigrationID, quotedArguments(args))
+	_ = writeDiagnostic(stderr, "factory candidate: interrupted migration %s; preserve the project and recovery evidence.\nRecovery preview (no changes):\n%s\n", request.MigrationID, quotedArguments(args))
 }
 
 func quotedArguments(args []string) string {
@@ -210,11 +230,11 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	// docs/adr/0101-go-release-handoff.md:102.
 	digest, err := digestFile(ctx, candidate.raw, 256<<20)
 	if err != nil || digest != candidate.digest {
-		fmt.Fprintln(stderr, "factory candidate: authenticated executable changed")
+		_ = writeDiagnostic(stderr, "factory candidate: authenticated executable changed\n")
 		return 1
 	}
 	if err := os.Chmod(candidate.raw, 0700); err != nil { // #nosec G302 -- This exact owner-only executable was authenticated against the pinned official release before chmod.
-		fmt.Fprintln(stderr, "factory candidate: cannot make authenticated handoff executable: "+err.Error())
+		_ = writeDiagnostic(stderr, "factory candidate: cannot make authenticated handoff executable: %s\n", err)
 		return 1
 	}
 	env := withoutCache(environment)
@@ -228,7 +248,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 func inheritedHandoff(ctx context.Context, candidate *acquired, args []string, env map[string]string, stdin io.Reader, stdout, stderr io.Writer, prefix string) int {
 	root, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintln(stderr, prefix+": cannot resolve handoff working directory: "+err.Error())
+		_ = writeDiagnostic(stderr, "%s: cannot resolve handoff working directory: %s\n", prefix, err)
 		return 1
 	}
 	var result native.Execution
@@ -236,7 +256,7 @@ func inheritedHandoff(ctx context.Context, candidate *acquired, args []string, e
 	outFile, outOK := stdout.(*os.File)
 	errFile, errOK := stderr.(*os.File)
 	if inputOK && outOK && errOK {
-		result, err = native.ExecuteInherited(ctx, root, args, env, native.InheritedStreams{Stdin: inputFile, Stdout: outFile, Stderr: errFile}, time.Hour)
+		result, err = native.ExecuteInheritedCooperative(ctx, root, args, env, native.InheritedStreams{Stdin: inputFile, Stdout: outFile, Stderr: errFile}, time.Hour)
 	} else {
 		// This command's public process boundary uses real inherited descriptors.
 		err = errors.New("candidate handoff requires inherited process streams")
@@ -247,7 +267,11 @@ func inheritedHandoff(ctx context.Context, candidate *acquired, args []string, e
 		if !candidate.options.Local {
 			message = "authenticated handoff did not complete safely"
 		}
-		fmt.Fprintln(stderr, prefix+": "+message)
+		_ = writeDiagnostic(stderr, "%s: %s\n", prefix, message)
+		return 1
+	}
+	if ctx.Err() != nil || result.Outcome != "completed" && result.Outcome != "failed" || *result.ExitCode < 0 {
+		_ = writeDiagnostic(stderr, "%s: selected handoff canceled or incomplete\n", prefix)
 		return 1
 	}
 	return *result.ExitCode

@@ -5607,3 +5607,14 @@ from a nonzero status. ADR 0124 records independent execution witnesses and
 cache preservation before strengthening the existing criterion. A private
 wrong-subject fallback mutant must fail its new guard while retaining every old
 assertion, followed by actual-installer GREEN; no runtime or case-count change.
+
+Decision 139 hosted-qualification refinement: macOS job 124660038324 failed the
+existing no-task orchestration-eval criterion after 5.157 seconds with sanitized
+evaluation-error prose. That trace does not prove the underlying failure, though
+the intentionally non-Git fixture inherits host Git and its five-second probe.
+Own that fixture dependency with an immediate ordinary nonzero, empty-output Git
+result, preserving the fallback in ADR 0077's discovery contract. A delayed
+ambient-Git control must reproduce the failure before fixture correction, then
+remain uninvoked after it. Preserve the frozen oracle, every behavioral assertion,
+case identity, production safety deadline and independent Git-discovery tests;
+do not infer a production fix or a confirmed hosted root cause from this control.

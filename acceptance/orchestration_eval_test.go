@@ -58,7 +58,11 @@ func orchestrationEvalFixture() (string, []string) {
 	writeFixture(filepath.Join(root, "scripts/golden-task-eval.sh"), []byte("#!/bin/sh\nprintf legacy-fallback >&2\nexit 98\n"), 0700)
 	writeFixture(filepath.Join(root, "AGENTS.md"), []byte("Private eval instructions.\n"), 0600)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("review_lane: off\n"), 0600)
-	return root, []string{"PATH=/bin:/usr/bin:/opt/homebrew/bin", "HOME=" + root, "FACTORY_CONFIG=" + filepath.Join(root, "factory.yaml"), "GORACE=atexit_sleep_ms=0"}
+	// These fixtures are intentionally outside Git; own the ordinary nonzero
+	// discovery result instead of host Git startup. per docs/adr/0077-go-command-environment.md:92
+	bin := filepath.Join(root, "bin")
+	writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/sh\n[ \"$#\" -eq 2 ] && [ \"$1\" = rev-parse ] && [ \"$2\" = --show-toplevel ] || exit 99\nexit 128\n"), 0700)
+	return root, []string{"PATH=" + bin + ":/bin:/usr/bin:/opt/homebrew/bin", "HOME=" + root, "FACTORY_CONFIG=" + filepath.Join(root, "factory.yaml"), "GORACE=atexit_sleep_ms=0"}
 }
 
 func orchestrationEval(root string, environment []string, args ...string) cliResult {

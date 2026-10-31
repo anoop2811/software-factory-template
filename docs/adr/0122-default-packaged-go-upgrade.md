@@ -218,3 +218,19 @@ regressions). Also qualify the two internal forced/abnormal cooperative controls
 and the actual selected-hop cancellation separately before the final broader
 pass. Record exact selectors, source hashes, counts and durations; no hosted
 matrix, complete Bash parity or release-readiness claim follows from local runs.
+
+## Review refinement: source-assessment advice follows the current Go owner
+
+The retained six-path legacy source assessment remains read-only and blocked;
+removing `--dry-run` does not apply its partial Go plan or select a script through
+the ordinary Go CLI. Its text must say: "Legacy source assessment is read-only:
+removing --dry-run does not apply this partial Go plan. For a separate
+authenticated packaged Go preview, re-run the same Go executable with upgrade
+--dry-run." This advice requests a fresh separate preview, preserves the
+original Go executable and supplies no apply or installer shortcut.
+
+Keep the existing JSON fields, status, scope, blockers, adoption instructions,
+deterministic output and source-assessment routing unchanged. Strengthen the
+existing public text criterion without adding a case, observe the stale-script
+advice fail before its one-line production correction, and requalify that same
+criterion. This is a presentation correction, not activation of the partial plan.

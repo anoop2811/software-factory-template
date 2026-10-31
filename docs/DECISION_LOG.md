@@ -5523,3 +5523,12 @@ on the current executable; ordinary release semantics have independent public
 criteria. ADR 0122 records this before classification edits. Acceptance remains
 3179 identities; final local current53 and historical25 passes are distinct,
 sequential qualifications, with default-init shared-parser regression included.
+
+
+Decision 137 review refinement: the retained source-assessment text still claimed
+removing --dry-run selects a script, which is false for the ordinary Go upgrade
+owner. ADR 0122 now requires same-Go fresh authenticated preview advice and an
+explicit statement that removing dry-run never applies the partial plan. Preserve
+its JSON/status/scope and all existing current assertions; independent public
+text RED precedes the narrow presentation correction. No new acceptance case,
+route, mutating command, dependency, limit or release change is introduced.

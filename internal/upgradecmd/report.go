@@ -63,6 +63,7 @@ func renderText(report previewReport, confirmed bool) string {
 		fmt.Fprintf(&text, "Recovery counts: sets=%d files=%d bytes=%d\n", inventory.SetCount, inventory.FileCount, inventory.Bytes)
 		text.WriteString("Restorable: false. Prune authorized: false. Integrity observations do not establish transaction authority. No backup changes made.\n")
 	}
-	text.WriteString("Legacy upgrade is separate: removing --dry-run selects the existing upgrade script; it does not apply this Go plan.\n")
+	// docs/adr/0122-default-packaged-go-upgrade.md:224 — source assessment never authorizes apply.
+	text.WriteString("Legacy source assessment is read-only: removing --dry-run does not apply this partial Go plan. For a separate authenticated packaged Go preview, re-run the same Go executable with upgrade --dry-run.\n")
 	return text.String()
 }

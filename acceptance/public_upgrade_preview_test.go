@@ -322,6 +322,10 @@ var _ = Describe("G4 public upgrade preview observations", func() {
 		Expect(strings.ToLower(out.stdout)).To(ContainSubstring("not assessed"))
 		Expect(strings.ToLower(out.stdout)).To(ContainSubstring("legacy"))
 		Expect(out.stdout).To(ContainSubstring("--dry-run"))
+		// per docs/adr/0122-default-packaged-go-upgrade.md:224
+		Expect(out.stdout).To(ContainSubstring("Legacy source assessment is read-only: removing --dry-run does not apply this partial Go plan."))
+		Expect(out.stdout).To(ContainSubstring("For a separate authenticated packaged Go preview, re-run the same Go executable with upgrade --dry-run."))
+		Expect(out.stdout).NotTo(ContainSubstring("selects the existing upgrade script"))
 		Expect(out.stdout).NotTo(ContainSubstring(root))
 		Expect(out.stdout).NotTo(ContainSubstring(source))
 		Expect(upgradePreview(binary, root, args...)).To(Equal(out))

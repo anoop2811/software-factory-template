@@ -18,7 +18,7 @@ import (
 )
 
 func execute(ctx context.Context, verb string, option options, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) (status int) {
-	candidate, err := acquire(ctx, option.tag, environment)
+	candidate, err := acquireWithPolicy(ctx, option.tag, environment, option.requireStable)
 	if err != nil {
 		fmt.Fprintln(stderr, "factory candidate: "+err.Error())
 		return 1
@@ -219,7 +219,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	}
 	env := withoutCache(environment)
 	env["FACTORY_RELEASE_DIR"] = filepath.Dir(candidate.raw)
-	args := append([]string{candidate.raw, verb, "--go-candidate", option.tag}, option.args...)
+	args := append([]string{candidate.raw, verb, option.selector(), option.tag}, option.args...)
 	return inheritedHandoff(ctx, candidate, args, env, stdin, stdout, stderr, "factory candidate")
 }
 

@@ -47,13 +47,12 @@ type options struct {
 	dryRun, json      bool
 	quiescent         bool
 	projectInputs     []string
+	requireStable     bool
 }
 
 // Run keeps acquisition and migration under one explicit public command.
 // docs/adr/0101-go-release-handoff.md:32.
 func Run(parent context.Context, verb string, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
-	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	option, help, err := parse(verb, args)
 	if err != nil {
 		fmt.Fprintln(stderr, "factory candidate: invalid candidate arguments")
@@ -63,6 +62,12 @@ func Run(parent context.Context, verb string, args []string, environment map[str
 		fmt.Fprint(stdout, Usage(verb))
 		return 0
 	}
+	return runSelected(parent, verb, option, environment, stdin, stdout, stderr)
+}
+
+func runSelected(parent context.Context, verb string, option options, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	return execute(ctx, verb, option, environment, stdin, stdout, stderr)
 }
 
@@ -80,6 +85,12 @@ func parse(verb string, args []string) (options, bool, error) {
 	seen := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		// User option termination survives authenticated init handoff.
+		// docs/adr/0118-default-packaged-go-initialization.md:44.
+		if verb == "init" && arg == "--" {
+			result.args = append(result.args, args[i:]...)
+			break
+		}
 		if arg == "--go-candidate" || strings.HasPrefix(arg, "--go-candidate=") {
 			if seen {
 				return result, false, errors.New("repeated candidate selector")
@@ -108,6 +119,9 @@ func parse(verb string, args []string) (options, bool, error) {
 	}
 	if verb == "init" {
 		for _, arg := range result.args {
+			if arg == "--" {
+				break
+			}
 			if arg == "--help" || arg == "-h" {
 				return result, true, nil
 			}

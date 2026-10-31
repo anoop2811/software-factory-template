@@ -99,13 +99,47 @@ func writeFixture(path string, contents []byte, mode os.FileMode) {
 	Expect(os.WriteFile(path, contents, mode)).To(Succeed()) // #nosec G703 -- fixture callers supply test-owned temporary paths, including deliberate path-traversal cases; no external request selects this destination.
 }
 
+// Explicit custody holds retain private evidence when a process group cannot be
+// reconciled. Ordinary fixtures still remove their temporary trees unchanged.
+// per docs/adr/0121-local-upgrade-readiness-boundary.md:49
+var fixtureCleanupHolds = map[string]string{}
+
+func holdFixtureCleanup(path, reason string) {
+	physical, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		path = physical
+	}
+	fixtureCleanupHolds[filepath.Clean(path)] = reason
+}
+
+func cleanupFixtureDirectory(path string) error {
+	if len(fixtureCleanupHolds) == 0 {
+		return os.RemoveAll(path)
+	}
+	physical, err := filepath.EvalSymlinks(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for held, reason := range fixtureCleanupHolds {
+		relative, err := filepath.Rel(physical, held)
+		if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			AddReportEntry("fixture.cleanup-retained", map[string]string{"root": physical, "held": held, "reason": reason}, ReportEntryVisibilityNever)
+			return nil
+		}
+	}
+	return os.RemoveAll(path)
+}
+
 // Bare directories keep component-only fixtures independent without copying CLI
 // executables they never invoke. per docs/adr/0102-parallel-go-qualification.md:51
 func fixtureDirectories() (string, string) {
 	GinkgoHelper()
 	temp, err := os.MkdirTemp("", "factory acceptance ")
 	Expect(err).NotTo(HaveOccurred())
-	DeferCleanup(os.RemoveAll, temp)
+	DeferCleanup(cleanupFixtureDirectory, temp)
 	// macOS /var can be a symlink; compare the child's physical cwd explicitly.
 	temp, err = filepath.EvalSymlinks(temp)
 	Expect(err).NotTo(HaveOccurred())

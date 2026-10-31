@@ -223,8 +223,8 @@ var _ = Describe("Installed runtime root separation", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:435
 	// per docs/adr/0085-go-native-init.md:20
 	// per docs/adr/0085-go-native-init.md:99
-	// per docs/adr/0101-go-release-handoff.md:435
-	It("preserves canonical and application README custody while requiring an explicit installed initializer candidate", func() {
+	// per docs/adr/0118-default-packaged-go-initialization.md:66
+	It("preserves canonical and application README custody when the selected packaged initializer is unavailable", func() {
 		fixture := installedRuntimeCustodyFixture()
 		canonicalPath := filepath.Join(fixture.assets, "README.md")
 		canonical, err := os.ReadFile(canonicalPath)
@@ -234,18 +234,23 @@ var _ = Describe("Installed runtime root separation", func() {
 		readme := []byte("application README is retained verbatim\n")
 		writeFixture(filepath.Join(existing, "README.md"), readme, 0644)
 		before := nativeInitArtifacts(existing)
-		control := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", existing, "--pack=none")
-		Expect(control.status).To(Equal(2), "%+v", control)
-		Expect(control.stdout).To(BeEmpty(), "a missing candidate selection must refuse before initializer prompts")
-		Expect(control.stderr).To(ContainSubstring("--go-candidate"))
+		tools := filepath.Join(filepath.Dir(fixture.root), "unavailable release tools")
+		trace := filepath.Join(filepath.Dir(fixture.root), "initializer gh arguments")
+		writeFixture(filepath.Join(tools, "gh"), []byte("#!/bin/sh\nprintf '%s\\0' \"$@\" > \"$INIT_CUSTODY_GH_TRACE\"\nexit 43\n"), 0700)
+		environment := []string{"PATH=" + tools + string(os.PathListSeparator) + "/usr/bin:/bin", "INIT_CUSTODY_GH_TRACE=" + trace}
+		control := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), environment, "init", existing, "--pack=none")
+		Expect(control.status).To(Equal(1), "%+v", control)
+		Expect(control.stdout).To(BeEmpty(), "unavailable authenticated selection must refuse before initializer prompts")
 		Expect(nativeInitArtifacts(existing)).To(Equal(before))
 		empty := filepath.Join(filepath.Dir(fixture.root), "empty project")
-		actual := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), nil, "init", empty, "--pack=none")
-		Expect(actual.status).To(Equal(2), "%+v", actual)
+		actual := installedRuntimeInvoke(fixture, nativeInitAnswers("n"), environment, "init", empty, "--pack=none")
+		Expect(actual.status).To(Equal(1), "%+v", actual)
 		Expect(actual.stdout).To(BeEmpty())
-		Expect(actual.stderr).To(ContainSubstring("--go-candidate"))
+		arguments, err := os.ReadFile(trace)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Split(strings.TrimSuffix(string(arguments), "\x00"), "\x00")).To(ContainElement("repos/anoop2811/software-factory-template/commits/refs/tags/v9.8.0"))
 		_, err = os.Lstat(empty)
-		Expect(os.IsNotExist(err)).To(BeTrue(), "refusal must not create the target")
+		Expect(os.IsNotExist(err)).To(BeTrue(), "failed selected release must not create the target or fall back to canonical scripts")
 		retainedCanonical, err := os.ReadFile(canonicalPath)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(retainedCanonical).To(Equal(canonical))

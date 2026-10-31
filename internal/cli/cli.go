@@ -21,7 +21,6 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/evalcmd"
-	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/installationcmd"
 	"github.com/anoop2811/software-factory-template/internal/installedproof"
 	"github.com/anoop2811/software-factory-template/internal/metricscmd"
@@ -92,12 +91,12 @@ var scripts = map[string]string{
 // Run routes the legacy first command token without reinterpreting script flags.
 // Cobra defaults must not change this contract. specs/001-go-runtime-conversion.md:293.
 type installationKey struct{}
-type installationContext struct{ root, assets string }
+type installationContext struct{ root, assets, version string }
 
 // RunInstalled receives the validated physical context; no environment value grants it.
 // docs/adr/0098-whole-installation-upgrade-and-rollback.md:109.
-func RunInstalled(ctx context.Context, args []string, root, assets string) int {
-	return Run(context.WithValue(ctx, installationKey{}, installationContext{root, assets}), args)
+func RunInstalled(ctx context.Context, args []string, root, assets, version string) int {
+	return Run(context.WithValue(ctx, installationKey{}, installationContext{root: root, assets: assets, version: version}), args)
 }
 func assetDirectory(ctx context.Context) (string, error) {
 	if selected, ok := ctx.Value(installationKey{}).(installationContext); ok {
@@ -290,25 +289,14 @@ func Run(ctx context.Context, args []string) int {
 					status = doctorcmd.Run(cmd.Context(), configuredcmd.CaptureEnvironment(), os.Stdout, os.Stderr)
 					return nil
 				}
-				// Native init uses assets beside the invoked source-built executable.
-				// docs/adr/0085-go-native-init.md:24.
+				// Ordinary Go init selects an authenticated packaged initializer.
+				// docs/adr/0118-default-packaged-go-initialization.md:9.
 				if name == "init" {
-					// Installed init cannot republish the inert Bash scaffold.
-					// docs/adr/0101-go-release-handoff.md:435.
-					if _, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
-						if len(forwarded) == 1 && (forwarded[0] == "--help" || forwarded[0] == "-h") {
-							fmt.Fprint(os.Stdout, releasecmd.Usage("init"))
-						} else {
-							fmt.Fprintln(os.Stderr, "factory init: select an authenticated Go release with factory init [TARGET] --go-candidate TAG")
-							status = 2
-						}
-						return nil
+					version := ""
+					if selected, installed := cmd.Context().Value(installationKey{}).(installationContext); installed {
+						version = selected.version
 					}
-					directory, err := assetDirectory(cmd.Context())
-					if err != nil {
-						return err
-					}
-					status = initcmd.Run(cmd.Context(), forwarded, directory, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					status = releasecmd.RunDefaultInit(cmd.Context(), forwarded, version, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
 					return nil
 				}
 				// Source-built budget/loop commands do not select colocated scripts.

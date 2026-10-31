@@ -365,8 +365,8 @@ var _ = Describe("Go explicit local source initialization", Ordered, ContinueOnF
 		localInitNoAcquisition(f)
 	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
 
-	// per docs/adr/0116-explicit-go-local-initialization.md:36
-	It("retains ordinary source initialization and authenticated candidate routing with the compiler poisoned", func() {
+	// per docs/adr/0118-default-packaged-go-initialization.md:66
+	It("retains native initializer component and authenticated candidate routing with the compiler poisoned", func() {
 		ordinarySource, target, environment := nativeInitFixture()
 		for _, entry := range environment {
 			if value, ok := strings.CutPrefix(entry, "PATH="); ok {

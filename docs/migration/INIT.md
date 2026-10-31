@@ -1,34 +1,48 @@
 # Native Go initialization
 
-Source initialization and explicit local-image initialization have different
-delivery behavior. Ordinary source initialization keeps the script installation;
-the explicit local selector below installs its selected Go build.
-
-Decision 84 and [ADR-0085](../adr/0085-go-native-init.md) define the native
-initializer contract. From a factory source checkout, build alongside the
-tracked shell entry point:
+The Go CLI's ordinary `init` selects an authenticated packaged Go initializer.
+The source checkout's tracked shell launcher and the public installer's stable
+v0.1.6 pin retain their existing script behavior until their separate activation.
+Building the Go command does not change either entrypoint:
 
 ```sh
 go build -o factory-go ./cmd/factory
 ./factory-go init /path/to/project --pack go,typescript
 ```
 
-Keep the tracked `factory` file intact. The source-built command needs the
-checkout's template assets beside it. A detached binary without those assets is
-not an installer. This command initializes the project selected by its target
-argument; it is not the read-only upgrade preview.
+Keep the tracked `factory` file intact. Ordinary Go initialization authenticates
+the selected release's complete assets, then runs that exact initializer. It
+does not copy the caller's source templates or require a Go compiler or Python
+at installation time. Git, GitHub CLI authentication/attestation support and
+the tools required by retained gates and project setup are still needed.
+
+Selection order is `--ref TAG`, nonempty `FACTORY_REF`, the admitted installed
+release version, then the prepared source default `v0.2.0`. Explicit and environment
+refs must be exact stable Go tags at or after v0.2.0; `main`, old Bash tags and
+implicit prereleases refuse. An installed official prerelease can reuse its own
+version. A local installation must explicitly choose local source or an official
+release. For a published prerelease, use `--go-candidate TAG` instead:
+
+```sh
+./factory-go init ../new-project --go-candidate v0.2.0-rc.3 --pack go
+./factory-go init --help
+```
+
+The prepared v0.2.0 default is not a publication claim. Until that release exists,
+ordinary source-built init refuses without changing the target. `--help` performs
+no acquisition or target writes. Put a target beginning with an option name after
+`--`; it stays literal through version selection and authenticated handoff.
+Explicit candidate and local selectors take precedence over ambient defaults.
+See [ADR 0118](../adr/0118-default-packaged-go-initialization.md).
 
 The initializer collects project settings, waits for confirmation, installs the
 selected packs and factory assets, synchronizes OpenCode, Claude Code and Codex,
 and requires the installed gate selftests to pass. It does not invoke a model.
-Dependency installation through npm and shared synchronization/review-lane scripts
-remain explicit external operations. A nonzero attestation result means the
-installation has not passed its checks; no automatic rollback is claimed.
-
-Native source initialization does not activate Go in the destination. The installed
-entry point remains the template's existing shell dispatcher until the separate
-runtime cutover is qualified. Existing installation upgrades, migration recovery
-creation, rollback and retention remain separate work.
+Dependency installation through npm and declared shared operations remain
+external boundaries. A failed initialization is not a completed installation;
+once publication starts, preserve its pending barrier and backups for recovery.
+No automatic initializer rollback is claimed. Existing installation upgrades,
+migration recovery, rollback and retention remain separate commands.
 
 ## Initialize from committed local source
 
@@ -52,8 +66,8 @@ dependencies through its declared setup operations.
 The exact built executable performs initialization and installs a
 `local-FULL_REVISION` runtime for the native host target. This is an explicit
 local build, with no publisher authentication claim. `--local --help` explains
-the selector without inspecting source or compiling. Local upgrade is not
-provided by this interface.
+the selector without inspecting source or compiling. For updating an existing
+installation, use the separate [local upgrade interface](../UPGRADING.md).
 
 Before publication, build or validation failures preserve the source and target.
 Once publication begins, an incomplete installation keeps the pending barrier
@@ -67,7 +81,12 @@ configuration inputs must fail before installation writes. Reinitialization back
 are distinct from the migration recovery manifests; they do not establish authority
 to restore or prune an installation.
 
-## Evidence
+## Historical initializer component evidence
+
+The following observations qualify the original native initializer component.
+They do not establish current authenticated default selection. Its historical
+prompt, data, pack and publication cases remain explicit component qualification;
+current packaged delivery has separate public CLI acceptance scenarios.
 
 Independent outside-in tests first observed three failures: the compiled command
 still executed a poisoned legacy initializer. The corrected command does not

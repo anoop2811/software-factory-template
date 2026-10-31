@@ -66,6 +66,9 @@ func nativeInitFixture() (string, string, []string) {
 	Expect(err).NotTo(HaveOccurred())
 	writeFixture(filepath.Join(source, "scripts/lib/runtime_transition.py"), shim, 0600)
 	writeFixture(filepath.Join(source, "factory-go"), candidateBinary, 0700)
+	// Historical component process; actual factory-go remains the shipping CLI for other commands.
+	// per docs/adr/0118-default-packaged-go-initialization.md:66
+	writeFixture(filepath.Join(source, "factory-init-component"), nativeInitComponent(), 0700)
 	original, err := os.ReadFile(filepath.Join(source, "scripts/factory-init.sh"))
 	Expect(err).NotTo(HaveOccurred())
 	writeFixture(filepath.Join(source, "scripts/factory-init-legacy.sh"), original, 0700)
@@ -94,7 +97,7 @@ func nativeInitRun(source, target, input string, environment, args []string) cli
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), append([]string{"init", target}, args...)...) // #nosec G204 -- isolated compiled CLI fixture path and literal argv, no shell.
+	command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), append([]string{"init", target}, args...)...) // #nosec G204 -- isolated compiled CLI fixture path and literal argv, no shell.
 	command.Dir = filepath.Dir(source)
 	command.Env = environment
 	command.Stdin = strings.NewReader(input)
@@ -666,7 +669,7 @@ var _ = Describe("Native Go init input and child ownership", func() {
 		source, target, environment := nativeInitFixture()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		reader, writer, err := os.Pipe()
@@ -703,7 +706,7 @@ var _ = Describe("Native Go init input and child ownership", func() {
 		environment = append(environment, "INIT_PID_MARKER="+marker)
 		writeFixture(filepath.Join(source, "scripts/selftest/run.sh"), []byte("#!/bin/sh\nprintf '%s' \"$$\" > \"$INIT_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI, fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		command.Stdin = strings.NewReader(nativeInitAnswers("y"))
@@ -755,7 +758,7 @@ var _ = Describe("Native Go init installed attestation", func() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		command.Stdin = strings.NewReader(nativeInitAnswers("y"))
@@ -804,7 +807,7 @@ var _ = Describe("Native Go init blocked prompt cancellation", func() {
 	DescribeTable("stops waiting for an inherited answer without creating the target", func(signal syscall.Signal) {
 		source, target, environment := nativeInitFixture()
 		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-		command := exec.CommandContext(ctx, filepath.Join(source, "factory-go"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
+		command := exec.CommandContext(ctx, filepath.Join(source, "factory-init-component"), "init", target, "--pack", "none") // #nosec G204 -- isolated compiled CLI and fixed literal arguments.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		reader, writer, err := os.Pipe()
@@ -896,7 +899,7 @@ var _ = Describe("Native Go init terminal input", func() {
 		captured := filepath.Join(filepath.Dir(source), "redirected-output")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "python3", "-B", "-c", driver, filepath.Join(source, "factory-go"), target, nativeInitAnswers("y"), mode, captured) // #nosec G204 -- fixed test-only PTY driver; literal fixture paths, no evaluated input.
+		command := exec.CommandContext(ctx, "python3", "-B", "-c", driver, filepath.Join(source, "factory-init-component"), target, nativeInitAnswers("y"), mode, captured) // #nosec G204 -- fixed test-only PTY driver; literal fixture paths, no evaluated input.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		output, err := command.CombinedOutput()
@@ -1096,7 +1099,7 @@ var _ = Describe("Native Go init interactive review choice", func() {
 		input := nativeInitInput(fields, nil, "y") + model + "\n"
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "python3", "-B", "-c", nativeInitPTYDriver, filepath.Join(source, "factory-go"), target, input, "terminal", filepath.Join(filepath.Dir(source), "unused-output")) // #nosec G204 -- fixed test-only PTY driver, literal fixture args.
+		command := exec.CommandContext(ctx, "python3", "-B", "-c", nativeInitPTYDriver, filepath.Join(source, "factory-init-component"), target, input, "terminal", filepath.Join(filepath.Dir(source), "unused-output")) // #nosec G204 -- fixed test-only PTY driver, literal fixture args.
 		command.Env = environment
 		command.Dir = filepath.Dir(source)
 		output, err := command.CombinedOutput()

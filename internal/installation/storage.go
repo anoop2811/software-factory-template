@@ -133,6 +133,9 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 			return journal{}, conflict("invalid installation row phase")
 		}
 	}
+	if !knownRoleEntries(record.Entries) {
+		return journal{}, conflict("installation journal omits complete reviewed selection")
+	}
 	for _, check := range record.Checks {
 		if check.Name != "candidate-help" && check.Name != "installed-assets" && check.Name != "native-gate-proof" && check.Name != "state-compatibility" {
 			return journal{}, conflict("unknown installation check")
@@ -150,12 +153,7 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 	return record, nil
 }
 func selectedPath(path string) bool {
-	for _, row := range roles {
-		if row.Path == path {
-			return true
-		}
-	}
-	return false
+	return rolePath(roles, path) || rolePath(rolesV1, path)
 }
 func imageEqual(a, b *Image, identities bool) bool {
 	if a == nil || b == nil {

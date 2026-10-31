@@ -29,6 +29,14 @@ func parseArguments(args []string) (options, error) {
 		arg := args[0]
 		args = args[1:]
 		switch {
+		case arg == "--":
+			// Keep terminated targets literal at the final initializer receiver.
+			// The legacy last-target rule still applies to multiple operands.
+			// docs/adr/0118-default-packaged-go-initialization.md:44.
+			if len(args) > 0 {
+				o.target = args[len(args)-1]
+			}
+			args = nil
 		case arg == "--java-build-tool":
 			if len(args) == 0 {
 				return o, &usageFailure{"--java-build-tool requires maven or gradle"}

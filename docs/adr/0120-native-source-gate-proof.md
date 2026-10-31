@@ -6,7 +6,7 @@ Date: 2026-10-30 UTC
 
 ## Bounded function
 
-Deliver Task 6 of the incremental cutover as a separate PR. The source-built
+Deliver the source gate-proof controller as a separate PR. The source-built
 Go CLI's `factory selftest` must exercise the fourteen required core gate
 violation/healthy-control pairs through the same native engine used by an
 installed runtime. It must not execute `scripts/selftest/run.sh`, compile a

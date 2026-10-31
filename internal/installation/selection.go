@@ -23,10 +23,7 @@ func PrivateIgnoreRules() []string {
 
 // Selection shares the reviewed role generators between fresh init and upgrades.
 func Selection(ctx context.Context, image staging.Inspection, inputs map[string]string) ([]SelectedAsset, error) {
-	if isRecipeV1(image) {
-		return selectionForRoles(ctx, image, inputs, rolesV1)
-	}
-	return selectionForRoles(ctx, image, inputs, roles)
+	return selectionForRoles(ctx, image, inputs, rolesForImage(image))
 }
 
 // Historical selections keep their own role and descriptor closure.

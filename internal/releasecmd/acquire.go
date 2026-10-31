@@ -79,6 +79,13 @@ func (a *acquired) failed(err error) error {
 // Acquisition authenticates independent inputs before closed-world staging.
 // docs/adr/0101-go-release-handoff.md:94, docs/adr/0101-go-release-handoff.md:119.
 func acquire(ctx context.Context, tag string, environment map[string]string) (result *acquired, returned error) {
+	return acquireWithPolicy(ctx, tag, environment, false)
+}
+
+// Ordinary refs require stable publisher metadata at every authenticated hop.
+// Explicit candidate and historical acquisition keep their existing policy.
+// docs/adr/0118-default-packaged-go-initialization.md:30.
+func acquireWithPolicy(ctx context.Context, tag string, environment map[string]string, requireStable bool) (result *acquired, returned error) {
 	// Installed predecessor versions are untrusted hints too.
 	// docs/adr/0101-go-release-handoff.md:485.
 	if !validTag(tag) {
@@ -128,11 +135,15 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 	if !revisionPattern.MatchString(sha) {
 		return nil, errors.New("invalid candidate source revision")
 	}
-	release, err := gh(ctx, 512, "release", "view", tag, "--repo", officialRepository, "--json", "tagName,isDraft", "--jq", "[.tagName,.isDraft]|@tsv")
+	fields, query, expected := "tagName,isDraft", "[.tagName,.isDraft]|@tsv", tag+"\tfalse\n"
+	if requireStable {
+		fields, query, expected = "tagName,isDraft,isPrerelease", "[.tagName,.isDraft,.isPrerelease]|@tsv", tag+"\tfalse\tfalse\n"
+	}
+	release, err := gh(ctx, 512, "release", "view", tag, "--repo", officialRepository, "--json", fields, "--jq", query)
 	if err != nil {
 		return nil, err
 	}
-	if string(release) != tag+"\tfalse\n" {
+	if string(release) != expected {
 		return nil, errors.New("candidate release is unavailable")
 	}
 	assetTarget := strings.ReplaceAll(target, "/", "-")

@@ -78,7 +78,7 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 	proposal := Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: authentication, Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}
 	result = plan{proposal: proposal, image: image, payload: map[string][]byte{}, before: map[string][]byte{}, rootIdentity: id, request: request, reference: reference}
 	seen := map[string]bool{}
-	for _, role := range roles {
+	for _, role := range rolesForImage(image) {
 		if err := ctx.Err(); err != nil {
 			return plan{}, err
 		}

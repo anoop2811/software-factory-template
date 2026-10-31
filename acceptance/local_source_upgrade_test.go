@@ -67,7 +67,10 @@ func localUpgradePrepare() localUpgradeFixture {
 	paused := strings.Replace(string(transactionData), needle, "owner.journalImage, err = saveJournal(ctx, owner.tree, owner.record, owner.journalImage)\n\tif err == nil { err = owner.independentLocalUpgradePause(ctx) }\n\treturn err", 1)
 	Expect(paused).NotTo(Equal(string(transactionData)))
 	paused = strings.Replace(paused, "func (capability *Capability) Complete(ctx context.Context) error {", "func (capability *Capability) Complete(ctx context.Context) error {\n _, _ = os.Stderr.WriteString("+fmt.Sprintf("%q", localUpgradeApplyMarker+"\n")+")", 1)
-	writeFixture(transaction, []byte(paused), 0644)
+	publication := "\tnewPending := owner.pending == nil"
+	admitted := strings.Replace(paused, publication, "\tif err := owner.independentLocalUpgradeAdmission(ctx); err != nil { return err }\n"+publication, 1)
+	Expect(admitted).NotTo(Equal(paused))
+	writeFixture(transaction, []byte(admitted), 0644)
 	hook := strings.ReplaceAll(localUpgradePauseSource, "INDEPENDENT_CONTROL_PATH", fmt.Sprintf("%q", control))
 	writeFixture(filepath.Join(source, "internal/installation/independent_local_upgrade_fixture.go"), []byte(hook), 0644)
 	imageGit(source, "add", "internal/installation/proposal.go", "internal/installation/transaction.go", "internal/installation/independent_local_upgrade_fixture.go")
@@ -208,22 +211,30 @@ func localUpgradeCompiler(f handoffBootstrapFixture, image handoffReleaseImage, 
 // per docs/adr/0117-explicit-go-local-upgrade.md:78
 const localUpgradePauseSource = `package installation
 import("context";"encoding/json";"os";"syscall";"time")
+func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)error{
+ data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
+ var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
+ if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""{return nil}
+ group,err:=syscall.Getpgid(0);if err!=nil{return err}
+ receipt:=map[string]any{"pid":os.Getpid(),"group":group,"root":owner.root,"migration":owner.record.MigrationID,"phase":"publisher-admitted","source":owner.request.Source.Archive,"before":owner.request.Before.Archive,"at":time.Now().UTC().Format(time.RFC3339Nano)}
+ data,err=json.Marshal(receipt);if err!=nil{return err};if err=os.WriteFile(c.Ready+".admitted.tmp",data,0600);err!=nil{return err};return os.Rename(c.Ready+".admitted.tmp",c.Ready+".admitted")
+}
 func(owner *transaction)independentLocalUpgradePause(ctx context.Context)error{
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
  var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
  if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""||owner.record.Phase!="applying"{return nil}
  applied:=0;for _,row:=range owner.record.Entries{if row.Phase=="applied"{applied++}};if applied<2{return nil}
  group,err:=syscall.Getpgid(0);if err!=nil{return err}
- receipt:=map[string]any{"pid":os.Getpid(),"group":group,"root":owner.root,"migration":owner.record.MigrationID,"phase":owner.record.Phase,"applied":applied,"source":owner.request.Source.Archive,"before":owner.request.Before.Archive}
+ receipt:=map[string]any{"pid":os.Getpid(),"group":group,"root":owner.root,"migration":owner.record.MigrationID,"phase":owner.record.Phase,"applied":applied,"source":owner.request.Source.Archive,"before":owner.request.Before.Archive,"at":time.Now().UTC().Format(time.RFC3339Nano)}
  data,err=json.Marshal(receipt);if err!=nil{return err};if err=os.WriteFile(c.Ready+".tmp",data,0600);err!=nil{return err};if err=os.Rename(c.Ready+".tmp",c.Ready);err!=nil{return err}
  for{select{case<-ctx.Done():return ctx.Err();case<-time.After(10*time.Millisecond):if _,err:=os.Stat(c.Ready+".release");err==nil{return nil}}}
 }
 `
 
 type localUpgradeWorkerReceipt struct {
-	PID, Group                             int
-	Root, Migration, Phase, Source, Before string
-	Applied                                int
+	PID, Group                                 int
+	Root, Migration, Phase, Source, Before, At string
+	Applied                                    int
 }
 
 func localUpgradeRecoveryArgs(stderr string) []string {
@@ -374,6 +385,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:34
+	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:171
 	It("refuses missing or mismatched predecessor inputs and preserves required customized entries", func() {
 		before := fixture.goPredecessor(false)
 		f, driver, root := before.f, before.driver, before.root
@@ -406,7 +418,18 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(beforeDirty.stderr).To(Or(ContainSubstring("dirty"), ContainSubstring("uncommitted")))
 		Expect(installationSnapshot(dirtyBefore)).To(Equal(dirtySnapshot))
 		Expect(installationSnapshot(root)).To(Equal(snapshot))
-		path := ".factory/assets/scaffold/scripts/lib/loop.py"
+		unownedPath := ".factory/assets/scaffold/scripts/lib/loop.py"
+		unownedData := []byte("operator maintained unowned cache; never execute\n")
+		writeFixture(filepath.Join(root, filepath.FromSlash(unownedPath)), unownedData, 0600)
+		unownedSnapshot := installationSnapshot(root)
+		unowned := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(localUpgradeArgs(fixture.source, fixture.beforeSource), "--dry-run", "--json")...))
+		Expect(unowned["blockers"]).To(BeEmpty())
+		Expect(unowned["checks"]).To(ContainElement(localUpgradePlanMarker))
+		Expect(os.ReadFile(filepath.Join(root, filepath.FromSlash(unownedPath)))).To(Equal(unownedData))
+		Expect(installationSnapshot(root)).To(Equal(unownedSnapshot), "omitted cache data remains unowned and the preview remains read-only")
+		AddReportEntry("local-upgrade.unowned-cache-preview", map[string]any{"path": unownedPath, "status": 0, "project_snapshot_unchanged": true}, ReportEntryVisibilityNever)
+		path := ".factory/assets/scaffold/templates/metrics.html"
+		Expect(filepath.Join(root, filepath.FromSlash(path))).To(BeAnExistingFile())
 		custom := []byte("operator maintained required cache; never execute\n")
 		writeFixture(filepath.Join(root, filepath.FromSlash(path)), custom, 0600)
 		edited := installationSnapshot(root)
@@ -673,35 +696,125 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		command := handoffCommand(ctx, root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
+		command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }
 		Expect(command.Start()).To(Succeed())
-		finished := make(chan error, 1)
-		go func() { finished <- command.Wait() }()
-		DeferCleanup(func() { _ = command.Process.Kill() })
-		Eventually(func() bool {
-			select {
-			case err := <-finished:
-				StopTrying(fmt.Sprintf("caller exited before selected worker durable READY: %v stderr=%q", err, stderr.String())).Now()
-			default:
-			}
-			_, err := os.Stat(ready)
-			return err == nil
-		}, 60*time.Second).Should(BeTrue())
-		data, err := os.ReadFile(ready)
-		Expect(err).NotTo(HaveOccurred())
-		var receipt localUpgradeWorkerReceipt
-		Expect(json.Unmarshal(data, &receipt)).To(Succeed())
-		Expect(receipt.PID).NotTo(Equal(command.Process.Pid), "signal actual selected transaction worker, not inherited-stream waiter")
-		Expect(receipt.Group).To(Equal(receipt.PID))
-		DeferCleanup(func() {
-			group, err := syscall.Getpgid(receipt.PID)
-			if errors.Is(err, syscall.ESRCH) {
-				return
+		// Acquisition and preflight share the unchanged whole-command deadline;
+		// publication gets its own unchanged allowance only after actual admission.
+		// per docs/adr/0121-local-upgrade-readiness-boundary.md:25
+		finished := make(chan struct{})
+		var returned error
+		go func() { returned = command.Wait(); close(finished) }()
+		phase := "awaiting publisher admission"
+		var admission, receipt localUpgradeWorkerReceipt
+		readReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+			data, err := os.ReadFile(path)
+			if os.IsNotExist(err) {
+				return false
 			}
 			Expect(err).NotTo(HaveOccurred())
-			Expect(group).To(Equal(receipt.Group))
-			err = syscall.Kill(-group, syscall.SIGKILL)
-			Expect(err == nil || errors.Is(err, syscall.ESRCH)).To(BeTrue())
-		})
+			Expect(json.Unmarshal(data, target)).To(Succeed())
+			return true
+		}
+		groupAbsent := func(value localUpgradeWorkerReceipt) (bool, error) {
+			if value.PID <= 0 || value.Group != value.PID {
+				return false, errors.New("no admitted selected process group")
+			}
+			err := syscall.Kill(-value.Group, 0)
+			if errors.Is(err, syscall.ESRCH) {
+				return true, nil
+			}
+			return false, err
+		}
+		defer func() {
+			// Snapshot phase first; inspect captured output only after Wait, and
+			// retain every owned input if process-group absence is unproven.
+			admissionData, admissionErr := os.ReadFile(ready + ".admitted")
+			durableData, durableErr := os.ReadFile(ready)
+			owned := admission
+			if owned.PID == 0 && admissionErr == nil {
+				_ = json.Unmarshal(admissionData, &owned)
+			}
+			absentBefore, probeBefore := groupAbsent(owned)
+			deadline, _ := ctx.Deadline()
+			// On success this sample follows later recovery; a negative value is
+			// not the duration of the already-reaped original command.
+			remaining := time.Until(deadline).Seconds()
+			waited := false
+			select {
+			case <-finished:
+				waited = true
+			default:
+				_ = command.Process.Signal(syscall.SIGTERM)
+				select {
+				case <-finished:
+					waited = true
+				case <-time.After(10 * time.Second):
+					// Destructive fallback requires the original live leader's
+					// current group identity, not just a remembered numeric PGID.
+					group, err := syscall.Getpgid(owned.PID)
+					if owned.PID > 0 && owned.Group == owned.PID && err == nil && group == owned.Group {
+						_ = syscall.Kill(-group, syscall.SIGKILL)
+					}
+					_ = command.Process.Kill()
+					select {
+					case <-finished:
+						waited = true
+					case <-time.After(10 * time.Second):
+					}
+				}
+			}
+			absentAfter, probeAfter := groupAbsent(owned)
+			if !waited || !absentAfter || probeAfter != nil {
+				reason := fmt.Sprintf("local upgrade custody uncertain: waited=%t group=%d absent=%t probe=%v", waited, owned.Group, absentAfter, probeAfter)
+				for _, path := range []string{f.root, root, fixture.image.work} {
+					holdFixtureCleanup(path, reason)
+				}
+			}
+			observation := map[string]any{
+				"phase": phase, "caller_pid": command.Process.Pid,
+				"admission": string(admissionData), "admission_present": admissionErr == nil,
+				"durable_ready": string(durableData), "durable_ready_present": durableErr == nil,
+				"group_absent_before_cleanup": absentBefore, "group_probe_before_cleanup": fmt.Sprint(probeBefore),
+				"group_absent_after_wait": absentAfter, "group_probe_after_wait": fmt.Sprint(probeAfter),
+				"context_seconds_remaining_at_fixture_cleanup_entry": remaining, "caller_wait_confirmed": waited,
+			}
+			if waited {
+				observation["caller_wait"] = fmt.Sprint(returned)
+				observation["stdout_after_wait"] = stdout.String()
+				observation["stderr_after_wait"] = stderr.String()
+			}
+			AddReportEntry("local-upgrade.publisher-boundary", observation, ReportEntryVisibilityNever)
+			Expect(waited).To(BeTrue(), "native caller must be reaped before fixture disposal")
+			Expect(probeAfter).NotTo(HaveOccurred(), "selected process-group absence must be observable")
+			Expect(absentAfter).To(BeTrue(), "the whole recorded group must settle, including descendants of a reaped leader")
+		}()
+		waitForReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+			select {
+			case <-finished:
+				StopTrying(fmt.Sprintf("caller exited before %s: %v stderr=%q", phase, returned, stderr.String())).Now()
+			default:
+			}
+			return readReceipt(path, target)
+		}
+		deadline, ok := ctx.Deadline()
+		Expect(ok).To(BeTrue())
+		Eventually(func() bool { return waitForReceipt(ready+".admitted", &admission) }, time.Until(deadline)).WithContext(ctx).Should(BeTrue())
+		Expect(admission.PID).NotTo(Equal(command.Process.Pid), "admission must belong to the selected worker")
+		Expect(admission.Group).To(Equal(admission.PID))
+		Expect(admission.Root).To(Equal(root))
+		Expect(admission.Phase).To(Equal("publisher-admitted"))
+		Expect(admission.Source).To(BeAnExistingFile())
+		Expect(admission.Before).To(BeAnExistingFile())
+		phase = "awaiting selected worker durable READY"
+		Eventually(func() bool { return waitForReceipt(ready, &receipt) }, 60*time.Second).WithContext(ctx).Should(BeTrue())
+		Expect(receipt.PID).To(Equal(admission.PID), "the admitted publisher must produce the durable witness")
+		Expect(receipt.Group).To(Equal(admission.Group))
+		Expect(receipt.Migration).To(Equal(admission.Migration))
+		Expect(receipt.Source).To(Equal(admission.Source))
+		Expect(receipt.Before).To(Equal(admission.Before))
+		Expect(receipt.PID).NotTo(Equal(command.Process.Pid), "signal actual selected transaction worker, not inherited-stream waiter")
+		Expect(receipt.Group).To(Equal(receipt.PID))
+		phase = "durable READY observed"
 		Expect(receipt.Root).To(Equal(root))
 		Expect(receipt.Phase).To(Equal("applying"))
 		Expect(receipt.Applied).To(BeNumerically(">=", 2))
@@ -722,11 +835,9 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		}
 		Expect(actualApplied).To(BeNumerically(">=", 2), "READY must follow actual durable publication, not a sleep")
 		Expect(syscall.Kill(receipt.PID, syscall.SIGTERM)).To(Succeed())
-		var returned error
 		select {
-		case returned = <-finished:
+		case <-finished:
 		case <-time.After(10 * time.Second):
-			_ = syscall.Kill(-receipt.Group, syscall.SIGKILL)
 			Fail("selected worker SIGTERM did not return bounded recovery advice")
 		}
 		var exit *exec.ExitError

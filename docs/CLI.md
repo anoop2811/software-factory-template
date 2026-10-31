@@ -13,7 +13,7 @@ on `main` still launches scripts through its tracked `factory` file. Building th
 Go command does not activate it in an existing project. A successful explicit
 `--go-candidate TAG` installation selects the authenticated packaged Go runtime
 behind the same `./factory` entrypoint. The replacement v0.2.0 release and default
-cutover remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
+source/bootstrap cutover remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
 and the [upgrade guide](UPGRADING.md).
 
 The table describes the current Go command surface. Entries marked **Go only**
@@ -26,7 +26,7 @@ can have fewer features than current `main`.
 | Command | When to use it | Example and effects |
 |---|---|---|
 | `help` | Discover the public commands | `./factory help` prints the selected runtime's command list. No model call. |
-| `init` | Set up a new project | `./factory init ../new-project --go-candidate TAG --pack go,typescript` selects a published Go candidate. A Go caller can instead use `init ../new-project --local --source /path/to/clean-factory --pack go` to build committed local source. Both prompt for settings and consent, install the selected runtime and prove gates. May install project dependencies; no model call. See [initialization](migration/INIT.md) for source/script differences and local prerequisites. |
+| `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` authenticates its selected installed release or the prepared source default v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for a published prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
 | `doctor` | Diagnose installed factory health | `./factory doctor` reports armed, inert and stale gates and runs isolated break/fix probes. It does not repair configuration. No model call. |
 | `upgrade` | Update the factory installation | `./factory upgrade --go-candidate TAG --dry-run --json` authenticates a published candidate and previews changes. A Go caller can instead build committed source with `upgrade --local --source DIR --dry-run --json`; Go predecessors additionally need `--before-source DIR`. Applying requires a fresh digest and `--quiescent`; see [UPGRADING.md](UPGRADING.md). Ordinary script updates refresh known framework paths and can overwrite custom edits there; save them first. The public installer pins stable, while direct script upgrade defaults to main. |
 | `sync` **Go only** | Regenerate harness adapters after canonical role/model changes | `./factory sync all`, or select `opencode`, `claude` or `codex`. Writes derived harness files; inspect their diff. Script equivalent: `make sync-harnesses`. See [orchestration](migration/ORCHESTRATION.md). |
@@ -114,9 +114,12 @@ go build -o factory-go ./cmd/factory
 ./factory-go loop --help
 ```
 
-Keep the tracked `factory` launcher intact. Source-built init needs the checkout's
-assets and produces the existing source scaffold; authenticated packaged selection
-is separate. A detached development binary is not an installed release.
+Keep the tracked `factory` launcher intact. Ordinary source-built Go init selects
+an authenticated release rather than copying the checkout's scaffold. The prepared
+default v0.2.0 refuses until published; select an available official prerelease
+with `--go-candidate TAG` or build clean committed source with `--local`. Other
+source commands can still require assets beside the invoked executable. A detached
+development binary does not acquire installed identity.
 
 `cmd/factory-stage` and `cmd/factory-package` are maintainer build/qualification
 utilities. They stage verified artifacts and construct release packages; regular

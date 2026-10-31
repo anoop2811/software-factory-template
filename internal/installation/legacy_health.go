@@ -36,7 +36,7 @@ func (owner *transaction) legacyHealth(ctx context.Context) (returned error) {
 		return err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
-	for _, row := range roles {
+	for _, row := range rolesForImage(owner.planned.image) {
 		if owner.request.Profile == "go-hybrid-v1" {
 			break
 		}

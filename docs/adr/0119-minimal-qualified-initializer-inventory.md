@@ -183,3 +183,8 @@ The resource-isolation qualification in ADR 0121 subsequently separates the two
 durable local-recovery criteria from the remaining eleven local-upgrade criteria.
 This supersedes their earlier co-selection in one CI group; all thirteen cases
 and the complete 3141-case union remain required.
+
+Resolved preparation abandonment may remove its reconciled journal. If it
+remains, qualification must inspect its original generation. An inspection
+error other than not-found is not evidence of absence and must fail the
+criterion rather than bypassing that postcondition.

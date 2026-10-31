@@ -442,9 +442,10 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(call.Focus).To(BeEmpty())
 	} else {
 		Expect(call.Focus).NotTo(BeEmpty())
-		if group == "local-upgrade" {
+		switch group {
+		case "local-upgrade":
 			Expect(call.Skip).NotTo(BeEmpty(), "ordinary local upgrades must not co-select the dedicated durable recovery family")
-		} else if group == "release-handoff" || group == "historical-recipe" || group == "local-init" || group == "local-recovery" || group == "default-init" {
+		case "release-handoff", "historical-recipe", "local-init", "local-recovery", "default-init":
 			Expect(call.Skip).To(BeEmpty())
 		}
 	}

@@ -5377,9 +5377,9 @@ Integration follow-up (2026-10-31 UTC): human merge of #150 is
 `1cf03f52c6580040885b81533e12d82b8f0426d1`. Preserve its ten public
 default-init criteria and all readiness/cleanup corrections. Integrate the
 eight inventory criteria into historical-recipe, giving twelve in that family
-and 3141 total across seven disjoint source partitions. Requalify the merged
-source; prior standalone 3131-case discovery is historical evidence, not the
-new combined registry. Keep the fixed ten-blob predecessor fingerprint intact.
+and 3141 total across seven partitions before Decision 136's recovery split.
+Requalify the source; standalone 3131-case discovery is historical evidence,
+not the combined registry. Keep the fixed ten-blob predecessor fingerprint intact.
 
 Hosted-regression follow-up (2026-10-31 UTC): source run 41161089293 at
 `c55943b` records one outdated expectation in each of the installation and
@@ -5443,3 +5443,9 @@ both OS mappings. Keep each group's existing worker policy and all 90-second,
 60-second, 25-minute and 30-minute limits. No runtime or compiler-environment
 change is required. Extra jobs isolate the resource domain; they do not prove
 why the earlier native run missed admission.
+
+Review follow-up: retain the earlier seven-partition observation as historical,
+cite the native artifact behind the additive scheduling estimate, and distinguish
+legitimate preparation-journal removal from unexpected inspection errors in the
+existing recovery criterion. These clarifications alter no runtime behavior,
+criterion count or deadline.

@@ -128,8 +128,8 @@ This is a resource-isolation guarantee: unrelated compilation-heavy criteria
 cannot be co-selected on the recovery runner. It is not a claim that contention
 caused the original failure or a guarantee of completion on every runner.
 Making the controls serial inside their old job risks exceeding its existing
-allowance; adding their observed durations to 1257.512 seconds gives an estimate
-of 1619.905 seconds against a 1500-second test limit, not a measured prediction.
+allowance: job 124433428007/artifact 13030165136 reports 1257.512s overall plus
+161.498s/200.895s controls, estimating 1619.905s against 1500s, not a measured prediction.
 
 Independent tests first reject the old seven-group execution. Require actual
 eight-way disjoint/exhaustive discovery of the same 3141 identities, local-upgrade

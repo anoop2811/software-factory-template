@@ -293,6 +293,8 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 		Expect(recovered.status).To(Equal(0), "%+v", recovered)
 		if _, err := os.Lstat(journalPath); err == nil {
 			Expect(minimalInventoryJSON(journalPath)["entries"]).To(HaveLen(141))
+		} else {
+			Expect(os.IsNotExist(err)).To(BeTrue(), "a resolved journal may be absent; other inspection errors must not bypass its generation check")
 		}
 		Expect(minimalInitializerCacheFiles(root)).To(HaveLen(85))
 		AddReportEntry("minimal-inventory.old-preparation", map[string]any{"original_rows": 141, "preview_status": replay.status, "recovery_status": recovered.status}, ReportEntryVisibilityNever)

@@ -88,7 +88,18 @@ func syncWriteJSON(root string, value map[string]any) {
 	GinkgoHelper()
 	data, err := json.Marshal(value)
 	Expect(err).NotTo(HaveOccurred())
-	writeFixture(filepath.Join(root, "opencode.json"), data, 0600)
+	// The fixture allocates this root before configuration data is written.
+	// Keep configuration values as data beneath a fixed relative filename.
+	// per docs/adr/0121-local-upgrade-readiness-boundary.md:72
+	directory, err := os.OpenRoot(root)
+	Expect(err).NotTo(HaveOccurred())
+	defer func() { Expect(directory.Close()).To(Succeed()) }()
+	file, err := directory.OpenFile("opencode.json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	Expect(err).NotTo(HaveOccurred())
+	_, err = file.Write(data)
+	closed := file.Close()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(closed).To(Succeed())
 }
 
 func syncClaudeRole(root, role string) (map[string]any, string) {

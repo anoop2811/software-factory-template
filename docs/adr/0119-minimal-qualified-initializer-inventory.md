@@ -136,7 +136,7 @@ Reuse the existing `historical-recipe` Linux/macOS CI lane for these bounded
 ordered scenarios if its observed runtime remains within the existing 25-minute
 test and 30-minute job allowances. Extend only the exact family selector if the
 new feature family needs its own name; do not add a job merely for organization.
-Derive the six-partition census from real Ginkgo identities and preserve full
+Derive the seven-partition census from real Ginkgo identities and preserve full
 union/failure propagation, race checks, worker bounds and reports. Increase no
 deadline, retry, worker, model or budget limit in this function.
 

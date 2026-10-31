@@ -90,7 +90,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         # docs/adr/0116-explicit-go-local-initialization.md:99.
         # docs/adr/0117-explicit-go-local-upgrade.md:94.
-        group: [installation, release-handoff, historical-recipe, local-init, local-upgrade]
+        # docs/adr/0118-default-packaged-go-initialization.md:76.
+        group: [installation, release-handoff, historical-recipe, local-init, local-upgrade, default-init]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

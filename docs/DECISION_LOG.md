@@ -5326,6 +5326,23 @@ The complete local-upgrade suite already passed all thirteen criteria on both
 Linux and macOS at the preceding reviewed source; rerun hosted checks and review
 for the final commit before human merge.
 
+## Decision 131 (2026-10-30 UTC): select packaged Go for ordinary Go initialization
+
+After human merge of #149 as `9be9d0333d018c51dfccea18da966e6138e380ab`,
+deliver ordinary Go initialization as the next complete function. Prepare the
+literal v0.2.0 release selection, carry an admitted installed version, preserve
+explicit candidate/local ownership and release-ref precedence, and reuse the
+authenticated candidate initializer. Unavailable selections preserve the target;
+the public stable installer and source launcher activate in later stages.
+
+ADR 0118 records the selector/terminator, installed-local refusal and help
+contracts before code. Keep existing native initializer component coverage
+through a test-only driver and classify it separately from new actual public Go
+delivery; update old ordinary-init refusal expectations deliberately. Require
+independent public RED, exact selected-runtime proof and complete source CI
+partition coverage before human merge. Minimal new inventory and native source
+selftest are independent parallel branches with separate PRs and test authors.
+
 ## Decision 132 (2026-10-30 UTC): minimize new qualified initializer data without retiring existing caches
 
 After human merge of #149 as `9be9d0333d018c51dfccea18da966e6138e380ab`,
@@ -5349,9 +5366,49 @@ before implementation. A historical rollback requiring a changed, missing or
 unsafe old cache asset must refuse before publication and preserve the asset.
 Keep existing backups, trust, admission, consent and expiry policy. Reuse the
 historical-recipe lane if observed runtime fits its existing allowance; prove
-the complete six-partition census and failure propagation without raising caps.
+the complete seven-partition census and failure propagation without raising caps.
 
 Source/default command routing, source selftest, active script retirement,
 release activation and dependency pins remain separate tasks. Independent
 branches may proceed in parallel, with individually reviewed, checked and
 dependency-ordered human merges.
+
+Integration follow-up (2026-10-31 UTC): human merge of #150 is
+`1cf03f52c6580040885b81533e12d82b8f0426d1`. Preserve its ten public
+default-init criteria and all readiness/cleanup corrections. Integrate the
+eight inventory criteria into historical-recipe, giving twelve in that family
+and 3141 total across seven disjoint source partitions. Requalify the merged
+source; prior standalone 3131-case discovery is historical evidence, not the
+new combined registry. Keep the fixed ten-blob predecessor fingerprint intact.
+
+## Decision 134 (2026-10-31 UTC): measure local interruption after publisher admission
+
+PR #150's macOS source job 124380501158 failed only the existing forward local
+upgrade interruption readiness wait. Its sixty-second window begins before
+both local builds, predecessor reconstruction and preflight. The hosted artifact
+does not retain the child phase, so diagnose that measurement boundary through
+a controlled compiler delay rather than asserting an unobserved CI cause.
+
+ADR 0121 authorizes an independent test correction after meaningful RED: observe
+atomic admission at the selected publisher, then time the intended durable
+publication witnesses. Retain the existing ninety-second command context,
+sixty-second publication allowance, both durable rows, live child ownership,
+actual interruption and exact compiler-free recovery. Add failure evidence and
+a missing-witness control. Change no production, compiler, CI or model cap.
+Complete focused and family qualification plus exact-head hosted review before
+human merge.
+
+## Decision 135 (2026-10-31 UTC): confine the fixed sync JSON test writer
+
+PR #150 head `e917e83` passed Linux base behavior but failed configured G703
+lint at generic fixture directory creation. Fresh local Linux-target scans did
+not reproduce the pinned hosted result. Expanded diagnostic tracing identified
+an HTTP callback path connected by a same-signature call-graph edge to the sync
+JSON helper; actual callers allocate independent fixture roots.
+
+ADR 0121 records the evidence and its limits before a bounded test-only repair:
+marshal unchanged configuration data, open the existing fixture root, and write
+literal relative `opencode.json` through `os.Root` with the existing mode. Keep
+all adversarial data scenarios and scanner settings. Require focused behavior,
+configured lint and fresh hosted Linux qualification; change no production,
+dependency, suppression, exclusion or timeout.

@@ -385,6 +385,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:34
+	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:171
 	It("refuses missing or mismatched predecessor inputs and preserves required customized entries", func() {
 		before := fixture.goPredecessor(false)
 		f, driver, root := before.f, before.driver, before.root
@@ -417,7 +418,18 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(beforeDirty.stderr).To(Or(ContainSubstring("dirty"), ContainSubstring("uncommitted")))
 		Expect(installationSnapshot(dirtyBefore)).To(Equal(dirtySnapshot))
 		Expect(installationSnapshot(root)).To(Equal(snapshot))
-		path := ".factory/assets/scaffold/scripts/lib/loop.py"
+		unownedPath := ".factory/assets/scaffold/scripts/lib/loop.py"
+		unownedData := []byte("operator maintained unowned cache; never execute\n")
+		writeFixture(filepath.Join(root, filepath.FromSlash(unownedPath)), unownedData, 0600)
+		unownedSnapshot := installationSnapshot(root)
+		unowned := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(localUpgradeArgs(fixture.source, fixture.beforeSource), "--dry-run", "--json")...))
+		Expect(unowned["blockers"]).To(BeEmpty())
+		Expect(unowned["checks"]).To(ContainElement(localUpgradePlanMarker))
+		Expect(os.ReadFile(filepath.Join(root, filepath.FromSlash(unownedPath)))).To(Equal(unownedData))
+		Expect(installationSnapshot(root)).To(Equal(unownedSnapshot), "omitted cache data remains unowned and the preview remains read-only")
+		AddReportEntry("local-upgrade.unowned-cache-preview", map[string]any{"path": unownedPath, "status": 0, "project_snapshot_unchanged": true}, ReportEntryVisibilityNever)
+		path := ".factory/assets/scaffold/templates/metrics.html"
+		Expect(filepath.Join(root, filepath.FromSlash(path))).To(BeAnExistingFile())
 		custom := []byte("operator maintained required cache; never execute\n")
 		writeFixture(filepath.Join(root, filepath.FromSlash(path)), custom, 0600)
 		edited := installationSnapshot(root)

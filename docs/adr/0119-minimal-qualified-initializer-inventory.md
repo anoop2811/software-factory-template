@@ -153,3 +153,28 @@ current inert cache rows and identical 141-row literal arrays in `roles.go` and
 `internal/reviewlanecmd/mutation.go:83`. The delivery boundary follows
 `docs/adr/0114-incremental-go-cutover-delivery.md:60`; closed reconstruction
 extends `docs/adr/0115-frozen-rc3-recipe-compatibility.md:23`.
+
+## Combined regression obligations
+
+Hosted source run 41161089293 at `c55943b` exposed two remaining tests that
+assume the removed current cache selection. The installation family passed
+97 of 98 criteria; the failing custody fixture reads private `README.md`
+before reaching its refusal assertions. The local-upgrade family passed 12 of
+13 criteria; its current-generation fixture treats omitted private `loop.py`
+as required even though that path is now outside the reviewed selection.
+These observations do not establish an adopter runtime failure.
+
+Align those same criteria with this inventory contract. The unavailable-release
+custody case must snapshot both literal consumed cache files, assert that the
+private README is absent, and retain its authenticated-refusal, request trace,
+no-prompt, application-README and unchanged-target checks. A current-generation
+local upgrade must preserve omitted `loop.py` data as unowned state during a
+read-only preview; customize the required metrics HTML cache to exercise its
+existing status-2 blocker and unchanged-project assertions. Historical 141-row
+images continue to require their original cache and its rollback blockers.
+
+Preserve the existing criteria and their counts, predecessor-input checks,
+literal forwarding checks and source-custody assertions. Retain the hosted RED
+logs and independently run both corrected criteria, then the complete affected
+families and hosted matrix. Change no production code, cache ownership, timeout,
+worker, dependency, model or review limit to satisfy these stale expectations.

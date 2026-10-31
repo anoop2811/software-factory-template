@@ -5381,6 +5381,17 @@ and 3141 total across seven disjoint source partitions. Requalify the merged
 source; prior standalone 3131-case discovery is historical evidence, not the
 new combined registry. Keep the fixed ten-blob predecessor fingerprint intact.
 
+Hosted-regression follow-up (2026-10-31 UTC): source run 41161089293 at
+`c55943b` records one outdated expectation in each of the installation and
+local-upgrade families. The former reads a no-longer-selected private README
+before its refusal probes; the latter expects a newly unowned loop-cache path
+to behave as required. ADR 0119 records their bounded regression alignment
+before test edits: preserve the two consumed files and application README,
+prove omitted data stays read-only, and exercise the required-cache blocker
+with metrics HTML. Keep historical required-cache behavior and all existing
+refusal, source identity, count and custody checks. Require independent local
+and hosted evidence without changing production or limits.
+
 ## Decision 134 (2026-10-31 UTC): measure local interruption after publisher admission
 
 PR #150's macOS source job 124380501158 failed only the existing forward local

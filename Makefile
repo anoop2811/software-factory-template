@@ -31,6 +31,7 @@ GO_RUNTIME_TEST_TIMEOUT ?= 25m
 # docs/adr/0117-explicit-go-local-upgrade.md:94 — isolate complete local upgrades.
 # docs/adr/0118-default-packaged-go-initialization.md:76 — isolate packaged defaults.
 # docs/adr/0122-default-packaged-go-upgrade.md:172 — isolate ordinary upgrades.
+# docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:140 — reuse measured historical headroom.
 GO_RUNTIME_TEST_GROUP ?= all
 # docs/adr/0104-adaptive-qualification-workers.md:22 — resource-aware workers.
 GO_RUNTIME_TEST_PROCS ?= auto
@@ -72,7 +73,7 @@ go-runtime-source-check:
 	go vet ./...; \
 	GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
 		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
-		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance Supported predecessor recipe compatibility( |$$)'; \
+		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance (Supported predecessor recipe compatibility|Qualified obsolete initializer cache retirement)( |$$)'; \
 		GO_LOCAL_INIT_FAMILY='^Go factory command acceptance Go explicit local source initialization( |$$)'; \
 		GO_LOCAL_UPGRADE_FAMILY='^Go factory command acceptance Go explicit local source upgrade( |$$)'; \
 		GO_LOCAL_RECOVERY_FAMILY='^Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler( |$$)'; \

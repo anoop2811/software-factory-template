@@ -39,18 +39,26 @@ func minimalInitializerCacheFiles(root string) []string {
 }
 
 const minimalInventoryPredecessor = "9be9d0333d018c51dfccea18da966e6138e380ab"
+const minimalInventoryGeneration = "777af3871acf1fb09a71c526834a68d46118b1f2"
 
 // Read the actual immutable predecessor instead of using the new generator as
 // an oracle. Only the evaluator builds this trusted setup executable.
 // per docs/adr/0119-minimal-qualified-initializer-inventory.md:35
 func minimalHistoricalImage(after handoffReleaseImage) handoffReleaseImage {
+	return historicalInstallationImage(after, minimalInventoryPredecessor, handoffVersion)
+}
+
+// Only trusted immutable source is rebuilt for historical setup. Current
+// consumers qualify the resulting image; serialized generation counts do not.
+// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:25
+func historicalInstallationImage(after handoffReleaseImage, revision, version string) handoffReleaseImage {
 	GinkgoHelper()
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
-	source := filepath.Join(after.work, "immutable inventory predecessor")
+	source := filepath.Join(after.work, "immutable inventory predecessor-"+revision[:7])
 	imageGit(repository, "clone", "--quiet", "--shared", "--no-checkout", repository, source)
-	imageGit(source, "checkout", "--quiet", "--detach", minimalInventoryPredecessor)
-	binaryPath := filepath.Join(after.work, "immutable-inventory-runtime")
+	imageGit(source, "checkout", "--quiet", "--detach", revision)
+	binaryPath := filepath.Join(after.work, "immutable-inventory-runtime-"+revision[:7])
 	args := []string{"build", "-o", binaryPath, "./cmd/factory"}
 	if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
 		args = append([]string{"build", "-race"}, args[1:]...)
@@ -59,23 +67,28 @@ func minimalHistoricalImage(after handoffReleaseImage) handoffReleaseImage {
 	Expect(built.status).To(Equal(0), "%+v", built)
 	binary, err := os.ReadFile(binaryPath)
 	Expect(err).NotTo(HaveOccurred())
-	assets, payload := installationGitCatalog(repository, minimalInventoryPredecessor)
+	assets, payload := installationGitCatalog(repository, revision)
 	baselines := []imageBaselineOracle{}
 	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
 		ref := after.references[profile]
 		baselines = append(baselines, imageBaselineOracle{profile, ref.revision, ref.assets})
 	}
-	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", handoffVersion, runtime.GOOS + "/" + runtime.GOARCH, minimalInventoryPredecessor, false, assets, baselines}
+	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", version, runtime.GOOS + "/" + runtime.GOARCH, revision, false, assets, baselines}
 	archive := stageArchive(imageFixtureEntries(manifest, payload, binary))
-	archivePath := filepath.Join(after.work, "immutable-inventory-image.tar.gz")
+	archivePath := filepath.Join(after.work, "immutable-inventory-image-"+revision[:7]+".tar.gz")
 	writeFixture(archivePath, archive, 0600)
-	return handoffReleaseImage{binary, archive, archivePath, minimalInventoryPredecessor, after.work, after.references}
+	return handoffReleaseImage{binary, archive, archivePath, revision, after.work, after.references}
 }
 
-func minimalInventoryOldProject(before, after handoffReleaseImage, prepared string) (handoffBootstrapFixture, string, string, []string) {
+func minimalInventoryOldProject(before, after handoffReleaseImage, prepared string, consumers ...handoffReleaseImage) (handoffBootstrapFixture, string, string, []string) {
 	GinkgoHelper()
-	f, driver := handoffNativeFixture(after)
-	cloned := installationCloneLegacyFixture(after.binary, installationFixtureData{root: prepared})
+	Expect(len(consumers)).To(BeNumerically("<=", 1), "historical-project fixture accepts at most one current consumer")
+	consumer := after
+	if len(consumers) == 1 {
+		consumer = consumers[0]
+	}
+	f, driver := handoffNativeFixture(consumer)
+	cloned := installationCloneLegacyFixture(consumer.binary, installationFixtureData{root: prepared})
 	return f, driver, cloned.root, recipeOperands(before, after, handoffVersion)
 }
 
@@ -97,11 +110,12 @@ func minimalInventoryApply(root, driver string, f handoffBootstrapFixture, args 
 	return proposal
 }
 
-func minimalInventoryPrepare() (image, before handoffReleaseImage, prepared string) {
+func minimalInventoryPrepare(patches ...func(string)) (consumer, image, before handoffReleaseImage, prepared string) {
 	GinkgoHelper()
 
-	image = handoffBuildImage()
-	before = minimalHistoricalImage(image)
+	consumer = handoffBuildImage(patches...)
+	before = minimalHistoricalImage(consumer)
+	image = historicalInstallationImage(consumer, minimalInventoryGeneration, handoffVersion)
 	f, driver := handoffNativeFixture(before)
 	prepared = filepath.Join(f.cwd, "genuine full inventory adopter")
 	Expect(os.Mkdir(prepared, 0700)).To(Succeed())
@@ -109,23 +123,20 @@ func minimalInventoryPrepare() (image, before handoffReleaseImage, prepared stri
 	initialized := handoffNativeProcess(f.cwd, f.environment, recipeAnswers, driver, "init", prepared, "--go-candidate", handoffVersion, "--pack", "none")
 	Expect(initialized.status).To(Equal(0), "%+v", initialized)
 	Expect(minimalInitializerCacheFiles(prepared)).To(HaveLen(85))
-	// This inert declaration delta exposes the compatibility boundary before
-	// production roles change; archive checksums remain internally valid.
-	image.archive = handoffRewriteAsset(image.archive, "internal/installation/reference.go", func(body []byte) []byte {
-		return append(body, []byte("\n// independent inventory generation boundary\n")...)
-	})
-	writeFixture(image.archivePath, image.archive, 0600)
-	return image, before, prepared
+	// Historical preservation criteria target the genuine original 58-row
+	// source, while the independent current consumer owns their transaction.
+	// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:135
+	return consumer, image, before, prepared
 }
 
 var _ = Describe("Supported predecessor recipe compatibility minimal qualified initializer inventory", Ordered, ContinueOnFailure, func() {
-	var image, before handoffReleaseImage
+	var consumer, image, before handoffReleaseImage
 	var prepared string
-	BeforeAll(func() { image, before, prepared = minimalInventoryPrepare() })
+	BeforeAll(func() { consumer, image, before, prepared = minimalInventoryPrepare() })
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:118
 	It("publishes only consumed private cache data through the compiled public initializer", func() {
-		f, driver := handoffNativeFixture(image)
+		f, driver := handoffNativeFixture(consumer)
 		root := filepath.Join(f.cwd, "minimal qualified adopter")
 		Expect(os.Mkdir(root, 0700)).To(Succeed())
 		imageGit(root, "init", "--quiet")
@@ -168,7 +179,7 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 	})
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:127
 	It("reconstructs a closed predecessor across the generation boundary through preview apply and exact rollback", func() {
-		f, driver, root, args := minimalInventoryOldProject(before, image, prepared)
+		f, driver, root, args := minimalInventoryOldProject(before, image, prepared, consumer)
 		preserved := map[string][]byte{
 			"docs/inventory-user-note.md":            []byte("user customization\n"),
 			".factory/assets/scaffold/operator-note": []byte("unknown private witness\n"),
@@ -188,7 +199,7 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 		Expect(err).NotTo(HaveOccurred())
 		var record map[string]any
 		Expect(json.Unmarshal(recordBytes, &record)).To(Succeed())
-		Expect(record["entries"]).To(HaveLen(58), "new source generation must own the new journal shape")
+		Expect(record["entries"]).To(HaveLen(58), "the original minimal source generation must keep its 58-row journal shape")
 		afterSnapshot := installationSnapshot(root)
 		for path, value := range snapshot {
 			if strings.HasPrefix(path, ".factory/assets/scaffold/") {
@@ -213,7 +224,7 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:64
 	It("keeps the original complete transaction inventory through newer-consumer rollback and rejects mixed records", func() {
-		f, driver, root, _ := minimalInventoryOldProject(before, image, prepared)
+		f, driver, root, _ := minimalInventoryOldProject(before, image, prepared, consumer)
 		_, oldDriver := handoffNativeFixture(before)
 		oldArgs := recipeOperands(before, before, handoffVersion)
 		const id = "original-complete-inventory"
@@ -264,7 +275,7 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:64
 	It("previews and resolves genuine old preparation evidence without converting its original inventory", func() {
-		f, driver, root, _ := minimalInventoryOldProject(before, image, prepared)
+		f, driver, root, _ := minimalInventoryOldProject(before, image, prepared, consumer)
 		_, oldDriver := handoffNativeFixture(before)
 		args := recipeOperands(before, before, handoffVersion)
 		ignorePath := filepath.Join(root, ".gitignore")
@@ -306,13 +317,13 @@ var _ = Describe("Supported predecessor recipe compatibility minimal qualified i
 // images, roots and journals, so the existing two-worker lane can balance work.
 // per docs/adr/0119-minimal-qualified-initializer-inventory.md:135
 var _ = Describe("Supported predecessor recipe compatibility preserved historical inventory", Ordered, ContinueOnFailure, func() {
-	var image, before handoffReleaseImage
+	var consumer, image, before handoffReleaseImage
 	var prepared string
-	BeforeAll(func() { image, before, prepared = minimalInventoryPrepare() })
+	BeforeAll(func() { consumer, image, before, prepared = minimalInventoryPrepare() })
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:80
 	DescribeTable("preserves an unusable old cache and blocks reverse publication before changing the installation", func(missing bool) {
-		f, driver, root, args := minimalInventoryOldProject(before, image, prepared)
+		f, driver, root, args := minimalInventoryOldProject(before, image, prepared, consumer)
 		path := ".factory/assets/scaffold/scripts/lib/loop.py"
 		absolute := filepath.Join(root, filepath.FromSlash(path))
 		custom := []byte("operator-maintained inert history\n")
@@ -345,7 +356,7 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:35
 	It("refuses every changed or missing closed predecessor member without executing supplied historical code", func() {
-		f, driver, root, args := minimalInventoryOldProject(before, image, prepared)
+		f, driver, root, args := minimalInventoryOldProject(before, image, prepared, consumer)
 		snapshot := installationSnapshot(root)
 		marker := filepath.Join(f.cwd, "untrusted-before-executed")
 		poison := []byte("#!/bin/sh\nprintf executed > '" + marker + "'\nexit 96\n")
@@ -373,15 +384,19 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:85
 	It("retains the older recovery when a preserved historical cache cannot prove the alternate usable", func() {
 		const oldest = "v9.7.0"
-		f, driver := handoffNativeFixture(image)
+		f, driver := handoffNativeFixture(consumer)
 		assets := f.environment["HANDOFF_ASSETS"]
 		for _, version := range []string{oldest, handoffVersion, retentionReleaseC} {
 			part := before
 			if version == retentionReleaseC {
 				part = image
 			}
-			archive := handoffImageBinary(part, part.binary, version)
-			writeFixture(filepath.Join(assets, "factory-bootstrap-"+version+"-"+f.target), part.binary, 0600)
+			binary := consumer.binary
+			if version == oldest {
+				binary = before.binary
+			}
+			archive := handoffImageBinary(part, binary, version)
+			writeFixture(filepath.Join(assets, "factory-bootstrap-"+version+"-"+f.target), binary, 0600)
 			writeFixture(filepath.Join(assets, "factory-installation-"+version+"-"+f.target+".tar.gz"), archive, 0600)
 		}
 		// The two original releases belong to the immutable old revision; only
@@ -395,6 +410,7 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		Expect(rewritten).NotTo(Equal(string(gh)))
 		writeFixture(ghPath, []byte(rewritten), 0700)
 		f.environment["HANDOFF_OLD_REVISION"] = before.revision
+		f.environment["HANDOFF_REVISION"] = image.revision
 		root := filepath.Join(f.cwd, "historical alternate recovery adopter")
 		Expect(os.Mkdir(root, 0700)).To(Succeed())
 		imageGit(root, "init", "--quiet")
@@ -403,6 +419,7 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		Expect(minimalInitializerCacheFiles(root)).To(HaveLen(85))
 		scenario := retentionScenario{f, root}
 		scenario.advance(handoffVersion)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(consumer.binary), "current code owns retention preview, apply and explicit pruning")
 		ids := retentionBackupIDs(root)
 		Expect(ids).To(HaveLen(1))
 		older := ids[0]
@@ -419,6 +436,7 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		Expect(applied.RemovedSets).To(BeZero())
 		Expect(retentionSet(applied, older).Reason).To(ContainSubstring("historical cache"))
 		Expect(minimalInventoryJSON(filepath.Join(root, ".factory/installation.current"))["version"]).To(Equal(retentionReleaseC), "the new installation is healthy; only cleanup is incomplete")
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(consumer.binary), "the final pruning refusal must execute the current consumer")
 		current := installationSnapshot(root)
 		for path, value := range oldBackup {
 			if strings.HasPrefix(path, ".factory/backups/"+older+"/") {

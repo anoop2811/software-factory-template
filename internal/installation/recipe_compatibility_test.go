@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,7 +26,7 @@ func immutableRecipeSource(revision, path string) []byte {
 // Parse inert literal fields rather than evaluating old code or asking the
 // current generator to describe its predecessor.
 // per docs/adr/0119-minimal-qualified-initializer-inventory.md:52
-func immutableRecipeRoles(revision string) []role {
+func immutableRecipeRoles(revision string, expectedRows, expectedCache int) []role {
 	GinkgoHelper()
 	source, err := parser.ParseFile(token.NewFileSet(), "immutable-role-oracle.go", immutableRecipeSource(revision, "internal/installation/roles.go"), 0)
 	Expect(err).NotTo(HaveOccurred())
@@ -92,14 +93,14 @@ func immutableRecipeRoles(revision string) []role {
 		}
 	}
 	Expect(declarations).To(Equal(1))
-	Expect(expected).To(HaveLen(141))
+	Expect(expected).To(HaveLen(expectedRows))
 	cached := 0
 	for _, row := range expected {
 		if row.Operation == "inert-data" {
 			cached++
 		}
 	}
-	Expect(cached).To(Equal(85))
+	Expect(cached).To(Equal(expectedCache))
 	return expected
 }
 
@@ -118,7 +119,7 @@ var _ = Describe("Historical installation recipe integrity", func() {
 		const revision = "95486ecdd3868a319a0e6362ee99cafd8f154200"
 		paths := []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go"}
 		Expect(recipeV1).To(Equal(immutableRecipeHashes(revision, paths)))
-		Expect(rolesV1).To(Equal(immutableRecipeRoles(revision)), "all source/path/generator/mode/required/reason fields and ordering remain frozen")
+		Expect(rolesV1).To(Equal(immutableRecipeRoles(revision, 141, 85)), "all source/path/generator/mode/required/reason fields and ordering remain frozen")
 	})
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:35
@@ -126,11 +127,11 @@ var _ = Describe("Historical installation recipe integrity", func() {
 		const revision = "9be9d0333d018c51dfccea18da966e6138e380ab"
 		paths := []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go", "internal/installation/recipe.go", "internal/installation/roles_v1.go"}
 		Expect(recipeV2).To(Equal(immutableRecipeHashes(revision, paths)), "all ten original source members are required")
-		Expect(rolesV1).To(Equal(immutableRecipeRoles(revision)), "the shared table must equal every independently read immutable role field")
+		Expect(rolesV1).To(Equal(immutableRecipeRoles(revision, 141, 85)), "the shared table must equal every independently read immutable role field")
 	})
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:20
-	It("retains every original noncache role and precisely the two consumed cache roles", func() {
-		original := immutableRecipeRoles("9be9d0333d018c51dfccea18da966e6138e380ab")
+	It("binds the frozen minimal generation to every original noncache and consumed cache role", func() {
+		original := immutableRecipeRoles("9be9d0333d018c51dfccea18da966e6138e380ab", 141, 85)
 		expected := []role{}
 		oldActive, newActive := 0, 0
 		retired := []string{}
@@ -148,13 +149,65 @@ var _ = Describe("Historical installation recipe integrity", func() {
 				newActive++
 			}
 		}
-		Expect(roles).To(Equal(expected), "no active or retirement role changes accompany the 83 removed cache declarations")
+		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:25
+		const minimalRevision = "777af3871acf1fb09a71c526834a68d46118b1f2"
+		paths := []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go", "internal/installation/recipe.go", "internal/installation/roles_v1.go"}
+		Expect(recipeV3).To(Equal(immutableRecipeHashes(minimalRevision, paths)))
+		Expect(rolesV3).To(Equal(immutableRecipeRoles(minimalRevision, 58, 2)), "every original minimal role field and its order stay frozen")
+		Expect(rolesV3).To(Equal(expected), "minimal generation is exactly the independent frozen V1 filter")
 		Expect(expected).To(HaveLen(58))
 		Expect(retired).To(ConsistOf("scripts/lib/budget.py", "scripts/lib/budget_adapters.py", "scripts/lib/loop.py"))
 		Expect(oldActive).To(Equal(138))
 		Expect(newActive).To(Equal(55))
 		Expect(oldActive - 2).To(Equal(136))
 		Expect(newActive - 2).To(Equal(53))
+	})
+
+	// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:51
+	It("declares only the independently known obsolete cache optional retirement while preserving active role fields", func() {
+		original := immutableRecipeRoles("9be9d0333d018c51dfccea18da966e6138e380ab", 141, 85)
+		noncache, obsolete, consumed := []role{}, []role{}, []role{}
+		for _, row := range original {
+			if row.Operation != "inert-data" {
+				noncache = append(noncache, row)
+			} else if row.Source == "templates/metrics.html" || row.Source == "packs/review-lane/review-pr.yml" {
+				consumed = append(consumed, row)
+			} else {
+				obsolete = append(obsolete, row)
+			}
+		}
+		Expect(noncache).To(HaveLen(56))
+		Expect(obsolete).To(HaveLen(83))
+		Expect(consumed).To(HaveLen(2))
+		Expect(roles).To(HaveLen(141))
+		Expect(roles[:56]).To(Equal(noncache))
+		Expect(roles[139:]).To(Equal(consumed))
+		for index, old := range obsolete {
+			current := roles[56+index]
+			Expect(current.Path).To(Equal(old.Path))
+			Expect(current.Operation).To(Equal("retire"))
+			Expect(current.Source).To(BeEmpty())
+			Expect(current.Generator).To(BeEmpty())
+			Expect(current.Mode).To(BeEmpty())
+			Expect(current.Required).To(BeFalse())
+			reason := strings.ToLower(current.Reason)
+			Expect(reason).To(ContainSubstring("cache"))
+			Expect(reason).To(ContainSubstring("qualif"))
+			Expect(reason).To(MatchRegexp("obsolete|unused"))
+		}
+		active, retired := 0, 0
+		for _, row := range roles {
+			if row.Operation == "retire" {
+				retired++
+			} else {
+				active++
+			}
+		}
+		Expect(active).To(Equal(55))
+		Expect(retired).To(Equal(86))
+		Expect(active - 2).To(Equal(53))
+		// Current construction must copy frozen data, not mutate it as a side effect.
+		Expect(rolesV1).To(Equal(original))
 	})
 
 })

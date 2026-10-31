@@ -506,6 +506,753 @@
       "mode": "0644",
       "required": true,
       "reason": "declared shell validation/orchestration boundary or native runtime data"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/agents/implementer.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/agents/refactorer.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/agents/reviewer.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/agents/spec-writer.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/agents/wiki-maintainer.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.codex/config.toml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.githooks/pre-push",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.github/CODEOWNERS",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.github/workflows/ci.yml",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.gitignore",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/.gitignore",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/agent/implementer.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/agent/refactorer.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/agent/reviewer.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/agent/spec-writer.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/agent/wiki-maintainer.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/package.json",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/.opencode/plugin/factory-hooks.ts",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/AGENTS.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/Makefile",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/README.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/docs/BUDGETS.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/docs/FACTORY_RULES.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/docs/LOOPS.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/README.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/task.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/golden-tasks/reference-answer/verify.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/runners/claude.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/runners/codex.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/runners/example-harness.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/runners/mock.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/eval/runners/opencode.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/factory",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/memory/lessons/001-verification-contract.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/opencode.json",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/adversarial-review.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/citation-lint.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-budget.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-doctor.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-init.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-loop.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-metrics.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-migrate-config.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-report.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-review-lane.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/factory-upgrade.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/golden-task-eval.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/harness-structural-eval.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/commit-message-lint.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/copy-manifest-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/decision-log-gate.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/diff-aware-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/direct-main-push-block.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/gate-instrumentation-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/hook-existence-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/loop-close-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/pending-lessons-push-block.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/shared-script-enforcement.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/test-edit-denial.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/wiki-lint.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/hooks/workflow-lint.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/budget-config.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/budget.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/budget_adapters.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/color.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/config.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/events.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/hookspath.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/loop.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/roles.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/runtime_transition.py",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/lib/timing.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/pre-push-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/prereq-check.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/selftest/run.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/sync-claude.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/sync-codex.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/scripts/sync-opencode.sh",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/specs/TEMPLATE.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/wiki/README.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/workflows/README.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/workflows/eval-fanout.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+    },
+    {
+      "source_path": null,
+      "path": ".factory/assets/scaffold/workflows/review-diamond.md",
+      "operation": "retire",
+      "generator": null,
+      "mode": null,
+      "required": false,
+      "reason": "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
     }
   ],
   "canonical_source_assets": [

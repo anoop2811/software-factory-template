@@ -89,6 +89,14 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 		if saved == nil {
 			return result, conflict("preparation journal omits selected path")
 		}
+		opaque, err := result.preserveRetirement(ctx, row, *saved, false)
+		if err != nil {
+			return result, err
+		}
+		if opaque {
+			result.proposal.Actions = append(result.proposal.Actions, Action{Path: row.Path, SourcePath: row.Source, Action: "retain", Reason: retainedRetirementReason})
+			continue
+		}
 		current, _, err := observe(ctx, tree, row.Path, leafLimit(row.Path))
 		if err != nil {
 			return result, err
@@ -168,6 +176,9 @@ func (owner *transaction) completePendingCleanup(ctx context.Context) error {
 		return err
 	}
 	for _, action := range owner.planned.proposal.Actions {
+		if action.Action == "retain" && owner.planned.opaqueRetirements[action.Path] {
+			continue
+		}
 		current, _, err := observe(ctx, owner.tree, action.Path, leafLimit(action.Path))
 		if err != nil {
 			return err

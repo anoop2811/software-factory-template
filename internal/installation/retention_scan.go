@@ -76,7 +76,7 @@ func snapshotRetentionSet(ctx context.Context, tree *installationfs.Tree, id str
 		return result, conflict("backup manifest is unrecognized")
 	}
 	manifest := result.Manifest
-	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != id || manifest.Profile != result.Record.Profile || len(manifest.Entries) != len(roles) || len(result.Record.Entries) != len(roles) {
+	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != id || manifest.Profile != result.Record.Profile || !knownRoleEntries(manifest.Entries) || len(result.Record.Entries) != len(manifest.Entries) {
 		return result, conflict("backup manifest is incomplete")
 	}
 	expected := map[string]bool{"installation.manifest": true}

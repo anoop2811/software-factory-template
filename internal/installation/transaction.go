@@ -262,8 +262,9 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	reverse := owner.request.Rollback != "" || owner.request.Direction == "reverse"
 	if owner.request.Rollback == "" && owner.request.Recover == "" {
 		entries := make([]journalEntry, 0, len(owner.planned.proposal.Actions))
+		recipe := rolesForImage(owner.planned.image)
 		for _, action := range owner.planned.proposal.Actions {
-			if selectedPath(action.Path) {
+			if rolePath(recipe, action.Path) {
 				entries = append(entries, journalEntry{Path: action.Path, Action: action.Action, Phase: "prepared", Before: action.Before, ExpectedAfter: action.After})
 			}
 		}

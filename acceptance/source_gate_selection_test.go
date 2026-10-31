@@ -510,12 +510,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// Thirteen local-upgrade criteria are independently discovered below.
 		// per docs/adr/0117-explicit-go-local-upgrade.md:94
 		// per docs/adr/0109-complete-large-review-inputs.md:72
-		Expect(negativeTotal).To(Equal(3123))
+		Expect(negativeTotal).To(Equal(3131))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3123))
-		expectedCounts := map[string]int{"base": 2954, "installation": 98, "release-handoff": 44, "historical-recipe": 4, "local-init": 10, "local-upgrade": 13}
+		Expect(allTotal).To(Equal(3131))
+		expectedCounts := map[string]int{"base": 2954, "installation": 98, "release-handoff": 44, "historical-recipe": 12, "local-init": 10, "local-upgrade": 13}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

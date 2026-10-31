@@ -5325,3 +5325,33 @@ This is required qualification of the existing boundary in
 The complete local-upgrade suite already passed all thirteen criteria on both
 Linux and macOS at the preceding reviewed source; rerun hosted checks and review
 for the final commit before human merge.
+
+## Decision 132 (2026-10-30 UTC): minimize new qualified initializer data without retiring existing caches
+
+After human merge of #149 as `9be9d0333d018c51dfccea18da966e6138e380ab`,
+publish only the metrics HTML and review-lane workflow data in a new qualified
+installation's private scaffold cache. Keep the complete source image available
+for private initialization planning and retain the project-facing scaffold.
+The current 141-row inventory becomes 58 rows by omitting 83 unused inert cache
+rows; do not delete or adopt existing cache entries in this function.
+
+Freeze the exact current post-RC3 generation before changing role data. Use a
+closed ten-blob fingerprint of immutable `9be9d033`, and independently compare
+its complete ordered roles with the existing frozen `rolesV1` table before
+reusing that identical inert data. Keep the original RC3 vector unchanged and
+unknown predecessor recipes blocked. Share one image-specific role selector
+across selection, descriptors, transactions, recovery and retention; old
+141-row journals/receipts keep their original image generation. Fresh images,
+not serialized row counts, remain qualification authority.
+
+ADR 0119 defines the complete function, production seams and independent RED
+before implementation. A historical rollback requiring a changed, missing or
+unsafe old cache asset must refuse before publication and preserve the asset.
+Keep existing backups, trust, admission, consent and expiry policy. Reuse the
+historical-recipe lane if observed runtime fits its existing allowance; prove
+the complete six-partition census and failure propagation without raising caps.
+
+Source/default command routing, source selftest, active script retirement,
+release activation and dependency pins remain separate tasks. Independent
+branches may proceed in parallel, with individually reviewed, checked and
+dependency-ordered human merges.

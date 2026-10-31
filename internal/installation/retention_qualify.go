@@ -114,7 +114,20 @@ func qualifyRetentionSet(ctx context.Context, tree *installationfs.Tree, snapsho
 	if err != nil {
 		return err
 	}
-	for _, row := range roles {
+	recipe := rolesForImage(afterImage)
+	if !matchesRoleEntries(snapshot.Manifest.Entries, recipe) {
+		return conflict("backup inventory disagrees with freshly qualified source generation")
+	}
+	if completePredecessor {
+		issues, err := preservedPredecessorIssues(ctx, tree, baseline, recipe, inputs)
+		if err != nil {
+			return err
+		}
+		if len(issues) != 0 {
+			return conflict("alternate recovery requires changed, missing or unsafe historical cache; preserved")
+		}
+	}
+	for _, row := range recipe {
 		original, err := matchingManifestEntry(snapshot.Manifest, row.Path)
 		if err != nil {
 			return err

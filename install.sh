@@ -190,7 +190,7 @@ packaged_install() {
   fi
   candidate_gh release view "$candidate_tag" --repo "$candidate_repo" --json "$candidate_fields" --jq "$candidate_query"
   candidate_release=$(cat "$candidate_dir/command.stdout")
-  [ "$candidate_release" = "$candidate_expected" ] || { printf '%s\n' 'install: candidate release is unavailable' >&2; exit 1; }
+  [ "$candidate_release" = "$candidate_expected" ] || { printf 'install: %s release is unavailable\n' "$candidate_policy" >&2; exit 1; }
   candidate_raw=factory-bootstrap-$candidate_tag-$candidate_target
   candidate_image=factory-installation-$candidate_tag-$candidate_target.tar.gz
   candidate_gh release download "$candidate_tag" --repo "$candidate_repo" --pattern "$candidate_raw" --pattern "$candidate_image" --pattern runtime-attestations.jsonl --dir "$candidate_dir"
@@ -444,7 +444,7 @@ exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"
 }
 
 # Classify without shell arithmetic on version components. Native Go repeats
-# this validation; classification must never turn an invalid Go ref into Git.
+# this validation; execution routing must never turn an invalid Go ref into Git.
 # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:43.
 installer_ref_kind() {
   installer_kind=legacy

@@ -5642,3 +5642,9 @@ environment selector and missing/empty explicit --ref operands as refusals;
 retain the prior empty-environment fallback. Reconcile the initial nine ordinary
 criteria with the one later watchdog criterion in the census instructions.
 These wording corrections change no installer behavior, test identity or limit.
+
+Decision 139 operator-message refinement: metadata refusal must name the selected
+stable or candidate policy, preserving the existing candidate diagnostic. Clarify
+the classifier comment as execution routing; bare fetch retains the separate
+Git-only contract. Strengthen the existing stable metadata-refusal criterion
+before the one diagnostic change, without changing routing, counts or limits.

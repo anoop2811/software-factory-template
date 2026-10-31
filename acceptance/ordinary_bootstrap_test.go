@@ -302,6 +302,7 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 	})
 	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:88
 	It("refuses unpublished unstable mismatched or unauthenticated assets before downloaded execution", func() {
+		metadataDiagnostics := map[string]string{}
 		for _, scenario := range []string{"release-absent", "wrong-tag", "draft", "marked-prerelease", "download-fail", "missing-image", "roots-fail", "authentication-fail", "wrong-subject", "malformed-verification"} {
 			f := ordinaryBootstrapSentinel(defaultInitTag, scenario)
 			// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:187
@@ -329,6 +330,15 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 			Expect(os.IsNotExist(sourceErr)).To(BeTrue(), "no cached-source fallback after %s", scenario)
 			Expect(os.IsNotExist(toolErr)).To(BeTrue(), "no forbidden-tool fallback after %s", scenario)
 			Expect(cachedAfter).To(Equal(cached), "preserve cached source after %s", scenario)
+			switch scenario {
+			case "wrong-tag", "draft", "marked-prerelease":
+				metadataDiagnostics[scenario] = result.stderr
+			}
+		}
+		// per docs/DECISION_LOG.md:5646
+		AddReportEntry("ordinary-bootstrap.stable-metadata-diagnostics", metadataDiagnostics, ReportEntryVisibilityNever)
+		for _, scenario := range []string{"wrong-tag", "draft", "marked-prerelease"} {
+			Expect(metadataDiagnostics[scenario]).To(ContainSubstring("install: stable release is unavailable"), "identify the selected stable policy after %s", scenario)
 		}
 	})
 	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:108

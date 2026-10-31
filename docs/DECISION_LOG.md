@@ -5325,3 +5325,20 @@ This is required qualification of the existing boundary in
 The complete local-upgrade suite already passed all thirteen criteria on both
 Linux and macOS at the preceding reviewed source; rerun hosted checks and review
 for the final commit before human merge.
+
+## Decision 131 (2026-10-30 UTC): select packaged Go for ordinary Go initialization
+
+After human merge of #149 as `9be9d0333d018c51dfccea18da966e6138e380ab`,
+deliver ordinary Go initialization as the next complete function. Prepare the
+literal v0.2.0 release selection, carry an admitted installed version, preserve
+explicit candidate/local ownership and release-ref precedence, and reuse the
+authenticated candidate initializer. Unavailable selections preserve the target;
+the public stable installer and source launcher activate in later stages.
+
+ADR 0118 records the selector/terminator, installed-local refusal and help
+contracts before code. Keep existing native initializer component coverage
+through a test-only driver and classify it separately from new actual public Go
+delivery; update old ordinary-init refusal expectations deliberately. Require
+independent public RED, exact selected-runtime proof and complete source CI
+partition coverage before human merge. Minimal new inventory and native source
+selftest are independent parallel branches with separate PRs and test authors.

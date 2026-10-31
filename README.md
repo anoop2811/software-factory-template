@@ -75,7 +75,11 @@ older sets while retaining the immediately preceding usable installation.
 Read the [upgrade and recovery guide](docs/UPGRADING.md) for prerequisites,
 configuration/history preservation, retention exceptions and interrupted upgrades.
 See the [CLI command reference](docs/CLI.md) for the commands available in each
-runtime. Installing the packaged Go factory requires no Go compiler or Python;
+runtime. Ordinary Go `init` now authenticates its selected installed release or
+the prepared v0.2.0 source default. Until v0.2.0 is published, source-built callers
+must select a published candidate or explicit local build. The tracked source
+shell launcher and public stable installer retain their current behavior.
+Installing the packaged Go factory requires no Go compiler or Python;
 product tools and retained validation gates keep their own requirements.
 
 ## Getting started
@@ -99,7 +103,7 @@ options, runtime availability and side effects.
 | Command | Purpose | Example |
 |---|---|---|
 | `help` | List the public commands. | `./factory help` |
-| `init` | Initialize a project, configure its packs and install/prove hooks. Go callers can explicitly build clean committed local source with `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --go-candidate TAG --pack go` |
+| `init` | Initialize a project with its selected authenticated Go release. Override with stable `--ref TAG`, prerelease `--go-candidate TAG` or clean committed `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --pack go` |
 | `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
 | `upgrade` | Authenticate and preview an installation update; apply with fresh confirmation. | `./factory upgrade --go-candidate TAG --dry-run --json` |
 | `sync` **Go only** | Regenerate adapters for `all`, `codex`, `claude` or `opencode`; inspect the resulting diff. | `./factory sync all` |

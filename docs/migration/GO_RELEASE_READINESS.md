@@ -16,6 +16,11 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Explicit committed-local initialization packages clean source and runs its exact
   selected Go initializer; [ADR 0116](../adr/0116-explicit-go-local-initialization.md)
   records focused source qualification. This does not activate ordinary defaults.
+- Ordinary Go initialization selects an authenticated packaged release, with
+  explicit ref/environment precedence and admitted installed-version reuse. The
+  prepared source default v0.2.0 refuses until published; source/bootstrap and
+  public stable activation remain separate. See
+  [ADR 0118](../adr/0118-default-packaged-go-initialization.md).
 - Explicit committed-local upgrade uses the selected build's own planner and
   whole-installation transaction, with exact Go predecessor reconstruction,
   preserved backups and replayable local recovery inputs. See

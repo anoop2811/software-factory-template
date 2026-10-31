@@ -307,12 +307,14 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			_, err = os.Lstat(filepath.Join(target, "scripts/lib", retired))
 			Expect(os.IsNotExist(err)).To(BeTrue(), retired)
 		}
-		// per docs/adr/0101-go-release-handoff.md:435
+		// per docs/adr/0118-default-packaged-go-initialization.md:9
 		other := filepath.Join(f.cwd, "another project")
+		f.environment["HANDOFF_SCENARIO"] = "download-fail"
 		refusal := handoffNativeProcess(target, f.environment, nativeInitAnswers("y"), filepath.Join(target, "factory"), "init", other, "--pack", "none")
-		Expect(refusal.status).NotTo(Equal(0), "%+v", refusal)
+		Expect(refusal.status).To(Equal(1), "%+v", refusal)
 		Expect(refusal.stdout).NotTo(ContainSubstring("Proceed?"))
-		Expect(refusal.stderr).To(ContainSubstring("--go-candidate"))
+		Expect(handoffRecorded(f, "api")).To(ContainElement("repos/anoop2811/software-factory-template/commits/refs/tags/" + handoffVersion))
+		f.environment["HANDOFF_SCENARIO"] = ""
 		_, err = os.Lstat(other)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "installed init must not silently create a legacy Bash selection")
 		help := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "factory"), "init", "--help")

@@ -5672,3 +5672,9 @@ installed execution to the physical hook owner, never to an untrusted subject's
 selector. Reuse bounded cooperative supervision for the known native copy-hook
 controller so parent cancellation cannot discard nested Git custody. Independent
 regressions for these three cases precede their implementation refinements.
+
+Decision 140 hosted review refinement: resnapshot selected copy inputs after Git,
+reject symlinked hook files before sibling loads, and resolve directory aliases
+physically before owner traversal. Extend exact tracking to the legacy scanner
+and retain bounded diagnostic cause identity. Adapt the existing native-outcome
+test overlay to the helper's options argument while preserving every assertion.

@@ -14,16 +14,25 @@ set -uo pipefail
 # (an adopter repo doesn't ship the installer).
 # Exit 0 = every unconditional copy target is tracked (or skip), 1 = one is not.
 
-# Resolved before the cd below, which may move us out of this repo entirely.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Establish physical ownership before loading any sibling code. A file alias
+# cannot choose its invocation directory's libraries or installed runtime.
+# docs/adr/0125-native-initializer-copy-inventory-gate.md:196.
+HOOK_PATH="${BASH_SOURCE[0]}"
+case "$HOOK_PATH" in /*) ;; *) HOOK_PATH="$PWD/$HOOK_PATH" ;; esac
+if [ -L "$HOOK_PATH" ]; then
+  echo "COPY-MANIFEST FAIL: use the physical hook file instead of a symlinked entrypoint" >&2
+  exit 2
+fi
+SCRIPT_DIR="$(cd -P -- "${HOOK_PATH%/*}" && pwd -P && printf '.')" || exit 2
+SCRIPT_DIR="${SCRIPT_DIR%$'\n.'}"
 # shellcheck source=../lib/events.sh
 if [ -f "$SCRIPT_DIR/../lib/events.sh" ]; then . "$SCRIPT_DIR/../lib/events.sh"; else factory_log_event() { :; }; fi
 
 # Keep literal root names, including trailing newlines, out of shell evaluation.
 # docs/adr/0125-native-initializer-copy-inventory-gate.md:42.
-ROOT="$(cd -- "${1:-$SCRIPT_DIR/../..}" && pwd -P && printf '.')" || exit 1
+ROOT="$(cd -P -- "${1:-$SCRIPT_DIR/../..}" && pwd -P && printf '.')" || exit 1
 ROOT="${ROOT%$'\n.'}"
-OWNER_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P && printf '.')" || exit 1
+OWNER_ROOT="$(cd -P -- "$SCRIPT_DIR/../.." && pwd -P && printf '.')" || exit 1
 OWNER_ROOT="${OWNER_ROOT%$'\n.'}"
 cd -- "$ROOT" || exit 1
 
@@ -83,7 +92,21 @@ while IFS= read -r line; do
   case "$line" in *"|| true"*) continue ;; esac
   path="$(printf '%s\n' "$line" | sed -E 's/.*cp "\$TEMPLATE_DIR\/([^"]+)".*/\1/')"
   case "$path" in *'*'*) continue ;; esac   # globs expand at runtime
-  if ! git --literal-pathspecs ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+  # A runtime glob may follow the closing quote of its source-directory prefix.
+  # docs/adr/0125-native-initializer-copy-inventory-gate.md:216.
+  source_token='cp "$TEMPLATE_DIR/'"$path"'"'
+  source_suffix="${line#*"$source_token"}"
+  case "$source_suffix" in \**|\?*|\[*) continue ;; esac
+  # Drain NUL-framed names; literal pathspec success alone also matches children.
+  # No process substitution: /dev/fd is not available on every supported host.
+  # docs/adr/0125-native-initializer-copy-inventory-gate.md:201.
+  if ! git --literal-pathspecs ls-files -z --error-unmatch -- "$path" 2>/dev/null | (
+    matched=0
+    while IFS= read -r -d '' indexed; do
+      if [ "$indexed" = "$path" ]; then matched=1; fi
+    done
+    [ "$matched" -eq 1 ]
+  ); then
     echo "COPY-MANIFEST FAIL: factory-init copies '$path' but it is not tracked by git (absent in a clean clone)"
     ERRORS=$((ERRORS + 1))
   fi

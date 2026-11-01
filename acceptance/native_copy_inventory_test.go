@@ -30,6 +30,12 @@ type nativeCopyInventoryFixture struct {
 	environment                                         map[string]string
 }
 
+type nativeCopyInventoryMutation struct {
+	path string
+	body []byte
+	mode os.FileMode
+}
+
 // The immutable source is independent of the production metadata package.
 // per docs/adr/0125-native-initializer-copy-inventory-gate.md:104
 func newNativeCopyInventoryFixture() nativeCopyInventoryFixture {
@@ -114,9 +120,16 @@ func nativeCopyInventorySnapshot(root string) map[string]string {
 
 // Preserve bytes, modes, link text and the raw Git index around the real boundary.
 // per docs/adr/0125-native-initializer-copy-inventory-gate.md:42
-func (f nativeCopyInventoryFixture) observe(private bool) cliResult {
+func (f nativeCopyInventoryFixture) observe(private bool, actors ...nativeCopyInventoryMutation) cliResult {
 	GinkgoHelper()
 	before, callerBefore := nativeCopyInventorySnapshot(f.root), installationSnapshot(f.caller)
+	expectedAfter := maps.Clone(before)
+	actorPaths := []string{}
+	for _, actor := range actors {
+		Expect(before).NotTo(HaveKey(actor.path), "the controlled actor must add a previously absent input")
+		expectedAfter[actor.path] = fmt.Sprintf("%v:%x", actor.mode, sha256.Sum256(actor.body))
+		actorPaths = append(actorPaths, actor.path)
+	}
 	index, err := os.ReadFile(filepath.Join(f.root, ".git/index"))
 	Expect(err).NotTo(HaveOccurred())
 	runtimeBefore, err := os.ReadFile(f.runtime)
@@ -158,8 +171,8 @@ func (f nativeCopyInventoryFixture) observe(private bool) cliResult {
 	Expect(err).NotTo(HaveOccurred())
 	subjectAfter, err := json.Marshal(after)
 	Expect(err).NotTo(HaveOccurred())
-	AddReportEntry("native-copy-inventory.observation", map[string]any{"private": private, "status": status, "stdout": stdout.String(), "stderr": stderr.String(), "subject_preserved": reflect.DeepEqual(before, after), "index_preserved": bytes.Equal(index, indexAfter), "runtime_preserved": bytes.Equal(runtimeBefore, runtimeAfter), "named_event_log_changed": !bytes.Equal(eventBefore, eventAfter), "subject_before_sha256": fmt.Sprintf("%x", sha256.Sum256(subjectBefore)), "subject_after_sha256": fmt.Sprintf("%x", sha256.Sum256(subjectAfter)), "index_before_sha256": fmt.Sprintf("%x", sha256.Sum256(index)), "index_after_sha256": fmt.Sprintf("%x", sha256.Sum256(indexAfter))}, ReportEntryVisibilityNever)
-	Expect(after).To(Equal(before), "only the explicitly named gate-event log may change")
+	AddReportEntry("native-copy-inventory.observation", map[string]any{"private": private, "status": status, "stdout": stdout.String(), "stderr": stderr.String(), "subject_preserved": reflect.DeepEqual(before, after), "subject_matches_expected_actor_delta": reflect.DeepEqual(expectedAfter, after), "actor_input_paths": actorPaths, "index_preserved": bytes.Equal(index, indexAfter), "runtime_preserved": bytes.Equal(runtimeBefore, runtimeAfter), "named_event_log_changed": !bytes.Equal(eventBefore, eventAfter), "subject_before_sha256": fmt.Sprintf("%x", sha256.Sum256(subjectBefore)), "subject_after_sha256": fmt.Sprintf("%x", sha256.Sum256(subjectAfter)), "index_before_sha256": fmt.Sprintf("%x", sha256.Sum256(index)), "index_after_sha256": fmt.Sprintf("%x", sha256.Sum256(indexAfter))}, ReportEntryVisibilityNever)
+	Expect(after).To(Equal(expectedAfter), "only separately declared actor inputs and the named gate-event log may change")
 	Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
 	Expect(indexAfter).To(Equal(index))
 	Expect(runtimeAfter).To(Equal(runtimeBefore))
@@ -306,6 +319,24 @@ func nativeCopyInventoryCancelProof() {
 	settled = gitGone && errors.Is(syscall.Kill(controllerPID, 0), syscall.ESRCH)
 }
 
+// Both retained and native checks must track the exact input, not its descendants.
+// per docs/adr/0125-native-initializer-copy-inventory-gate.md:160
+// per docs/adr/0125-native-initializer-copy-inventory-gate.md:201
+func nativeCopyInventoryIndexedDescendant(f nativeCopyInventoryFixture, input string, body []byte) {
+	GinkgoHelper()
+	imageGit(f.root, "rm", "--cached", "--force", "--", input)
+	Expect(os.Remove(filepath.Join(f.root, input))).To(Succeed())
+	child := input + "/indexed-child"
+	writeFixture(filepath.Join(f.root, child), []byte("indexed descendant is not the initializer input\n"), 0600)
+	imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", child)
+	Expect(os.RemoveAll(filepath.Join(f.root, input))).To(Succeed())
+	writeFixture(filepath.Join(f.root, input), body, 0644)
+	indexed := imageProcess(f.root, nil, "git", "--literal-pathspecs", "ls-files", "--error-unmatch", "-z", "--", input)
+	Expect(indexed.status).To(Equal(0))
+	Expect(indexed.stdout).To(Equal(child + "\x00"))
+	AddReportEntry("native-copy-inventory.descendant-index", map[string]string{"required_regular_file": input, "actual_index_entry": child}, ReportEntryVisibilityNever)
+}
+
 var _ = Describe("Native initializer copy inventory", func() {
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:104
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:35
@@ -324,17 +355,7 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(f.observe(false).status).To(Equal(0))
 		Expect(f.observe(true).status).To(Equal(0))
 		// Literal Git pathspecs still match indexed descendants; require the file itself.
-		imageGit(f.root, "rm", "--cached", "--force", "--", input)
-		Expect(os.Remove(filepath.Join(f.root, input))).To(Succeed())
-		child := input + "/indexed-child"
-		writeFixture(filepath.Join(f.root, child), []byte("indexed descendant is not the initializer input\n"), 0600)
-		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", child)
-		Expect(os.RemoveAll(filepath.Join(f.root, input))).To(Succeed())
-		writeFixture(filepath.Join(f.root, input), data, 0644)
-		indexed := imageProcess(f.root, nil, "git", "--literal-pathspecs", "ls-files", "--error-unmatch", "-z", "--", input)
-		Expect(indexed.status).To(Equal(0))
-		Expect(indexed.stdout).To(Equal(child + "\x00"))
-		AddReportEntry("native-copy-inventory.descendant-index", map[string]string{"required_regular_file": input, "actual_index_entry": child}, ReportEntryVisibilityNever)
+		nativeCopyInventoryIndexedDescendant(f, input, data)
 		result = f.observe(false)
 		Expect(result.status).NotTo(Equal(0), "tracking an indexed descendant must not certify its untracked regular-file parent: %+v", result)
 		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", input)
@@ -344,6 +365,7 @@ var _ = Describe("Native initializer copy inventory", func() {
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:35
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:42
 	It("refuses missing required inputs README and unsafe file or parent types", func() {
+		diagnostics := map[string]string{}
 		for _, scenario := range []string{"missing-required", "missing-readme", "directory", "symlink", "fifo", "parent-symlink"} {
 			f := newNativeCopyInventoryFixture()
 			Expect(f.observe(true).status).To(Equal(0), "healthy control before %s", scenario)
@@ -368,7 +390,14 @@ var _ = Describe("Native initializer copy inventory", func() {
 					Expect(syscall.Mkfifo(path, 0600)).To(Succeed())
 				}
 			}
-			Expect(f.observe(true).status).NotTo(Equal(0), scenario)
+			result := f.observe(true)
+			Expect(result.status).NotTo(Equal(0), scenario)
+			diagnostics[scenario] = result.stderr
+		}
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:206
+		AddReportEntry("native-copy-inventory.causes", diagnostics, ReportEntryVisibilityNever)
+		for _, unsafe := range []string{"directory", "symlink", "fifo"} {
+			Expect(diagnostics[unsafe]).NotTo(Equal(diagnostics["missing-required"]), "missing and unsafe versions of the same input need distinct causes")
 		}
 	})
 
@@ -403,6 +432,42 @@ var _ = Describe("Native initializer copy inventory", func() {
 			}
 			Expect(empty.observe(true).status).NotTo(Equal(0), "required group %s must not be empty", group[0])
 		}
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:190
+		statuses := map[string]int{}
+		for _, selected := range []nativeCopyInventoryMutation{{"wiki/README.md", []byte("optional input created during Git\n"), 0644}, {"scripts/hooks/appeared-during-git.sh", []byte("#!/bin/sh\nexit 0\n"), 0755}} {
+			race := newNativeCopyInventoryFixture()
+			input := filepath.Join(race.root, selected.path)
+			if selected.path == "wiki/README.md" {
+				Expect(os.Remove(input)).To(Succeed())
+				imageGit(race.root, "rm", "--cached", "--force", "--", selected.path)
+			}
+			gitPath := filepath.Join(race.base, "qualified tools", "git")
+			realGit, err := filepath.EvalSymlinks(gitPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.Remove(gitPath)).To(Succeed())
+			trace := filepath.Join(race.base, "git-actor-handshake")
+			actor := filepath.Join(race.base, "controlled actor.sh")
+			writeFixture(actor, []byte("#!/bin/sh\nset -eu\n[ ! -e \"$NATIVE_COPY_ACTOR_PATH\" ] || exit 96\nprintf '%s' \"$NATIVE_COPY_ACTOR_BODY\" > \"$NATIVE_COPY_ACTOR_PATH\"\nchmod \"$NATIVE_COPY_ACTOR_MODE\" \"$NATIVE_COPY_ACTOR_PATH\"\nprintf 'actor-created-input\\n' >> \"$NATIVE_COPY_ACTOR_TRACE\"\n"), 0700)
+			writeFixture(gitPath, []byte("#!/bin/sh\nset -eu\n\"$NATIVE_COPY_REAL_GIT\" \"$@\" > \"$NATIVE_COPY_GIT_BYTES\"\nprintf 'real-git-completed\\n' > \"$NATIVE_COPY_ACTOR_TRACE\"\n/bin/sh \"$NATIVE_COPY_ACTOR_SCRIPT\"\nprintf 'git-output-released\\n' >> \"$NATIVE_COPY_ACTOR_TRACE\"\n/bin/cat \"$NATIVE_COPY_GIT_BYTES\"\n"), 0700)
+			race.environment["NATIVE_COPY_REAL_GIT"] = realGit
+			race.environment["NATIVE_COPY_GIT_BYTES"] = filepath.Join(race.base, "actual-git-output")
+			race.environment["NATIVE_COPY_ACTOR_TRACE"] = trace
+			race.environment["NATIVE_COPY_ACTOR_SCRIPT"] = actor
+			race.environment["NATIVE_COPY_ACTOR_PATH"] = input
+			race.environment["NATIVE_COPY_ACTOR_BODY"] = string(selected.body)
+			race.environment["NATIVE_COPY_ACTOR_MODE"] = fmt.Sprintf("%o", selected.mode)
+			result := race.observe(true, selected)
+			Expect(os.ReadFile(trace)).To(Equal([]byte("real-git-completed\nactor-created-input\ngit-output-released\n")))
+			AddReportEntry("native-copy-inventory.git-window-actor", map[string]any{"path": selected.path, "status": result.status, "body_sha256": fmt.Sprintf("%x", sha256.Sum256(selected.body)), "handshake": "real Git completed -> actor added exact input -> Git output released"}, ReportEntryVisibilityNever)
+			statuses[selected.path] = result.status
+			Expect(os.Remove(gitPath)).To(Succeed())
+			Expect(os.Symlink(realGit, gitPath)).To(Succeed())
+			imageGit(race.root, "--literal-pathspecs", "add", "--force", "--", selected.path)
+			Expect(race.observe(true).status).To(Equal(0), "the same exactly tracked input is a healthy stable inventory")
+		}
+		for _, path := range []string{"wiki/README.md", "scripts/hooks/appeared-during-git.sh"} {
+			Expect(statuses[path]).NotTo(Equal(0), "a new selected input appearing during Git must not be omitted: %s", path)
+		}
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:42
@@ -428,6 +493,12 @@ var _ = Describe("Native initializer copy inventory", func() {
 				Expect(os.IsNotExist(err)).To(BeTrue(), name)
 			}
 		}
+		literalRoot := filepath.Join(f.base, "root ending in newline\n.")
+		Expect(os.Rename(f.root, literalRoot)).To(Succeed())
+		f.root = literalRoot
+		f.hook, f.event = filepath.Join(f.root, "scripts/hooks/copy-manifest-check.sh"), filepath.Join(f.root, ".factory/events.log")
+		f.environment["FACTORY_EVENT_LOG"], f.environment["FACTORY_CONFIG"] = f.event, filepath.Join(f.root, "factory.yaml")
+		Expect(f.observe(false).status).To(Equal(0), "the appended shell sentinel must preserve a legitimate newline-dot root suffix")
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:57
@@ -489,6 +560,41 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(foreign.observe(false).status).NotTo(Equal(0))
 		_, callErr = os.Lstat(witness)
 		Expect(os.IsNotExist(callErr)).To(BeTrue())
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:196
+		aliasObservations := map[string]map[string]any{}
+		for _, kind := range []string{"hook-file", "scripts-directory"} {
+			aliasOwner, aliasForeign := newNativeCopyInventoryFixture(), newNativeCopyInventoryFixture()
+			delete(aliasOwner.environment, "FACTORY_RUNTIME_BINARY")
+			factoryWitness, libWitness := filepath.Join(aliasForeign.base, "alias-factory-called"), filepath.Join(aliasForeign.base, "alias-library-called")
+			aliasOwner.environment["NATIVE_COPY_ALIAS_FACTORY"], aliasOwner.environment["NATIVE_COPY_ALIAS_LIB"] = factoryWitness, libWitness
+			writeFixture(filepath.Join(aliasForeign.root, "factory"), []byte("#!/bin/bash\nprintf called > \"$NATIVE_COPY_ALIAS_FACTORY\"\nexit 0\n"), 0755)
+			writeFixture(filepath.Join(aliasForeign.root, ".factory/installation.current"), []byte("foreign selector is not authority\n"), 0600)
+			writeFixture(filepath.Join(aliasForeign.root, "scripts/lib/events.sh"), []byte("#!/bin/sh\nprintf called > \"$NATIVE_COPY_ALIAS_LIB\"\nfactory_log_event() { :; }\n"), 0644)
+			alias := filepath.Join(aliasForeign.root, "scripts/hooks/copy-manifest-check.sh")
+			if kind == "hook-file" {
+				Expect(os.Remove(alias)).To(Succeed())
+				Expect(os.Symlink(aliasOwner.hook, alias)).To(Succeed())
+			} else {
+				Expect(os.Rename(filepath.Join(aliasForeign.root, "scripts"), filepath.Join(aliasForeign.base, "planted scripts"))).To(Succeed())
+				Expect(os.Symlink(filepath.Join(aliasOwner.root, "scripts"), filepath.Join(aliasForeign.root, "scripts"))).To(Succeed())
+			}
+			aliasOwner.hook = alias
+			result := aliasOwner.observe(false)
+			_, factoryErr := os.Lstat(factoryWitness)
+			_, libraryErr := os.Lstat(libWitness)
+			observation := map[string]any{"alias": kind, "status": result.status, "foreign_factory_executed": factoryErr == nil, "foreign_library_executed": libraryErr == nil}
+			aliasObservations[kind] = observation
+			AddReportEntry("native-copy-inventory.hook-alias", observation, ReportEntryVisibilityNever)
+			if kind == "scripts-directory" {
+				aliasOwner.environment["FACTORY_RUNTIME_BINARY"] = aliasOwner.runtime
+				Expect(aliasOwner.observe(false).status).To(Equal(0), "a physical source owner still supports an explicit trusted runtime through a directory alias")
+			}
+		}
+		for _, kind := range []string{"hook-file", "scripts-directory"} {
+			Expect(aliasObservations[kind]["foreign_factory_executed"]).To(BeFalse(), kind)
+			Expect(aliasObservations[kind]["foreign_library_executed"]).To(BeFalse(), kind)
+			Expect(aliasObservations[kind]["status"]).NotTo(Equal(0), "without an explicit runtime the source owner's adapter is not a known inventory: %s", kind)
+		}
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:76
@@ -500,6 +606,19 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(f.observe(false).status).To(Equal(0))
 		imageGit(f.root, "rm", "--cached", "--force", "--", "AGENTS.md")
 		Expect(f.observe(false).status).NotTo(Equal(0))
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:201
+		body, err := os.ReadFile(filepath.Join(f.root, "AGENTS.md"))
+		Expect(err).NotTo(HaveOccurred())
+		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", "AGENTS.md")
+		nativeCopyInventoryIndexedDescendant(f, "AGENTS.md", body)
+		Expect(f.observe(false).status).NotTo(Equal(0), "the retained scanner must not accept only an indexed descendant")
+		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", "AGENTS.md")
+		Expect(f.observe(false).status).To(Equal(0))
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:76
+		writeFixture(filepath.Join(f.root, "scripts/factory-init.sh"), []byte("cp \"$TEMPLATE_DIR/AGENTS.md\" \"$OUTPUT\"\ncp \"$TEMPLATE_DIR/scripts/hooks/\"*.sh \"$OUTPUT/\"\ncp \"$TEMPLATE_DIR/.opencode/agent/\"*.md \"$OUTPUT/\"\ncp \"$TEMPLATE_DIR/.codex/agents/\"*.toml \"$OUTPUT/\"\n"), 0755)
+		globResult := f.observe(false)
+		AddReportEntry("native-copy-inventory.legacy-quoted-directory-globs", map[string]any{"status": globResult.status, "stdout": globResult.stdout, "stderr": globResult.stderr, "actual_initializer_forms": 3}, ReportEntryVisibilityNever)
+		Expect(globResult.status).To(Equal(0), "retained legacy glob exclusion must recognize the suffix outside the quoted source directory")
 		Expect(os.Remove(filepath.Join(f.root, "scripts/factory-init.sh"))).To(Succeed())
 		result := f.observe(false)
 		Expect(result.status).To(Equal(0))
@@ -514,6 +633,12 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(result.status).To(Equal(0), "%+v", result)
 		Expect(strings.ToLower(result.stdout)).To(ContainSubstring("installed"))
 		Expect(strings.ToLower(result.stdout)).To(ContainSubstring("skip"))
+		Expect(installationSnapshot(installed.root)).To(Equal(before))
+		alias := filepath.Join(filepath.Dir(installed.root), "installed subject alias")
+		Expect(os.Symlink(installed.root, alias)).To(Succeed())
+		result = installedRuntimeInvoke(installed, "", []string{"FACTORY_BRIDGE_PROTOCOL=1"}, "helper", "copies", alias)
+		Expect(result.status).To(Equal(0), "physical admission and subject normalization must agree through a symlink alias")
+		Expect(strings.ToLower(result.stdout)).To(ContainSubstring("installed"))
 		Expect(installationSnapshot(installed.root)).To(Equal(before))
 		source := newNativeCopyInventoryFixture()
 		imageGit(source.root, "rm", "--cached", "--force", "--", ".opencode/package.json")

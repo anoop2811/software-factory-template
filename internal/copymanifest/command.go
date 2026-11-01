@@ -1,5 +1,5 @@
 // Package copymanifest checks the initializer's base copy inputs without running
-// initialization. docs/adr/0125-native-initializer-copy-inventory-gate.md:27.
+// initialization. docs/adr/0125-native-initializer-copy-inventory-gate.md:28.
 package copymanifest
 
 import (
@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -67,36 +68,12 @@ func check(ctx context.Context, root string, environment map[string]string) (ret
 		return errors.New("source inventory root is unavailable or unsafe")
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
-	paths := append(initinventory.Required(), initinventory.Readme)
-	for _, path := range paths {
-		if err := inspect(ctx, tree, path); err != nil {
-			return fmt.Errorf("required initializer input %q is missing or unsafe", path)
-		}
-	}
-	for _, path := range initinventory.Optional() {
-		err := inspect(ctx, tree, path)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("optional initializer input %q is unsafe", path)
-		}
-		paths = append(paths, path)
-	}
-	for _, group := range initinventory.Groups() {
-		members, err := groupMembers(ctx, tree, group)
-		if err != nil {
-			return fmt.Errorf("initializer group %q is empty or unsafe", group.Directory)
-		}
-		for _, path := range members {
-			if err := inspect(ctx, tree, path); err != nil {
-				return fmt.Errorf("initializer group input %q is unsafe", path)
-			}
-		}
-		paths = append(paths, members...)
+	paths, err := selectedInputs(ctx, tree)
+	if err != nil {
+		return err
 	}
 	// Git receives literal argv, no caller-selected index/worktree or fsmonitor.
-	// docs/adr/0125-native-initializer-copy-inventory-gate.md:140.
+	// docs/adr/0125-native-initializer-copy-inventory-gate.md:142.
 	env := maps.Clone(environment)
 	if env == nil {
 		env = map[string]string{}
@@ -133,11 +110,72 @@ func check(ctx context.Context, root string, environment map[string]string) (ret
 		if !tracked[path] {
 			return fmt.Errorf("initializer input %q is not exactly git-tracked", path)
 		}
-		if err := inspect(ctx, tree, path); err != nil {
-			return fmt.Errorf("initializer input %q changed during validation", path)
-		}
+	}
+	// Directory identity does not prove unchanged membership. Reuse selection to
+	// discover new optional/group inputs before reporting success.
+	// docs/adr/0125-native-initializer-copy-inventory-gate.md:190.
+	after, err := selectedInputs(ctx, tree)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(paths, after) {
+		return errors.New("initializer copy inventory changed during validation")
 	}
 	return tree.Check(ctx)
+}
+
+func selectedInputs(ctx context.Context, tree *installationfs.Tree) ([]string, error) {
+	paths := append(initinventory.Required(), initinventory.Readme)
+	for _, path := range paths {
+		if err := inspect(ctx, tree, path); err != nil {
+			return nil, inputFailure("required initializer input", path, err)
+		}
+	}
+	for _, path := range initinventory.Optional() {
+		err := inspect(ctx, tree, path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, inputFailure("optional initializer input", path, err)
+		}
+		paths = append(paths, path)
+	}
+	for _, group := range initinventory.Groups() {
+		members, err := groupMembers(ctx, tree, group)
+		if err != nil {
+			return nil, inputFailure("initializer group", group.Directory, err)
+		}
+		for _, path := range members {
+			if err := inspect(ctx, tree, path); err != nil {
+				return nil, inputFailure("initializer group input", path, err)
+			}
+		}
+		paths = append(paths, members...)
+	}
+	slices.Sort(paths)
+	return paths, tree.Check(ctx)
+}
+
+// Preserve useful error categories without exposing raw path-bearing errors.
+// docs/adr/0125-native-initializer-copy-inventory-gate.md:206.
+func inputFailure(kind, path string, cause error) error {
+	var pathError *os.PathError
+	switch {
+	case errors.Is(cause, os.ErrNotExist):
+		cause = os.ErrNotExist
+	case errors.Is(cause, installationfs.ErrUnsafe):
+		cause = installationfs.ErrUnsafe
+	case errors.Is(cause, os.ErrPermission):
+		cause = os.ErrPermission
+	case errors.Is(cause, context.Canceled):
+		cause = context.Canceled
+	case errors.Is(cause, context.DeadlineExceeded):
+		cause = context.DeadlineExceeded
+	case errors.As(cause, &pathError):
+		cause = errors.New("input I/O unavailable")
+	}
+	return fmt.Errorf("%s %q: %w", kind, path, cause)
 }
 
 func inspect(ctx context.Context, tree *installationfs.Tree, path string) error {

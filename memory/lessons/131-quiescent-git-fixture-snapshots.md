@@ -11,4 +11,4 @@ project, index and runtime snapshots identical. Reports are retained locally as
 `inventory-fixture-maintenance-red.json` and `inventory-red.json` under
 `.factory/qualification/native-copy-inventory-20261101/`. No GC process identity
 was captured. The fixture's explicit controls are recorded in
-acceptance/native_copy_inventory_test.go:98.
+acceptance/native_copy_inventory_test.go:105.

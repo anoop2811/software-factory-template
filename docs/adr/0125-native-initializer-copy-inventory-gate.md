@@ -184,3 +184,37 @@ leaf through the same existing file-qualification implementation. The leaf API
 rejects separators, NUL, empty names and dot/dot-dot; it does not add a second
 filesystem validator. Independently qualify the tracked literal name before
 changing this read-only helper boundary.
+
+## Hosted review refinements
+
+Re-enumerate the bounded groups and optional-input presence after Git completes.
+Refuse if the sorted selected inventory differs from the inventory sent to Git;
+checking only the original paths cannot detect a newly created copy input. The
+regression owns and separately records its controlled actor mutation during the
+Git handshake; it does not waive other project, index or runtime changes.
+
+Reject a symlinked hook file before loading sibling libraries. Resolve its parent
+directory physically before traversing to the owner root, so a symlinked scripts
+directory cannot make a foreign installation select executable code. Qualify
+both alias forms, including a hostile sibling-library sentinel.
+
+Apply exact NUL-delimited filename membership to the retained legacy Git scanner
+as well. Drain the pipeline without process substitution or temporary files;
+preserve guarded-copy and no-initializer behavior. Its indexed-descendant case
+must fail before this repair, just as the native case did.
+
+Keep diagnostic causes useful and bounded: distinguish missing, unsafe,
+permission-denied and canceled inputs using safe sentinel errors, preserving
+their error identity without printing raw path-bearing filesystem errors.
+
+The source selftest's existing native-outcome overlay is a real consumer of the
+private captured-command helper. Adapt its invocation to the new runOptions
+argument without changing any fault or success assertion. The old invocation's
+compile failure was observed locally and in both hosted base lanes; this is
+fixture compatibility, not evidence that its behavioral assertions passed.
+
+Preserve the legacy scanner's documented runtime-glob exclusion, including a
+glob appended outside the quoted source-directory prefix. Those prefixes are
+not literal file inputs; exact filename matching must not reject the current
+initializer's three group-copy statements. Recognize the suffix as literal data,
+without evaluating it. The native gate still enumerates and validates each group.

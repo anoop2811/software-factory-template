@@ -173,7 +173,7 @@ func sourceInstallerGitAuth() {
 				refresh++
 				if !maps.Equal(call.Git, expected) {
 					preserved = false
-					failures = append(failures, variant+": refresh must preserve exactly all21 literal/empty transport values")
+					failures = append(failures, variant+": refresh must preserve exactly all 21 literal/empty transport values")
 				}
 			} else {
 				identity++

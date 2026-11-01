@@ -165,7 +165,16 @@ func sourceEntrypointCompilerRefusals() {
 		environment := map[string]string{"PATH": tools + string(os.PathListSeparator) + "/usr/bin:/bin", "SOURCE_ENTRY_MODE": mode, "SOURCE_ENTRY_ROOT": root, "SOURCE_ENTRY_IMAGE": image, "SOURCE_ENTRY_BUILD_RECORD": record, "SOURCE_ENTRY_OUTSIDE": outside, "SOURCE_ENTRY_PRIOR": prior, "GORACE": "atexit_sleep_ms=0"}
 		program := filepath.Join(root, "factory")
 		if mode == "missing-go" {
+			// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:234
 			Expect(os.Remove(filepath.Join(tools, "go"))).To(Succeed())
+			Expect(os.Symlink("/bin/bash", filepath.Join(tools, "bash"))).To(Succeed())
+			environment["PATH"] = tools
+			environment["BASH_ENV"], environment["ENV"] = "", ""
+			lookup := handoffNativeProcess(caller, environment, "", filepath.Join(tools, "bash"), "-c", "command -v go")
+			AddReportEntry("source-entrypoint.missing-compiler-lookup", map[string]any{"PATH": environment["PATH"], "status": lookup.status, "stdout": lookup.stdout, "stderr": lookup.stderr}, ReportEntryVisibilityNever)
+			Expect(lookup.status).To(Equal(1), "the child utility path must actually exclude every Go compiler")
+			Expect(lookup.stdout).To(BeEmpty())
+			Expect(lookup.stderr).To(BeEmpty())
 		}
 		if mode == "directory-start" {
 			Expect(os.Remove(filepath.Join(root, "factory-go"))).To(Succeed())
@@ -206,6 +215,11 @@ func sourceEntrypointCompilerRefusals() {
 		if mode == "failed-build" {
 			Expect(result.status).To(Equal(58))
 			Expect(result.stderr).To(ContainSubstring("controlled compiler failure"))
+		}
+		if mode == "missing-go" {
+			Expect(result.status).To(Equal(1))
+			Expect(result.stdout).To(BeEmpty())
+			Expect(result.stderr).To(Equal("factory: source development requires the qualified Go toolchain; use the authenticated installer for a compiler-free installation\n"))
 		}
 		if mode == "directory-start" || mode == "missing-go" || mode == "file-alias" {
 			_, err = os.Lstat(record)

@@ -230,3 +230,10 @@ in CI setup; retain read-only module compilation, fixed versions and shipped
 compiler independence. Qualify this against the actual failed hosted copy gate.
 Retained selftest source predicates must exclude their own assertion text;
 removing their real invocation markers must fail the predicate before repair.
+
+Compiler-unavailability qualification must exclude a system Go compiler as well
+as the test-owned compiler. Use a private utility path and prove child lookup
+cannot find Go before exercising the launcher; require the launcher's explicit
+missing-compiler diagnostic. Absence of the fake compiler's record alone does
+not prove that no other compiler was attempted. Keep this test environment
+change separate from the production tool-selection contract.

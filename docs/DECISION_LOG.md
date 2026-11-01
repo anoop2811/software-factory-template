@@ -5754,3 +5754,10 @@ before its offline gate. Refute fragment-only model claims against complete code
 repair the independently observed self-satisfying historical nesting predicate.
 New independent semantic REDs precede these behavioral repairs. No version,
 dependency, worker/deadline or model/budget allowance is increased.
+
+Decision 141 final review qualification: the second exact-head model review
+completed 34 files and 64 fragments in 114 seconds. Its missing-Go fixture
+finding exposed an unqualified system PATH fallback. Make that negative setup
+hermetic, observe child compiler lookup fail, and require the actual launcher
+diagnostic; a missing fake-compiler record is insufficient evidence. Production
+compiler selection and all release/runtime boundaries retain their contract.

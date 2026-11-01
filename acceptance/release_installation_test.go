@@ -83,9 +83,27 @@ func handoffNativeFixture(image handoffReleaseImage) (handoffBootstrapFixture, s
 
 func handoffNativeProcess(cwd string, environment map[string]string, input, program string, args ...string) cliResult {
 	GinkgoHelper()
+	return handoffNativeProcessWithEnvironment(cwd, environment, false, input, program, args...)
+}
+
+// Exact fixture environments must not reintroduce omitted parent model settings.
+// per docs/adr/0128-go-source-harness-sync-entrypoints.md:92
+func handoffNativeExactProcess(cwd string, environment map[string]string, input, program string, args ...string) cliResult {
+	GinkgoHelper()
+	return handoffNativeProcessWithEnvironment(cwd, environment, true, input, program, args...)
+}
+
+func handoffNativeProcessWithEnvironment(cwd string, environment map[string]string, exact bool, input, program string, args ...string) cliResult {
+	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	cmd := handoffCommand(ctx, cwd, environment, input, program, args...)
+	if exact {
+		cmd.Env = make([]string, 0, len(environment))
+		for key, value := range environment {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

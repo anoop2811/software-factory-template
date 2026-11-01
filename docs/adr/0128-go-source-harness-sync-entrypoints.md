@@ -26,7 +26,7 @@ Missing or failing owners must fail without a legacy fallback.
 These historical direct scripts ignored every command-line operand. Continue
 discarding their operands, including `--help`, rather than forwarding them to the
 new strict selector parser. The public `factory sync` parser remains unchanged.
-This distinction is already part of docs/adr/0099-native-factory-orchestration.md:25.
+This distinction is already part of docs/adr/0099-native-factory-orchestration.md:27.
 
 Output belongs to the source/installed owner, while configuration retains the
 existing caller Git-root and explicit FACTORY_CONFIG selection. Reuse the Go
@@ -88,3 +88,11 @@ The historical shell block has always rendered into its own sandbox. Current
 native no-settings byte preservation is covered independently by
 acceptance/orchestration_sync_test.go:289, while the new direct-entrypoint
 criteria prove owner/caller separation and native rendering for each harness.
+
+The native rendering criterion must execute with its exact sanitized fixture
+environment. A process helper that merges absent keys back from the parent can
+reintroduce host model settings and invalidate YAML-selection evidence. Preserve
+the existing bounded process watchdog and capture/status behavior while passing
+the selected environment exactly; do not replace omitted model keys with empty
+overrides or mutate the parent environment of parallel criteria. Observe this
+fixture defect with exported host model settings before correcting the runner.

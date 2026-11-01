@@ -5860,3 +5860,8 @@ historical shell, optional-pack, Java, budget and loop fixtures. Existing Go
 archives already retain their own original renderers. A private current-Go
 rendering changes only object-key order in two generated JSON files; preserve
 their equal semantic values while adopting the native owner's stable bytes.
+
+Decision 143 review follow-up: require exact child-environment transport for the
+native sync acceptance fixture. Keep its process watchdog while preventing a
+general subprocess helper from restoring filtered host model settings. Preserve
+the failing ambient-setting observation before changing this test runner.

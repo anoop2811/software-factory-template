@@ -61,6 +61,7 @@ var _ = Describe("Go source runtime entrypoints harness synchronization adapters
 	// per docs/adr/0128-go-source-harness-sync-entrypoints.md:26
 	// per docs/adr/0128-go-source-harness-sync-entrypoints.md:31
 	// per docs/adr/0128-go-source-harness-sync-entrypoints.md:58
+	// per docs/adr/0128-go-source-harness-sync-entrypoints.md:92
 	It("renders every harness natively in the owner using caller configuration while ignoring direct operands", func() {
 		for _, harness := range []string{"opencode", "claude", "codex"} {
 			root, caller, inherited := syncFixture()
@@ -105,7 +106,7 @@ var _ = Describe("Go source runtime entrypoints harness synchronization adapters
 				expected = "explicit-model"
 			}
 			beforeInputs, beforeCaller := sourceSyncInputs(root, harness), installationSnapshot(caller)
-			observed := handoffNativeProcess(nested, environment, "borrowed application input\n", program, "--help", "unknown selector", "", "--", "$(not-code)")
+			observed := handoffNativeExactProcess(nested, environment, "borrowed application input\n", program, "--help", "unknown selector", "", "--", "$(not-code)")
 			AddReportEntry("source-sync.native-render", map[string]any{"harness": harness, "status": observed.status, "stdout": observed.stdout, "stderr": observed.stderr, "source_launcher": harness == "opencode", "expected_model": expected}, ReportEntryVisibilityNever)
 			Expect(sourceSyncInputs(root, harness)).To(Equal(beforeInputs))
 			Expect(installationSnapshot(caller)).To(Equal(beforeCaller))

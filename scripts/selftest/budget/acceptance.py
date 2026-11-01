@@ -723,8 +723,10 @@ def delivery(f):
     # Real installer/upgrade artifact flow. Ancillary npm/prerequisite/selftest
     # work is stubbed here; gate correctness is exercised by the ordinary suite.
     template = f.root / "template"
+    # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:291.
     shutil.copytree(SOURCE, template, ignore=shutil.ignore_patterns(
-        ".git", ".factory", "factory-go", "node_modules", "__pycache__", ".venv"))
+        ".git", ".factory", "factory-go", ".factory-go.*", ".factory-startup.*",
+        ".factory-admission.*", "node_modules", "__pycache__", ".venv"))
     historical_entrypoints(template)
     for relative in ("scripts/selftest/run.sh", "scripts/prereq-check.sh"):
         stub = template / relative

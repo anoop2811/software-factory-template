@@ -400,14 +400,25 @@ installer_quote() {
   printf "'"
 }
 
-# Metadata reads are isolated; refresh retains ordinary credential discovery.
+# Metadata reads are isolated; refresh retains explicit transport settings.
 # Both ignore caller Git redirection. Variable names are data, never shell code.
-# docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:91.
+# docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:265.
 installer_git_at() (
   installer_git_root=$1
   installer_git_mode=$2
   shift 2
   for installer_git_name in $(/usr/bin/env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do
+    if [ "$installer_git_mode" = refresh ]; then
+      case "$installer_git_name" in
+        GIT_ASKPASS|GIT_TERMINAL_PROMPT|GIT_SSH|GIT_SSH_COMMAND|GIT_SSH_VARIANT|\
+        GIT_SSL_CAINFO|GIT_SSL_CAPATH|GIT_SSL_CERT|GIT_SSL_KEY|\
+        GIT_SSL_CERT_PASSWORD_PROTECTED|GIT_SSL_CERT_TYPE|GIT_SSL_KEY_TYPE|\
+        GIT_SSL_VERSION|GIT_SSL_CIPHER_LIST|GIT_SSL_NO_VERIFY|\
+        GIT_HTTP_PROXY_AUTHMETHOD|GIT_PROXY_SSL_CAINFO|GIT_PROXY_SSL_CERT|\
+        GIT_PROXY_SSL_KEY|GIT_PROXY_SSL_CERT_PASSWORD_PROTECTED|GIT_PROXY_COMMAND)
+          continue ;;
+      esac
+    fi
     unset "$installer_git_name"
   done
   case "$installer_git_mode" in

@@ -5786,3 +5786,13 @@ bounded attempts with five-/ten-second pauses, preserving the final failure
 status. Keep the cache keys, locked modules, proxy/checksum configuration and
 job/runtime limits. Qualify recovery and exhaustion with the actual extracted
 workflow step before pushing the network-resilience change.
+
+Decision 141 authenticated-refresh refinement: review identified that clearing
+every GIT_* variable also removes standard credential, SSH and TLS/proxy
+overrides supported by the previous installer. Preserve a documented exact-name
+transport allowlist only for authorized refresh; identity reads still clear all
+Git overrides, and refresh still clears repository/configuration redirection.
+Keep inherited values literal and the caller environment unchanged. Qualify the
+actual installer boundary before repair. Exclude the three private source-build
+namespaces from historical budget/loop temporary template copies, with private
+copy-filter sentinels and the existing delivery suites as evidence.

@@ -261,3 +261,35 @@ the final Go failure status on exhaustion. Keep the existing job timeout and
 offline source-runtime compilation unchanged. Controlled execution must show
 recovery after a transient failure and a nonzero result after three failures;
 neither a sleep nor a diagnostic may turn acquisition failure into success.
+
+Authenticated template refresh must preserve the documented Git transport
+environment contract in specs/001-go-runtime-conversion.md:307. Metadata-only
+identity queries still remove every inherited `GIT_*` variable. Refresh removes
+repository, index, object, configuration, execution-path, protocol-control and
+tracing overrides, but preserves these exact exported names and their literal
+values, including empty values:
+
+- Credentials and SSH: `GIT_ASKPASS`, `GIT_TERMINAL_PROMPT`, `GIT_SSH`,
+  `GIT_SSH_COMMAND`, `GIT_SSH_VARIANT`.
+- HTTPS TLS: `GIT_SSL_CAINFO`, `GIT_SSL_CAPATH`, `GIT_SSL_CERT`, `GIT_SSL_KEY`,
+  `GIT_SSL_CERT_PASSWORD_PROTECTED`, `GIT_SSL_CERT_TYPE`, `GIT_SSL_KEY_TYPE`,
+  `GIT_SSL_VERSION`, `GIT_SSL_CIPHER_LIST`, `GIT_SSL_NO_VERIFY`.
+- Proxy transport: `GIT_HTTP_PROXY_AUTHMETHOD`, `GIT_PROXY_SSL_CAINFO`,
+  `GIT_PROXY_SSL_CERT`, `GIT_PROXY_SSL_KEY`,
+  `GIT_PROXY_SSL_CERT_PASSWORD_PROTECTED`, `GIT_PROXY_COMMAND`.
+
+These are exact-name exceptions, not a prefix wildcard. Do not evaluate,
+reconstruct, log or synthesize their values. Existing non-`GIT_*` credential and
+proxy variables remain inherited. Qualify authenticated refresh through the
+installer with redirection poison present, literal transport values, isolated
+identity reads and unchanged parent environment before implementing the repair.
+The names were checked against the [Git environment documentation](https://git-scm.com/docs/git#_environment_variables),
+[Git HTTP configuration source](https://github.com/git/git/blob/v2.56.0/Documentation/config/http.adoc)
+and [Git proxy documentation](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coregitProxy)
+on 2026-11-01; retaining an inherited TLS option does not enable it by default.
+
+Historical budget and loop delivery copies must exclude `.factory-go.*`,
+`.factory-startup.*` and `.factory-admission.*`, as well as the existing shared
+binary and qualification directory exclusions. A retained source build must not
+enter those temporary templates. Qualify the copy filters with private sentinels
+while preserving ordinary template assets and the historical delivery checks.

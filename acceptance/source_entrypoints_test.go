@@ -368,6 +368,7 @@ var _ = Describe("Go source runtime entrypoints", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:214
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:220
 	It("keeps branch-selected initializer operands local while preserving legacy controls and fetch-only consent", func() {
+		sourceInstallerGitAuth()
 		observations := map[string]map[string]any{}
 		for _, kind := range []string{"native", "legacy-product-module", "fetch-only", "native-upgrade", "matching-existing-cache", "mismatched-existing-cache", "mismatched-origin", "foreign-git-upgrade", "relative-subdir-upgrade", "newline-caller-upgrade", "refresh-then-init", "native-terminator", "legacy-tag-terminator", "legacy-branch-terminator", "native-fetch-advice"} {
 			source, caller := fixtureDirectories()
@@ -615,7 +616,6 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		AddReportEntry("source-entrypoint.branch-violations", failures, ReportEntryVisibilityNever)
 		Expect(failures).To(BeEmpty(), "all branch selections, forwarded operands and cache ownership controls must hold")
 	})
-
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:60
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:155
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:171

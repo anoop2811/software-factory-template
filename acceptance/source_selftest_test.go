@@ -366,7 +366,7 @@ func sourceSelftestFillPipe(writer *os.File) int {
 // the actual CLI context; it does not manufacture a canceled context.
 // per docs/adr/0120-native-source-gate-proof.md:115
 const sourceSelftestFinalOutcome = `{
- result, err := executeCommand(ctx, root, argv, environment, allowance, false, nil)
+ result, err := executeCommand(ctx, root, argv, environment, allowance, runOptions{}, nil)
  if err != nil || len(argv) == 0 || !strings.HasSuffix(argv[0], "/scripts/citation-lint.sh") || result.ExitCode == nil || *result.ExitCode != 0 { return result, err }
  original := result.Outcome
  outcome := os.Getenv("SOURCE_SELFTEST_NATIVE_OUTCOME")

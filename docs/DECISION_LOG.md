@@ -5648,3 +5648,39 @@ stable or candidate policy, preserving the existing candidate diagnostic. Clarif
 the classifier comment as execution routing; bare fetch retains the separate
 Git-only contract. Strengthen the existing stable metadata-refusal criterion
 before the one diagnostic change, without changing routing, counts or limits.
+
+## Decision 140 (2026-11-01 UTC): give the native copy gate one initializer inventory authority
+
+After human merge of PR #155 as 14c0d31, deliver ADR 0125 before the remaining R2
+source/direct activation. The Bash copy scanner would inspect nothing after the
+initializer becomes an adapter. Extract only the current Go base-input metadata
+into a neutral package shared by initialization, native checking and its proof;
+preserve all selection/substitution behavior, recipes and current cached data.
+
+Use the existing explicit developer runtime and private Cobra protocol, retaining
+physical installed admission and compiler-free adopter behavior. Keep legacy
+scanning for real legacy copy bodies, refuse unknown empty inventories, and never
+fall back after native validation failure. The native proof must leave a real
+declared input untracked, observe refusal, then track it and observe acceptance.
+Independent hook false-success RED and compiled outside-in coverage precede code.
+Derive census/runtime evidence without increasing allowances. Source launchers,
+direct adapters, branch forwarding, public pin and release gates stay separate.
+
+Decision 140 review qualification: exact Git filenames must match in addition to
+literal pathspecs, because pathspecs also select descendants. Bind automatic
+installed execution to the physical hook owner, never to an untrusted subject's
+selector. Reuse bounded cooperative supervision for the known native copy-hook
+controller so parent cancellation cannot discard nested Git custody. Independent
+regressions for these three cases precede their implementation refinements.
+
+Decision 140 hosted review refinement: resnapshot selected copy inputs after Git,
+reject symlinked hook files before sibling loads, and resolve directory aliases
+physically before owner traversal. Extend exact tracking to the legacy scanner
+and retain bounded diagnostic cause identity. Adapt the existing native-outcome
+test overlay to the helper's options argument while preserving every assertion.
+
+Decision 140 final protocol refinement: interpret reserved status 125 only at the
+known native copy boundary, with the shared constant beside native ownership
+errors. Keep typed uncertainty global. Sanitize subject-root diagnostics,
+distinguish finite Git failure classes, and clearly log refusal of an unusable
+owner wrapper. Preserve all runtime and cleanup allowances and test identities.

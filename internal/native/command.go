@@ -17,13 +17,20 @@ type CommandResult struct {
 // ExecuteCommand supervises literal initializer tools without harness-role overlays.
 // docs/adr/0085-go-native-init.md:55.
 func ExecuteCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
-	return executeCommand(ctx, root, argv, environment, allowance, false, nil)
+	return executeCommand(ctx, root, argv, environment, allowance, runOptions{}, nil)
+}
+
+// ExecuteCommandCooperative captures a managed Go controller's output while
+// allowing it to settle separately grouped children before forced shutdown.
+// docs/adr/0125-native-initializer-copy-inventory-gate.md:171.
+func ExecuteCommandCooperative(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
+	return executeCommand(ctx, root, argv, environment, allowance, runOptions{cooperative: true}, nil)
 }
 
 // ExecuteCommandCombined preserves the proof script's shared output stream.
 // docs/adr/0086-go-native-doctor.md:72.
 func ExecuteCommandCombined(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration) (CommandResult, error) {
-	return executeCommand(ctx, root, argv, environment, allowance, true, nil)
+	return executeCommand(ctx, root, argv, environment, allowance, runOptions{mergeStderr: true}, nil)
 }
 
 // ExecuteCommandObserved durably publishes actual child ownership before work.
@@ -32,10 +39,10 @@ func ExecuteCommandObserved(ctx context.Context, root string, argv []string, env
 	if onSpawn == nil {
 		return CommandResult{}, errors.New("missing command ownership publication")
 	}
-	return executeCommand(ctx, root, argv, environment, allowance, false, onSpawn)
+	return executeCommand(ctx, root, argv, environment, allowance, runOptions{}, onSpawn)
 }
 
-func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, combined bool, onSpawn func(context.Context, int) error) (CommandResult, error) {
+func executeCommand(ctx context.Context, root string, argv []string, environment map[string]string, allowance time.Duration, options runOptions, onSpawn func(context.Context, int) error) (CommandResult, error) {
 	plan, variables, err := prepareCommand(root, argv, environment)
 	if err != nil {
 		return CommandResult{}, err
@@ -46,9 +53,8 @@ func executeCommand(ctx context.Context, root string, argv []string, environment
 	if onSpawn == nil {
 		onSpawn = func(context.Context, int) error { return nil }
 	}
-	execution, err := supervise(child, plan, allowance,
-		onSpawn, defaultProcessOps(),
-		runOptions{limit: outputLimit, environment: variables, errorOutput: stderr, mergeStderr: combined})
+	options.limit, options.environment, options.errorOutput = outputLimit, variables, stderr
+	execution, err := supervise(child, plan, allowance, onSpawn, defaultProcessOps(), options)
 	data, overflow := stderr.snapshot()
 	if overflow {
 		err = errors.Join(err, errors.New("tool output limit exceeded"))

@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 	"io"
 	"os"
+	"strings"
 )
 
 // File retains a qualified leaf and its confined parent for later use.
@@ -49,6 +50,16 @@ func (tree *Tree) OpenFile(ctx context.Context, path string, limit int64) (resul
 	parent, name, _, err := tree.Parent(ctx, path, false)
 	if err != nil {
 		return nil, err
+	}
+	return parent.OpenFile(ctx, name, limit)
+}
+
+// OpenFile qualifies one literal Unix leaf beneath an already confined parent.
+// Canonical manifest paths still use Tree.OpenFile's unchanged path admission.
+// docs/adr/0125-native-initializer-copy-inventory-gate.md:180.
+func (parent *Node) OpenFile(ctx context.Context, name string, limit int64) (result *File, returned error) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\x00") {
+		return nil, fmt.Errorf("%w: invalid installation leaf name", ErrUnsafe)
 	}
 	before, err := named(ctx, parent, name)
 	if err != nil {

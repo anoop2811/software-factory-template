@@ -7,6 +7,11 @@ import (
 	"syscall"
 )
 
+// OwnershipExitStatus carries uncertainty only across a known managed Go
+// boundary. Other commands' numeric exits do not acquire ownership meaning.
+// docs/adr/0125-native-initializer-copy-inventory-gate.md:224.
+const OwnershipExitStatus = 125
+
 // OwnershipError preserves the PID when termination or reap is unconfirmed.
 // docs/adr/0068-go-native-harness-execution.md:44.
 type OwnershipError struct {

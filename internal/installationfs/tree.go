@@ -100,6 +100,9 @@ func (tree *Tree) Check(ctx context.Context) error {
 	}
 	return ctx.Err()
 }
+
+// Parent retains physical ancestors and returns the final component as a name.
+// The leaf is not inspected or created; callers qualify it separately.
 func (tree *Tree) Parent(ctx context.Context, path string, create bool) (*Node, string, []*Node, error) {
 	if path == "" || filepath.IsAbs(path) || strings.ContainsAny(path, "\\\x00") {
 		return nil, "", nil, fmt.Errorf("%w: invalid confined installation path", ErrUnsafe)

@@ -5771,3 +5771,10 @@ blocked. Isolate the test-owned witness's captures, retain unrelated/release
 descriptors and preserve every original Wait/group/timing assertion. Add the
 missing liveness evidence; do not claim the hosted cause was established or
 change production cleanup based on this ambiguous receipt.
+
+Decision 141 witness portability: the Linux arm64 native-bundle job on a0cca67
+could build the product but failed acceptance compilation because syscall.Dup2
+is unavailable there. Use the portable wrapper from the already locked x/sys
+dependency, then compile the acceptance package for all four supported targets
+and rerun the witness criteria. No runtime behavior, dependency version or
+timing allowance changes.

@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/sys/unix"
 )
 
 // Evaluator helper provenance: 07e323a76bbaeb34b2ef12321d958b1539fa528d;
@@ -82,7 +83,7 @@ func isolateSourcePriorCapture() (sourcePriorCaptureIsolation, error) {
 	}
 	defer func() { _ = null.Close() }()
 	for _, fd := range []int{1, 2} {
-		if err := syscall.Dup2(int(null.Fd()), fd); err != nil {
+		if err := unix.Dup2(int(null.Fd()), fd); err != nil {
 			return isolation, err
 		}
 	}

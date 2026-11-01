@@ -247,3 +247,9 @@ before witness release, the live borrowed-group witness and all existing timing
 allowances. Observe launcher liveness separately because Go's Wait also waits
 for capture-copy EOF. A controlled capture-holder reproduction establishes this
 test ambiguity; it does not by itself establish the original hosted cause.
+
+The witness helper must compile on every supported target. Use the existing
+`golang.org/x/sys/unix` portable descriptor-duplication wrapper instead of an
+architecture-specific syscall surface. Compile the acceptance package for
+Linux/macOS on amd64/arm64 before publishing this portability refinement;
+retain the locked dependency versions and the same descriptor assertions.

@@ -484,11 +484,11 @@ if [ -x "$CML_HOOK" ]; then
     "$(printf 'fix: the retry logic works\n' | run_status "$CML_HOOK")"
 fi
 
-# Break/fix: sync routes each role to its tier's per-harness model from
+# Historical break/fix: sync routes each role to its tier's per-harness model from
 # factory.config, and the standard/economy collapse is applied at sync time by
 # resolve_tier — so editing factory.config (a model, or the profile) and running
 # the sync re-routes every harness. With no factory.config, sync is a no-op:
-# adapters inherit and opencode keeps its placeholders (committed repo stays clean).
+# adapters inherit and opencode keeps its placeholders in the historical sandbox.
 SYNCROOT="$SANDBOX/syncroot"
 mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
 cp "$LEGACY_TEMPLATE_ROOT/scripts/sync-opencode.sh" "$LEGACY_TEMPLATE_ROOT/scripts/sync-codex.sh" \

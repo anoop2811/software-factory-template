@@ -79,3 +79,12 @@ sync leaves them stable. The concrete historical closure is the full shell
 runner's sync sandbox plus the optional-pack, Java, budget and loop initializer
 materializers. Existing Go initializer/doctor/installation oracles already archive
 their original sync bodies and require no blanket fixture rewrite.
+
+Current generated-file drift belongs to `make check-drift` (Makefile:194), also
+dispatched by scripts/pre-push-check.sh:49 and the changed-adapter rule in
+scripts/hooks/diff-aware-check.sh:104. Run it in a private committed source copy;
+it executes all three current direct adapters before comparing generated files.
+The historical shell block has always rendered into its own sandbox. Current
+native no-settings byte preservation is covered independently by
+acceptance/orchestration_sync_test.go:289, while the new direct-entrypoint
+criteria prove owner/caller separation and native rendering for each harness.

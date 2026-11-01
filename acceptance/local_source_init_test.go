@@ -305,41 +305,44 @@ var _ = Describe("Go explicit local source initialization", Ordered, ContinueOnF
 	})
 
 	// per docs/adr/0116-explicit-go-local-initialization.md:70
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:305
 	DescribeTable("reconciles parent-only signals after an actual compiler descendant holds both captures", func(signal syscall.Signal) {
 		f, driver := localInitSurface(image)
+		source := localCompilerCancellationSource(f.root, image)
 		ready := localInitCompiler(f, wrapper, compiler, "version", "hold")
 		target := filepath.Join(f.cwd, "must remain absent")
 		before, caller, cache := installationSnapshot(source), installationSnapshot(f.cwd), installationSnapshot(f.environment["FACTORY_RELEASE_DIR"])
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
+		DeferCleanup(cancel)
 		command := handoffCommand(ctx, f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--local", "--source", source, "--pack", "none")
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
+		started := time.Now()
 		Expect(command.Start()).To(Succeed())
-		finished := make(chan error, 1)
-		go func() { finished <- command.Wait() }()
-		DeferCleanup(func() { _ = command.Process.Kill() })
+		custody := localCompilerCancellationWait(command, ready, f.root)
 		Eventually(func() bool {
 			select {
-			case err := <-finished:
-				StopTrying(fmt.Sprintf("local init exited before compiler READY: error=%v stdout=%q stderr=%q", err, stdout.String(), stderr.String())).Now()
+			case <-custody.done:
+				StopTrying(fmt.Sprintf("local init exited before compiler READY: error=%v stdout=%q stderr=%q", custody.waitErr, stdout.String(), stderr.String())).Now()
 			default:
 			}
 			_, err := os.Stat(ready)
 			return err == nil
 		}, 30*time.Second).Should(BeTrue())
 		receipt := localCompilerReadiness(ready, "version", time.Second)
-		DeferCleanup(localCompilerCleanup, receipt)
 		Expect(receipt.Group).To(Equal(receipt.Leader), "compiler must have its own supervised process group")
+		custody.receipt = &receipt
+		AddReportEntry("local-compiler.cancellation-readiness", map[string]any{"ready_seconds": time.Since(started).Seconds(), "source_blob_count": 2, "reference_blob_count": 297, "receipt": receipt}, ReportEntryVisibilityNever)
 		AddReportEntry("local-init.compiler-ready", receipt, ReportEntryVisibilityNever)
 		Expect(command.Process.Signal(signal)).To(Succeed(), "signal only the CLI parent PID")
 		var returned error
 		select {
-		case returned = <-finished:
+		case <-custody.done:
+			returned = custody.waitErr
 		case <-time.After(6 * time.Second):
 			localCompilerCleanup(receipt)
 			_ = command.Process.Kill()
-			Eventually(finished, 6*time.Second).Should(Receive(&returned))
+			Eventually(custody.done, 6*time.Second).Should(BeClosed())
 			Fail("local init remained blocked after parent-only cancellation")
 		}
 		Expect(returned).To(HaveOccurred())

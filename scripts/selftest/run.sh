@@ -16,6 +16,23 @@ HOOKS="$TEMPLATE_ROOT/scripts/hooks"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
+# These legacy upgrade regressions keep their actual pre-conversion engine.
+# Current gates below still come from TEMPLATE_ROOT; no saved script is used by
+# native installed selftest. docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
+LEGACY_TEMPLATE_ROOT="$TEMPLATE_ROOT"
+if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
+  [ "$(sed -n '2p' "$TEMPLATE_ROOT/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]; then
+  LEGACY_TEMPLATE_ROOT="$SANDBOX/historical-template"
+  mkdir -p "$LEGACY_TEMPLATE_ROOT"
+  tar -cf - --exclude=.git --exclude=.factory --exclude=factory-go \
+    --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
+    tar -xf - -C "$LEGACY_TEMPLATE_ROOT"
+  for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh; do
+    git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
+    chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
+  done
+fi
+
 # Gate firings during the self-test log to a sandbox event log, not the real
 # repo's .factory/events.log — so running the self-test never pollutes a
 # developer's `factory report`.
@@ -388,12 +405,14 @@ if [ -x "$WIKI_HOOK" ]; then
     "$(cd "$SWDIR" && FACTORY_CONFIG="$SWDIR/factory.yaml" run_status "$WIKI_HOOK")"
 fi
 
-# Break/fix: copy-manifest-check flags an install-copy target not tracked by git
+# Break/fix: the current hook's historical scanner flags an install-copy target not tracked by git
 # (the "works locally, missing in a clean clone" class the installer hit).
 CM_HOOK="$HOOKS/copy-manifest-check.sh"
 if [ -x "$CM_HOOK" ]; then
   CMDIR="$SANDBOX/cm"
-  mkdir -p "$CMDIR/scripts" "$CMDIR/foo"
+  mkdir -p "$CMDIR/scripts/hooks" "$CMDIR/foo"
+  cp "$CM_HOOK" "$CMDIR/scripts/hooks/copy-manifest-check.sh"
+  CM_HOOK="$CMDIR/scripts/hooks/copy-manifest-check.sh"
   (
     cd "$CMDIR" || exit 1
     git init -q -b main
@@ -585,7 +604,7 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh a
 # Marked as nested so the upgrade skips its doctor proof. Without this the
 # cycle is doctor -> selftest -> upgrade -> doctor, which never terminates:
 # the guard inside upgrade only helps when the OUTER process is an upgrade.
-( cd "$UPGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+( cd "$UPGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$LEGACY_TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
 check "factory upgrade adds a missing framework lib" "yes" \
   "$([ -f "$UPGROOT/scripts/lib/roles.sh" ] && echo yes || echo no)"
 
@@ -651,10 +670,10 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOROOT/scripts/lib/"
 # A script that differs from the template only in a trailing comment: enough for
 # the copy to replace it, which is exactly the condition that triggers the
 # hand-off, without pinning the fixture to any particular old release.
-{ cat "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOROOT/scripts/factory-upgrade.sh"
+{ cat "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOROOT/scripts/factory-upgrade.sh"
 chmod +x "$HOROOT/scripts/factory-upgrade.sh"
 HO_LOG="$SANDBOX/handoff.log"
-( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$TEMPLATE_ROOT" ) </dev/null >"$HO_LOG" 2>&1 || true
+( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$LEGACY_TEMPLATE_ROOT" ) </dev/null >"$HO_LOG" 2>&1 || true
 check "a replaced upgrade script hands off to the new one" "1" \
   "$(grep -c 'upgrade script itself was updated' "$HO_LOG" 2>/dev/null || true)"
 check "the stale script was actually replaced" "0" \
@@ -662,7 +681,7 @@ check "the stale script was actually replaced" "0" \
 # The bound that matters. This repo has recursed before (doctor -> selftest ->
 # upgrade -> doctor), so a hand-off that can arm itself twice is a fork bomb.
 HO_LOG2="$SANDBOX/handoff2.log"
-( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$TEMPLATE_ROOT" ) </dev/null >"$HO_LOG2" 2>&1 || true
+( cd "$HOROOT" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --source "$LEGACY_TEMPLATE_ROOT" ) </dev/null >"$HO_LOG2" 2>&1 || true
 check "an already-current script does not hand off" "0" \
   "$(grep -c 'upgrade script itself was updated' "$HO_LOG2" 2>/dev/null || true)"
 # Nestedness must survive the hand-off. The parent always exports
@@ -683,9 +702,9 @@ mkdir -p "$HOREF/scripts/lib"
 ( cd "$HOREF" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$HOREF/factory.yaml"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOREF/scripts/lib/"
-{ cat "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOREF/scripts/factory-upgrade.sh"
+{ cat "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOREF/scripts/factory-upgrade.sh"
 chmod +x "$HOREF/scripts/factory-upgrade.sh"
-( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$TEMPLATE_ROOT" ) </dev/null >"$SANDBOX/handoff-ref.log" 2>&1 || true
+( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$LEGACY_TEMPLATE_ROOT" ) </dev/null >"$SANDBOX/handoff-ref.log" 2>&1 || true
 check "the requested ref survives the hand-off" "ref=pinned-label" \
   "$(grep '^ref=' "$HOREF/.factory-version" 2>/dev/null || true)"
 # The file count must survive too. The first pass does the copying and the second
@@ -723,7 +742,7 @@ cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOSTALE/scripts/lib/"
 HOSTALE_LOG="$SANDBOX/handoff-stale.log"
 ( cd "$HOSTALE" \
   && FACTORY_UPGRADE_ACTIVE=1 FACTORY_UPGRADE_REEXEC=1 \
-     bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" \
+     bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$LEGACY_TEMPLATE_ROOT" \
 ) </dev/null >"$HOSTALE_LOG" 2>&1 || true
 check "a stale handshake cannot un-nest an upgrade" "1" \
   "$(grep -c 'nested upgrade' "$HOSTALE_LOG" 2>/dev/null || true)"
@@ -902,7 +921,7 @@ printf 'project_name: t\nlanguage_packs: "typescript"\n' > "$PKGROOT/factory.yam
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
 # A stale copy of the gate, standing in for one installed by an older release.
 printf '#!/bin/bash\n# stale pack gate\nexit 0\n' > "$PKGROOT/scripts/hooks/vitest-only-check.sh"
-( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
+( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$LEGACY_TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
 if grep -q 'stale pack gate' "$PKGROOT/scripts/hooks/vitest-only-check.sh" 2>/dev/null; then
   PKG_STALE=yes
 else
@@ -1090,7 +1109,7 @@ if [ -f "$REVIEW_TEMPLATE" ]; then
   printf 'project_name: t\n' > "$OFFROOT/factory.yaml"
   cap_offer_output() {
     printf 'PROJECT_NAME="t"\n%s' "$1" > "$OFFROOT/factory.config"
-    ( cd "$OFFROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
+    ( cd "$OFFROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$LEGACY_TEMPLATE_ROOT" 2>&1 || true ) | grep -c 'New, and off' || true
   }
   check "a repo never offered the capability is told" "1" "$(cap_offer_output '')"
 else
@@ -1100,21 +1119,21 @@ fi
 # it — otherwise the capability is announced to nobody, which is how it shipped
 # broken the first time.
 check "upgrade ships the workflow template the offer depends on" "1" \
-  "$(grep -c '^packs/review-lane/review-pr.yml$' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
+  "$(grep -c '^packs/review-lane/review-pr.yml$' "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
 # Upgrade runs doctor, doctor runs the self-test, and the self-test runs upgrade.
 # Without a re-entrancy guard that recurses until the machine gives up.
 check "upgrade guards against recursing into itself" "1" \
-  "$(grep -c 'UPGRADE_NESTED' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" >/dev/null && echo 1 || echo 0)"
+  "$(grep -c 'UPGRADE_NESTED' "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" >/dev/null && echo 1 || echo 0)"
 
 # The cycle doctor -> selftest -> upgrade -> doctor also has to be cut, and the
 # guard inside upgrade cannot do it: it only helps when the OUTER process is an
 # upgrade. The self-test must mark the upgrades it spawns as nested.
 check "selftest marks the upgrades it spawns as nested" "1" \
-  "$(grep -c 'FACTORY_UPGRADE_ACTIVE=1 bash "$TEMPLATE_ROOT/scripts/factory-upgrade.sh"' "$TEMPLATE_ROOT/scripts/selftest/run.sh" >/dev/null && echo 1 || echo 0)"
+  "$(grep -Ec '^[[:space:]]*\( cd .*FACTORY_UPGRADE_ACTIVE=1 bash "\$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade\.sh"' "$TEMPLATE_ROOT/scripts/selftest/run.sh" >/dev/null && echo 1 || echo 0)"
 # The colour helper is sourced by init and upgrade, so upgrade must ship it —
 # under set -u a missing lib aborted the run the first time this shipped.
 check "upgrade ships the colour lib it sources" "1" \
-  "$(grep -c '^scripts/lib/color.sh$' "$TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
+  "$(grep -c '^scripts/lib/color.sh$' "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" || true)"
 # Outstanding work is reported from live state: named when the lane is on and the
 # secret is not confirmed, silent when the lane is off.
 if [ -f "$REVIEW_TEMPLATE" ]; then

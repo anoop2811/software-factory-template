@@ -1,19 +1,18 @@
 # Native Go initialization
 
 The Go CLI's ordinary `init` selects an authenticated packaged Go initializer.
-The source checkout's tracked shell launcher and the public installer's stable
-v0.1.6 pin retain their existing script behavior until their separate activation.
-Building the Go command does not change either entrypoint:
+The current source checkout's tracked launcher builds the Go CLI with the
+provisioned local toolchain/module cache. Direct `scripts/factory-init.sh` forwards
+to that same `init` owner. The public installer's default remains v0.1.6:
 
 ```sh
-go build -o factory-go ./cmd/factory
-./factory-go init /path/to/project --pack go,typescript
+./factory init /path/to/project --pack go,typescript
 ```
 
 Keep the tracked `factory` file intact. Ordinary Go initialization authenticates
 the selected release's complete assets, then runs that exact initializer. It
-does not copy the caller's source templates or require a Go compiler or Python
-at installation time. Git, GitHub CLI authentication/attestation support and
+does not copy the caller's source templates. Packaged installation requires no
+Go compiler or Python; the source launcher itself requires Go. Git, GitHub CLI authentication/attestation support and
 the tools required by retained gates and project setup are still needed.
 
 Selection order is `--ref TAG`, nonempty `FACTORY_REF`, the admitted installed
@@ -49,11 +48,10 @@ migration recovery, rollback and retention remain separate commands.
 The explicit developer interface builds and installs a native Go image:
 
 ```sh
-go build -o factory-go ./cmd/factory
-./factory-go init ../new-project --local --pack go,typescript
+./factory init ../new-project --local --pack go,typescript
 
 # Select another clean checkout, including from an installed Go caller:
-./factory-go init ../new-project --local --source /path/to/clean-factory --pack go
+./factory init ../new-project --local --source /path/to/clean-factory --pack go
 ```
 
 Commit source changes first. Tracked modifications and untracked files are
@@ -65,8 +63,9 @@ dependencies through its declared setup operations.
 
 The exact built executable performs initialization and installs a
 `local-FULL_REVISION` runtime for the native host target. This is an explicit
-local build, with no publisher authentication claim. `--local --help` explains
-the selector without inspecting source or compiling. For updating an existing
+local build, with no publisher authentication claim. The native `--local --help`
+owner explains the selector without inspecting or packaging source; a source
+launcher still builds its CLI first. For updating an existing
 installation, use the separate [local upgrade interface](../UPGRADING.md).
 
 Before publication, build or validation failures preserve the source and target.

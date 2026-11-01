@@ -51,9 +51,9 @@ SIGINT/SIGTERM cancels owned proof children before scratch cleanup; uncertain
 ownership fails and retains the private workspace with bounded diagnostics.
 See [ADR 0120](../adr/0120-native-source-gate-proof.md) for the fixed gate inventory.
 
-The tracked source shell launcher, direct `scripts/selftest/run.sh` and
-`make selftest` retain the broader historical shell regression suite until their
-separate activation. Its configuration, packs, sync, upgrade, evaluation,
+The tracked source launcher now builds and enters the Go CLI. Direct
+`scripts/selftest/run.sh` and `make selftest` retain the broader historical shell
+regression suite until their separate activation. Its configuration, packs, sync, upgrade, evaluation,
 review-lane, metrics, event and implementation-text checks are distinct from
 the fourteen core gate pairs. Current public native proofs do not establish
 parity with that entire suite; retain each regression until independently
@@ -62,8 +62,8 @@ replaced under the [conversion coverage rule](../../specs/001-go-runtime-convers
 Intentional retained shell boundaries are policy gates, sourceable assignment
 adapters, Bash operand expansion for local-hook compatibility, generated
 invocation adapters, user Make/build commands and harness-native hook formats.
-The source checkout still carries the old default bootstrap/upgrade and frozen
-compatibility implementations until the separately qualified default cutover.
+The source checkout retains other direct command/helper bodies and explicit
+historical fixtures until their separate entrypoint and proof-runner cleanup.
 Their presence does not establish release readiness or a runtime fallback in
 an opted-in Go installation. No Go or Python interpreter is required for the
 converted installed orchestration; retained JSON validation gates still require

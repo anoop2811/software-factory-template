@@ -59,6 +59,18 @@ jobs:
         with:
           go-version: 'stable'
 
+      - name: Provision locked source runtime modules
+        # The source copy gate compiles offline; setup owns acquisition.
+        # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:227.
+        run: |
+          if [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
+             [ -f go.mod ] && grep -Fxq 'module github.com/anoop2811/software-factory-template' go.mod &&
+             [ -f scripts/factory-init.sh ] &&
+             [ "$(sed -n '2p' scripts/factory-init.sh)" = '# Factory native initializer adapter: source-v1' ]; then
+            go mod download
+            git diff --exit-code -- go.mod go.sum
+          fi
+
       - name: actionlint
         # GitHub's new job cache-mode is not yet in the latest tagged parser.
         # Independent workflow criteria validate its scope and value.

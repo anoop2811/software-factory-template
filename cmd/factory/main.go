@@ -11,6 +11,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/installedlayout"
 	"github.com/anoop2811/software-factory-template/internal/releasecmd"
+	"github.com/anoop2811/software-factory-template/internal/sourcebootstrap"
 )
 
 func main() { os.Exit(run(context.Background(), os.Args[1:])) }
@@ -63,6 +64,28 @@ func run(ctx context.Context, args []string) (status int) {
 	if len(expected) != 0 {
 		fmt.Fprintln(os.Stderr, "factory: installed marker has no physical installation")
 		return 2
+	}
+	// Installed admission precedes this source-only invocation lifetime.
+	// docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:189.
+	if len(args) > 0 && args[0] == "--source-launcher" {
+		if len(args) < 2 || args[1] != "--" {
+			fmt.Fprintln(os.Stderr, "factory: invalid private source invocation")
+			return 2
+		}
+		invocation, err := sourcebootstrap.OpenInvocation(ctx)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "factory: private source admission failed:", err)
+			return 2
+		}
+		defer func() {
+			if err := invocation.Close(context.WithoutCancel(ctx)); err != nil {
+				fmt.Fprintln(os.Stderr, "factory:", err)
+				if status == 0 {
+					status = 1
+				}
+			}
+		}()
+		args = args[2:]
 	}
 
 	// Candidate sourceable calls use an explicit private protocol; ordinary

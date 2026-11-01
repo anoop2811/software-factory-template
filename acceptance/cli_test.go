@@ -79,6 +79,8 @@ var _ = BeforeSuite(func() {
 	buildDir, err := os.MkdirTemp("", "factory-acceptance-build-")
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(os.RemoveAll, buildDir)
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
+	captureSourceCompilerImage(filepath.Join(buildDir, "source-compiler-helper"))
 	// per docs/adr/0104-adaptive-qualification-workers.md:18
 	sourceGateWorkerHelperPath = filepath.Join(buildDir, "worker-count")
 	// Build success is setup, not behavioral RED. per specs/001-go-runtime-conversion.md:289

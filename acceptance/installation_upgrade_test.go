@@ -50,7 +50,7 @@ func installationSurfaceFixture(binary []byte) (driver, root, sentinel string) {
 	GinkgoHelper()
 	temporary, err := os.MkdirTemp("", "factory installation surface ")
 	Expect(err).NotTo(HaveOccurred())
-	DeferCleanup(os.RemoveAll, temporary)
+	DeferCleanup(cleanupFixtureDirectory, temporary)
 	temporary, err = filepath.EvalSymlinks(temporary)
 	Expect(err).NotTo(HaveOccurred())
 	driver = filepath.Join(temporary, "independent driver")

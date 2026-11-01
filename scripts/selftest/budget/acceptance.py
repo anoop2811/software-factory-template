@@ -25,6 +25,22 @@ ENV.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
            PYTHONDONTWRITEBYTECODE="1")
 CHECKS = []
 
+# Historical subprocess/controller evidence, not current native delivery.
+# docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
+LEGACY_REVISION = "1754de23de95a7e3c734bedd86894295e823c988"
+LEGACY_ENTRYPOINTS = {
+    path: subprocess.run(["git", "-C", str(SOURCE), "show", LEGACY_REVISION + ":" + path],
+                         env=ENV, capture_output=True, check=True, timeout=10).stdout
+    for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh")
+}
+
+
+def historical_entrypoints(target, paths=LEGACY_ENTRYPOINTS):
+    for path in paths:
+        destination = target / path
+        destination.write_bytes(LEGACY_ENTRYPOINTS[path])
+        destination.chmod(0o755)
+
 
 def test(name):
     def register(function):
@@ -63,6 +79,7 @@ class Fixture:
             elif origin.is_file():
                 shutil.copy2(origin, target)
         self.bin = self.root / "fixture-bin"
+        historical_entrypoints(self.root, ("factory",))
         self.bin.mkdir()
         for name in ("codex", "claude", "opencode"):
             shutil.copy2(SOURCE / "scripts/selftest/budget/fake_cli.py", self.bin / name)
@@ -706,8 +723,11 @@ def delivery(f):
     # Real installer/upgrade artifact flow. Ancillary npm/prerequisite/selftest
     # work is stubbed here; gate correctness is exercised by the ordinary suite.
     template = f.root / "template"
+    # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:291.
     shutil.copytree(SOURCE, template, ignore=shutil.ignore_patterns(
-        ".git", ".factory", "node_modules", "__pycache__", ".venv"))
+        ".git", ".factory", "factory-go", ".factory-go.*", ".factory-startup.*",
+        ".factory-admission.*", "node_modules", "__pycache__", ".venv"))
+    historical_entrypoints(template)
     for relative in ("scripts/selftest/run.sh", "scripts/prereq-check.sh"):
         stub = template / relative
         stub.write_text("#!/bin/bash\nexit 0\n")

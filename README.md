@@ -80,7 +80,9 @@ See the [CLI command reference](docs/CLI.md) for the commands available in each
 runtime. Ordinary Go `init` now authenticates its selected installed release or
 the prepared v0.2.0 source default. Until v0.2.0 is published, source-built callers
 must select a published candidate or explicit local build. The tracked source
-shell launcher and public stable pin retain their current behavior. A bare
+launcher builds the Go CLI using the provisioned local Go toolchain and module
+cache; installed projects execute their packaged Go binary. The public stable
+pin remains v0.1.6. A bare
 installer invocation remains fetch-only, including for a Go tag; its advice
 re-enters authenticated initialization before running release code.
 Installing the packaged Go factory requires no Go compiler or Python;
@@ -98,9 +100,9 @@ product tools and retained validation gates keep their own requirements.
 
 ## Factory commands
 
-Use one public entrypoint: `./factory`. This table describes the selected Go
-installation; commands marked **Go only** are absent from the default script
-dispatcher. Use an actual published release tag for `TAG`. Start with
+Use one public entrypoint: `./factory`. This table describes current Go source
+and selected Go installations; commands marked **Go only** are absent from the
+older v0.1.6 script dispatcher. Use an actual published release tag for `TAG`. Start with
 `./factory help`; flags vary by command. The [CLI reference](docs/CLI.md) explains
 options, runtime availability and side effects. The table follows current Go
 source; older published candidates can have fewer features.

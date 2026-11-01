@@ -5684,3 +5684,147 @@ known native copy boundary, with the shared constant beside native ownership
 errors. Keep typed uncertainty global. Sanitize subject-root diagnostics,
 distinguish finite Git failure classes, and clearly log refusal of an unusable
 owner wrapper. Preserve all runtime and cleanup allowances and test identities.
+
+## Decision 141 (2026-11-01 UTC): activate native source and direct init/upgrade entrypoints
+
+After human merge of PR #156 as 1754de2, implement the bounded source function
+in ADR 0126. Reuse the existing Cobra owners and preserved compiler-bootstrap
+design with fresh independent RED/GREEN and process-custody qualification.
+Only source development builds Go; generated installed launchers remain
+compiler-free. Preserve literal process boundaries, prior build on failure,
+bounded cancellation and inert retained evidence when ownership is uncertain.
+
+Turn direct init/upgrade scripts into owner-relative adapters. Preserve explicit
+installer branch selection through the current adapter's local-source protocol,
+legacy tag behavior, the public v0.1.6 pin and authenticated stable acquisition.
+The copy gate recognizes its physical owner's declared native adapter and keeps
+checking actual Go inventory. Freeze genuine legacy test fixtures at their
+observed pre-conversion Git provenance; keep current entrypoint tests current.
+Remaining command/helper adapters, historical controller cleanup, final audit,
+candidate publication and adopter acceptance remain separate tasks and gates.
+
+Decision 141 pre-implementation security refinement: reject source file aliases
+before compiler selection. Its exact private compiler output publishes itself
+through the existing Cobra bridge and confined native exact-leaf rename before
+the shell execs the developer output. This avoids shell mv treating a changed
+cache destination as a directory. The developer cache and private bridge grant
+no installed or publisher identity.
+
+Decision 141 pre-implementation branch qualification: both review lenses and the
+independent verifier identified the retained installer upgrade vector missing
+local consent/remaining operands, plus cached init selecting an unrelated HEAD.
+Qualify these failures before repair. Native upgrade adapters carry explicit
+local source and literal options into read-only preview/fresh-consent apply.
+Cached branch init proves the requested repository/ref matches HEAD or refuses
+read-only with actionable advice. Branch refresh checks a clean matching cache
+and uses non-force checkout; preserve unrelated legacy-tag behavior.
+
+Decision 141 physical-owner qualification: the independent direct-entrypoint
+criterion observed both directory aliases execute a decoy parent factory before
+repair. Use physical cd traversal before interpreting parent components in all
+three current entrypoints; pwd -P after logical traversal cannot recover that
+lost ownership. Preserve the collected literal transport and tree guards.
+
+Decision 141 final review contracts: independently qualify automatic source-hook
+dispatch rather than borrowing selftest's explicit runtime coverage. Bind native
+installer upgrade to the original caller cwd with isolated, framed Git discovery
+and a physical cache path. Keep successful named-branch cache refresh consistent
+with later init reuse through transactional checkout; retain exact detached tags
+and refuse dirty/conflicting caches. The verifier confirmed these scoped findings
+before the added regression assertions and production refinements.
+
+Decision 141 source-acquisition qualification: replace full-clone-only native
+delivery evidence with the actual branch installer and fresh shallow file
+transport. Native local packaging keeps its canonical two predecessor catalogs;
+explicit native source installation obtains complete cache history before that
+offline packager. Legacy and bare-fetch shallow behavior stay unchanged. Capture
+the actual integration result before implementing any history-acquisition repair.
+
+Decision 141 hosted review refinement: PR #157's first exact-head review completed
+all 30 files and 59 fragments in three batches; its job took 182 seconds. Copilot
+identified shared-cache exec interleaving, shallow bare-fetch advice and branch
+terminator transport. Bind execution to a single-linked private invocation file,
+publish an independent checked cache copy, and clean only the pinned private file
+after return. Preserve original caller arguments and installed admission.
+
+Re-enter init with quoted effective selectors from native fetch-only advice.
+Native branch terminators are capability-checked after acquisition; legacy tags
+retain early refusal. Provision the locked source module cache in Template CI
+before its offline gate. Refute fragment-only model claims against complete code;
+repair the independently observed self-satisfying historical nesting predicate.
+New independent semantic REDs precede these behavioral repairs. No version,
+dependency, worker/deadline or model/budget allowance is increased.
+
+Decision 141 final review qualification: the second exact-head model review
+completed 34 files and 64 fragments in 114 seconds. Its missing-Go fixture
+finding exposed an unqualified system PATH fallback. Make that negative setup
+hermetic, observe child compiler lookup fail, and require the actual launcher
+diagnostic; a missing fake-compiler record is insufficient evidence. Production
+compiler selection and all release/runtime boundaries retain their contract.
+
+Decision 141 cancellation-fixture refinement: the macOS source gate on 27fc8cd
+reported one failing absent-group criterion with its compiler child absent,
+borrowed witness alive and status 125 after release. Its record does not
+distinguish a live launcher from Go capture-copy EOF. An independent controlled
+duplicate-capture experiment observed the launcher absent while Wait remained
+blocked. Isolate the test-owned witness's captures, retain unrelated/release
+descriptors and preserve every original Wait/group/timing assertion. Add the
+missing liveness evidence; do not claim the hosted cause was established or
+change production cleanup based on this ambiguous receipt.
+
+Decision 141 witness portability: the Linux arm64 native-bundle job on a0cca67
+could build the product but failed acceptance compilation because syscall.Dup2
+is unavailable there. Use the portable wrapper from the already locked x/sys
+dependency, then compile the acceptance package for all four supported targets
+and rerun the witness criteria. No runtime behavior, dependency version or
+timing allowance changes.
+
+Decision 141 dependency transport: the Intel native-bundle job on 87e2c8b
+failed resolving proxy.golang.org during go mod download; the dependency cache
+was already configured. Give that existing matrix provisioning step three
+bounded attempts with five-/ten-second pauses, preserving the final failure
+status. Keep the cache keys, locked modules, proxy/checksum configuration and
+job/runtime limits. Qualify recovery and exhaustion with the actual extracted
+workflow step before pushing the network-resilience change.
+
+Decision 141 authenticated-refresh refinement: review identified that clearing
+every GIT_* variable also removes standard credential, SSH and TLS/proxy
+overrides supported by the previous installer. Preserve a documented exact-name
+transport allowlist only for authorized refresh; identity reads still clear all
+Git overrides, and refresh still clears repository/configuration redirection.
+Keep inherited values literal and the caller environment unchanged. Qualify the
+actual installer boundary before repair. Exclude the three private source-build
+namespaces from historical budget/loop temporary template copies, with private
+copy-filter sentinels and the existing delivery suites as evidence.
+
+Decision 141 local-init witness isolation: the final macOS gate on 32e2c71
+failed its unchanged 30-second pre-signal READY assertion; the report lacks the
+child-state evidence needed to identify that attempt's cause. Adjacent SIGTERM
+readiness consumed about 28.338 seconds before confirmed cancellation. Full
+installation-source collection runs before the compiler probe. Isolate the four
+local-init/upgrade compiler-custody cases with a shared small committed Go source
+and real pinned reference objects, retaining actual packaging, the descendant
+handshake, all cancellation
+bounds and full-source installation coverage. Qualify a suppressed-signal failure
+and register owned parent cleanup before readiness. Do not change production
+supervision or expand time/worker/model allowances based on the ambiguous report.
+
+Decision 141 source-wait observation: the final macOS base gate on 32e2c71 also
+failed its three-second absent-group Wait assertion. The launcher and child were
+still visible before release, but the report cannot distinguish a running shell
+from a zombie or time the eventual diagnostic. Three local scoped probes passed.
+Add private-copy TERM/EXIT entry markers and exact fixture process states before
+release, preserving every existing assertion and allowance. Keep spawn, jobs,
+reap and wait commands unchanged: extra commands there could dispatch a pending
+Bash trap and mask the behavior being investigated. Do not infer
+a Bash job-table or capture defect and patch production without causal evidence.
+
+Decision 141 source qualification lane: thirteen scoped reproductions, including
+ten instrumented race runs, did not reproduce the hosted source stall. Give the
+twelve existing source criteria their own Linux/macOS partition for bounded
+hosted feedback, using the same base worker plan and all existing assertions and
+deadlines. Preserve the complete 3,216-criterion census: 2,996 base plus twelve
+source and the existing eight other groups. All/default still attempts every
+partition and propagates failures, with empty selection refused. Require both
+new lane checks and retain their phase/state reports; a green base is insufficient.
+Record scheduling as harness isolation, not a claimed production repair.

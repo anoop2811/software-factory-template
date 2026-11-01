@@ -20,5 +20,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Immutable pre-conversion controller fixture provenance.
       - name: Budget admission and harness fixtures (no paid calls)
         run: ./scripts/selftest/budget.sh

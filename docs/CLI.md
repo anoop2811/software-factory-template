@@ -8,16 +8,19 @@ Start with `./factory help`. In particular, do not assume every command supports
 
 ## Which runtime am I using?
 
-As of 2026-10-26 UTC, v0.1.6 is the latest published stable release. The source checkout
-on `main` still launches scripts through its tracked `factory` file. Building the
-Go command does not activate it in an existing project. A successful explicit
+As of 2026-10-26 UTC, v0.1.6 is the latest published stable release. A current source
+checkout's tracked `factory` builds the native CLI using the provisioned local Go
+toolchain and module cache, then runs it. Its one ignored `factory-go` output is
+refreshed on successful builds; failed builds preserve the previous output and
+refuse execution. Use the physical launcher file when invoking through aliases.
+Installed projects use their selected packaged binary. A successful explicit
 `--go-candidate TAG` installation selects the authenticated packaged Go runtime
-behind the same `./factory` entrypoint. The replacement v0.2.0 release and default
-source/bootstrap cutover remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
+behind the same `./factory` entrypoint. The replacement v0.2.0 release and public
+stable activation remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
 and the [upgrade guide](UPGRADING.md).
 
 The table describes the current Go command surface. Entries marked **Go only**
-are not commands of the default source shell dispatcher. In a script installation,
+are unavailable in the older v0.1.6 script dispatcher. In that script installation,
 use the retained script/Make entrypoints linked below. An older published release
 can have fewer features than current `main`.
 
@@ -28,11 +31,11 @@ can have fewer features than current `main`.
 | `help` | Discover the public commands | `./factory help` prints the selected runtime's command list. No model call. |
 | `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` authenticates its selected installed release or the prepared source default v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for a published prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
 | `doctor` | Diagnose installed factory health | `./factory doctor` reports armed, inert and stale gates and runs isolated break/fix probes. It does not repair configuration. No model call. |
-| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews its declared stable release; current source prepares v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Applying requires a fresh digest and `--quiescent`. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The retained script updater still defaults to main and can overwrite custom framework edits; save them first. |
+| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews its declared stable release; current source prepares v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Applying requires a fresh digest and `--quiescent`. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The direct source upgrade adapter uses this same Go controller. |
 | `sync` **Go only** | Regenerate harness adapters after canonical role/model changes | `./factory sync all`, or select `opencode`, `claude` or `codex`. Writes derived harness files; inspect their diff. Script equivalent: `make sync-harnesses`. See [orchestration](migration/ORCHESTRATION.md). |
 | `prereq` **Go only** | Find missing tools before setup/checks | `./factory prereq` checks tools and the configured product Go minimum. `FACTORY_HARNESS=codex ./factory prereq` selects Codex discovery. Executes tool discovery/version probes. Script equivalent: `make prereq-check`. |
 | `check` | Run the pre-push checks | `./factory check` runs the configured gate/build/test stages. These execute project commands and may generate their normal outputs. See [hooks](HOOKS.md). |
-| `selftest` | Watch deterministic enforcement reject broken fixtures | The Go command runs fourteen core gate violation/healthy-control pairs in private fixtures, using source assets beside its invocation or the selected installation. No compiler, Python or model call. The tracked source shell launcher and `make selftest` still run the broader historical shell suite until their separate cutover. This is separate from product tests; see [orchestration](migration/ORCHESTRATION.md). |
+| `selftest` | Watch deterministic enforcement reject broken fixtures | The Go command runs fourteen core gate violation/healthy-control pairs in private fixtures, using source assets beside its invocation or the selected installation. The native proof engine uses no compiler, Python or model. Source invocation first builds the CLI. Direct `scripts/selftest/run.sh` and `make selftest` retain the broader historical shell suite pending its separate cutover. See [orchestration](migration/ORCHESTRATION.md). |
 | `eval` **Go only** | Inspect harness wiring or evaluate agent quality | `./factory eval structural --harness=codex` checks wiring locally. `./factory eval golden --harness mock --runs 1` uses the local mock runner and writes results. Explicit real runners can call paid models. See [evaluation](../eval/README.md). |
 | `review` **Go only** | Ask the configured adversarial provider to inspect a saved diff | `./factory review change.diff` sends the diff to the configured provider and can incur charges. It is advisory and does not replace tests or human review. Script path: `scripts/adversarial-review.sh`. |
 | `review-batch` **Go only** | Review complete exact-revision diffs in bounded batches | `./factory review-batch --diff change.diff --files files.json --base BASE_SHA --head HEAD_SHA --repository OWNER/REPO --output NEW_DIRECTORY --plan` plans locally and writes reports. Normal execution can call a paid model; GitHub mode also publishes review results. See the boundaries below. |
@@ -104,7 +107,12 @@ client; PR content is untrusted review data, never executable setup.
 
 ## Maintainer tools and compatibility adapters
 
-Contributors can build the native command beside the source assets:
+Contributors can use `./factory` directly with the provisioned Go toolchain and
+module cache. It builds offline, preserves caller input and publishes one ignored
+developer output. Provision the locked modules with `go mod download` first.
+Concurrent commands retain separate private executables until each returns;
+normal completion removes only its own private file. They can also build the
+native command explicitly:
 
 ```sh
 go build -o factory-go ./cmd/factory

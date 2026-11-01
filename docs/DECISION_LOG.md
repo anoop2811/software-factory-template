@@ -5761,3 +5761,13 @@ finding exposed an unqualified system PATH fallback. Make that negative setup
 hermetic, observe child compiler lookup fail, and require the actual launcher
 diagnostic; a missing fake-compiler record is insufficient evidence. Production
 compiler selection and all release/runtime boundaries retain their contract.
+
+Decision 141 cancellation-fixture refinement: the macOS source gate on 27fc8cd
+reported one failing absent-group criterion with its compiler child absent,
+borrowed witness alive and status 125 after release. Its record does not
+distinguish a live launcher from Go capture-copy EOF. An independent controlled
+duplicate-capture experiment observed the launcher absent while Wait remained
+blocked. Isolate the test-owned witness's captures, retain unrelated/release
+descriptors and preserve every original Wait/group/timing assertion. Add the
+missing liveness evidence; do not claim the hosted cause was established or
+change production cleanup based on this ambiguous receipt.

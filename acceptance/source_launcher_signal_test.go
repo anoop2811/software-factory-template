@@ -33,6 +33,109 @@ const sourceCompilerOutput = "compiler output: literal $(not-code)\n"
 
 var sourceCompilerHelperImage string
 
+type sourcePriorCaptureIsolation struct {
+	ClosedCaptureDuplicates []int
+	ReleasePreserved        bool
+	UnrelatedPipePreserved  bool
+	UnrelatedToken          string
+}
+
+// The witness owns its output captures, not every open descriptor in the Go process.
+// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:241
+func isolateSourcePriorCapture() (sourcePriorCaptureIsolation, error) {
+	isolation := sourcePriorCaptureIsolation{}
+	samePipe := func(left, right syscall.Stat_t) bool {
+		return uint32(left.Mode)&syscall.S_IFMT == syscall.S_IFIFO &&
+			uint32(right.Mode)&syscall.S_IFMT == syscall.S_IFIFO &&
+			left.Ino != 0 && left.Dev == right.Dev && left.Ino == right.Ino
+	}
+	var captures [2]syscall.Stat_t
+	for index, fd := range []int{1, 2} {
+		if err := syscall.Fstat(fd, &captures[index]); err != nil {
+			return isolation, err
+		}
+		if !samePipe(captures[index], captures[index]) {
+			return isolation, fmt.Errorf("prior witness output is not a discriminating capture pipe")
+		}
+	}
+	var releaseBefore, unrelatedBefore syscall.Stat_t
+	if err := syscall.Fstat(4, &releaseBefore); err != nil {
+		return isolation, err
+	}
+	if !samePipe(releaseBefore, releaseBefore) || samePipe(captures[0], captures[1]) ||
+		samePipe(releaseBefore, captures[0]) || samePipe(releaseBefore, captures[1]) {
+		return isolation, fmt.Errorf("capture and release pipe identities are ambiguous")
+	}
+	unrelatedToken := os.Getenv("SOURCE_PRIOR_UNRELATED_TOKEN")
+	if unrelatedToken != "" {
+		if err := syscall.Fstat(5, &unrelatedBefore); err != nil {
+			return isolation, err
+		}
+		if !samePipe(unrelatedBefore, unrelatedBefore) || samePipe(unrelatedBefore, releaseBefore) ||
+			samePipe(unrelatedBefore, captures[0]) || samePipe(unrelatedBefore, captures[1]) {
+			return isolation, fmt.Errorf("unrelated pipe identity is ambiguous with a fixture pipe")
+		}
+	}
+	null, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		return isolation, err
+	}
+	defer func() { _ = null.Close() }()
+	for _, fd := range []int{1, 2} {
+		if err := syscall.Dup2(int(null.Fd()), fd); err != nil {
+			return isolation, err
+		}
+	}
+	descriptors, err := os.ReadDir("/dev/fd")
+	if err != nil {
+		return isolation, err
+	}
+	for _, entry := range descriptors {
+		fd, err := strconv.Atoi(entry.Name())
+		if err != nil || fd <= 2 || fd == 4 {
+			continue
+		}
+		var stat syscall.Stat_t
+		if syscall.Fstat(fd, &stat) != nil {
+			continue
+		}
+		flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_GETFD, 0)
+		if errno != 0 || flags&syscall.FD_CLOEXEC != 0 ||
+			(!samePipe(stat, captures[0]) && !samePipe(stat, captures[1])) {
+			continue
+		}
+		if err := syscall.Close(fd); err != nil {
+			return isolation, err
+		}
+		isolation.ClosedCaptureDuplicates = append(isolation.ClosedCaptureDuplicates, fd)
+	}
+	var releaseAfter syscall.Stat_t
+	if err := syscall.Fstat(4, &releaseAfter); err != nil {
+		return isolation, err
+	}
+	isolation.ReleasePreserved = samePipe(releaseBefore, releaseAfter)
+	if unrelatedToken != "" {
+		var after syscall.Stat_t
+		if err := syscall.Fstat(5, &after); err != nil {
+			return isolation, err
+		}
+		isolation.UnrelatedPipePreserved = samePipe(unrelatedBefore, after)
+		data := make([]byte, len(unrelatedToken))
+		for offset := 0; offset < len(data); {
+			count, err := syscall.Read(5, data[offset:])
+			if err != nil {
+				return isolation, err
+			}
+			if count == 0 {
+				return isolation, io.ErrUnexpectedEOF
+			}
+			offset += count
+		}
+		isolation.UnrelatedToken = string(data)
+	}
+	return isolation, nil
+}
+
 // Capture the actual instrumented evaluator before nested Ginkgo builds can
 // replace or unlink their workspace artifact. Linux's kernel-owned image path
 // also remains readable if the artifact disappeared before suite setup.
@@ -57,8 +160,12 @@ func captureSourceCompilerImage(destination string) {
 // per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 func init() {
 	if len(os.Args) >= 2 && os.Args[1] == sourcePriorHandshake {
+		isolation, err := isolateSourcePriorCapture()
+		if err != nil {
+			os.Exit(97)
+		}
 		ready := os.Getenv("SOURCE_PRIOR_READY")
-		body, err := json.Marshal(map[string]int{"PID": os.Getpid(), "Group": syscall.Getpgrp(), "Parent": os.Getppid()})
+		body, err := json.Marshal(map[string]any{"PID": os.Getpid(), "Group": syscall.Getpgrp(), "Parent": os.Getppid(), "CaptureIsolation": isolation})
 		if err != nil || os.WriteFile(ready+".pending", body, 0600) != nil || os.Rename(ready+".pending", ready) != nil { // #nosec G703 -- evaluator-owned prior-job readiness path; no production input or hook enables this mode.
 			os.Exit(97)
 		}
@@ -287,6 +394,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:241
 	It("refuses an absent compiler group without waiting on a live unadmitted child or killing its borrowed group", func() {
 		root, cwd := fixtureDirectories()
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
@@ -302,7 +410,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		writeFixture(filepath.Join(root, "factory-go"), []byte("prior developer binary\n"), 0700)
 		witnessReady := filepath.Join(cwd, "borrowed-group-witness.json")
 		startup := filepath.Join(cwd, "borrowed-group-startup.sh")
-		writeFixture(startup, []byte("set +m\n\"$SOURCE_PRIOR_HELPER\" "+sourcePriorHandshake+" >/dev/null 2>/dev/null &\nwhile [ ! -s \"$SOURCE_PRIOR_READY\" ]; do /bin/sleep 0.01; done\n"), 0600)
+		writeFixture(startup, []byte("set +m\n( exec 9>&1 10>&2; exec \"$SOURCE_PRIOR_HELPER\" "+sourcePriorHandshake+" ) &\nwhile [ ! -s \"$SOURCE_PRIOR_READY\" ]; do /bin/sleep 0.01; done\n"), 0600)
 		tools := filepath.Join(root, "tools")
 		marker := filepath.Join(root, "UNADMITTED_COMPILER_EXECUTED")
 		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_UNADMITTED_MARKER\"\nexit 99\n"), 0700)
@@ -310,7 +418,12 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(err).NotTo(HaveOccurred())
 		releaseReader, release, err := os.Pipe()
 		Expect(err).NotTo(HaveOccurred())
-		for _, file := range []*os.File{ready, readyWriter, releaseReader} {
+		unrelatedReader, unrelatedWriter, err := os.Pipe()
+		Expect(err).NotTo(HaveOccurred())
+		unrelatedToken := "unrelated witness pipe\n"
+		Expect(unrelatedWriter.Write([]byte(unrelatedToken))).To(Equal(len(unrelatedToken)))
+		Expect(unrelatedWriter.Close()).To(Succeed())
+		for _, file := range []*os.File{ready, readyWriter, releaseReader, unrelatedReader} {
 			DeferCleanup(func() { err := file.Close(); Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue()) })
 		}
 		var once sync.Once
@@ -320,8 +433,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		defer cancel()
 		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- owned copy with test-only admission handshake; production has no fault flag.
 		command.Dir = cwd
-		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "GORACE=atexit_sleep_ms=0")
-		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "GORACE=atexit_sleep_ms=0")
+		command.ExtraFiles = []*os.File{readyWriter, releaseReader, unrelatedReader}
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
@@ -339,6 +452,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		go func() { finished <- command.Wait() }()
 		Expect(readyWriter.Close()).To(Succeed())
 		Expect(releaseReader.Close()).To(Succeed())
+		Expect(unrelatedReader.Close()).To(Succeed())
 		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
 		var child struct{ PID int }
 		Expect(json.NewDecoder(ready).Decode(&child)).To(Succeed())
@@ -356,8 +470,16 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(childGroup).NotTo(Equal(child.PID), "the controlled wrapper is alive outside its expected compiler group")
 		body, err := os.ReadFile(witnessReady)
 		Expect(err).NotTo(HaveOccurred())
-		var witness struct{ PID, Group, Parent int }
+		var witness struct {
+			PID, Group, Parent int
+			CaptureIsolation   sourcePriorCaptureIsolation
+		}
 		Expect(json.Unmarshal(body, &witness)).To(Succeed())
+		AddReportEntry("source-launcher.witness-capture-isolation", witness.CaptureIsolation)
+		Expect(witness.CaptureIsolation.ClosedCaptureDuplicates).To(ContainElements(9, 10))
+		Expect(witness.CaptureIsolation.ReleasePreserved).To(BeTrue())
+		Expect(witness.CaptureIsolation.UnrelatedPipePreserved).To(BeTrue())
+		Expect(witness.CaptureIsolation.UnrelatedToken).To(Equal(unrelatedToken))
 		Expect(witness.PID).To(BeNumerically(">", 1))
 		Expect(witness.Parent).To(Equal(command.Process.Pid))
 		Expect(witness.Group).To(Equal(launcherGroup))
@@ -376,6 +498,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		case <-time.After(3 * time.Second):
 		}
 		liveBeforeRelease := syscall.Kill(child.PID, 0) == nil
+		launcherAbsentBeforeRelease := errors.Is(syscall.Kill(command.Process.Pid, 0), syscall.ESRCH)
 		witnessAlive := syscall.Kill(witness.PID, 0) == nil
 		held := installationSnapshot(root)
 		if !returnedBeforeRelease {
@@ -384,7 +507,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 			reaped = true
 		}
 		Expect(returned).To(HaveOccurred())
-		AddReportEntry("source-launcher.absent-group-refusal", map[string]any{"returned_before_release": returnedBeforeRelease, "child_live_before_release": liveBeforeRelease, "borrowed_group_witness_alive": witnessAlive, "child_pid": child.PID, "child_group": childGroup, "launcher_group": launcherGroup, "status": command.ProcessState.ExitCode(), "stderr": stderr.String()})
+		AddReportEntry("source-launcher.absent-group-refusal", map[string]any{"returned_before_release": returnedBeforeRelease, "launcher_absent_before_release": launcherAbsentBeforeRelease, "child_live_before_release": liveBeforeRelease, "borrowed_group_witness_alive": witnessAlive, "child_pid": child.PID, "child_group": childGroup, "launcher_group": launcherGroup, "status": command.ProcessState.ExitCode(), "stderr": stderr.String()})
 		Expect(returnedBeforeRelease).To(BeTrue(), "real caller Wait must return without releasing a live unadmitted child holding capture; stderr=%s", stderr.String())
 		Expect(witnessAlive).To(BeTrue(), "uncertain compiler cleanup must never signal the borrowed caller group")
 		Expect(command.ProcessState.ExitCode()).To(Equal(125))
@@ -422,7 +545,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_UNADMITTED_MARKER\"\nexit 99\n"), 0700)
 		priorReady := filepath.Join(cwd, "prior-ready.json")
 		startup := filepath.Join(cwd, "startup.sh")
-		writeFixture(startup, []byte("set -m\n\"$SOURCE_PRIOR_HELPER\" "+sourcePriorHandshake+" >/dev/null 2>/dev/null &\nwhile [ ! -s \"$SOURCE_PRIOR_READY\" ]; do /bin/sleep 0.01; done\nset +m\n"), 0600)
+		writeFixture(startup, []byte("set -m\n\"$SOURCE_PRIOR_HELPER\" "+sourcePriorHandshake+" &\nwhile [ ! -s \"$SOURCE_PRIOR_READY\" ]; do /bin/sleep 0.01; done\nset +m\n"), 0600)
 		ready, readyWriter, err := os.Pipe()
 		Expect(err).NotTo(HaveOccurred())
 		releaseReader, release, err := os.Pipe()

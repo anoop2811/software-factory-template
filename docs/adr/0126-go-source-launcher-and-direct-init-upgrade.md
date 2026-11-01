@@ -237,3 +237,13 @@ cannot find Go before exercising the launcher; require the launcher's explicit
 missing-compiler diagnostic. Absence of the fake compiler's record alone does
 not prove that no other compiler was attempted. Keep this test environment
 change separate from the production tool-selection contract.
+
+The borrowed-group witness in cancellation qualification must relinquish the
+caller's output captures itself before reporting readiness. Preserve its release
+descriptor and unrelated descriptors; close only positively identified capture
+duplicates. Deliberately inherited stdout/stderr duplicates and an unrelated
+pipe must exercise that isolation. Preserve the real `exec.Cmd.Wait` assertion
+before witness release, the live borrowed-group witness and all existing timing
+allowances. Observe launcher liveness separately because Go's Wait also waits
+for capture-copy EOF. A controlled capture-holder reproduction establishes this
+test ambiguity; it does not by itself establish the original hosted cause.

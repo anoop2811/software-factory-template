@@ -218,3 +218,25 @@ glob appended outside the quoted source-directory prefix. Those prefixes are
 not literal file inputs; exact filename matching must not reject the current
 initializer's three group-copy statements. Recognize the suffix as literal data,
 without evaluating it. The native gate still enumerates and validates each group.
+
+## Narrow ownership protocol and refusal diagnostics
+
+Only the known native copy-controller boundary interprets exit status 125 as
+ownership uncertainty. An unexpected 125 from another proof command remains an
+ordinary failed expectation; it must not retain scratch solely because of that
+number. Real typed ownership errors still retain evidence from every command.
+Place the shared status beside native ownership errors, removing the proof's
+dependency on the checker package for an integer.
+
+Apply the existing bounded cause handling to subject-root resolution failures as
+well. Separate finite Git timeout, untracked-input and other tool-failure
+diagnostics without exposing raw subprocess output or changing the five-second
+allowance. Before dispatching an owner installation, require its declared wrapper
+to be an executable regular file; otherwise emit a clear refusal and the existing
+gate event. Independent regressions precede these refinements.
+
+Cooperative execution remains selected by the known native-copy fixture context
+and the program-owned hook invocation, with the existing cleanup bound and typed
+retention. Confined Parent resolves only a path's parent; the hypothetical final
+leaf is neither opened nor created. Clarifying that existing API does not add a
+new filesystem protocol or weaken canonical path admission.

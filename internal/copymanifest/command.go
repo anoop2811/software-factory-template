@@ -22,11 +22,6 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
-// OwnershipStatus preserves nested process uncertainty across the private hook
-// boundary; it is never an ordinary policy refusal.
-// docs/adr/0125-native-initializer-copy-inventory-gate.md:147.
-const OwnershipStatus = 125
-
 // Run receives installedRoot only from the physically admitted bridge context.
 // No argument or environment variable can establish that authority.
 // docs/adr/0125-native-initializer-copy-inventory-gate.md:135.
@@ -36,6 +31,9 @@ func Run(parent context.Context, subject, installedRoot string, environment map[
 	root, err := filepath.Abs(subject)
 	if err == nil {
 		root, err = filepath.EvalSymlinks(root)
+	}
+	if err != nil {
+		err = inputFailure("source inventory root", subject, err)
 	}
 	if err == nil && installedRoot != "" && root == installedRoot {
 		_, _ = fmt.Fprintln(stdout, "copy-manifest-check: qualified installed inventory; source copy inputs skipped")
@@ -51,7 +49,7 @@ func Run(parent context.Context, subject, installedRoot string, environment map[
 	status := 1
 	var ownership *native.OwnershipError
 	if errors.As(err, &ownership) {
-		status = OwnershipStatus
+		status = native.OwnershipExitStatus
 		_, _ = fmt.Fprintln(stderr, "copy-manifest-check: native ownership unconfirmed:", ownership.SafeDiagnostic())
 	} else {
 		_, _ = fmt.Fprintln(stderr, "COPY-MANIFEST FAIL:", err)
@@ -86,18 +84,36 @@ func check(ctx context.Context, root string, environment map[string]string) (ret
 	env["GIT_CONFIG_NOSYSTEM"], env["GIT_CONFIG_GLOBAL"], env["GIT_OPTIONAL_LOCKS"] = "1", os.DevNull, "0"
 	args := append([]string{"git", "--literal-pathspecs", "-c", "core.fsmonitor=false", "ls-files", "-z", "--error-unmatch", "--"}, paths...)
 	result, err := native.ExecuteCommand(ctx, root, args, env, 5*time.Second)
-	if err != nil {
-		var ownership *native.OwnershipError
-		if errors.As(err, &ownership) {
-			return err
-		}
-		return errors.New("native Git inventory check did not complete")
+	var ownership *native.OwnershipError
+	if errors.As(err, &ownership) {
+		return err
 	}
 	if result.OwnershipUnconfirmed {
 		return &native.OwnershipError{}
 	}
-	if ctx.Err() != nil || result.Outcome != "completed" || !result.ExitConfirmed || result.ExitCode == nil || *result.ExitCode != 0 {
-		return errors.New("initializer copy inputs are not all git-tracked or Git did not complete")
+	if ctx.Err() != nil {
+		return fmt.Errorf("git inventory check: %w", ctx.Err())
+	}
+	switch result.Outcome {
+	case "timeout":
+		return errors.New("git inventory check timed out")
+	case "output_limit":
+		return errors.New("git inventory output limit exceeded")
+	}
+	if err != nil {
+		return errors.New("git inventory check could not start or complete")
+	}
+	if !result.ExitConfirmed || result.ExitCode == nil || result.Outcome != "completed" && result.Outcome != "failed" {
+		return errors.New("git inventory check did not complete")
+	}
+	if *result.ExitCode == 1 {
+		return errors.New("initializer copy inputs are not all git-tracked")
+	}
+	if *result.ExitCode != 0 {
+		return fmt.Errorf("git inventory check failed (status %d)", *result.ExitCode)
+	}
+	if result.Outcome != "completed" {
+		return errors.New("git inventory check did not complete")
 	}
 	// Even a literal Git pathspec can select descendants. Only an exact returned
 	// name proves this file is tracked. NUL framing preserves newline filenames.

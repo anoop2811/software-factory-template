@@ -52,6 +52,11 @@ if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then
   exit 2
 fi
 if [ -e "$OWNER_ROOT/.factory/installation.current" ] || [ -L "$OWNER_ROOT/.factory/installation.current" ]; then
+  if [ ! -f "$OWNER_ROOT/factory" ] || [ ! -x "$OWNER_ROOT/factory" ]; then
+    echo "COPY-MANIFEST FAIL: installed owner factory must be an executable regular file" >&2
+    factory_log_event "copy-manifest-check" "installed owner wrapper is unavailable"
+    exit 2
+  fi
   exec /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 FACTORY_COPY_GATE_EVENT=1 \
     "$OWNER_ROOT/factory" helper copies "$ROOT"
 fi

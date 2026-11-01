@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/anoop2811/software-factory-template/internal/copymanifest"
 	"github.com/anoop2811/software-factory-template/internal/filepublish"
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/native"
@@ -208,14 +207,22 @@ func (p *proof) write(ctx context.Context, path, contents string, mode os.FileMo
 }
 func (p *proof) run(ctx context.Context, expected int, args ...string) error {
 	execute := native.ExecuteCommand
-	if p.nativeCopies && len(args) > 0 && args[0] == "./scripts/hooks/copy-manifest-check.sh" {
+	managedCopy := p.nativeCopies && len(args) > 0 && args[0] == "./scripts/hooks/copy-manifest-check.sh"
+	if managedCopy {
 		execute = native.ExecuteCommandCooperative
 	}
 	result, err := execute(ctx, p.root, args, p.environment, 10*time.Second)
 	if err != nil {
 		return err
 	}
-	if err := proofResult(ctx, result.Execution, expected); err != nil {
+	// A numeric status has ownership meaning only in this known Go protocol.
+	// docs/adr/0125-native-initializer-copy-inventory-gate.md:224.
+	if managedCopy && result.ExitCode != nil && *result.ExitCode == native.OwnershipExitStatus {
+		err = &native.OwnershipError{}
+	} else {
+		err = proofResult(ctx, result.Execution, expected)
+	}
+	if err != nil {
 		return fmt.Errorf("%w: %s%s", err, result.Stdout, result.Stderr)
 	}
 	return nil
@@ -228,7 +235,7 @@ func proofResult(ctx context.Context, result native.Execution, expected int) err
 	// A nested owner reports uncertainty separately from ordinary refusal. Preserve
 	// its evidence even when this outer caller has also been canceled.
 	// docs/adr/0125-native-initializer-copy-inventory-gate.md:147.
-	if result.OwnershipUnconfirmed || result.ExitCode != nil && *result.ExitCode == copymanifest.OwnershipStatus {
+	if result.OwnershipUnconfirmed {
 		return &native.OwnershipError{}
 	}
 	if err := ctx.Err(); err != nil {

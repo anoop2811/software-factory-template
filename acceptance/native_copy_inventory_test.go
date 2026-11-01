@@ -122,6 +122,13 @@ func nativeCopyInventorySnapshot(root string) map[string]string {
 // per docs/adr/0125-native-initializer-copy-inventory-gate.md:42
 func (f nativeCopyInventoryFixture) observe(private bool, actors ...nativeCopyInventoryMutation) cliResult {
 	GinkgoHelper()
+	return f.observeSubject(private, f.root, actors...)
+}
+
+// A literal alternate subject retains the valid fixture's complete readonly guards.
+// per docs/adr/0125-native-initializer-copy-inventory-gate.md:231
+func (f nativeCopyInventoryFixture) observeSubject(private bool, subject string, actors ...nativeCopyInventoryMutation) cliResult {
+	GinkgoHelper()
 	before, callerBefore := nativeCopyInventorySnapshot(f.root), installationSnapshot(f.caller)
 	expectedAfter := maps.Clone(before)
 	actorPaths := []string{}
@@ -137,10 +144,10 @@ func (f nativeCopyInventoryFixture) observe(private bool, actors ...nativeCopyIn
 	eventBefore, err := os.ReadFile(f.event)
 	Expect(err).NotTo(HaveOccurred())
 	environment := maps.Clone(f.environment)
-	program, args := "/bin/bash", []string{f.hook, f.root}
+	program, args := "/bin/bash", []string{f.hook, subject}
 	if private {
 		environment["FACTORY_BRIDGE_PROTOCOL"] = "1"
-		program, args = f.runtime, []string{"helper", "copies", f.root}
+		program, args = f.runtime, []string{"helper", "copies", subject}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -337,6 +344,67 @@ func nativeCopyInventoryIndexedDescendant(f nativeCopyInventoryFixture, input st
 	AddReportEntry("native-copy-inventory.descendant-index", map[string]string{"required_regular_file": input, "actual_index_entry": child}, ReportEntryVisibilityNever)
 }
 
+// A numeric exit acquires ownership meaning only at the known copy boundary.
+// per docs/adr/0125-native-initializer-copy-inventory-gate.md:224
+func nativeCopyInventoryStatusProof() {
+	GinkgoHelper()
+	results := map[string]cliResult{}
+	scratchEntries := map[string][]string{}
+	for _, gate := range []string{"wiki-lint", "copy-manifest-check"} {
+		f := newSourceSelftestFixture()
+		record := filepath.Join(filepath.Dir(f.root), "status-125-hook-fixture")
+		f.environment["NATIVE_COPY_STATUS_PROOF_ROOT"] = record
+		stub := "#!/bin/sh\n"
+		if gate == "copy-manifest-check" {
+			stub += "# Factory copy inventory protocol: native-v1\n"
+		}
+		stub += "pwd -P > \"$NATIVE_COPY_STATUS_PROOF_ROOT\"\n/bin/ls -di . >> \"$NATIVE_COPY_STATUS_PROOF_ROOT\"\nexit 125\n"
+		writeFixture(filepath.Join(f.root, "scripts/hooks", gate+".sh"), []byte(stub), 0755)
+		sourceBefore, callerBefore := installationSnapshot(f.root), installationSnapshot(f.caller)
+		observed := f.run(filepath.Join(f.root, "factory"), "selftest")
+		Expect(observed.status).To(Equal(1), "an unexpected status 125 must refuse the proof: %s: %+v", gate, observed)
+		Expect(observed.stdout).NotTo(ContainSubstring("selftest: 14 shipped gates proved, 0 failed"))
+		Expect(installationSnapshot(f.root)).To(Equal(sourceBefore))
+		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
+		Expect(os.ReadFile(filepath.Join(f.scratch, "unrelated-sentinel"))).To(Equal([]byte("caller-owned temporary data\n")))
+		_, forbiddenErr := os.Lstat(f.forbidden)
+		Expect(os.IsNotExist(forbiddenErr)).To(BeTrue())
+		data, err := os.ReadFile(record)
+		Expect(err).NotTo(HaveOccurred(), "the actual proof hook must execute its status-125 stub")
+		fields := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+		Expect(fields).To(HaveLen(2))
+		proofRoot := fields[0]
+		Expect(filepath.Base(proofRoot)).To(Equal(gate))
+		Expect(filepath.Dir(filepath.Dir(proofRoot))).To(Equal(f.scratch))
+		entries, err := os.ReadDir(f.scratch)
+		Expect(err).NotTo(HaveOccurred())
+		names := []string{}
+		for _, entry := range entries {
+			names = append(names, entry.Name())
+		}
+		results[gate], scratchEntries[gate] = observed, names
+		AddReportEntry("native-copy-inventory.status-125-scope", map[string]any{"gate": gate, "status": observed.status, "stderr": observed.stderr, "hook_fixture": proofRoot, "scratch_entries": names}, ReportEntryVisibilityNever)
+		if gate == "copy-manifest-check" {
+			info, err := os.Lstat(proofRoot) // #nosec G703 -- trusted evaluator stub reports the path; assertions above bind its gate basename and parent to the private scratch, with no live mutation actor.
+			Expect(err).NotTo(HaveOccurred(), "the known copy-controller protocol must retain its exact fixture")
+			identity, ok := info.Sys().(*syscall.Stat_t)
+			Expect(ok).To(BeTrue())
+			inode := strings.Fields(fields[1])
+			Expect(inode).NotTo(BeEmpty())
+			Expect(inode[0]).To(Equal(fmt.Sprint(identity.Ino)), "retain the directory inode observed by the actual status-125 hook")
+			Expect(os.ReadFile(filepath.Join(proofRoot, "scripts/hooks/copy-manifest-check.sh"))).To(Equal([]byte(stub)))       // #nosec G703 -- fixed leaf beneath the evaluator root whose exact gate basename and private scratch parent are asserted above.
+			Expect(os.ReadFile(filepath.Join(proofRoot, ".opencode/package.json"))).To(Equal([]byte("qualified copy input\n"))) // #nosec G703 -- fixed leaf beneath the same validated, quiescent private proof fixture; no external request selects this read.
+			Expect(os.ReadFile(filepath.Join(filepath.Dir(proofRoot), "driver"))).To(Equal(candidateBinary))                    // #nosec G703 -- fixed driver in the joined evaluator fixture's proof parent; assertions above bind its gate basename and private scratch grandparent before this read.
+			Expect(observed.stderr).To(ContainSubstring(filepath.Dir(proofRoot)), "retained native-copy evidence must be locatable")
+			Expect(observed.stderr).To(ContainSubstring("native process ownership is unconfirmed"))
+		}
+	}
+	Expect(scratchEntries["copy-manifest-check"]).To(HaveLen(2), "retain only exact uncertain-copy evidence and the unrelated sentinel")
+	Expect(scratchEntries["wiki-lint"]).To(Equal([]string{"unrelated-sentinel"}), "an unrelated exit 125 is an ordinary failed expectation and must clean its private scratch")
+	Expect(results["wiki-lint"].stderr).To(ContainSubstring("expected status 1, got 125"))
+	Expect(results["wiki-lint"].stderr).NotTo(ContainSubstring("native process ownership is unconfirmed"))
+}
+
 var _ = Describe("Native initializer copy inventory", func() {
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:104
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:35
@@ -351,6 +419,7 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(untracked.status).NotTo(Equal(0))
 		result := f.observe(false)
 		Expect(result.status).NotTo(Equal(0), "an empty Bash-copy scan must not certify an actual untracked Go input: %+v", result)
+		untrackedDiagnostic := result.stderr
 		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", input)
 		Expect(f.observe(false).status).To(Equal(0))
 		Expect(f.observe(true).status).To(Equal(0))
@@ -360,6 +429,64 @@ var _ = Describe("Native initializer copy inventory", func() {
 		Expect(result.status).NotTo(Equal(0), "tracking an indexed descendant must not certify its untracked regular-file parent: %+v", result)
 		imageGit(f.root, "--literal-pathspecs", "add", "--force", "--", input)
 		Expect(f.observe(true).status).To(Equal(0))
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:231
+		diagnostics := map[string]string{"untracked": untrackedDiagnostic}
+		for _, mode := range []string{"timeout", "exit-failure"} {
+			tool := newNativeCopyInventoryFixture()
+			gitPath := filepath.Join(tool.base, "qualified tools", "git")
+			Expect(os.Remove(gitPath)).To(Succeed())
+			record := filepath.Join(tool.base, "controlled-git-identity")
+			tool.environment["NATIVE_COPY_GIT_TOOL_RECEIPT"] = record
+			body := "#!/bin/sh\nset -eu\n[ \"$1\" = --literal-pathspecs ] && [ \"$4\" = ls-files ] && [ \"$5\" = -z ] || exit 96\nprintf '%s\\t%s\\n' \"$$\" \"$(/bin/ps -o pgid= -p \"$$\")\" > \"$NATIVE_COPY_GIT_TOOL_RECEIPT\"\nprintf 'UNTRUSTED_GIT_STDERR_SHOULD_NOT_LEAK\\n' >&2\n"
+			if mode == "timeout" {
+				body += "exec /bin/sleep 60\n"
+			} else {
+				body += "exit 78\n"
+			}
+			writeFixture(gitPath, []byte(body), 0700)
+			settled := false
+			DeferCleanup(func() {
+				if settled {
+					return
+				}
+				data, err := os.ReadFile(record)
+				if err != nil {
+					return
+				}
+				var pid, group int
+				if _, err := fmt.Sscanf(string(data), "%d\t%d", &pid, &group); err != nil {
+					return
+				}
+				sourceSelftestCleanupGroup(sourceSelftestReceipt{Leader: pid, Git: pid, Group: group})
+				if group > 1 && !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH) {
+					holdFixtureCleanup(tool.root, "controlled Git tool group remains unconfirmed after guarded cleanup")
+				}
+			})
+			started := time.Now()
+			observed := tool.observe(true)
+			elapsed := time.Since(started)
+			data, err := os.ReadFile(record)
+			Expect(err).NotTo(HaveOccurred(), "the controlled Git tool must really run")
+			var pid, group int
+			_, err = fmt.Sscanf(string(data), "%d\t%d", &pid, &group)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pid).To(BeNumerically(">", 1))
+			Expect(group).To(Equal(pid), "the actual native supervisor must own the controlled Git group")
+			groupAbsent := errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
+			AddReportEntry("native-copy-inventory.git-tool-cause", map[string]any{"mode": mode, "status": observed.status, "stderr": observed.stderr, "elapsed": elapsed.String(), "pid": pid, "group": group, "group_absent_before_teardown": groupAbsent}, ReportEntryVisibilityNever)
+			settled = groupAbsent
+			Expect(groupAbsent).To(BeTrue(), "finite native Git execution must join its owned group before returning")
+			Expect(observed.status).To(Equal(1))
+			Expect(observed.stderr).NotTo(ContainSubstring("UNTRUSTED_GIT_STDERR_SHOULD_NOT_LEAK"))
+			if mode == "timeout" {
+				Expect(elapsed).To(BeNumerically(">=", 5*time.Second), "exercise the unchanged real five-second Git allowance")
+			}
+			diagnostics[mode] = observed.stderr
+		}
+		AddReportEntry("native-copy-inventory.git-causes", diagnostics, ReportEntryVisibilityNever)
+		Expect(diagnostics["timeout"]).NotTo(Equal(diagnostics["untracked"]), "a finite Git timeout needs a distinct operator cause")
+		Expect(diagnostics["exit-failure"]).NotTo(Equal(diagnostics["untracked"]), "an unrelated Git exit failure must not claim an untracked input")
+		Expect(diagnostics["timeout"]).NotTo(Equal(diagnostics["exit-failure"]))
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:35
@@ -399,6 +526,19 @@ var _ = Describe("Native initializer copy inventory", func() {
 		for _, unsafe := range []string{"directory", "symlink", "fifo"} {
 			Expect(diagnostics[unsafe]).NotTo(Equal(diagnostics["missing-required"]), "missing and unsafe versions of the same input need distinct causes")
 		}
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:231
+		missing := newNativeCopyInventoryFixture()
+		missingRoot := filepath.Join(missing.base, "missing root\nINJECTED-COPY-DIAGNOSTIC\x1b[31m\r")
+		result := missing.observeSubject(true, missingRoot)
+		_, err := os.Lstat(missingRoot)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "a missing subject must remain absent")
+		AddReportEntry("native-copy-inventory.missing-root-diagnostic", map[string]any{"status": result.status, "stderr": result.stderr, "literal_subject": missingRoot}, ReportEntryVisibilityNever)
+		Expect(result.status).To(Equal(1))
+		Expect(result.stderr).To(ContainSubstring("COPY-MANIFEST FAIL:"))
+		Expect(len(result.stderr)).To(BeNumerically("<", 4096))
+		Expect(strings.TrimSuffix(result.stderr, "\n")).NotTo(ContainSubstring("\n"), "root-resolution errors must not inject another log line")
+		Expect(result.stderr).NotTo(ContainSubstring("\r"))
+		Expect(result.stderr).NotTo(ContainSubstring("\x1b"), "raw path controls must never reach the terminal")
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:35
@@ -595,6 +735,33 @@ var _ = Describe("Native initializer copy inventory", func() {
 			Expect(aliasObservations[kind]["foreign_library_executed"]).To(BeFalse(), kind)
 			Expect(aliasObservations[kind]["status"]).NotTo(Equal(0), "without an explicit runtime the source owner's adapter is not a known inventory: %s", kind)
 		}
+		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:234
+		wrapperResults := map[string]cliResult{}
+		wrapperEvents := map[string]bool{}
+		for _, kind := range []string{"missing", "nonexecutable"} {
+			broken := newNativeCopyInventoryFixture()
+			delete(broken.environment, "FACTORY_RUNTIME_BINARY")
+			writeFixture(filepath.Join(broken.root, ".factory/installation.current"), []byte("a selector requires a usable declared wrapper\n"), 0600)
+			wrapper := filepath.Join(broken.root, "factory")
+			if kind == "missing" {
+				Expect(os.Remove(wrapper)).To(Succeed())
+			} else {
+				writeFixture(wrapper, []byte("#!/bin/sh\nexit 0\n"), 0600)
+				Expect(os.Chmod(wrapper, 0600)).To(Succeed())
+			}
+			before, err := os.ReadFile(broken.event)
+			Expect(err).NotTo(HaveOccurred())
+			observed := broken.observe(false)
+			after, err := os.ReadFile(broken.event)
+			Expect(err).NotTo(HaveOccurred())
+			wrapperResults[kind], wrapperEvents[kind] = observed, !bytes.Equal(before, after)
+			AddReportEntry("native-copy-inventory.owner-wrapper-refusal", map[string]any{"kind": kind, "status": observed.status, "stderr": observed.stderr, "gate_event_appended": wrapperEvents[kind]}, ReportEntryVisibilityNever)
+		}
+		for _, kind := range []string{"missing", "nonexecutable"} {
+			Expect(wrapperResults[kind].status).To(Equal(2), "an unusable owner wrapper needs the same standard invocation refusal as an invalid explicit runtime: %s", kind)
+			Expect(wrapperResults[kind].stderr).To(ContainSubstring("COPY-MANIFEST FAIL:"))
+			Expect(wrapperEvents[kind]).To(BeTrue(), "unusable owner wrappers must emit the existing gate event: %s", kind)
+		}
 	})
 
 	// per docs/adr/0125-native-initializer-copy-inventory-gate.md:76
@@ -688,5 +855,6 @@ fi
 		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
 		f.expectClean()
 		nativeCopyInventoryCancelProof()
+		nativeCopyInventoryStatusProof()
 	})
 })

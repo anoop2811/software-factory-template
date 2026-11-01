@@ -5678,3 +5678,9 @@ reject symlinked hook files before sibling loads, and resolve directory aliases
 physically before owner traversal. Extend exact tracking to the legacy scanner
 and retain bounded diagnostic cause identity. Adapt the existing native-outcome
 test overlay to the helper's options argument while preserving every assertion.
+
+Decision 140 final protocol refinement: interpret reserved status 125 only at the
+known native copy boundary, with the shared constant beside native ownership
+errors. Keep typed uncertainty global. Sanitize subject-root diagnostics,
+distinguish finite Git failure classes, and clearly log refusal of an unusable
+owner wrapper. Preserve all runtime and cleanup allowances and test identities.

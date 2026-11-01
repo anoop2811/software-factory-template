@@ -5828,3 +5828,19 @@ source and the existing eight other groups. All/default still attempts every
 partition and propagates failures, with empty selection refused. Require both
 new lane checks and retain their phase/state reports; a green base is insufficient.
 Record scheduling as harness isolation, not a claimed production repair.
+
+## Decision 142 (2026-11-01 UTC): activate native source observability entrypoints
+
+After the human merge of PR #157, begin R3 with the report/metrics function
+boundary. Replace their active shell/Python command bodies with physical-owner
+adapters to the existing Go commands. Preserve independent historical evidence
+by loading the original report/metrics scripts only into the historical
+selftest's private fixture, with explicit immutable provenance. Current direct
+entrypoints receive independent outside-in acceptance before conversion.
+ADR 0127 defines the source ownership, compatibility and qualification contract;
+remaining direct helpers and proof controllers stay separate bounded work.
+
+Decision 142 fixture closure: the optional-pack wrapper materializes a legacy
+dispatcher before dropping source Git custody. Carry the matching historical
+report/metrics bodies there as well, preserving both complete optional-pack
+scenarios; a mixed historical dispatcher/current adapter is not a valid oracle.

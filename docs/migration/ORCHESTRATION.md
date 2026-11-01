@@ -62,7 +62,10 @@ replaced under the [conversion coverage rule](../../specs/001-go-runtime-convers
 Intentional retained shell boundaries are policy gates, sourceable assignment
 adapters, Bash operand expansion for local-hook compatibility, generated
 invocation adapters, user Make/build commands and harness-native hook formats.
-The source checkout retains other direct command/helper bodies and explicit
+Direct source report/metrics paths also enter the Go owner; their old
+implementation-specific selftest fixtures are loaded from immutable history.
+See [ADR 0127](../adr/0127-go-source-observability-entrypoints.md). The source
+checkout retains other direct command/helper bodies and explicit
 historical fixtures until their separate entrypoint and proof-runner cleanup.
 Their presence does not establish release readiness or a runtime fallback in
 an opted-in Go installation. No Go or Python interpreter is required for the

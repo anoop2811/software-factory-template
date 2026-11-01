@@ -408,7 +408,7 @@ with fixtures rather than assumptions:
 | Recovery inspection | Budget report / loop status precede unrelated current configuration validation | scripts/lib/budget.py:615, scripts/lib/loop.py:566 |
 | Checkpoint identity | Sorted-key JSON bytes, ASCII escaping, separators and numeric representation; exact content/mode/policy inputs | scripts/lib/loop.py:24, scripts/lib/loop.py:305 |
 | Lock/storage behavior | budget.lock blocking transaction lock, loops.lock nonblocking whole-controller lock, same native lock namespace/inodes, private atomic durable state | scripts/lib/budget.py:194, scripts/lib/loop.py:271 |
-| Optional presentation/events | Best-effort event/timing failures remain nonfatal; overridden log paths, TSV retention, NO_COLOR and TTY/CI/browser behavior remain compatible | scripts/lib/events.sh:3, scripts/lib/color.sh:9, scripts/factory-metrics.sh:286 |
+| Optional presentation/events | Best-effort event/timing failures remain nonfatal; overridden log paths, TSV retention, NO_COLOR and TTY/CI/browser behavior remain compatible | scripts/lib/events.sh:3, scripts/lib/color.sh:9, acceptance/native_metrics_safety_test.go:50 |
 
 These source citations refer to the identified baseline; subsequent conversion
 must replace them with stable acceptance references before the files disappear.

@@ -55,6 +55,8 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   the initializer's actual shared Go inventory. Existing installed launchers
   remain compiler-free. See [ADR 0125](../adr/0125-native-initializer-copy-inventory-gate.md)
   and [ADR 0126](../adr/0126-go-source-launcher-and-direct-init-upgrade.md).
+  Direct report/metrics conversion is the bounded R3 follow-up in
+  [ADR 0127](../adr/0127-go-source-observability-entrypoints.md).
   Remaining direct commands/helpers and historical proof cleanup stay separate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.

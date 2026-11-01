@@ -16,9 +16,10 @@ HOOKS="$TEMPLATE_ROOT/scripts/hooks"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
-# These legacy upgrade regressions keep their actual pre-conversion engine.
+# These legacy upgrade/report/metrics regressions keep their pre-conversion engines.
 # Current gates below still come from TEMPLATE_ROOT; no saved script is used by
 # native installed selftest. docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
+# Report/metrics provenance: docs/adr/0127-go-source-observability-entrypoints.md:34.
 LEGACY_TEMPLATE_ROOT="$TEMPLATE_ROOT"
 if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   [ "$(sed -n '2p' "$TEMPLATE_ROOT/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]; then
@@ -27,7 +28,8 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   tar -cf - --exclude=.git --exclude=.factory --exclude=factory-go \
     --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
     tar -xf - -C "$LEGACY_TEMPLATE_ROOT"
-  for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh; do
+  for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
+    scripts/factory-report.sh scripts/factory-metrics.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
@@ -584,12 +586,12 @@ check "claude falls back to inherit on a placeholder" "model: inherit" \
 printf 'refs/heads/main a refs/heads/main b\n' | "$HOOKS/direct-main-push-block.sh" >/dev/null 2>&1 || true
 check "a gate firing logs an event" "1" \
   "$(grep -c 'direct-main-push-block' "$FACTORY_EVENT_LOG" 2>/dev/null || echo 0)"
-REPORT_OUT="$("$TEMPLATE_ROOT/scripts/factory-report.sh" 2>/dev/null || true)"
+REPORT_OUT="$("$LEGACY_TEMPLATE_ROOT/scripts/factory-report.sh" 2>/dev/null || true)"
 check "factory report shows the block" "1" \
   "$(printf '%s\n' "$REPORT_OUT" | grep -c 'direct-main-push-block' || echo 0)"
 check "factory report refuses a tokens-saved headline" "0" \
   "$(printf '%s\n' "$REPORT_OUT" | grep -ic 'tokens saved:' || true)"
-"$TEMPLATE_ROOT/scripts/factory-report.sh" --clear >/dev/null 2>&1 || true
+"$LEGACY_TEMPLATE_ROOT/scripts/factory-report.sh" --clear >/dev/null 2>&1 || true
 check "factory report --clear resets the log" "0" \
   "$(grep -c . "$FACTORY_EVENT_LOG" 2>/dev/null || echo 0)"
 
@@ -759,7 +761,7 @@ mkdir -p "$EVROOT/scripts/lib"
   printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" ) >/dev/null 2>&1
 printf 'project_name: t\n' > "$EVROOT/factory.yaml"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$EVROOT/scripts/lib/"
-cp "$TEMPLATE_ROOT/scripts/factory-metrics.sh" "$EVROOT/scripts/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh" "$EVROOT/scripts/"
 ev_advice() { ( cd "$EVROOT" && ./scripts/factory-metrics.sh 2>/dev/null | sed -n '/^Agents/,/^$/p' | tail -2 ); }
 check "no scaffold points at the upgrade that installs it" "1" \
   "$(ev_advice | grep -c 'factory upgrade' || true)"
@@ -811,7 +813,7 @@ print(1 if a["measured_tasks"] == 1 else 0)' 2>/dev/null || echo 0)"
 # A guard that cannot fail is not a guard (memory/lessons/002).
 embedded_program() {
   awk '/EVAL_JSON" \| python3 -c "/{f=1;next} f&&/^ *" 2>\/dev\/null/{f=0} f' \
-    "$TEMPLATE_ROOT/scripts/factory-metrics.sh"
+    "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh"
 }
 check "the embedded program is actually found" "1" \
   "$([ "$(embedded_program | wc -l | tr -d ' ')" -gt 0 ] && echo 1 || echo 0)"
@@ -1169,7 +1171,7 @@ MROOT="$SANDBOX/metrics"
 mkdir -p "$MROOT/scripts/lib" "$MROOT/templates" "$MROOT/.factory"
 ( cd "$MROOT" && git init -q && git config user.email m@e && git config user.name m
   printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" )
-cp "$TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/templates/metrics.html" "$MROOT/templates/"
 printf 'project_name: m\n' > "$MROOT/factory.yaml"

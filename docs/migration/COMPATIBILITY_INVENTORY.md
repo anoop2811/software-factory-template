@@ -53,7 +53,7 @@ the approved migration and recovery contracts.
 | G5 | Final active dependency and reference audit | Retain documentation, licenses, lessons, wiki, specifications and project metadata. Remove only proven obsolete active references/dependencies; retained public wrappers are not incomplete conversion. |
 
 G3 must include embedded Python outside `scripts/lib`: metrics processing and
-rendering (`scripts/factory-metrics.sh:121`, `scripts/factory-metrics.sh:268`),
+rendering (`acceptance/native_metrics_test.go:61`, `acceptance/native_metrics_safety_test.go:121`),
 eval output/comparison (`scripts/golden-task-eval.sh:230`), prerequisites
 (`scripts/prereq-check.sh:102`), and active acceptance helpers under
 `scripts/selftest/`. Keeping historical fixture source is permissible only with
@@ -85,7 +85,7 @@ acceptance references before cleanup.
 | Native adapters | Codex/Claude/OpenCode argv and stdin, role permissions, hook trust, typed probe ownership, stream normalization and unknown cost | `scripts/lib/budget_adapters.py:26`, `scripts/lib/budget_adapters.py:194`, `scripts/lib/budget_adapters.py:260`; `.claude/`, `.codex/`, `.opencode/`, `opencode.json`, `.mcp.json` |
 | Budget and loop state | Schema/numeric/null semantics, exact fingerprint bytes, private atomic writes, interoperable lock paths/inodes, reservations and recovery inspection before unrelated config validation | `scripts/lib/budget.py:194`, `scripts/lib/budget.py:563`, `scripts/lib/loop.py:24`, `scripts/lib/loop.py:271`, `scripts/lib/loop.py:606` |
 | Process execution | Deadlines after lock contention, process-group cleanup, unknown exit/usage, output limits, no automatic paid retry, ordinary preflight rejection versus uncertain ownership | `scripts/lib/budget.py:484`, `scripts/lib/budget.py:493`, `scripts/lib/budget_adapters.py:110`, `scripts/lib/loop.py:329` |
-| Reporting and presentation | Machine-output framing and types, answer visibility, TSV/event retention, optional timing/color/browser behavior, best-effort failures | `scripts/lib/budget.py:289`, `scripts/lib/events.sh:3`, `scripts/lib/color.sh:9`, `scripts/factory-metrics.sh:286` |
+| Reporting and presentation | Machine-output framing and types, answer visibility, TSV/event retention, optional timing/color/browser behavior, best-effort failures | `scripts/lib/budget.py:289`, `scripts/lib/events.sh:3`, `scripts/lib/color.sh:9`, `acceptance/native_metrics_safety_test.go:50` |
 | Install/upgrade/bootstrap | Explicit fetch/init/upgrade consent, ref/source selection, preserved identity/configuration, bounded upgrade handoff and nestedness, actual asset completeness | `install.sh:95`, `install.sh:170`, `scripts/factory-upgrade.sh:34`, `scripts/factory-upgrade.sh:175`, `scripts/factory-upgrade.sh:289` |
 | Product packs | Go, TypeScript, Java/Gradle/Maven and polyglot behavior; pack test regexes, local hooks and unchanged product build selection | `packs/*/pack.yaml`, pack hook/build/workflow entries; `scripts/selftest/java-build-tool.sh`, `scripts/selftest/maven-quality.sh`, `scripts/selftest/optional-packs.sh` |
 | Tests and CI | Behavioral negative controls, registered-hook proofs and explicit asset completeness rather than shell-text grep success; separate optional/paid gating | `scripts/hooks/copy-manifest-check.sh:4`, `scripts/selftest/`, `.github/workflows/`, `eval/` |

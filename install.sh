@@ -280,21 +280,25 @@ FACTORY_HOME="${FACTORY_HOME:-$HOME/.software-factory-template}"
 # args here so it works before or after the verb, and passes nothing extra to
 # factory-init. Precedence: --ref beats the FACTORY_REF env var beats the default.
 REF_OVERRIDE=""
-_args=""
-while [ $# -gt 0 ]; do
+# Rotate retained original operands to the tail without evaluating or splitting.
+# docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:74.
+installer_remaining=$#
+while [ "$installer_remaining" -gt 0 ]; do
   case "$1" in
     --ref)
-      if [ $# -lt 2 ]; then
+      if [ "$installer_remaining" -lt 2 ]; then
         printf '%s\n' "install: --ref needs a value (e.g. --ref main)" >&2
         exit 2
       fi
-      REF_OVERRIDE="$2"; shift 2 ;;
-    --ref=*) REF_OVERRIDE="${1#--ref=}"; shift ;;
-    *) _args="$_args $1"; shift ;;
+      REF_OVERRIDE="$2"; shift 2
+      installer_remaining=$((installer_remaining - 2)) ;;
+    --ref=*) REF_OVERRIDE="${1#--ref=}"; shift
+      installer_remaining=$((installer_remaining - 1)) ;;
+    *) installer_argument=$1; shift
+      set -- "$@" "$installer_argument"
+      installer_remaining=$((installer_remaining - 1)) ;;
   esac
 done
-# shellcheck disable=SC2086  # deliberate re-split; passthrough args carry no spaces
-set -- $_args
 [ -n "$REF_OVERRIDE" ] && FACTORY_REF="$REF_OVERRIDE"
 
 DO_INIT=0
@@ -365,6 +369,97 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+installer_source_adapter() {
+  [ -f "$FACTORY_HOME/scripts/factory-init.sh" ] &&
+    [ "$(sed -n '2p' "$FACTORY_HOME/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]
+}
+
+installer_upgrade_adapter() {
+  [ -f "$FACTORY_HOME/scripts/factory-upgrade.sh" ] &&
+    [ "$(sed -n '2p' "$FACTORY_HOME/scripts/factory-upgrade.sh")" = '# Factory native upgrade adapter: source-v1' ]
+}
+
+installer_branch_ref() {
+  case "$FACTORY_REF" in v[0-9]*) return 1 ;; *) return 0 ;; esac
+}
+
+# Metadata reads are isolated; refresh retains ordinary credential discovery.
+# Both ignore caller Git redirection. Variable names are data, never shell code.
+# docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:91.
+installer_git_at() (
+  installer_git_root=$1
+  installer_git_mode=$2
+  shift 2
+  for installer_git_name in $(/usr/bin/env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do
+    unset "$installer_git_name"
+  done
+  case "$installer_git_mode" in
+    identity) export LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null ;;
+    refresh) : ;;
+    *) exit 2 ;;
+  esac
+  exec git -C "$installer_git_root" --no-optional-locks -c core.fsmonitor=false -c core.untrackedCache=false "$@"
+)
+
+installer_cache_git() {
+  installer_git_at "$FACTORY_HOME" "$@"
+}
+
+installer_native_home() {
+  FACTORY_HOME="$(CDPATH='' cd -P -- "$FACTORY_HOME" && pwd -P && printf '.')" || return 2
+  FACTORY_HOME=${FACTORY_HOME%??}
+}
+
+installer_native_history() {
+  # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:169.
+  installer_cache_origin || return 2
+  installer_shallow=$(installer_cache_git identity rev-parse --is-shallow-repository) || return 1
+  case "$installer_shallow" in
+    false) return 0 ;;
+    true)
+      say 'install: obtaining complete native source history for predecessor qualification...'
+      installer_cache_git refresh fetch --quiet --unshallow origin ;;
+    *) printf '%s\n' 'install: cannot establish native source history completeness' >&2; return 1 ;;
+  esac
+}
+
+installer_select_fetched_cache() {
+  # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:96.
+  installer_branch_status=0
+  installer_cache_git refresh ls-remote --exit-code --heads origin "$FACTORY_REF" >/dev/null || installer_branch_status=$?
+  case "$installer_branch_status" in
+    0)
+      installer_cache_branch=${FACTORY_REF#refs/heads/}
+      installer_cache_git refresh checkout --quiet -B "$installer_cache_branch" FETCH_HEAD ;;
+    2) installer_cache_git refresh checkout --quiet --detach FETCH_HEAD ;;
+    *) return "$installer_branch_status" ;;
+  esac
+}
+
+installer_cache_refusal() {
+  printf '%s\n' 'install: cached source does not match the requested repository/ref.' \
+    'Preserve this cache; select a fresh FACTORY_HOME or refresh it safely before retrying.' >&2
+  return 2
+}
+
+installer_cache_origin() {
+  installer_origin=$(installer_cache_git identity remote get-url origin 2>/dev/null) || { installer_cache_refusal; return 2; }
+  [ "$installer_origin" != "$FACTORY_REPO" ] || return 0
+  case "$FACTORY_REPO:$installer_origin" in
+    https://github.com/anoop2811/software-factory-template:https://github.com/anoop2811/software-factory-template.git|\
+    https://github.com/anoop2811/software-factory-template.git:https://github.com/anoop2811/software-factory-template) return 0 ;;
+  esac
+  installer_cache_refusal
+}
+
+installer_cache_selection() {
+  installer_cache_origin || return 2
+  installer_expected=$(installer_cache_git identity rev-parse --verify --end-of-options "$FACTORY_REF^{commit}" 2>/dev/null) || { installer_cache_refusal; return 2; }
+  installer_actual=$(installer_cache_git identity rev-parse --verify 'HEAD^{commit}' 2>/dev/null) || { installer_cache_refusal; return 2; }
+  case "$installer_actual" in ''|*[!0-9a-f]*) installer_cache_refusal; return 2 ;; esac
+  [ "${#installer_actual}" -eq 40 ] && [ "$installer_expected" = "$installer_actual" ] || { installer_cache_refusal; return 2; }
+}
+
 # upgrade: refresh the machine-wide template cache, then apply the framework
 # update to the repo you're in (a reviewable diff — nothing is committed). Like
 # 'init', it acts on the current directory. It upgrades THIS repo, not every
@@ -372,10 +467,25 @@ fi
 # files, so you upgrade them where you are.
 if [ "$DO_UPGRADE" -eq 1 ]; then
   if [ -d "$FACTORY_HOME/.git" ]; then
+    installer_safe_refresh=0
+    if installer_branch_ref || installer_source_adapter || installer_upgrade_adapter; then
+      installer_safe_refresh=1
+      installer_cache_origin || exit 2
+      installer_dirty=$(installer_cache_git identity status --porcelain --untracked-files=all) || exit 2
+      if [ -n "$installer_dirty" ]; then
+        printf '%s\n' 'install: cached source has local changes; preserve them and select a clean FACTORY_HOME before refreshing.' >&2
+        exit 2
+      fi
+    fi
     say "install: refreshing the template at $FACTORY_HOME to '$FACTORY_REF'..."
     _t_fetch="$(date +%s 2>/dev/null || printf '0')"
-    git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
-    git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
+    if [ "$installer_safe_refresh" -eq 1 ]; then
+      installer_cache_git refresh fetch --quiet --depth 1 origin "$FACTORY_REF"
+      installer_select_fetched_cache
+    else
+      git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
+      git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
+    fi
     say "  refreshed in $(elapsed_since "$_t_fetch")"
   elif [ -e "$FACTORY_HOME" ]; then
     say "install: $FACTORY_HOME exists but is not a template checkout." >&2
@@ -388,14 +498,29 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
   fi
   # Apply to the current repo. Resolve its root via git so running from a
   # subdirectory upgrades the whole repo, not just where you happen to stand.
-  REPO_ROOT="$( (cd "$TARGET_DIR" && git rev-parse --show-toplevel) 2>/dev/null || true)"
+  if installer_upgrade_adapter; then
+    # Keep physical cache identity and original caller cwd separate.
+    # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:104.
+    installer_native_home || exit 2
+    if installer_root_frame="$(installer_git_at "$TARGET_DIR" identity rev-parse --show-toplevel 2>/dev/null && printf '.')"; then
+      REPO_ROOT=${installer_root_frame%??}
+    else
+      REPO_ROOT=''
+    fi
+  else
+    REPO_ROOT="$( (cd "$TARGET_DIR" && git rev-parse --show-toplevel) 2>/dev/null || true)"
+  fi
   if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/factory.yaml" ]; then
     say "install: applying framework updates to $REPO_ROOT ..."
     say ""
-    cd "$REPO_ROOT"
     # The upgrade reports the total, so give it the real start.
     FACTORY_UPGRADE_STARTED="$INSTALL_T0"
     export FACTORY_UPGRADE_STARTED
+    if installer_upgrade_adapter; then
+      installer_native_history || exit $?
+      exec "$FACTORY_HOME/scripts/factory-upgrade.sh" --local --source "$FACTORY_HOME" "$@"
+    fi
+    cd "$REPO_ROOT"
     exec "$FACTORY_HOME/scripts/factory-upgrade.sh" --source "$FACTORY_HOME"
   fi
   say "install: template cache updated. This isn't a factory repo, so nothing was"
@@ -404,6 +529,9 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
 fi
 
 if [ -e "$FACTORY_HOME" ]; then
+  if [ "$DO_INIT" -eq 1 ] && { installer_branch_ref || installer_source_adapter; }; then
+    installer_cache_selection || exit 2
+  fi
   say "install: $FACTORY_HOME already exists (reusing it)."
   say "  To update it to the latest template:"
   say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade"
@@ -427,7 +555,13 @@ if [ "$DO_INIT" -eq 0 ]; then
     say "Go initialization authenticates official release artifacts before execution."
     exit 0
   fi
-  say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\""
+  if installer_source_adapter; then
+    say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\" --local --source \"$FACTORY_HOME\""
+    say ""
+    say "Source initialization builds the selected committed checkout using Go; it does not claim release authentication."
+  else
+    say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\""
+  fi
   say ""
   say "Or re-run this installer with 'init' from inside that repository:"
   say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init"
@@ -440,6 +574,14 @@ say "    $TARGET_DIR"
 say ""
 # factory-init reads its prompts from /dev/tty, so it works through the pipe.
 # Any remaining args (e.g. --pack go) pass straight through.
+if installer_source_adapter; then
+  # An explicitly fetched branch is the selected committed developer source.
+  # Do not silently substitute the native command's prepared stable default.
+  # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:74.
+  installer_native_home || exit 2
+  installer_native_history || exit $?
+  exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" --local --source "$FACTORY_HOME" "$@"
+fi
 exec "$FACTORY_HOME/scripts/factory-init.sh" "$TARGET_DIR" "$@"
 }
 

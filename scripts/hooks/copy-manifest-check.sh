@@ -63,6 +63,18 @@ if [ -e "$OWNER_ROOT/.factory/installation.current" ] || [ -L "$OWNER_ROOT/.fact
   exec /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 FACTORY_COPY_GATE_EVENT=1 \
     "$OWNER_ROOT/factory" helper copies "$ROOT"
 fi
+if [ -f "$OWNER_ROOT/scripts/factory-init.sh" ] &&
+  [ "$(sed -n '2p' "$OWNER_ROOT/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]; then
+  # The physical hook owner selects code; the subject selects only inventory.
+  # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:128.
+  if [ ! -f "$OWNER_ROOT/factory" ] || [ ! -x "$OWNER_ROOT/factory" ] || [ -L "$OWNER_ROOT/factory" ]; then
+    echo "COPY-MANIFEST FAIL: native source owner factory must be a physical executable regular file" >&2
+    factory_log_event "copy-manifest-check" "native source owner wrapper is unavailable"
+    exit 2
+  fi
+  exec /usr/bin/env FACTORY_BRIDGE_PROTOCOL=1 FACTORY_COPY_GATE_EVENT=1 \
+    "$OWNER_ROOT/factory" helper copies "$ROOT"
+fi
 if [ -e "$ROOT/.factory/installation.current" ] || [ -L "$ROOT/.factory/installation.current" ]; then
   echo "COPY-MANIFEST FAIL: a foreign installation subject requires an explicitly selected runtime" >&2
   factory_log_event "copy-manifest-check" "foreign installation has no selected runtime"

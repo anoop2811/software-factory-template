@@ -20,5 +20,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Immutable pre-conversion controller fixture provenance.
       - name: Bounded repair and checkpoint fixtures (no paid calls)
         run: ./scripts/selftest/loop.sh

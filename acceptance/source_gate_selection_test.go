@@ -574,12 +574,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:216
 		// Eight native copy-inventory criteria join the measured base partition.
 		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:118
-		Expect(negativeTotal).To(Equal(3204))
+		Expect(negativeTotal).To(Equal(3215))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3204))
-		expectedCounts := map[string]int{"base": 2996, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
+		Expect(allTotal).To(Equal(3215))
+		expectedCounts := map[string]int{"base": 3007, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

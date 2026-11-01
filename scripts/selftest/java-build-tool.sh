@@ -59,9 +59,18 @@ with tempfile.TemporaryDirectory(prefix="factory-java-build-tool-") as temporary
     npm.chmod(0o755)
     environment["PATH"] = str(tool_bin) + os.pathsep + environment["PATH"]
     shutil.copytree(source, template, ignore=shutil.ignore_patterns(
-        ".git", ".factory", "node_modules", ".venv", "__pycache__",
+        ".git", ".factory", "factory-go", "node_modules", ".venv", "__pycache__",
         "java-build-tool.sh", "optional-packs.sh",
     ))
+    # This matrix retains its pre-conversion initializer/dispatcher engine.
+    # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
+    for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh"):
+        data = subprocess.run([
+            "git", "-C", str(source), "show",
+            "1754de23de95a7e3c734bedd86894295e823c988:" + name,
+        ], env=environment, capture_output=True, check=True, timeout=10).stdout
+        (template / name).write_bytes(data)
+        (template / name).chmod(0o755)
     for name in ("scripts/selftest/run.sh", "scripts/prereq-check.sh"):
         stub = template / name
         stub.write_text("#!/bin/bash\nexit 0\n")

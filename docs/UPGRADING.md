@@ -119,12 +119,16 @@ native bootstrap before execution; the Go owner then validates the complete
 installation image. Go releases use the official repository; a conflicting
 `FACTORY_REPO` refuses. See the [bootstrap contract](adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 
-The public default remains v0.1.6 until stable activation. Older stable tags and
-non-version branch refs retain their legacy route during this stage. Legacy
-execution rejects `--` operands that its initializer cannot preserve. A bare
-fetch, even for a Go tag, only caches source and gives an authenticated next step;
-it never executes the fetched initializer. The tracked source launcher and
-direct source scripts await their separate cutover.
+The public default remains v0.1.6 until stable activation. Older stable tags keep
+their legacy route. A non-version branch containing the native init/upgrade
+adapters explicitly selects that committed local source and requires the Go
+toolchain; native upgrades preview before fresh confirmation. A reused cache
+must match the requested repository/ref; a mismatch refuses with guidance to
+refresh safely or select a fresh `FACTORY_HOME`. Legacy execution rejects `--`
+operands that its initializer cannot preserve. A bare fetch only caches source;
+Go-tag advice re-enters authenticated initialization, and native-branch advice
+explicitly selects local source. It never executes the fetched initializer.
+The tracked developer launcher and direct init/upgrade scripts now enter Go.
 
 A Go release containing ordinary upgrade selection can preview its declared
 stable release with `./factory upgrade --dry-run --json`. Current source prepares
@@ -265,7 +269,7 @@ Existing source/ref updates keep their established behavior:
 
 ```sh
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
-# Explicitly try current source features, retaining script runtime selection:
+# Explicitly select current committed source; native branch upgrade previews first:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
 ```
 

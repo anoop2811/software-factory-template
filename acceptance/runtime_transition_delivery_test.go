@@ -15,8 +15,16 @@ func transitionInstallationSource() (string, string, []string) {
 	repo, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
 	for _, name := range []string{"factory-budget.sh", "factory-loop.sh", "factory-upgrade.sh", "factory-init.sh"} {
-		data, err := os.ReadFile(filepath.Join(repo, "scripts", name))
-		Expect(err).NotTo(HaveOccurred())
+		var data []byte
+		if name == "factory-init.sh" || name == "factory-upgrade.sh" {
+			// Historical source delivery keeps its actual pre-adapter engine.
+			// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136
+			data = sourceLegacyEntrypointBytes("scripts/" + name)
+		} else {
+			var err error
+			data, err = os.ReadFile(filepath.Join(repo, "scripts", name))
+			Expect(err).NotTo(HaveOccurred())
+		}
 		if name == "factory-init.sh" {
 			name = "factory-init-legacy.sh"
 		}

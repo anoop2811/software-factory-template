@@ -5684,3 +5684,58 @@ known native copy boundary, with the shared constant beside native ownership
 errors. Keep typed uncertainty global. Sanitize subject-root diagnostics,
 distinguish finite Git failure classes, and clearly log refusal of an unusable
 owner wrapper. Preserve all runtime and cleanup allowances and test identities.
+
+## Decision 141 (2026-11-01 UTC): activate native source and direct init/upgrade entrypoints
+
+After human merge of PR #156 as 1754de2, implement the bounded source function
+in ADR 0126. Reuse the existing Cobra owners and preserved compiler-bootstrap
+design with fresh independent RED/GREEN and process-custody qualification.
+Only source development builds Go; generated installed launchers remain
+compiler-free. Preserve literal process boundaries, prior build on failure,
+bounded cancellation and inert retained evidence when ownership is uncertain.
+
+Turn direct init/upgrade scripts into owner-relative adapters. Preserve explicit
+installer branch selection through the current adapter's local-source protocol,
+legacy tag behavior, the public v0.1.6 pin and authenticated stable acquisition.
+The copy gate recognizes its physical owner's declared native adapter and keeps
+checking actual Go inventory. Freeze genuine legacy test fixtures at their
+observed pre-conversion Git provenance; keep current entrypoint tests current.
+Remaining command/helper adapters, historical controller cleanup, final audit,
+candidate publication and adopter acceptance remain separate tasks and gates.
+
+Decision 141 pre-implementation security refinement: reject source file aliases
+before compiler selection. Its exact private compiler output publishes itself
+through the existing Cobra bridge and confined native exact-leaf rename before
+the shell execs the developer output. This avoids shell mv treating a changed
+cache destination as a directory. The developer cache and private bridge grant
+no installed or publisher identity.
+
+Decision 141 pre-implementation branch qualification: both review lenses and the
+independent verifier identified the retained installer upgrade vector missing
+local consent/remaining operands, plus cached init selecting an unrelated HEAD.
+Qualify these failures before repair. Native upgrade adapters carry explicit
+local source and literal options into read-only preview/fresh-consent apply.
+Cached branch init proves the requested repository/ref matches HEAD or refuses
+read-only with actionable advice. Branch refresh checks a clean matching cache
+and uses non-force checkout; preserve unrelated legacy-tag behavior.
+
+Decision 141 physical-owner qualification: the independent direct-entrypoint
+criterion observed both directory aliases execute a decoy parent factory before
+repair. Use physical cd traversal before interpreting parent components in all
+three current entrypoints; pwd -P after logical traversal cannot recover that
+lost ownership. Preserve the collected literal transport and tree guards.
+
+Decision 141 final review contracts: independently qualify automatic source-hook
+dispatch rather than borrowing selftest's explicit runtime coverage. Bind native
+installer upgrade to the original caller cwd with isolated, framed Git discovery
+and a physical cache path. Keep successful named-branch cache refresh consistent
+with later init reuse through transactional checkout; retain exact detached tags
+and refuse dirty/conflicting caches. The verifier confirmed these scoped findings
+before the added regression assertions and production refinements.
+
+Decision 141 source-acquisition qualification: replace full-clone-only native
+delivery evidence with the actual branch installer and fresh shallow file
+transport. Native local packaging keeps its canonical two predecessor catalogs;
+explicit native source installation obtains complete cache history before that
+offline packager. Legacy and bare-fetch shallow behavior stay unchanged. Capture
+the actual integration result before implementing any history-acquisition repair.

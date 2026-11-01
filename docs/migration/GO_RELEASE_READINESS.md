@@ -24,8 +24,8 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   records focused source qualification. This does not activate ordinary defaults.
 - Ordinary Go initialization selects an authenticated packaged release, with
   explicit ref/environment precedence and admitted installed-version reuse. The
-  prepared source default v0.2.0 refuses until published; source/bootstrap and
-  public stable activation remain separate. See
+  prepared source default v0.2.0 refuses until published; public stable
+  activation remains separate. See
   [ADR 0118](../adr/0118-default-packaged-go-initialization.md).
 - Ordinary Go upgrade selects an authenticated stable release, preserves explicit
   selector ownership, refuses downgrades and gives the transaction its own
@@ -47,10 +47,15 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Ordinary shell-installer init/upgrade requests with an exact stable Go ref
   reuse authenticated bootstrap acquisition and the native stable owner. The
   shell checks stable publisher metadata before first execution and carries one
-  explicit ref into Go. Bare fetch stays Git-only; the public v0.1.6 pin and
-  source/direct script entrypoints remain unchanged. See
-  [ADR 0124](../adr/0124-ordinary-authenticated-go-installer-bootstrap.md). This
-  is the first bounded R2 function, not completion of its source/default gate.
+  explicit ref into Go. Bare fetch stays Git-only; the public v0.1.6 pin remains.
+  See [ADR 0124](../adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
+- The tracked developer launcher builds and enters the existing native Cobra
+  command; direct init/upgrade scripts forward to the same owners. Branch
+  initialization retains the selected committed source, and the copy hook uses
+  the initializer's actual shared Go inventory. Existing installed launchers
+  remain compiler-free. See [ADR 0125](../adr/0125-native-initializer-copy-inventory-gate.md)
+  and [ADR 0126](../adr/0126-go-source-launcher-and-direct-init-upgrade.md).
+  Remaining direct commands/helpers and historical proof cleanup stay separate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration
@@ -59,9 +64,9 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   recovery source engines are qualified and merged.
 
 The whole-installation consumer and explicit stable Go installer refs can select
-an authenticated Go runtime. The source launcher, direct source scripts and
-public installer default remain on the legacy route; bare fetch executes no
-downloaded code. Source/default cutover and stable activation remain separate.
+an authenticated Go runtime. Current source and direct init/upgrade entrypoints
+use Go; the public installer default remains v0.1.6. Bare fetch executes no
+downloaded code. Stable activation and final release qualification remain separate.
 Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Current release candidate

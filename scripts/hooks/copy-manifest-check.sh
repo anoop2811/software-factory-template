@@ -12,7 +12,10 @@ set -uo pipefail
 #
 # Scans the repo given as $1, or this repo. Skips when there is no factory-init
 # (an adopter repo doesn't ship the installer).
-# Exit 0 = every unconditional copy target is tracked (or skip), 1 = one is not.
+# Common statuses: 0 = validated or intentionally skipped, 1 = inventory failure,
+# 2 = invocation/runtime refusal, 125 = unconfirmed native-copy child ownership.
+# Selected executables may preserve other nonzero execution statuses.
+# docs/adr/0125-native-initializer-copy-inventory-gate.md:224.
 
 # Establish physical ownership before loading any sibling code. A file alias
 # cannot choose its invocation directory's libraries or installed runtime.

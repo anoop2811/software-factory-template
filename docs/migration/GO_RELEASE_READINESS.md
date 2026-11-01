@@ -44,6 +44,13 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   their original source generation. See
   [ADR 0123](../adr/0123-owned-obsolete-initializer-cache-retirement.md). This
   source prerequisite does not activate bootstrap or close the final cleanup audit.
+- Ordinary shell-installer init/upgrade requests with an exact stable Go ref
+  reuse authenticated bootstrap acquisition and the native stable owner. The
+  shell checks stable publisher metadata before first execution and carries one
+  explicit ref into Go. Bare fetch stays Git-only; the public v0.1.6 pin and
+  source/direct script entrypoints remain unchanged. See
+  [ADR 0124](../adr/0124-ordinary-authenticated-go-installer-bootstrap.md). This
+  is the first bounded R2 function, not completion of its source/default gate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration
@@ -51,10 +58,11 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Transition exclusion, live restoration, durable publication and interrupted
   recovery source engines are qualified and merged.
 
-The opt-in whole-installation consumer can select an installed Go runtime. The
-default source launcher, bare bootstrap and source upgrade still select the script
-installation until the release gates pass. Explicit candidate delivery is described
-in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
+The whole-installation consumer and explicit stable Go installer refs can select
+an authenticated Go runtime. The source launcher, direct source scripts and
+public installer default remain on the legacy route; bare fetch executes no
+downloaded code. Source/default cutover and stable activation remain separate.
+Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
 ## Current release candidate
 

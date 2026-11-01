@@ -5563,3 +5563,88 @@ cannot cover a required old cache merely because both unsigned records say
 retire; independently qualify canonical before/saved data or refuse before
 reverse publication. ADR 0123 records these boundaries before independent
 focused REDs and any follow-up production repair.
+
+
+## Decision 139 (2026-10-31 UTC): authenticate ordinary explicit Go installer requests
+
+After human merge of R1 as 21f2913, deliver the first bounded R2 function under
+ADR 0124 before source-factory/direct-entrypoint conversion. Stable init/upgrade
+requests selected by explicit ref or FACTORY_REF at or after v0.2.0 reuse the
+existing raw/image attestation and native handoff machinery. Keep literal stable
+public default v0.1.6 and Git-only bare-fetch consent; no public release activation
+or new persistent binary cache belongs here. Bare Go-tag fetch advice re-enters
+authenticated init with its selected ref instead of executing fetched scripts.
+
+Exact legacy stable refs below 0.2 and non-version branches retain the existing
+legacy path in this intermediate stage. Malformed/version-looking/prerelease
+execution refs, duplicate/mixed refs and conflicting selectors refuse before
+tools; no failed Go validation may fall back into legacy argument re-splitting.
+Stable Go refuses a conflicting repository override, authenticates exact tag,
+revision, raw subject and stable publisher metadata before first execution,
+then carries one explicit normalized --ref into the native owner. Preserve
+literal argv, terminators, stdin/cwd/status, process ownership and existing limits.
+
+Independent real compiled stable-init RED precedes installer production edits;
+qualification includes actual legacy preview/fresh-confirm/apply, preserved
+candidate regressions, bare-fetch safety and readiness-based cancellation.
+Derive real criterion/census counts and measure lane cost. R2 remains partial
+until its later coherent source/direct adapter function is human-merged; R7
+still owns stable pin activation and final operator/release gates.
+
+
+Decision 139 reviewed-routing refinement: a legacy execution terminator is an
+unsupported form and must refuse before tools, because its retained initializer
+does not implement native literal grammar. A downstream ref parser must not
+reinterpret its data into a Go-tag source path. Missing ref values cannot consume
+help options as legacy branch names; malformed literal Go execution verbs cannot
+be trimmed/re-split or treated as bare fetch. ADR 0124 records these limits before
+independent collected-path RED and parser repair; criterion counts and all native
+Go/candidate literal-operand guarantees remain unchanged.
+
+Decision 139 failure-oracle refinement: acquisition refusal must prove that
+no forbidden tool or cached-source initializer ran, rather than inferring that
+from a nonzero status. ADR 0124 records independent execution witnesses and
+cache preservation before strengthening the existing criterion. A private
+wrong-subject fallback mutant must fail its new guard while retaining every old
+assertion, followed by actual-installer GREEN; no runtime or case-count change.
+
+Decision 139 hosted-qualification refinement: macOS job 124660038324 failed the
+existing no-task orchestration-eval criterion after 5.157 seconds with sanitized
+evaluation-error prose. That trace does not prove the underlying failure, though
+the intentionally non-Git fixture inherits host Git and its five-second probe.
+Own that fixture dependency with an immediate ordinary nonzero, empty-output Git
+result, preserving the fallback in ADR 0077's discovery contract. A delayed
+ambient-Git control must reproduce the failure before fixture correction, then
+remain uninvoked after it. Preserve the frozen oracle, every behavioral assertion,
+case identity, production safety deadline and independent Git-discovery tests;
+do not infer a production fix or a confirmed hosted root cause from this control.
+
+Decision 139 watchdog-ownership refinement: private full-bootstrap scheduling
+controls observed a timer survive cancellation before its PID assignment under
+both local sh and dash, after authenticated child and installer success. Capture
+closed in both controls; the hosted Linux timeout remains a separate unexplained
+observation. ADR 0124 now requires deferred cancellation through timer publication
+and one reused supervised pause for initial and escalation waits, preserving all
+durations and trust policy. Add one independent public scheduling criterion with
+owned-timer and outsider witnesses; its RED precedes production repair. Derive
+the new registry counts, preserve every prior identity and retain the original
+candidate and ordinary cancellation qualifications before delivery.
+
+Decision 139 test-custody refinement: once the scheduling criterion has joined
+its caller and observed timer and group absence, deferred teardown must not
+signal those recorded IDs again. If failure cleanup forces termination without
+establishing separate verifier-group closure, retain its fixture conservatively.
+ADR 0124 records these test-owner limits before the narrow cleanup refinement;
+keep every pre-teardown success assertion, criterion identity and duration.
+
+Decision 139 review clarification: explicitly name nonempty FACTORY_REF as the
+environment selector and missing/empty explicit --ref operands as refusals;
+retain the prior empty-environment fallback. Reconcile the initial nine ordinary
+criteria with the one later watchdog criterion in the census instructions.
+These wording corrections change no installer behavior, test identity or limit.
+
+Decision 139 operator-message refinement: metadata refusal must name the selected
+stable or candidate policy, preserving the existing candidate diagnostic. Clarify
+the classifier comment as execution routing; bare fetch retains the separate
+Git-only contract. Strengthen the existing stable metadata-refusal criterion
+before the one diagnostic change, without changing routing, counts or limits.

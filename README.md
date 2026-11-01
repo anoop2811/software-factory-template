@@ -48,23 +48,25 @@ and default cutover remain open; track the
 The Go replacement supports Ubuntu 24.04+ and macOS 15+, on amd64/arm64.
 macOS 14 is outside the supported scope.
 
-An ordinary `upgrade` or `upgrade --ref main` continues to select the script
-installation. When v0.2.0 is published with its complete attested assets, use the
-explicit Go flow below from your existing project:
+The public installer still defaults to v0.1.6. Its exact stable Go `--ref` and
+`FACTORY_REF` selections at or after v0.2.0 use the authenticated native flow;
+legacy refs and `--ref main` retain the script route at this stage. When v0.2.0
+is published with its complete attested assets, use this flow from your project:
 
 ```sh
 # Preview only; requires the complete published v0.2.0 release.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 
 # Review the proposal. Stop other factory work for the maintenance window.
 # Replace PROPOSAL_DIGEST with the complete proposal_digest from that preview.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --go-candidate v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
 
 # After successful activation, use the same public command.
 ./factory doctor
 ```
 
-For a published prerelease, substitute its exact tag in both commands. The
+For a published prerelease, replace `--ref v0.2.0` with `--go-candidate TAG` in
+both commands, using its exact published tag. The
 preview authenticates assets and reports conflicts without changing your project.
 Confirmation rechecks the proposal before activation. Unchanged owned obsolete
 implementations are replaced or retired; custom files are preserved. Compatible
@@ -78,7 +80,9 @@ See the [CLI command reference](docs/CLI.md) for the commands available in each
 runtime. Ordinary Go `init` now authenticates its selected installed release or
 the prepared v0.2.0 source default. Until v0.2.0 is published, source-built callers
 must select a published candidate or explicit local build. The tracked source
-shell launcher and public stable installer retain their current behavior.
+shell launcher and public stable pin retain their current behavior. A bare
+installer invocation remains fetch-only, including for a Go tag; its advice
+re-enters authenticated initialization before running release code.
 Installing the packaged Go factory requires no Go compiler or Python;
 product tools and retained validation gates keep their own requirements.
 

@@ -1129,7 +1129,7 @@ check "upgrade guards against recursing into itself" "1" \
 # guard inside upgrade cannot do it: it only helps when the OUTER process is an
 # upgrade. The self-test must mark the upgrades it spawns as nested.
 check "selftest marks the upgrades it spawns as nested" "1" \
-  "$(grep -c 'FACTORY_UPGRADE_ACTIVE=1 bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh"' "$TEMPLATE_ROOT/scripts/selftest/run.sh" >/dev/null && echo 1 || echo 0)"
+  "$(grep -Ec '^[[:space:]]*\( cd .*FACTORY_UPGRADE_ACTIVE=1 bash "\$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade\.sh"' "$TEMPLATE_ROOT/scripts/selftest/run.sh" >/dev/null && echo 1 || echo 0)"
 # The colour helper is sourced by init and upgrade, so upgrade must ship it —
 # under set -u a missing lib aborted the run the first time this shipped.
 check "upgrade ships the colour lib it sources" "1" \

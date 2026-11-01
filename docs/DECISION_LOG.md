@@ -5739,3 +5739,18 @@ transport. Native local packaging keeps its canonical two predecessor catalogs;
 explicit native source installation obtains complete cache history before that
 offline packager. Legacy and bare-fetch shallow behavior stay unchanged. Capture
 the actual integration result before implementing any history-acquisition repair.
+
+Decision 141 hosted review refinement: PR #157's first exact-head review completed
+all 30 files and 59 fragments in three batches; its job took 182 seconds. Copilot
+identified shared-cache exec interleaving, shallow bare-fetch advice and branch
+terminator transport. Bind execution to a single-linked private invocation file,
+publish an independent checked cache copy, and clean only the pinned private file
+after return. Preserve original caller arguments and installed admission.
+
+Re-enter init with quoted effective selectors from native fetch-only advice.
+Native branch terminators are capability-checked after acquisition; legacy tags
+retain early refusal. Provision the locked source module cache in Template CI
+before its offline gate. Refute fragment-only model claims against complete code;
+repair the independently observed self-satisfying historical nesting predicate.
+New independent semantic REDs precede these behavioral repairs. No version,
+dependency, worker/deadline or model/budget allowance is increased.

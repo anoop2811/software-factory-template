@@ -36,7 +36,7 @@ func newSourceEntrypointFixture() sourceEntrypointFixture {
 	imageGit(root, "config", "gc.autoDetach", "false")
 	imageGit(root, "config", "maintenance.auto", "false")
 	imageGit(root, "config", "core.fsmonitor", "false")
-	for _, path := range []string{"factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh", "scripts/hooks/copy-manifest-check.sh"} {
+	for _, path := range []string{"factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh", "scripts/hooks/copy-manifest-check.sh", ".gitignore"} {
 		data, err := os.ReadFile(filepath.Join(repository, path))
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, path), data, 0755)
@@ -351,11 +351,18 @@ var _ = Describe("Go source runtime entrypoints", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:83
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:89
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:104
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:214
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:220
 	It("keeps branch-selected initializer operands local while preserving legacy controls and fetch-only consent", func() {
 		observations := map[string]map[string]any{}
-		for _, kind := range []string{"native", "legacy-product-module", "fetch-only", "native-upgrade", "matching-existing-cache", "mismatched-existing-cache", "mismatched-origin", "foreign-git-upgrade", "relative-subdir-upgrade", "newline-caller-upgrade", "refresh-then-init"} {
+		for _, kind := range []string{"native", "legacy-product-module", "fetch-only", "native-upgrade", "matching-existing-cache", "mismatched-existing-cache", "mismatched-origin", "foreign-git-upgrade", "relative-subdir-upgrade", "newline-caller-upgrade", "refresh-then-init", "native-terminator", "legacy-tag-terminator", "legacy-branch-terminator", "native-fetch-advice"} {
 			source, caller := fixtureDirectories()
 			base := filepath.Dir(source)
+			if kind == "native-fetch-advice" {
+				literal := filepath.Join(base, "advice origin ' $(not-code)")
+				Expect(os.Rename(source, literal)).To(Succeed())
+				source = literal
+			}
 			upgradeCase := kind == "native-upgrade" || kind == "foreign-git-upgrade" || kind == "relative-subdir-upgrade" || kind == "newline-caller-upgrade" || kind == "refresh-then-init"
 			foreignProject := ""
 			if kind == "newline-caller-upgrade" {
@@ -364,11 +371,14 @@ var _ = Describe("Go source runtime entrypoints", func() {
 				caller += "\n"
 			}
 			tools, cache := filepath.Join(base, "tools"), filepath.Join(base, "selected template cache")
+			if kind == "native-fetch-advice" {
+				cache = filepath.Join(base, "advice cache ' $(not-code)")
+			}
 			record, input, forbidden := filepath.Join(base, "argv"), filepath.Join(base, "input"), filepath.Join(base, "forbidden-tool")
 			writeFixture(filepath.Join(source, "factory"), []byte(sourceEntrypointRecorder), 0755)
 			data, err := os.ReadFile("../scripts/factory-init.sh")
 			Expect(err).NotTo(HaveOccurred())
-			if kind == "legacy-product-module" {
+			if kind == "legacy-product-module" || kind == "legacy-branch-terminator" {
 				data = []byte(sourceEntrypointRecorder)
 			}
 			writeFixture(filepath.Join(source, "scripts/factory-init.sh"), data, 0755)
@@ -388,6 +398,9 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			imageGit(source, "add", "--all")
 			imageGit(source, "-c", "user.name=Entrypoint fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "selected branch source")
 			branch := "feature/selected-native-source"
+			if kind == "native-fetch-advice" {
+				branch = "feature/advice'$(not-code)"
+			}
 			imageGit(source, "branch", branch)
 			selectedRevision := strings.TrimSpace(imageGit(source, "rev-parse", branch+"^{commit}"))
 			var cacheBefore map[string]string
@@ -448,6 +461,11 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(os.MkdirAll(tools, 0700)).To(Succeed())
 			Expect(os.Symlink(git, filepath.Join(tools, "git"))).To(Succeed())
+			gitTrace := filepath.Join(base, "installer Git trace")
+			if kind == "legacy-tag-terminator" || kind == "legacy-branch-terminator" {
+				Expect(os.Remove(filepath.Join(tools, "git"))).To(Succeed())
+				writeFixture(filepath.Join(tools, "git"), []byte("#!/bin/sh\nprintf '%s\000' \"$@\" >> \"$SOURCE_ENTRY_GIT_TRACE\"\nexec \"$SOURCE_ENTRY_REAL_GIT\" \"$@\"\n"), 0700)
+			}
 			for _, name := range []string{"go", "python", "python3", "gh", "curl", "wget", "claude", "codex", "opencode"} {
 				writeFixture(filepath.Join(tools, name), []byte("#!/bin/sh\nprintf '%s\\n' \"$0\" >> \"$SOURCE_ENTRY_FORBIDDEN\"\nexit 97\n"), 0700)
 			}
@@ -459,18 +477,27 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			if kind == "relative-subdir-upgrade" {
 				environment["FACTORY_HOME"] = "../../selected template cache"
 			}
+			environment["SOURCE_ENTRY_GIT_TRACE"], environment["SOURCE_ENTRY_REAL_GIT"] = gitTrace, git
 			var foreignBefore map[string]string
 			if foreignProject != "" {
 				foreignBefore = installationSnapshot(foreignProject)
 			}
 			operands := []string{"--pack", "none", "--label", "space ' $(not-code)\nvalue", "--java-build-tool=invalid"}
 			args := append([]string{installerPath, "init", "--ref", branch}, operands...)
-			if kind == "fetch-only" {
+			if kind == "fetch-only" || kind == "native-fetch-advice" {
 				args = []string{installerPath, "--ref=" + branch}
 			}
 			if upgradeCase {
 				operands = []string{"--dry-run", "--json", "--project-input", "literal input with spaces"}
 				args = append([]string{installerPath, "upgrade", "--ref", branch}, operands...)
+			}
+			if strings.HasSuffix(kind, "terminator") {
+				ref := branch
+				if kind == "legacy-tag-terminator" {
+					ref = "v0.1.6"
+				}
+				operands = []string{"--pack", "none", "--", "--ref", "post-terminator-is-data", "--go-candidate", "v9.8.0-rc.1", "--source", "literal source operand"}
+				args = append([]string{installerPath, "init", "--ref", ref}, operands...)
 			}
 			before, callerBefore := installationSnapshot(source), installationSnapshot(caller)
 			result := handoffNativeProcess(runCwd, environment, "typed installer input\n", "/bin/sh", args...)
@@ -494,8 +521,39 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			if upgradeCase {
 				expected = append([]string{runCwd, "branch literal", "upgrade", "--local", "--source", cache}, operands...)
 			}
-			observations[kind] = map[string]any{"kind": kind, "status": result.status, "stderr": result.stderr, "argv": fields, "expected_argv": expected, "stdin": string(stdin), "record_absent": os.IsNotExist(recordErr)}
+			_, cacheErr := os.Lstat(filepath.Join(cache, ".git"))
+			_, traceErr := os.Lstat(gitTrace)
+			observations[kind] = map[string]any{"kind": kind, "cache_acquired": cacheErr == nil, "Git_called": traceErr == nil, "status": result.status, "stderr": result.stderr, "argv": fields, "expected_argv": expected, "stdin": string(stdin), "record_absent": os.IsNotExist(recordErr)}
 			AddReportEntry("source-entrypoint.branch-transport", observations[kind], ReportEntryVisibilityNever)
+			if kind == "native-fetch-advice" {
+				commands := []string{}
+				for _, line := range strings.Split(result.stdout, "\n") {
+					line = strings.TrimSpace(line)
+					if strings.Contains(line, "https://softwareaifactory.sh/install.sh") && strings.Contains(line, "init") {
+						commands = append(commands, line)
+					}
+				}
+				Expect(commands).To(HaveLen(1), "native advice must provide one runnable installer re-entry")
+				curlTrace := filepath.Join(base, "advice curl called")
+				writeFixture(filepath.Join(tools, "curl"), []byte("#!/bin/sh\nset -eu\nprintf called > \"$SOURCE_ENTRY_CURL_TRACE\"\nexec /bin/cat \"$SOURCE_ENTRY_INSTALLER\"\n"), 0700)
+				replay := maps.Clone(environment)
+				replay["FACTORY_HOME"] = filepath.Join(base, "unselected advice cache")
+				replay["FACTORY_REPO"] = filepath.Join(base, "unselected advice repository")
+				replay["FACTORY_REF"] = "unselected-advice-ref"
+				replay["SOURCE_ENTRY_CURL_TRACE"], replay["SOURCE_ENTRY_INSTALLER"] = curlTrace, installerPath
+				cacheState := installationSnapshot(cache)
+				reran := handoffNativeProcess(caller, replay, "typed installer input\n", "/bin/sh", "-c", commands[0])
+				Expect(installationSnapshot(cache)).To(Equal(cacheState), "replayed advice selects the same complete local transport fixture")
+				Expect(installationSnapshot(source)).To(Equal(before))
+				Expect(installationSnapshot(caller)).To(Equal(callerBefore))
+				raw, recordErr := os.ReadFile(record)
+				stdin, _ := os.ReadFile(input)
+				_, curlErr := os.Lstat(curlTrace)
+				fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
+				expected := []string{caller, "branch literal", "init", caller, "--local", "--source", cache}
+				observations["replayed-native-advice"] = map[string]any{"kind": "replayed-native-advice", "status": reran.status, "stderr": reran.stderr, "advice": commands[0], "argv": fields, "expected_argv": expected, "stdin": string(stdin), "record_absent": os.IsNotExist(recordErr), "reentered_installer": curlErr == nil}
+				AddReportEntry("source-entrypoint.branch-transport", observations["replayed-native-advice"], ReportEntryVisibilityNever)
+			}
 			if kind == "refresh-then-init" {
 				actualRevision := strings.TrimSpace(imageGit(cache, "rev-parse", "HEAD"))
 				Expect(actualRevision).To(Equal(selectedRevision), "the upgrade refresh really selected the new remote commit")
@@ -516,7 +574,7 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			}
 		}
 		failures := InterceptGomegaFailures(func() {
-			for _, kind := range []string{"native", "legacy-product-module", "native-upgrade", "matching-existing-cache", "foreign-git-upgrade", "relative-subdir-upgrade", "newline-caller-upgrade", "refresh-then-init", "refreshed-cache-init"} {
+			for _, kind := range []string{"native", "legacy-product-module", "native-upgrade", "matching-existing-cache", "foreign-git-upgrade", "relative-subdir-upgrade", "newline-caller-upgrade", "refresh-then-init", "refreshed-cache-init", "native-terminator"} {
 				Expect(observations[kind]["status"]).To(Equal(63), kind)
 				Expect(observations[kind]["argv"]).To(Equal(observations[kind]["expected_argv"]), kind)
 				Expect(observations[kind]["stdin"]).To(Equal("typed installer input\n"), kind)
@@ -525,6 +583,18 @@ var _ = Describe("Go source runtime entrypoints", func() {
 				Expect(observations[kind]["status"]).To(Equal(2), "a mismatched existing cache must refuse before code: %s", kind)
 				Expect(observations[kind]["record_absent"]).To(BeTrue(), kind)
 			}
+			Expect(observations["native-fetch-advice"]["status"]).To(Equal(0))
+			Expect(observations["native-fetch-advice"]["record_absent"]).To(BeTrue())
+			Expect(observations["replayed-native-advice"]["reentered_installer"]).To(BeTrue())
+			Expect(observations["replayed-native-advice"]["status"]).To(Equal(63))
+			Expect(observations["replayed-native-advice"]["argv"]).To(Equal(observations["replayed-native-advice"]["expected_argv"]))
+			Expect(observations["replayed-native-advice"]["stdin"]).To(BeEmpty(), "piped installer source must never become initializer answers")
+			for _, kind := range []string{"legacy-tag-terminator", "legacy-branch-terminator"} {
+				Expect(observations[kind]["status"]).To(Equal(2), kind)
+				Expect(observations[kind]["record_absent"]).To(BeTrue(), kind)
+			}
+			Expect(observations["legacy-tag-terminator"]["Git_called"]).To(BeFalse(), "known legacy tags refuse terminators before acquisition")
+			Expect(observations["legacy-branch-terminator"]["cache_acquired"]).To(BeTrue(), "branch capability must be discovered before refusing its genuine legacy adapter")
 			Expect(observations["fetch-only"]["status"]).To(Equal(0))
 			Expect(observations["fetch-only"]["record_absent"]).To(BeTrue(), "bare Git fetch must never execute the selected source")
 		})

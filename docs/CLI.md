@@ -109,7 +109,10 @@ client; PR content is untrusted review data, never executable setup.
 
 Contributors can use `./factory` directly with the provisioned Go toolchain and
 module cache. It builds offline, preserves caller input and publishes one ignored
-developer output. They can also build the native command explicitly:
+developer output. Provision the locked modules with `go mod download` first.
+Concurrent commands retain separate private executables until each returns;
+normal completion removes only its own private file. They can also build the
+native command explicitly:
 
 ```sh
 go build -o factory-go ./cmd/factory

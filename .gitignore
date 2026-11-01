@@ -42,3 +42,7 @@ memory/.parity-stale
 
 # Source launcher's developer build output; installed launchers use packaged Go.
 /factory-go
+# Owned source-build/lease evidence; normal invocations remove their own files.
+/.factory-go.*
+/.factory-startup.*
+/.factory-admission.*

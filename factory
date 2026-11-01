@@ -308,7 +308,6 @@ SOURCE_ADMISSION=''
 # Exact-leaf publication cannot treat a concurrent directory as a container.
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:48.
 FACTORY_BRIDGE_PROTOCOL=1 "$BUILD" helper publish-source </dev/null
-BUILD=''
 umask "$SOURCE_UMASK"
 [ "$SOURCE_MONITOR" -eq 0 ] || set -m
-exec "$DIR/factory-go" "$@"
+exec "$BUILD" --source-launcher -- "$@"

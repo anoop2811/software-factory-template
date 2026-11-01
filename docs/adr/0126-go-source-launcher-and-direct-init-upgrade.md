@@ -47,9 +47,9 @@ that output atomically; a failed build preserves the previous output. Refuse
 directory and other unsafe destinations, including when changed during a build.
 The shell invokes that private build's existing Cobra bridge with
 `helper publish-source` and no operands. The helper derives its own physical
-executable/root, restricts the private build name, and uses the existing confined
-root's exact-leaf rename. Do not use shell mv's directory-container behavior.
-Then exec the single developer output with original argv. That developer cache
+executable/root, restricts the private build name, and publishes an independent
+checked cache copy through the existing confined exact-leaf publication helper.
+Then exec the invocation's private build with original argv. The developer cache
 confers no installed identity, publisher trust or additional public command.
 Unique private build, admission
 and startup files are removed on confirmed completion, so ordinary source use
@@ -183,3 +183,50 @@ already network-capable installer; the Go local packager stays offline. Bare
 fetch and genuine legacy adapters retain their existing shallow behavior. A
 repository lacking the required immutable objects still refuses; no alternate
 publisher, release selection or partial installation fallback is introduced.
+
+## Hosted review: invocation custody and setup transport
+
+Concurrent source invocations must execute their own compiler output even when
+another invocation publishes the shared developer cache before exec. Retain the
+single-linked private BUILD file throughout that command. Publish a separate
+bounded, digest-checked cache copy using the existing `filepublish` machinery;
+hardlinking would violate the qualified filesystem reader's single-link rule.
+The shell execs its exact private file with `--source-launcher --` followed by
+the original public operands. Installed admission precedes that private protocol;
+source protocol admission precedes source bridge/local-image dispatch. It grants
+no installed identity, publisher trust or new public command.
+
+Keep the private executable's pathname valid throughout command execution for
+Darwin lookup and native source proof. Pin its confined root and qualified file;
+on return, check the same file before removing only that invocation's leaf under
+a noncancelled cleanup context. Never remove the shared cache or sweep matching
+prefixes. Preserve a nonzero command status when cleanup also fails; turn success
+into failure with an actionable retained path. Ignore the owned transient source
+namespaces so strict committed-source admission continues to reject unrelated
+changes. Interrupted/uncertain execution can retain ignored private evidence.
+
+Atomic cache publication replaces the declared developer output leaf and does
+not follow a destination symlink. Refuse unsafe destination types observed before
+publication, including compiler-phase replacements. This is not a conditional
+rename against arbitrary same-user mutations after inspection; no outside
+referent may be modified or selected for execution through that shared cache.
+
+Native-branch bare-fetch advice must re-enter installer init with the same
+effective ref, physical cache and requested repository. Quote every selector as
+literal shell data. Bare fetch stays Git-only; the subsequent initializer owns
+history acquisition before the offline packager runs. A direct local-adapter hint
+from a depth-1 cache cannot establish that complete setup path.
+
+For non-version branch execution, defer terminator refusal until the fetched
+adapter capability is known. Current native adapters preserve `--` and every
+following token; the installer must not reinterpret later `--ref`/help/source
+tokens. Genuine legacy branch adapters refuse before execution or target writes
+after Git capability discovery. Stable legacy tags keep their pre-tool terminator
+refusal, and authenticated Go release/candidate parsing retains its owner.
+
+The Template CI source gate needs its declared module cache provisioned before
+the offline developer bootstrap. Download only the existing go.mod/go.sum inputs
+in CI setup; retain read-only module compilation, fixed versions and shipped
+compiler independence. Qualify this against the actual failed hosted copy gate.
+Retained selftest source predicates must exclude their own assertion text;
+removing their real invocation markers must fail the predicate before repair.

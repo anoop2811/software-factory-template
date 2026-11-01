@@ -283,16 +283,18 @@ REF_OVERRIDE=""
 # Rotate retained original operands to the tail without evaluating or splitting.
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:74.
 installer_remaining=$#
+installer_literal=0
 while [ "$installer_remaining" -gt 0 ]; do
-  case "$1" in
-    --ref)
+  [ "$1" != -- ] || installer_literal=1
+  case "$installer_literal:$1" in
+    0:--ref)
       if [ "$installer_remaining" -lt 2 ]; then
         printf '%s\n' "install: --ref needs a value (e.g. --ref main)" >&2
         exit 2
       fi
       REF_OVERRIDE="$2"; shift 2
       installer_remaining=$((installer_remaining - 2)) ;;
-    --ref=*) REF_OVERRIDE="${1#--ref=}"; shift
+    0:--ref=*) REF_OVERRIDE="${1#--ref=}"; shift
       installer_remaining=$((installer_remaining - 1)) ;;
     *) installer_argument=$1; shift
       set -- "$@" "$installer_argument"
@@ -383,6 +385,21 @@ installer_branch_ref() {
   case "$FACTORY_REF" in v[0-9]*) return 1 ;; *) return 0 ;; esac
 }
 
+installer_legacy_operands_refusal() {
+  printf '%s\n' 'install: the selected legacy adapter does not support -- operands; select an explicit Go release' >&2
+  return 2
+}
+
+installer_upgrade_operands() {
+  [ "$installer_literal" -eq 0 ] || installer_upgrade_adapter || installer_legacy_operands_refusal
+}
+
+installer_quote() {
+  printf "'"
+  printf '%s' "$1" | sed "s/'/'\\\\''/g"
+  printf "'"
+}
+
 # Metadata reads are isolated; refresh retains ordinary credential discovery.
 # Both ignore caller Git redirection. Variable names are data, never shell code.
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:91.
@@ -398,7 +415,7 @@ installer_git_at() (
     refresh) : ;;
     *) exit 2 ;;
   esac
-  exec git -C "$installer_git_root" --no-optional-locks -c core.fsmonitor=false -c core.untrackedCache=false "$@"
+  exec git -C "$installer_git_root" --no-optional-locks -c core.fsmonitor=false -c core.untrackedCache=false -c core.hooksPath=/dev/null "$@"
 )
 
 installer_cache_git() {
@@ -486,6 +503,7 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
       git -C "$FACTORY_HOME" fetch --quiet --depth 1 origin "$FACTORY_REF"
       git -C "$FACTORY_HOME" reset --quiet --hard FETCH_HEAD
     fi
+    installer_upgrade_operands || exit 2
     say "  refreshed in $(elapsed_since "$_t_fetch")"
   elif [ -e "$FACTORY_HOME" ]; then
     say "install: $FACTORY_HOME exists but is not a template checkout." >&2
@@ -496,6 +514,7 @@ if [ "$DO_UPGRADE" -eq 1 ]; then
     require_ref
     git clone --quiet --depth 1 --branch "$FACTORY_REF" "$FACTORY_REPO" "$FACTORY_HOME"
   fi
+  installer_upgrade_operands || exit 2
   # Apply to the current repo. Resolve its root via git so running from a
   # subdirectory upgrades the whole repo, not just where you happen to stand.
   if installer_upgrade_adapter; then
@@ -556,9 +575,17 @@ if [ "$DO_INIT" -eq 0 ]; then
     exit 0
   fi
   if installer_source_adapter; then
-    say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\" --local --source \"$FACTORY_HOME\""
+    installer_native_home || exit 2
+    printf '    curl -fsSL https://softwareaifactory.sh/install.sh | FACTORY_HOME='
+    installer_quote "$FACTORY_HOME"
+    printf ' FACTORY_REPO='
+    installer_quote "$FACTORY_REPO"
+    printf ' sh -s -- init --ref '
+    installer_quote "$FACTORY_REF"
+    printf '\n'
     say ""
-    say "Source initialization builds the selected committed checkout using Go; it does not claim release authentication."
+    say "Installer init obtains native source history before building the selected committed checkout."
+    exit 0
   else
     say "    cd your-project && \"$FACTORY_HOME/scripts/factory-init.sh\""
   fi
@@ -567,6 +594,8 @@ if [ "$DO_INIT" -eq 0 ]; then
   say "    curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init"
   exit 0
 fi
+
+[ "$installer_literal" -eq 0 ] || installer_source_adapter || { installer_legacy_operands_refusal; exit 2; }
 
 say ""
 say "install: running factory-init against the current directory:"
@@ -699,7 +728,11 @@ installer_main() {
   # Frozen legacy controllers cannot preserve end-of-options operands safely.
   # Authenticated paths already returned with their literal argv intact.
   # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:164.
-  [ "$installer_terminated" -eq 0 ] || { printf '%s\n' 'install: legacy releases do not support -- operands; select an explicit Go release' >&2; exit 2; }
+  if [ "$installer_terminated" -ne 0 ]; then
+    case "$installer_ref" in
+      v[0-9]*) printf '%s\n' 'install: legacy releases do not support -- operands; select an explicit Go release' >&2; exit 2 ;;
+    esac
+  fi
   legacy_install "$@"
 }
 installer_main "$@"

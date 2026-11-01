@@ -253,3 +253,11 @@ The witness helper must compile on every supported target. Use the existing
 architecture-specific syscall surface. Compile the acceptance package for
 Linux/macOS on amd64/arm64 before publishing this portability refinement;
 retain the locked dependency versions and the same descriptor assertions.
+
+Native-bundle dependency provisioning keeps the existing Go cache, proxy and
+checksum policy. Retry the same `go mod download` at most three times, with
+five- and ten-second pauses between failed attempts. Stop on success and return
+the final Go failure status on exhaustion. Keep the existing job timeout and
+offline source-runtime compilation unchanged. Controlled execution must show
+recovery after a transient failure and a nonzero result after three failures;
+neither a sleep nor a diagnostic may turn acquisition failure into success.

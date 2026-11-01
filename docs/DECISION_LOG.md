@@ -5778,3 +5778,11 @@ is unavailable there. Use the portable wrapper from the already locked x/sys
 dependency, then compile the acceptance package for all four supported targets
 and rerun the witness criteria. No runtime behavior, dependency version or
 timing allowance changes.
+
+Decision 141 dependency transport: the Intel native-bundle job on 87e2c8b
+failed resolving proxy.golang.org during go mod download; the dependency cache
+was already configured. Give that existing matrix provisioning step three
+bounded attempts with five-/ten-second pauses, preserving the final failure
+status. Keep the cache keys, locked modules, proxy/checksum configuration and
+job/runtime limits. Qualify recovery and exhaustion with the actual extracted
+workflow step before pushing the network-resilience change.

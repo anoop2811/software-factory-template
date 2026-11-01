@@ -293,3 +293,72 @@ Historical budget and loop delivery copies must exclude `.factory-go.*`,
 binary and qualification directory exclusions. A retained source build must not
 enter those temporary templates. Qualify the copy filters with private sentinels
 while preserving ordinary template assets and the historical delivery checks.
+
+The macOS local-init gate on 32e2c71 timed out before its compiler READY receipt
+and before sending SIGINT. Its report does not establish the failed child's
+state. In the same run, SIGTERM reached READY after approximately 28.338 seconds
+and completed confirmed cancellation. Installation-source collection precedes
+the compiler probe; the full source and two fixed predecessor catalogs require
+2,302 per-blob Git commands before that probe in this fixture. This couples the
+30-second compiler witness window to unrelated repository growth.
+
+Use a shared small clean committed Go source only for the two local-init and two
+local-upgrade compiler-cancellation scenarios, which have the same setup-coupled
+READY wait. Keep the actual public local-init/upgrade process, installation packaging,
+both independently pinned predecessor catalogs, real compiler wrapper/descendant,
+inherited captures and the existing 30-second READY/6-second cancellation bounds.
+Keep full real-source initialization, preview, selected-runtime and compiler
+failure coverage unchanged. The small source must have valid Go inputs and access
+to the same reference objects; it must not substitute fake Git/catalog results.
+Record setup/readiness evidence and qualify a suppressed-signal negative control
+so fixture isolation cannot turn broken cancellation into success. Register
+owned parent cancellation/reaping cleanup before waiting for READY, and retain
+only positively identified descendant cleanup; do not signal an unconfirmed
+group or erase uncertain evidence. This test refinement does not diagnose the
+original hosted child's exact state or alter product process supervision.
+
+The same 32e2c71 macOS run also failed the source launcher's absent-group
+criterion: the real caller Wait did not return within three seconds, and the
+launcher and unadmitted child were still visible to signal-zero probes before
+release. Compiler/witness cleanup subsequently completed with status 125. The
+receipt proves neither the launcher's running-versus-zombie state nor the point
+at which its eventual diagnostic was written. Three scoped local reproductions
+passed; do not change production cleanup based on an unconfirmed cause.
+
+Keep the real three-second before-release assertion and every witness, group,
+descriptor, retention and snapshot guard. Add observation only to this criterion's
+private launcher copy: builtin-only append markers at TERM-handler and
+EXIT-cleanup entry, plus a before-release process-state snapshot for the three
+known fixture PIDs. Preserve the original spawn, admission, job, reap and wait
+statements. Added commands along those paths introduce Bash trap-dispatch
+opportunities and could mask the implicit function-wait behavior under
+investigation. Markers must not create background
+jobs, alter signal behavior, release captures or make a diagnostic assertion
+self-satisfying. Keep trace data separate from stdout/stderr and source snapshots;
+record observation failures as diagnostics, not evidence of process absence.
+Gather these receipts before releasing the controlled child. Fresh hosted
+evidence must distinguish a live shell wait, deferred trap and capture-copy EOF
+before a causal production repair is claimed.
+
+Give the twelve source-entrypoint and source-signal criteria a disjoint
+`source-entrypoints` Linux/macOS qualification lane. This is harness isolation
+and faster hosted evidence acquisition, not a claim that a production defect
+was diagnosed. Thirteen scoped local probes, including ten instrumented race
+runs, passed without reproducing the hosted stall.
+
+Use one anchored source-family expression for both the base exclusion and new
+focus. Actual discovery must move exactly twelve identities from the 3,008 base
+criteria into the new lane, leaving 2,996 base and 3,216 total criteria. Preserve
+every selected assertion, the base worker plan, existing deadlines, race
+instrumentation, quality stages, empty-selection refusal and failure propagation.
+`all` and the default invocation attempt all ten partitions, even after an
+earlier failure. Scheduler descriptions may replace their obsolete numeric
+labels with feature names; record the old/new identity mapping rather than
+claiming those display strings are unchanged.
+
+Add both OS jobs and separate JSON/JUnit reports to required merge evidence.
+A green base does not qualify the moved checks. This adds two short CI jobs;
+it does not raise per-job workers, timeouts or model allowances. An isolated
+hosted failure remains a failure and requires the new phase/state evidence
+before any causal production repair. No private reproduction, skipped lane or
+cached model report substitutes for the actual hosted source lane.

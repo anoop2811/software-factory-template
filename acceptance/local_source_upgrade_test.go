@@ -593,41 +593,44 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 	})
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:83
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:305
 	DescribeTable("cancels only the public caller after an actual compiler readiness handshake", func(signal syscall.Signal) {
 		f, driver := localInitSurface(fixture.image)
+		source := localCompilerCancellationSource(f.root, fixture.image)
 		legacy := installationCloneLegacyFixture(fixture.image.binary, fixture.legacy)
 		root := legacy.root
 		ready := localUpgradeCompiler(f, fixture.image, "version", "hold")
-		before, sourceBefore := installationSnapshot(root), installationSnapshot(fixture.source)
+		before, sourceBefore := installationSnapshot(root), installationSnapshot(source)
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		command := handoffCommand(ctx, root, f.environment, "", driver, append(localUpgradeArgs(fixture.source, ""), "--dry-run", "--json")...)
+		DeferCleanup(cancel)
+		command := handoffCommand(ctx, root, f.environment, "", driver, append(localUpgradeArgs(source, ""), "--dry-run", "--json")...)
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
+		started := time.Now()
 		Expect(command.Start()).To(Succeed())
-		finished := make(chan error, 1)
-		go func() { finished <- command.Wait() }()
-		DeferCleanup(func() { _ = command.Process.Kill() })
+		custody := localCompilerCancellationWait(command, ready, f.root, root)
 		Eventually(func() bool {
 			select {
-			case err := <-finished:
-				StopTrying(fmt.Sprintf("upgrade exited before compiler READY: %v stderr=%q", err, stderr.String())).Now()
+			case <-custody.done:
+				StopTrying(fmt.Sprintf("upgrade exited before compiler READY: %v stderr=%q", custody.waitErr, stderr.String())).Now()
 			default:
 			}
 			_, err := os.Stat(ready)
 			return err == nil
 		}, 30*time.Second).Should(BeTrue())
 		receipt := localCompilerReadiness(ready, "version", time.Second)
-		DeferCleanup(localCompilerCleanup, receipt)
 		Expect(receipt.Group).To(Equal(receipt.Leader))
+		custody.receipt = &receipt
+		AddReportEntry("local-compiler.cancellation-readiness", map[string]any{"ready_seconds": time.Since(started).Seconds(), "source_blob_count": 2, "reference_blob_count": 297, "receipt": receipt}, ReportEntryVisibilityNever)
 		Expect(command.Process.Signal(signal)).To(Succeed())
 		var returned error
 		select {
-		case returned = <-finished:
+		case <-custody.done:
+			returned = custody.waitErr
 		case <-time.After(6 * time.Second):
 			localCompilerCleanup(receipt)
 			_ = command.Process.Kill()
-			Eventually(finished, 6*time.Second).Should(Receive(&returned))
+			Eventually(custody.done, 6*time.Second).Should(BeClosed())
 			Fail("upgrade caller exceeded bounded compiler cancellation")
 		}
 		Expect(returned).To(HaveOccurred())
@@ -644,7 +647,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		}
 		AddReportEntry("local-upgrade.compiler-cancellation", map[string]any{"signal": signal.String(), "receipt": receipt, "uncertain": uncertain, "alive": localCompilerAlive(receipt)}, ReportEntryVisibilityNever)
 		Expect(installationSnapshot(root)).To(Equal(before))
-		Expect(installationSnapshot(fixture.source)).To(Equal(sourceBefore))
+		Expect(installationSnapshot(source)).To(Equal(sourceBefore))
 		localInitNoAcquisition(f)
 	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
 

@@ -5796,3 +5796,35 @@ Keep inherited values literal and the caller environment unchanged. Qualify the
 actual installer boundary before repair. Exclude the three private source-build
 namespaces from historical budget/loop temporary template copies, with private
 copy-filter sentinels and the existing delivery suites as evidence.
+
+Decision 141 local-init witness isolation: the final macOS gate on 32e2c71
+failed its unchanged 30-second pre-signal READY assertion; the report lacks the
+child-state evidence needed to identify that attempt's cause. Adjacent SIGTERM
+readiness consumed about 28.338 seconds before confirmed cancellation. Full
+installation-source collection runs before the compiler probe. Isolate the four
+local-init/upgrade compiler-custody cases with a shared small committed Go source
+and real pinned reference objects, retaining actual packaging, the descendant
+handshake, all cancellation
+bounds and full-source installation coverage. Qualify a suppressed-signal failure
+and register owned parent cleanup before readiness. Do not change production
+supervision or expand time/worker/model allowances based on the ambiguous report.
+
+Decision 141 source-wait observation: the final macOS base gate on 32e2c71 also
+failed its three-second absent-group Wait assertion. The launcher and child were
+still visible before release, but the report cannot distinguish a running shell
+from a zombie or time the eventual diagnostic. Three local scoped probes passed.
+Add private-copy TERM/EXIT entry markers and exact fixture process states before
+release, preserving every existing assertion and allowance. Keep spawn, jobs,
+reap and wait commands unchanged: extra commands there could dispatch a pending
+Bash trap and mask the behavior being investigated. Do not infer
+a Bash job-table or capture defect and patch production without causal evidence.
+
+Decision 141 source qualification lane: thirteen scoped reproductions, including
+ten instrumented race runs, did not reproduce the hosted source stall. Give the
+twelve existing source criteria their own Linux/macOS partition for bounded
+hosted feedback, using the same base worker plan and all existing assertions and
+deadlines. Preserve the complete 3,216-criterion census: 2,996 base plus twelve
+source and the existing eight other groups. All/default still attempts every
+partition and propagates failures, with empty selection refused. Require both
+new lane checks and retain their phase/state reports; a green base is insufficient.
+Record scheduling as harness isolation, not a claimed production repair.

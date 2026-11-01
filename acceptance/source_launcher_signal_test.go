@@ -396,6 +396,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:241
+	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:328
 	It("refuses an absent compiler group without waiting on a live unadmitted child or killing its borrowed group", func() {
 		root, cwd := fixtureDirectories()
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
@@ -407,7 +408,10 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(bytes.Count(launcher, admission)).To(Equal(1))
 		hold := []byte("  printf '{\"PID\":%s}\\n' \"$compiler_pid\" >&3\n  IFS= read -r _source_test_release <&4 || :\n")
 		launcher = bytes.Replace(launcher, admission, append(hold, admission...), 1)
+		launcher = sourceAbsentObservedLauncher(launcher)
 		writeFixture(filepath.Join(root, "factory"), launcher, 0700)
+		phaseTrace := filepath.Join(cwd, "private launcher phases.log")
+		writeFixture(phaseTrace, nil, 0600)
 		writeFixture(filepath.Join(root, "factory-go"), []byte("prior developer binary\n"), 0700)
 		witnessReady := filepath.Join(cwd, "borrowed-group-witness.json")
 		startup := filepath.Join(cwd, "borrowed-group-startup.sh")
@@ -434,7 +438,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		defer cancel()
 		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- owned copy with test-only admission handshake; production has no fault flag.
 		command.Dir = cwd
-		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "GORACE=atexit_sleep_ms=0")
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "SOURCE_LAUNCHER_PHASE_TRACE="+phaseTrace, "GORACE=atexit_sleep_ms=0")
 		command.ExtraFiles = []*os.File{readyWriter, releaseReader, unrelatedReader}
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
@@ -502,6 +506,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		launcherAbsentBeforeRelease := errors.Is(syscall.Kill(command.Process.Pid, 0), syscall.ESRCH)
 		witnessAlive := syscall.Kill(witness.PID, 0) == nil
 		held := installationSnapshot(root)
+		beforeReleaseObservation := sourceAbsentBeforeReleaseObservation(phaseTrace, command.Process.Pid, child.PID, witness.PID)
+		AddReportEntry("source-launcher.before-release-observation", beforeReleaseObservation)
 		if !returnedBeforeRelease {
 			releaseChild()
 			Eventually(finished, 3*time.Second).Should(Receive(&returned))

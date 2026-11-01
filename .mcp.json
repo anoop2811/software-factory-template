@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "npx",
       "args": [
         "-y",
         "@playwright/mcp"
       ],
+      "command": "npx",
       "env": {}
     }
   }

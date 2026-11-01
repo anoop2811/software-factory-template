@@ -64,7 +64,8 @@ with tempfile.TemporaryDirectory(prefix="factory-java-build-tool-") as temporary
     ))
     # This matrix retains its pre-conversion initializer/dispatcher engine.
     # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
-    for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh"):
+    for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
+                 "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh"):
         data = subprocess.run([
             "git", "-C", str(source), "show",
             "1754de23de95a7e3c734bedd86894295e823c988:" + name,

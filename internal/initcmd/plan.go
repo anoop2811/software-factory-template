@@ -10,17 +10,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/anoop2811/software-factory-template/internal/config"
+	"github.com/anoop2811/software-factory-template/internal/initinventory"
 )
 
-var requiredFiles = []string{
-	"scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/events.sh", "scripts/lib/hookspath.sh", "scripts/lib/color.sh", "scripts/lib/timing.sh", "scripts/lib/budget.py", "scripts/lib/budget_adapters.py", "scripts/lib/runtime_transition.py", "scripts/lib/budget-config.sh", "scripts/lib/loop.py",
-	"scripts/selftest/run.sh", "scripts/pre-push-check.sh", "scripts/factory-doctor.sh", "scripts/factory-upgrade.sh", "scripts/factory-report.sh", "scripts/factory-budget.sh", "scripts/factory-loop.sh", "scripts/factory-metrics.sh", "templates/metrics.html", "scripts/factory-review-lane.sh", "scripts/factory-migrate-config.sh", "scripts/adversarial-review.sh", "packs/review-lane/review-pr.yml", ".githooks/pre-push", "scripts/prereq-check.sh",
-	".opencode/plugin/factory-hooks.ts", ".opencode/package.json", ".opencode/.gitignore", ".codex/config.toml", "opencode.json", "AGENTS.md", "Makefile", "factory", ".gitignore", ".github/CODEOWNERS", ".github/workflows/ci.yml", "docs/FACTORY_RULES.md", "docs/BUDGETS.md", "docs/LOOPS.md", "memory/lessons/001-verification-contract.md",
-}
-var optionalFiles = []string{
-	"wiki/README.md", "scripts/golden-task-eval.sh", "eval/README.md", "eval/runners/mock.sh", "eval/runners/example-harness.sh", "eval/runners/claude.sh", "eval/runners/codex.sh", "eval/runners/opencode.sh", "eval/golden-tasks/reference-answer/task.md", "eval/golden-tasks/reference-answer/verify.sh",
-	"workflows/review-diamond.md", "workflows/eval-fanout.md", "workflows/README.md", "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh", "scripts/harness-structural-eval.sh", "scripts/citation-lint.sh", "specs/TEMPLATE.md",
-}
 var directoriesToCreate = []string{".opencode/plugin", ".opencode/agent", ".codex/agents", "scripts/hooks", ".github/workflows", "docs/adr", "memory/lessons", "wiki", "specs", "eval/golden-tasks/reference-answer", "eval/results", "eval/runners", "workflows", "scripts/lib", "scripts/selftest", ".githooks", "templates", "packs/review-lane"}
 var substitutedFiles = map[string]bool{
 	"opencode.json": true, "AGENTS.md": true, "Makefile": true, ".github/CODEOWNERS": true, ".github/workflows/ci.yml": true, ".opencode/plugin/factory-hooks.ts": true,
@@ -63,25 +55,25 @@ func buildPlan(ctx context.Context, source, target *tree, o options, v map[strin
 		assets[dst] = asset{path: dst, data: data, mode: mode}
 		return nil
 	}
-	for _, path := range requiredFiles {
+	for _, path := range initinventory.Required() {
 		if err := copyAsset(path, path, true); err != nil {
 			return nil, err
 		}
 	}
-	for _, path := range optionalFiles {
+	for _, path := range initinventory.Optional() {
 		if err := copyAsset(path, path, false); err != nil {
 			return nil, err
 		}
 	}
-	for _, group := range [][2]string{{"scripts/hooks", ".sh"}, {".opencode/agent", ".md"}, {".codex/agents", ".toml"}} {
-		entries, err := source.list(ctx, group[0])
+	for _, group := range initinventory.Groups() {
+		entries, err := source.list(ctx, group.Directory)
 		if err != nil {
 			return nil, err
 		}
 		count := 0
 		for _, entry := range entries {
-			if strings.HasSuffix(entry.Name(), group[1]) {
-				path := group[0] + "/" + entry.Name()
+			if strings.HasSuffix(entry.Name(), group.Suffix) {
+				path := group.Directory + "/" + entry.Name()
 				if err := copyAsset(path, path, true); err != nil {
 					return nil, err
 				}
@@ -94,10 +86,10 @@ func buildPlan(ctx context.Context, source, target *tree, o options, v map[strin
 	}
 	readmeExists := false
 	if target != nil {
-		_, _, readmeExists, _ = target.read(ctx, "README.md")
+		_, _, readmeExists, _ = target.read(ctx, initinventory.Readme)
 	}
 	if !readmeExists {
-		if err := copyAsset("README.md", "README.md", true); err != nil {
+		if err := copyAsset(initinventory.Readme, initinventory.Readme, true); err != nil {
 			return nil, err
 		}
 	}

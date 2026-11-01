@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/anoop2811/software-factory-template/internal/copymanifest"
 	"github.com/anoop2811/software-factory-template/internal/helpers"
 	"github.com/spf13/cobra"
 )
@@ -18,5 +19,10 @@ func helperCommand(status *int) *cobra.Command {
 			return nil
 		}))
 	}
+	group.AddCommand(command("copies", cobra.ExactArgs(1), func(cmd *cobra.Command, args []string) error {
+		root, _ := cmd.Context().Value(installedRootKey{}).(string)
+		*status = copymanifest.Run(cmd.Context(), args[0], root, capturedEnvironment(), cmd.OutOrStdout(), cmd.ErrOrStderr())
+		return nil
+	}))
 	return group
 }

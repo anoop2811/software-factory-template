@@ -56,7 +56,7 @@ func run(ctx context.Context, args []string) (status int) {
 			}
 		}()
 		if os.Getenv("FACTORY_BRIDGE_PROTOCOL") != "" {
-			return bridge.Run(ctx, args)
+			return bridge.RunInstalled(ctx, args, selected.Root)
 		}
 		return cli.RunInstalled(ctx, args, selected.Root, selected.Assets, selected.Descriptor.Version)
 	}

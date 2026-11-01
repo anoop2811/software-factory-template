@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/copymanifest"
 	"github.com/anoop2811/software-factory-template/internal/filepublish"
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/native"
@@ -129,12 +130,21 @@ func run(ctx context.Context, root, executable string, out io.Writer) (returned 
 			if err := p.write(ctx, path, string(data), mode); err != nil {
 				return err
 			}
+			if name == "copy-manifest-check" && path == "scripts/hooks/copy-manifest-check.sh" {
+				p.nativeCopies = strings.Contains(string(data), "# Factory copy inventory protocol: native-v1\n")
+			}
 		}
 		if err := p.write(ctx, "factory", "#!/bin/bash\n_root=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd -P)\"\nexec \"$_root/../driver\" \"$@\"\n", 0700); err != nil {
 			return err
 		}
 		if err := p.write(ctx, "factory.yaml", "project_name: Proof\n", 0600); err != nil {
 			return err
+		}
+		if p.nativeCopies {
+			p.environment["FACTORY_RUNTIME_BINARY"] = filepath.Join(scratch, "driver")
+			if err := p.prepareCopyInventory(ctx); err != nil {
+				return err
+			}
 		}
 		for index, args := range [][]string{{"init", "-q"}, {"config", "user.name", "Factory proof"}, {"config", "user.email", "proof@example.invalid"}, {"add", "--all"}, {"commit", "-q", "-m", "chore: fixture base"}} {
 			if err := p.git(ctx, args...); err != nil {
@@ -164,8 +174,9 @@ func ownershipDiagnostic(err error) error {
 }
 
 type proof struct {
-	root        string
-	environment map[string]string
+	root         string
+	environment  map[string]string
+	nativeCopies bool
 }
 
 func environment(root string) map[string]string {
@@ -196,7 +207,11 @@ func (p *proof) write(ctx context.Context, path, contents string, mode os.FileMo
 	return os.WriteFile(path, []byte(contents), mode)
 }
 func (p *proof) run(ctx context.Context, expected int, args ...string) error {
-	result, err := native.ExecuteCommand(ctx, p.root, args, p.environment, 10*time.Second)
+	execute := native.ExecuteCommand
+	if p.nativeCopies && len(args) > 0 && args[0] == "./scripts/hooks/copy-manifest-check.sh" {
+		execute = native.ExecuteCommandCooperative
+	}
+	result, err := execute(ctx, p.root, args, p.environment, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -210,6 +225,12 @@ func (p *proof) run(ctx context.Context, expected int, args ...string) error {
 // Native ownership errors remain intact at each call site before this check.
 // docs/adr/0120-native-source-gate-proof.md:115.
 func proofResult(ctx context.Context, result native.Execution, expected int) error {
+	// A nested owner reports uncertainty separately from ordinary refusal. Preserve
+	// its evidence even when this outer caller has also been canceled.
+	// docs/adr/0125-native-initializer-copy-inventory-gate.md:147.
+	if result.OwnershipUnconfirmed || result.ExitCode != nil && *result.ExitCode == copymanifest.OwnershipStatus {
+		return &native.OwnershipError{}
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -389,6 +410,9 @@ func (p *proof) pair(ctx context.Context, name string) error {
 		}
 		return p.hook(ctx, name, 0)
 	case "copy-manifest-check":
+		if p.nativeCopies {
+			return p.nativeCopyPair(ctx, name)
+		}
 		if err := write("scripts/factory-init.sh", "cp \"$TEMPLATE_DIR/proof-input\" \"$OUTPUT\"\n"); err != nil {
 			return err
 		}

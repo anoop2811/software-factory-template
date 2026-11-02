@@ -5946,3 +5946,8 @@ Keep source qualification and copy-inventory proofs with source-entrypoints,
 moving their existing 20 criteria out of the overloaded base partition. Preserve
 the complete registry and add two process-helper ownership controls; measure the
 revised allocation in hosted CI instead of assuming aggregate test time is saved.
+
+Decision 146 adversarial follow-up: keep completion-marker observation linear
+in captured output by searching newly appended bytes with a marker-length overlap.
+Preserve full captured bytes and the first observed timestamp; qualify a marker
+split across writes within the existing process-helper controls.

@@ -52,8 +52,11 @@ type handoffProcessCapture struct {
 func (capture *handoffProcessCapture) Write(data []byte) (int, error) {
 	capture.mu.Lock()
 	defer capture.mu.Unlock()
+	const marker = "factory local-source: installation completed"
+	// Retain the possible cross-write prefix without rescanning old output.
+	start := max(0, capture.buffer.Len()-len(marker)+1)
 	n, err := capture.buffer.Write(data)
-	if !capture.completionSeen && bytes.Contains(capture.buffer.Bytes(), []byte("factory local-source: installation completed")) {
+	if !capture.completionSeen && bytes.Contains(capture.buffer.Bytes()[start:], []byte(marker)) {
 		capture.completionSeen = true
 		capture.trace.record(func(value *handoffProcessObservation) {
 			if value.CompletionMessage.IsZero() {
@@ -232,6 +235,25 @@ var _ = Describe("Handoff process fixture ownership", Ordered, ContinueOnFailure
 	})
 	// per docs/adr/0131-bounded-ci-feedback.md:147
 	DescribeTable("separates leader exit from retained capture ownership", func(mode string) {
+		captureTrace := &handoffProcessTrace{}
+		capture := &handoffProcessCapture{trace: captureTrace}
+		marker := "factory local-source: installation completed"
+		prefix := string(bytes.Repeat([]byte("unrelated output\n"), 128))
+		for _, part := range []string{prefix, marker[:7], marker[7:19]} {
+			n, err := capture.Write([]byte(part))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(n).To(Equal(len(part)))
+			Expect(captureTrace.snapshot().CompletionMessage.IsZero()).To(BeTrue())
+		}
+		_, err := capture.Write([]byte(marker[19:]))
+		Expect(err).NotTo(HaveOccurred())
+		firstSeen := captureTrace.snapshot().CompletionMessage
+		Expect(firstSeen.IsZero()).To(BeFalse(), "a completion marker may span multiple writes")
+		_, err = capture.Write([]byte(" continued " + marker))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(captureTrace.snapshot().CompletionMessage).To(Equal(firstSeen))
+		Expect(capture.text()).To(Equal(prefix + marker + " continued " + marker))
+
 		ready := filepath.Join(work, mode+".json")
 		ctx, cancel := context.WithCancel(context.Background())
 		trace := &handoffProcessTrace{}

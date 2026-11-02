@@ -29,6 +29,6 @@ Separate leader exit from captured-output EOF when measuring process timeouts.
 `Cmd.Wait` with buffered captures can wait for a descendant's inherited pipe
 after the leader exits. Independent controls reproduced this with the old test
 helper, then passed with explicit stream observations and cooperative cancellation
-(observed 2026-11-02; acceptance/handoff_process_fixture_test.go:77 and
-acceptance/handoff_process_fixture_test.go:220). This is evidence about the test
+(observed 2026-11-02; acceptance/handoff_process_fixture_test.go:80 and
+acceptance/handoff_process_fixture_test.go:223). This is evidence about the test
 helper; it does not establish the cause of an earlier untimestamped runtime hang.

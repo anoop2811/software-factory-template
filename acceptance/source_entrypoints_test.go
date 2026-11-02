@@ -458,6 +458,9 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			if foreignProject != "" {
 				writeFixture(filepath.Join(foreignProject, "factory.yaml"), []byte("project_name: foreign-project\n"), 0600)
 				imageGit(foreignProject, "init", "-q")
+				imageGit(foreignProject, "config", "gc.auto", "0")
+				imageGit(foreignProject, "config", "gc.autoDetach", "false")
+				imageGit(foreignProject, "config", "maintenance.auto", "false")
 				imageGit(foreignProject, "add", "--all")
 				imageGit(foreignProject, "-c", "user.name=Foreign fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "unselected foreign project")
 			}

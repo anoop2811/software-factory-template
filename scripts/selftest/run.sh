@@ -20,6 +20,7 @@ trap 'rm -rf "$SANDBOX"' EXIT
 # Current gates below still come from TEMPLATE_ROOT; no saved script is used by
 # native installed selftest. docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
 # Report/metrics provenance: docs/adr/0127-go-source-observability-entrypoints.md:34.
+# Prerequisite provenance: docs/adr/0130-go-source-prerequisite-entrypoint.md:45.
 LEGACY_TEMPLATE_ROOT="$TEMPLATE_ROOT"
 if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   [ "$(sed -n '2p' "$TEMPLATE_ROOT/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]; then
@@ -32,7 +33,7 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
     scripts/factory-report.sh scripts/factory-metrics.sh \
     scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh \
-    scripts/factory-doctor.sh; do
+    scripts/factory-doctor.sh scripts/prereq-check.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done

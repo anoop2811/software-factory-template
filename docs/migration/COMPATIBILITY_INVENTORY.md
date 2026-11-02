@@ -54,8 +54,8 @@ the approved migration and recovery contracts.
 
 G3 must include embedded Python outside `scripts/lib`: metrics processing and
 rendering (`acceptance/native_metrics_test.go:61`, `acceptance/native_metrics_safety_test.go:121`),
-eval output/comparison (`scripts/golden-task-eval.sh:230`), prerequisites
-(`scripts/prereq-check.sh:102`), and active acceptance helpers under
+eval output/comparison (`scripts/golden-task-eval.sh:235`), prerequisites
+(`acceptance/orchestration_check_test.go:459`), and active acceptance helpers under
 `scripts/selftest/`. Keeping historical fixture source is permissible only with
 an explicit test-only rationale and exclusion from installed fallback/runtime
 discovery. Final shipped self-checks must not silently retain a Python dependency.

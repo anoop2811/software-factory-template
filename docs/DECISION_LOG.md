@@ -5885,3 +5885,34 @@ an exported review setting must not turn offline qualification into a GitHub que
 Review follow-up: omit the six GitHub credential/routing environment keys named
 in ADR 0129 from that fixture, with synthetic child-inheritance regression evidence.
 Keep the disabled lane and private client witness as the no-query controls.
+
+## Decision 145 (2026-11-02 UTC): activate the native source prerequisite entrypoint
+
+After the human merge of PR #160, continue R3 with the direct prerequisite path.
+Delegate to the existing Go owner under ADR 0130, preserving ignored operands,
+caller-relative explicit configuration and caller-PATH version probes. Apply the
+already-approved removal of Python without changing the source compiler or
+product-toolchain distinction. Independent semantic RED precedes replacement.
+
+Keep coherent historical prerequisite bytes in the full shell and optional-pack
+materializers; retain the Java/budget/loop stubs and frozen native oracles.
+Qualify the current direct path with private tool witnesses and exact child
+environments. Remaining command/helper and proof-runner cleanup stays bounded
+separately, and no release-default or migration authority changes here.
+
+Decision 145 CI follow-up: the macOS source partition failed while snapshotting
+the branch-initializer criterion's foreign Git fixture, before installer
+invocation. Its `objects/maintenance.lock` vanished between enumeration and
+`lstat`. That fixture omitted the automatic-maintenance controls already applied
+to its source and caller repositories. Apply the same private Git controls before
+its first add/commit, retaining every object-database/index snapshot and assertion.
+Do not ignore missing paths, retry snapshots or change runtime deadlines.
+Preserve the hosted failure and qualify the existing criterion and complete source
+partition; this repair does not claim to resolve the earlier cancellation observation.
+
+Decision 145 review closure: native evaluation is Python-free, but the retained
+direct golden evaluator still invokes Python after its runners. Give that legacy
+path its own early presence check after help/task/runner validation, before scratch
+files or potentially paid runner work. Keep the Go prerequisite owner Python-free
+and preserve accurate inventory entries for pending source conversion. ADR 0130's
+added retained-evaluator contract requires independent RED and runner-absence proof.

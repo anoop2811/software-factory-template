@@ -31,7 +31,8 @@ LEGACY_REVISION = "1754de23de95a7e3c734bedd86894295e823c988"
 LEGACY_ENTRYPOINTS = {
     path: subprocess.run(["git", "-C", str(SOURCE), "show", LEGACY_REVISION + ":" + path],
                          env=ENV, capture_output=True, check=True, timeout=10).stdout
-    for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh")
+    for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
+                 "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh")
 }
 
 

@@ -60,7 +60,7 @@ actual gaps; an installed-looking hook or placeholder CODEOWNERS is not proof
 of enforcement. Keep optional paid execution and automatic loops opt-in.
 
 Provider-scope refinement from the dogfood run: model_provider is a native
-harness-setting signal to sync-opencode (scripts/sync-opencode.sh:47). Setting
+harness-setting signal to sync-opencode (now internal/synccmd/command.go:159). Setting
 it in the source repository causes sync to remove its model placeholders when
 native tiers are unset. Keep that key absent here and use the existing review
 runner's OpenRouter default (scripts/adversarial-review.sh:44), with an explicit

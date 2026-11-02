@@ -5844,3 +5844,24 @@ Decision 142 fixture closure: the optional-pack wrapper materializes a legacy
 dispatcher before dropping source Git custody. Carry the matching historical
 report/metrics bodies there as well, preserving both complete optional-pack
 scenarios; a mixed historical dispatcher/current adapter is not a valid oracle.
+
+## Decision 143 (2026-11-01 UTC): activate native source harness synchronization
+
+After the human merge of PR #158, continue R3 with the three direct harness sync
+paths. Delegate each to its existing Go owner and fixed harness, preserving the
+historical rule that these script paths ignore extra operands. ADR 0128 defines
+physical ownership, caller configuration, generated-output qualification and
+historical-consumer closure. Preserve independent old-engine evidence in private
+fixtures while adding outside-in current-source acceptance before conversion.
+Remaining command/helper and proof-runner cleanup stays in separate bounded PRs.
+
+Decision 143 consumer audit: carry the three immutable sync bodies into the
+historical shell, optional-pack, Java, budget and loop fixtures. Existing Go
+archives already retain their own original renderers. A private current-Go
+rendering changes only object-key order in two generated JSON files; preserve
+their equal semantic values while adopting the native owner's stable bytes.
+
+Decision 143 review follow-up: require exact child-environment transport for the
+native sync acceptance fixture. Keep its process watchdog while preventing a
+general subprocess helper from restoring filtered host model settings. Preserve
+the failing ambient-setting observation before changing this test runner.

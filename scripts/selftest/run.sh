@@ -29,7 +29,8 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
     --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
     tar -xf - -C "$LEGACY_TEMPLATE_ROOT"
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
-    scripts/factory-report.sh scripts/factory-metrics.sh; do
+    scripts/factory-report.sh scripts/factory-metrics.sh \
+    scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
@@ -483,15 +484,15 @@ if [ -x "$CML_HOOK" ]; then
     "$(printf 'fix: the retry logic works\n' | run_status "$CML_HOOK")"
 fi
 
-# Break/fix: sync routes each role to its tier's per-harness model from
+# Historical break/fix: sync routes each role to its tier's per-harness model from
 # factory.config, and the standard/economy collapse is applied at sync time by
 # resolve_tier — so editing factory.config (a model, or the profile) and running
 # the sync re-routes every harness. With no factory.config, sync is a no-op:
-# adapters inherit and opencode keeps its placeholders (committed repo stays clean).
+# adapters inherit and opencode keeps its placeholders in the historical sandbox.
 SYNCROOT="$SANDBOX/syncroot"
 mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
-cp "$TEMPLATE_ROOT/scripts/sync-opencode.sh" "$TEMPLATE_ROOT/scripts/sync-codex.sh" \
-   "$TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/sync-opencode.sh" "$LEGACY_TEMPLATE_ROOT/scripts/sync-codex.sh" \
+   "$LEGACY_TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
 cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$SYNCROOT/scripts/lib/"
 cat > "$SYNCROOT/opencode.json" <<'JSON'
 { "model": "__DEFAULT_MODEL__", "small_model": "__ECONOMY_MODEL__", "agent": {

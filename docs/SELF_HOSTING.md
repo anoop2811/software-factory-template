@@ -214,7 +214,7 @@ those real adopter entrypoints in isolated fixtures.
 Keep global native-harness settings unset unless deliberately changing how the
 source scaffold is represented. In particular, setting model_provider while
 leaving model tiers blank makes sync-opencode remove source model placeholders
-(scripts/sync-opencode.sh:47). The CI review configuration avoids that signal.
+(internal/synccmd/command.go:159). The CI review configuration avoids that signal.
 
 The source .github/CODEOWNERS still contains adopter placeholders; it is not
 proof of owner coverage for this repository. Full server-side human-review

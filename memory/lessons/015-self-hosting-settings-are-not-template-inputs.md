@@ -7,8 +7,9 @@ placeholders into one repository's runtime configuration.
 
 Observed 2026-09-06 via `make check-drift`: adding model_provider without native
 model tiers made sync-opencode remove the canonical model placeholders. The
-script uses presence of model_provider as a configured-adopter signal at
-scripts/sync-opencode.sh:47. Removing that new setting and restoring only the
+historical script uses presence of model_provider as a configured-adopter signal
+in [the preserved implementation](https://github.com/anoop2811/software-factory-template/blob/1754de23de95a7e3c734bedd86894295e823c988/scripts/sync-opencode.sh#L47).
+Removing that new setting and restoring only the
 resulting generated edits retained the source scaffold. The review runner's
 OpenRouter default is defined at scripts/adversarial-review.sh:44.
 

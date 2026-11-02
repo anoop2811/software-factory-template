@@ -5899,3 +5899,13 @@ materializers; retain the Java/budget/loop stubs and frozen native oracles.
 Qualify the current direct path with private tool witnesses and exact child
 environments. Remaining command/helper and proof-runner cleanup stays bounded
 separately, and no release-default or migration authority changes here.
+
+Decision 145 CI follow-up: the macOS source partition failed while snapshotting
+the branch-initializer criterion's foreign Git fixture, before installer
+invocation. Its `objects/maintenance.lock` vanished between enumeration and
+`lstat`. That fixture omitted the automatic-maintenance controls already applied
+to its source and caller repositories. Apply the same private Git controls before
+its first add/commit, retaining every object-database/index snapshot and assertion.
+Do not ignore missing paths, retry snapshots or change runtime deadlines.
+Preserve the hosted failure and qualify the existing criterion and complete source
+partition; this repair does not claim to resolve the earlier cancellation observation.

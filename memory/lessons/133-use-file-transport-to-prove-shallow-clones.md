@@ -9,6 +9,6 @@ Provenance: observed 2026-11-01 UTC through the actual installer and a fresh
 `file://` source cache. Native packaging failed with `fatal: not a tree object`
 while shallow was true; the source and target remained unchanged. After native
 history acquisition, that same real journey initialized successfully with
-shallow false. See acceptance/source_entrypoints_test.go:622 and
+shallow false. See acceptance/source_entrypoints_test.go:625 and
 docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:169. Exact RED/GREEN
 receipts remain local under `.factory/qualification/source-entrypoints-20261101/`.

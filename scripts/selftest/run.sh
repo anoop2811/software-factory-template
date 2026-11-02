@@ -16,7 +16,7 @@ HOOKS="$TEMPLATE_ROOT/scripts/hooks"
 SANDBOX="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
-# These legacy upgrade/report/metrics regressions keep their pre-conversion engines.
+# These historical command regressions keep coherent pre-conversion engines.
 # Current gates below still come from TEMPLATE_ROOT; no saved script is used by
 # native installed selftest. docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
 # Report/metrics provenance: docs/adr/0127-go-source-observability-entrypoints.md:34.
@@ -28,9 +28,11 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   tar -cf - --exclude=.git --exclude=.factory --exclude=factory-go \
     --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
     tar -xf - -C "$LEGACY_TEMPLATE_ROOT"
+  # docs/adr/0129-go-source-doctor-entrypoint.md:47.
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
     scripts/factory-report.sh scripts/factory-metrics.sh \
-    scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh; do
+    scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh \
+    scripts/factory-doctor.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done

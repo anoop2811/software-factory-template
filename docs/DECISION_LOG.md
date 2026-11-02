@@ -5865,3 +5865,20 @@ Decision 143 review follow-up: require exact child-environment transport for the
 native sync acceptance fixture. Keep its process watchdog while preventing a
 general subprocess helper from restoring filtered host model settings. Preserve
 the failing ambient-setting observation before changing this test runner.
+
+## Decision 144 (2026-11-02 UTC): activate the native source doctor entrypoint
+
+After the human merge of PR #159, continue R3 with the direct doctor path. Use
+the established physical-owner adapter and forward literal operands to the Go
+doctor that already ignores them. Preserve caller-project configuration, gate
+and proof selection, native scratch-only drift inspection and supervised proof
+failure semantics. ADR 0129 records the bounded contract and independent RED
+requirement before replacing the old body.
+
+Carry the matching immutable doctor into the five historical materializers so
+their old dispatcher cannot recurse into a new adapter. Existing frozen Go
+oracles remain independent. Keep other command/helper and proof-runner cleanup
+separate; protect the primary checkout and its developer cache during all
+qualification, including indirectly dispatched generator/build commands.
+The health-only doctor criterion must also neutralize inherited review activation;
+an exported review setting must not turn offline qualification into a GitHub query.

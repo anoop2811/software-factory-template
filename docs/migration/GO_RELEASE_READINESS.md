@@ -59,6 +59,8 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   [ADR 0127](../adr/0127-go-source-observability-entrypoints.md).
   Direct OpenCode/Claude/Codex synchronization continues R3 in
   [ADR 0128](../adr/0128-go-source-harness-sync-entrypoints.md).
+  Direct doctor conversion reuses the native diagnostic owner in
+  [ADR 0129](../adr/0129-go-source-doctor-entrypoint.md).
   Remaining direct commands/helpers and historical proof cleanup stay separate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.

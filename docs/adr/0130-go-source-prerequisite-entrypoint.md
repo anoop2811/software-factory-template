@@ -70,3 +70,23 @@ proper partition. Run affected native and historical suites, quality gates and
 the review diamond. All source build/generator dispatch runs in private copies,
 with primary operator files and developer binary preserved. Hosted checks and
 review disposition precede merge and the next R3 function boundary.
+
+## Retained source evaluation prerequisite
+
+The direct `scripts/golden-task-eval.sh` path and `make golden-eval` still use the
+retained Python scorer until their own conversion. Native `factory eval golden`
+and installed adapters already use Go. Removing Python from native prerequisite
+checks must not let that retained path spend runner work before discovering its
+own missing dependency.
+
+After existing help, empty-task and runner validation, require `python3` presence
+in the retained script before creating scratch files or invoking a runner.
+Report its legacy-only requirement and the native alternative, then exit 1 when
+absent. Preserve help and empty-task success, current validation precedence and
+the Python-free native commands. This guard introduces no installation or model
+authority and does not claim to convert the retained evaluator.
+
+Independent outside-in acceptance must first observe the old script invoke an
+owned runner before failing for missing Python. Then require the clear early
+failure, no runner invocation and no published result, alongside unchanged help
+and empty-task outcomes. Keep every existing criterion and discover the new census.

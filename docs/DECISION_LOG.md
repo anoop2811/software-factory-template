@@ -5909,3 +5909,10 @@ its first add/commit, retaining every object-database/index snapshot and asserti
 Do not ignore missing paths, retry snapshots or change runtime deadlines.
 Preserve the hosted failure and qualify the existing criterion and complete source
 partition; this repair does not claim to resolve the earlier cancellation observation.
+
+Decision 145 review closure: native evaluation is Python-free, but the retained
+direct golden evaluator still invokes Python after its runners. Give that legacy
+path its own early presence check after help/task/runner validation, before scratch
+files or potentially paid runner work. Keep the Go prerequisite owner Python-free
+and preserve accurate inventory entries for pending source conversion. ADR 0130's
+added retained-evaluator contract requires independent RED and runner-absence proof.

@@ -134,6 +134,11 @@ if [ ! -x "$RUNNER" ]; then
   echo "golden-task-eval: runner not executable: $RUNNER" >&2
   exit 1
 fi
+# docs/adr/0130-go-source-prerequisite-entrypoint.md:82.
+if ! command -v python3 >/dev/null 2>&1; then
+  printf '%s\n' 'golden-task-eval: this retained script requires python3; use ./factory eval golden for native evaluation.' >&2
+  exit 1
+fi
 RUNNER_ABS="$(cd "$(dirname "$RUNNER")" && pwd)/$(basename "$RUNNER")"
 
 TMP_RESULTS="$(mktemp)"

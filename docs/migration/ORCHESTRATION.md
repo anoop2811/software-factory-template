@@ -76,6 +76,8 @@ without an override, config discovery uses the caller's Git root with cwd fallba
 Python is no longer required by this check. Source execution still needs Go to
 build the factory; the installed runtime only checks Go when the product has a
 configured minimum. See [ADR 0130](../adr/0130-go-source-prerequisite-entrypoint.md).
+The retained direct `scripts/golden-task-eval.sh` path checks its own Python
+requirement before invoking a runner; native `factory eval golden` uses Go.
 The source checkout retains other direct command/helper bodies and explicit
 historical fixtures until their separate entrypoint and proof-runner cleanup.
 Their presence does not establish release readiness or a runtime fallback in

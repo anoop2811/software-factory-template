@@ -279,4 +279,89 @@ var _ = Describe("Go source runtime entrypoints prerequisite adapter", func() {
 		AddReportEntry("source-prereq.refusal-violations", violations, ReportEntryVisibilityNever)
 		Expect(violations).To(BeEmpty())
 	})
+
+	// per docs/adr/0130-go-source-prerequisite-entrypoint.md:82
+	// per docs/adr/0130-go-source-prerequisite-entrypoint.md:89
+	It("refuses retained golden evaluation without Python before creating scratch or invoking a runner", func() {
+		body, err := os.ReadFile("../scripts/golden-task-eval.sh")
+		Expect(err).NotTo(HaveOccurred())
+		var violations []string
+		for _, mode := range []string{"help", "no-tasks", "runner-validation", "missing-python"} {
+			root, assets := fixtureDirectories()
+			tools, scratch := filepath.Join(assets, "tools"), filepath.Join(assets, "scratch")
+			Expect(os.MkdirAll(tools, 0700)).To(Succeed())
+			Expect(os.Mkdir(scratch, 0700)).To(Succeed())
+			for _, name := range []string{"mkdir", "find", "sort", "dirname", "basename", "mktemp", "rm", "cat", "grep", "cksum", "awk", "seq", "cp", "sh", "sleep"} {
+				path, lookupErr := exec.LookPath(name)
+				Expect(lookupErr).NotTo(HaveOccurred())
+				Expect(os.Symlink(path, filepath.Join(tools, name))).To(Succeed())
+			}
+			realMktemp, err := exec.LookPath("mktemp")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.Remove(filepath.Join(tools, "mktemp"))).To(Succeed())
+			writeFixture(filepath.Join(tools, "mktemp"), []byte("#!/bin/sh\nprintf called >> \"$SOURCE_EVAL_SCRATCH_WITNESS\"\nexec \"$SOURCE_EVAL_REAL_MKTEMP\" \"$@\"\n"), 0700)
+			program := filepath.Join(root, "scripts/golden-task-eval.sh")
+			writeFixture(program, body, 0755)
+			runner := filepath.Join(root, "eval/runners/owned runner.sh")
+			writeFixture(runner, []byte("#!/bin/sh\nprintf called >> \"$SOURCE_EVAL_RUNNER_WITNESS\"\n"), 0700)
+			writeFixture(filepath.Join(root, "eval/results/mock-baseline.json"), []byte("existing baseline must remain unchanged\n"), 0600)
+			Expect(os.MkdirAll(filepath.Join(root, "eval/golden-tasks"), 0700)).To(Succeed())
+			if mode != "no-tasks" {
+				writeFixture(filepath.Join(root, "eval/golden-tasks/reference/task.md"), []byte("Private deterministic task; no harness is invoked.\n"), 0600)
+				writeFixture(filepath.Join(root, "eval/golden-tasks/reference/verify.sh"), []byte("#!/bin/sh\nexit 0\n"), 0700)
+			}
+			if mode == "runner-validation" {
+				Expect(os.Chmod(runner, 0600)).To(Succeed())
+			}
+			runnerWitness := filepath.Join(assets, "runner-called")
+			scratchWitness := filepath.Join(assets, "scratch-called")
+			environment := map[string]string{
+				"PATH": tools, "BASH_ENV": "", "ENV": "", "TMPDIR": scratch,
+				"SOURCE_EVAL_RUNNER_WITNESS": runnerWitness, "SOURCE_EVAL_SCRATCH_WITNESS": scratchWitness,
+				"SOURCE_EVAL_REAL_MKTEMP": realMktemp,
+			}
+			lookup := handoffNativeExactProcess(root, environment, "", "/bin/bash", "-c", "command -v python3")
+			Expect(lookup).To(Equal(cliResult{"", "", 1}), "the child PATH must contain no Python")
+			before := installationSnapshot(root)
+			args := []string{"--runner", runner}
+			if mode == "help" {
+				args = append(args, "--help")
+			}
+			observed := handoffNativeExactProcess(root, environment, "", program, args...)
+			_, runnerErr := os.Lstat(runnerWitness)
+			_, scratchErr := os.Lstat(scratchWitness)
+			_, resultErr := os.Lstat(filepath.Join(root, "eval/results/mock-current.json"))
+			remainingScratch, err := os.ReadDir(scratch)
+			Expect(err).NotTo(HaveOccurred())
+			AddReportEntry("source-prereq.retained-eval", map[string]any{"mode": mode, "status": observed.status, "stdout": observed.stdout, "stderr": observed.stderr, "runner_called": runnerErr == nil, "scratch_called": scratchErr == nil, "published_result": resultErr == nil, "remaining_scratch": len(remainingScratch)}, ReportEntryVisibilityNever)
+			Expect(installationSnapshot(root)).To(Equal(before), "the retained evaluation must preserve inputs and the existing baseline")
+			violations = append(violations, InterceptGomegaFailures(func() {
+				Expect(os.IsNotExist(runnerErr)).To(BeTrue(), "%s must not invoke the runner", mode)
+				Expect(os.IsNotExist(scratchErr)).To(BeTrue(), "%s must not create scorer scratch", mode)
+				Expect(os.IsNotExist(resultErr)).To(BeTrue(), "%s must publish no current result", mode)
+				Expect(remainingScratch).To(BeEmpty())
+				switch mode {
+				case "help":
+					Expect(observed.status).To(Equal(0), "%+v", observed)
+					Expect(observed.stdout).To(ContainSubstring("usage: golden-task-eval.sh"))
+					Expect(observed.stderr).To(BeEmpty())
+				case "no-tasks":
+					Expect(observed.status).To(Equal(0), "%+v", observed)
+					Expect(observed.stdout).To(ContainSubstring("no tasks in eval/golden-tasks/"))
+					Expect(observed.stderr).To(BeEmpty())
+				case "runner-validation":
+					Expect(observed.status).To(Equal(1), "%+v", observed)
+					Expect(observed.stderr).To(ContainSubstring("runner not executable: " + runner))
+					Expect(observed.stderr).NotTo(ContainSubstring("python3"))
+				case "missing-python":
+					Expect(observed.status).To(Equal(1), "%+v", observed)
+					Expect(observed.stderr).To(ContainSubstring("python3"))
+					Expect(observed.stderr).To(ContainSubstring("retained"))
+					Expect(observed.stderr).To(ContainSubstring("factory eval golden"))
+				}
+			})...)
+		}
+		AddReportEntry("source-prereq.retained-eval-violations", violations, ReportEntryVisibilityNever)
+		Expect(violations).To(BeEmpty())
+	})
 })

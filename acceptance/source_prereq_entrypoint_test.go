@@ -99,6 +99,7 @@ var _ = Describe("Go source runtime entrypoints prerequisite adapter", func() {
 		environment["BASH_ENV"], environment["ENV"] = "", ""
 		environment["SOURCE_PREREQ_REAL_GO"], environment["SOURCE_PREREQ_REAL_GIT"] = realGo, realGit
 		environment["SOURCE_PREREQ_VERSIONS"] = versions
+		// An inherited Go minimum must not override the selected config file.
 		environment["GO_MIN_VERSION"] = "999.0.0"
 		program := sourcePrereqAdapter(source.root)
 		sourceObservabilityPoison(source.root)

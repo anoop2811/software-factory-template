@@ -70,15 +70,31 @@ jobs:
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-      # docs/adr/0102-parallel-go-qualification.md:27 — preserve all qualification.
-      - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
-      - name: Retain acceptance outcomes and timings
+      # docs/adr/0131-bounded-ci-feedback.md:65 — one complete quality owner per OS.
+      - name: Base quality and source entrypoint qualification
+        run: |
+          status=0
+          make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports" || status=$?
+          make go-runtime-source-tests GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports" || status=$?
+          exit "$status"
+      - name: Retain base outcomes and timings
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: go-runtime-base-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/factory-go-reports/
+          path: |
+            ${{ runner.temp }}/factory-go-reports/base.json
+            ${{ runner.temp }}/factory-go-reports/base.xml
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Retain source entrypoint outcomes and timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-runtime-source-entrypoints-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/factory-go-reports/source-entrypoints.json
+            ${{ runner.temp }}/factory-go-reports/source-entrypoints.xml
           if-no-files-found: warn
           retention-days: 7
 
@@ -88,13 +104,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # docs/adr/0116-explicit-go-local-initialization.md:99.
-        # docs/adr/0117-explicit-go-local-upgrade.md:94.
-        # docs/adr/0118-default-packaged-go-initialization.md:76.
-        # docs/adr/0121-local-upgrade-readiness-boundary.md:117.
-        # docs/adr/0122-default-packaged-go-upgrade.md:172.
-        # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343.
-        group: [source-entrypoints, installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
+        # docs/adr/0131-bounded-ci-feedback.md:33 — five balanced lanes per OS.
+        group: [release-handoff, local-upgrade, historical-recipe, installation]
+        include:
+          - group: release-handoff
+            followup: default-init
+          - group: local-upgrade
+            followup: local-init
+          - group: historical-recipe
+            followup: default-upgrade
+          - group: installation
+            followup: local-recovery
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30
@@ -126,31 +146,34 @@ jobs:
       - name: Confirm qualified Python interpreter
         run: |
           python3 -c "import sys; print(sys.version); assert sys.version_info[:3] == (3, 12, 14)"
-      # docs/adr/0101-go-release-handoff.md:595 — setup only; checks always run.
-      - name: Restore pinned quality tools
-        id: quality-tools
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ runner.temp }}/factory-quality-tools
-          key: factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}
-      - name: Add pinned quality tools to PATH
-        run: echo "$RUNNER_TEMP/factory-quality-tools" >> "$GITHUB_PATH"
-      - name: Install pinned quality tools
-        if: steps.quality-tools.outputs.cache-hit != 'true'
+      # docs/adr/0131-bounded-ci-feedback.md:49 — attempt both groups and retain failures.
+      - name: Paired qualification groups
         env:
-          GOBIN: ${{ runner.temp }}/factory-quality-tools
+          PRIMARY_GROUP: ${{ matrix.group }}
+          FOLLOWUP_GROUP: ${{ matrix.followup }}
         run: |
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-          go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
-          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-      # docs/adr/0102-parallel-go-qualification.md:32 — isolated handoff groups.
-      - name: Outside-in compatibility, race, dialect, quality and candidate build
-        run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"
-      - name: Retain acceptance outcomes and timings
-        if: always() && matrix.group != 'installation'
+          status=0
+          for group in "$PRIMARY_GROUP" "$FOLLOWUP_GROUP"; do
+            make go-runtime-source-tests GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP="$group" GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports" || status=$?
+          done
+          exit "$status"
+      - name: Retain primary group outcomes and timings
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ runner.temp }}/factory-go-reports/
+          path: |
+            ${{ runner.temp }}/factory-go-reports/${{ matrix.group }}.json
+            ${{ runner.temp }}/factory-go-reports/${{ matrix.group }}.xml
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Retain followup group outcomes and timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: go-runtime-${{ matrix.followup }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/factory-go-reports/${{ matrix.followup }}.json
+            ${{ runner.temp }}/factory-go-reports/${{ matrix.followup }}.xml
           if-no-files-found: warn
           retention-days: 7

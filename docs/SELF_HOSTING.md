@@ -38,8 +38,9 @@ Client hooks can be disabled, so they do not replace GitHub branch protection.
 
 The factory source checks select Ginkgo workers from runner CPU and memory
 budgets, capped at four by default. Selection is logged, and JSON/JUnit artifacts
-retain the actual worker count and per-criterion timing. Installation stays
-serial; release handoff uses at most two workers for its two ordered groups.
+retain the actual worker count and per-criterion timing. Installation uses the
+same bounded worker budget as base qualification; release handoff and the heavier
+initialization/upgrade groups use at most two workers for their ordered scenarios.
 The private selection helper is not another installed factory command.
 
 ```sh
@@ -59,6 +60,15 @@ without editing the workflow. Empty local settings and malformed values fail;
 unknown resources select one worker. More workers are not a measured speedup
 until the complete qualification run demonstrates it. See
 [ADR 0104](adr/0104-adaptive-qualification-workers.md) for budgets and probe limits.
+
+CI pairs the ten logical groups into five jobs per OS. Each group keeps its own
+JSON/JUnit report and artifact, and both groups are attempted even if one fails.
+The base job runs the complete quality checks once per OS; other invocations use
+`make go-runtime-source-tests`, which runs the selected behavioral qualification
+without repeating formatting, vet, build, lint or security stages. Use the full
+`go-runtime-source-check` target for complete local qualification. The job and
+suite deadlines are unchanged. See [ADR 0131](adr/0131-bounded-ci-feedback.md)
+for the fixed grouping, fixture isolation and measurement contract.
 
 ## Adversarial CI review
 

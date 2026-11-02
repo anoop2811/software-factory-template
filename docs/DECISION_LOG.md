@@ -5916,3 +5916,19 @@ path its own early presence check after help/task/runner validation, before scra
 files or potentially paid runner work. Keep the Go prerequisite owner Python-free
 and preserve accurate inventory entries for pending source conversion. ADR 0130's
 added retained-evaluator contract requires independent RED and runner-absence proof.
+
+## Decision 146 (2026-11-02 UTC): shorten CI feedback within free runner capacity
+
+After the human merge of PR #161, pause R3 conversion for the user-requested
+performance PR. Apply ADR 0131: pair the ten existing qualification groups into
+five lanes per OS, keep full quality ownership in the base lane, and give
+installation acceptance the bounded Ginkgo worker/reporting path. Preserve all
+criteria, platform coverage, race/freshness checks, failure propagation and
+existing deadlines. The complete local Make entrypoint remains complete.
+
+Independent acceptance must fail the old scheduling/quality contract first.
+Compare actual serial/parallel installation identities and outcomes, then measure
+hosted latency against both retained successful baselines without promising a
+speedup from configuration alone. Review fixture isolation and every quality/failure
+path before opening the separate PR. Earlier unexplained process-timeout evidence
+remains open for release audit; changing scheduling does not resolve its cause.

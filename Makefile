@@ -42,7 +42,7 @@ override GO_RUNTIME_TEST_MAX_PROCS := $(value GO_RUNTIME_TEST_MAX_PROCS)
 GO_RUNTIME_REPORT_DIR ?=
 export GO_RUNTIME_REPORT_DIR GO_RUNTIME_TEST_PROCS GO_RUNTIME_TEST_MAX_PROCS
 
-.PHONY: go-runtime-check go-runtime-source-check
+.PHONY: go-runtime-check go-runtime-source-check go-runtime-source-tests
 go-runtime-check:
 	@if [ -f .github/workflows/go-runtime.yml ] || \
 		grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod 2>/dev/null; then \
@@ -50,7 +50,8 @@ go-runtime-check:
 	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
 
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343 -- disjoint source evidence.
-go-runtime-source-check:
+# docs/adr/0131-bounded-ci-feedback.md:57 -- complete local gate and scoped CI tests.
+go-runtime-source-check go-runtime-source-tests:
 	@set -e; \
 	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|historical-recipe|local-init|local-upgrade|local-recovery|default-init|default-upgrade|source-entrypoints) ;; \
 		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade or source-entrypoints" >&2; exit 2 ;; esac; \
@@ -61,16 +62,18 @@ go-runtime-source-check:
 		GO_WORKER_PLAN="$$(go run -mod=readonly ./internal/qualification/cmd/worker-count)" || exit $$?; \
 		set -- $$GO_WORKER_PLAN; test "$$#" -eq 2; \
 		GO_BASE_TEST_PROCS="$$1"; GO_HANDOFF_TEST_PROCS="$$2"; \
-	sh -n runtime/shell/readers.sh; \
-	bash -n runtime/shell/config.sh; \
-	sh -n runtime/shell/helpers.sh; \
 	git cat-file -e 76952eaa63aebd1ecd282f5ab51dd7c3627cb497^{commit} || \
 		{ echo "go-runtime-check: fetch full history for the compatibility baseline" >&2; exit 1; }; \
-	GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
+	if [ "$@" = go-runtime-source-check ]; then \
+		sh -n runtime/shell/readers.sh; \
+		bash -n runtime/shell/config.sh; \
+		sh -n runtime/shell/helpers.sh; \
+		GO_DIRS="$$(go list -f '{{.Dir}}' ./...)" || exit 1; \
 		UNFORMATTED="$$(printf '%s\n' "$$GO_DIRS" | while IFS= read -r GO_DIR; do gofmt -l "$$GO_DIR" || exit 1; done)" || exit 1; \
 		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }; \
-	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"; \
-	go vet ./...; \
+		bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"; \
+		go vet ./...; \
+	fi; \
 	GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
 		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
 		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance (Supported predecessor recipe compatibility|Qualified obsolete initializer cache retirement)( |$$)'; \
@@ -105,7 +108,7 @@ go-runtime-source-check:
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|source-entrypoints) \
 			run_acceptance source-entrypoints --focus="$$GO_SOURCE_ENTRYPOINTS_FAMILY" || GO_SOURCE_ENTRYPOINTS_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
-			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.skip="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
+			run_acceptance installation --focus="$$GO_INSTALLATION_FAMILIES" --skip="$$GO_RELEASE_HANDOFF_FAMILY" || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|release-handoff) \
 			run_acceptance release-handoff --focus="$$GO_RELEASE_HANDOFF_FAMILY" || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
 		case "$(GO_RUNTIME_TEST_GROUP)" in all|historical-recipe) \
@@ -130,11 +133,14 @@ go-runtime-source-check:
 		if [ "$$GO_DEFAULT_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_DEFAULT_INIT_TEST_STATUS"; fi; \
 		if [ "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS" -ne 0 ]; then exit "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS"; fi; \
 		exit "$$GO_DEFAULT_UPGRADE_TEST_STATUS"
-	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
-		go build -o "$$BUILD_DIR/factory" ./cmd/factory
-	golangci-lint run --config packs/go/.golangci.yml ./...
-	gosec ./...
-	govulncheck ./...
+	@if [ "$@" = go-runtime-source-check ]; then \
+		set -e; BUILD_DIR="$$(mktemp -d)" || exit 1; \
+		trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
+		go build -o "$$BUILD_DIR/factory" ./cmd/factory; \
+		golangci-lint run --config packs/go/.golangci.yml ./...; \
+		gosec ./...; \
+		govulncheck ./...; \
+	fi
 
 doctor:
 	./scripts/factory-doctor.sh

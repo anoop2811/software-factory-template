@@ -889,65 +889,88 @@ func installationInterruptPhase(fixture installationFixtureData, migration, dige
 	return "", false
 }
 
-var _ = Describe("Whole installation upgrade semantic consumer", Ordered, ContinueOnFailure, func() {
+// per docs/adr/0131-bounded-ci-feedback.md:79
+type installationSemanticPreparation struct {
+	binary   []byte
+	prepared map[string]installationFixtureData
+	stager   string
+	roleMap  installationRoleMapOracle
+}
+
+// Each call runs inside its owning container's BeforeAll, so nested cleanup
+// retains the original AfterAll lifetime instead of consuming another worker's fixtures.
+// per docs/adr/0131-bounded-ci-feedback.md:82
+func installationPrepareSemanticConsumer() installationSemanticPreparation {
+	GinkgoHelper()
 	var binary []byte
 	var references map[string]installationReference
 	var prepared map[string]installationFixtureData
 	var archive, revision, stager string
 	var roleMap installationRoleMapOracle
+	binary = installationBuildDriver()
+	repository, err := filepath.Abs("..")
+	Expect(err).NotTo(HaveOccurred())
+	references = map[string]installationReference{}
+	baselines := []imageBaselineOracle{}
+	for _, reference := range []installationReference{{profile: "v0.1.6", revision: "b71ecc32e07ecd87eb330ba8e497c86612f92acd"}, {profile: "bash-baseline", revision: "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"}} {
+		reference.assets, reference.payload = installationGitCatalog(repository, reference.revision)
+		references[reference.profile] = reference
+		baselines = append(baselines, imageBaselineOracle{reference.profile, reference.revision, reference.assets})
+	}
+	Expect(references["v0.1.6"].assets).To(HaveLen(137))
+	Expect(references["bash-baseline"].assets).To(HaveLen(160))
+	Expect(imageCatalogDigest(references["v0.1.6"].assets)).To(Equal("595f75dddcda285ba3b43a0936970ef96af3b9eae66f4beb9fd3a37df5d7e16b"))
+	Expect(imageCatalogDigest(references["bash-baseline"].assets)).To(Equal("8514055a8ee6f79a8fd891a6107e46bd9d0f1a2096e349825db83aafc7b91bbe"))
+	work, err := os.MkdirTemp("", "factory-whole-installation-archive-")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(os.RemoveAll, work)
+	var targetBinary []byte
+	var assets []imageAssetOracle
+	var payload map[string][]byte
+	revision, targetBinary, assets, payload = installationTargetSnapshot(repository, filepath.Join(work, "committed-target-source"))
+	for _, asset := range assets {
+		Expect(asset.SHA256).To(MatchRegexp("^[0-9a-f]{64}$"), asset.Path)
+		Expect(asset.Bytes).To(BeNumerically("<=", 1<<20), "exact production source asset exceeds installation image limit: %s", asset.Path)
+	}
+	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", "v9.8.0", runtime.GOOS + "/" + runtime.GOARCH, revision, false, assets, baselines}
+	archive = filepath.Join(work, "factory-runtime.tar.gz")
+	writeFixture(archive, stageArchive(imageFixtureEntries(manifest, payload, targetBinary)), 0600)
+	canon, err := os.ReadFile(filepath.Join(repository, "docs/migration/INSTALLATION_ROLE_MAP.json"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(json.Unmarshal(canon, &roleMap)).To(Succeed())
+	// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:57
+	Expect(roleMap.Roles).To(HaveLen(139))
+	Expect(roleMap.CanonicalSourceAssets).To(HaveLen(2))
+	declared := append(append([]installationRoleOracle{}, roleMap.Roles...), roleMap.CanonicalSourceAssets...)
+	Expect(declared).To(HaveLen(141))
+	active := 0
+	for _, role := range declared {
+		if role.Operation != "retire" {
+			active++
+		}
+	}
+	Expect(active).To(Equal(55), "optional retirement declarations must not expand the active installation")
+	stager = filepath.Join(work, "factory-stage")
+	out := imageProcess(repository, nil, "go", "build", "-o", stager, "./cmd/factory-stage")
+	Expect(out.status).To(Equal(0), out.stderr)
+	out = imageProcess(repository, nil, stager, "--installation", "--archive", archive, "--output", filepath.Join(work, "independently-staged"), "--version", manifest.Version, "--revision", revision, "--target", manifest.Target, "--local")
+	Expect(out.status).To(Equal(0), "healthy complete archive must pass the existing stager: %+v", out)
+	prepared = map[string]installationFixtureData{}
+	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
+		prepared[profile] = installationLegacyFixture(binary, references[profile], archive, revision)
+	}
+	return installationSemanticPreparation{binary: binary, prepared: prepared, stager: stager, roleMap: roleMap}
+}
+
+// per docs/adr/0131-bounded-ci-feedback.md:79
+var _ = Describe("Whole installation upgrade semantic consumer", Ordered, ContinueOnFailure, Label("installation-activation-and-interruption"), func() {
+	var binary []byte
+	var prepared map[string]installationFixtureData
+	var stager string
+	var roleMap installationRoleMapOracle
 	BeforeAll(func() {
-		binary = installationBuildDriver()
-		repository, err := filepath.Abs("..")
-		Expect(err).NotTo(HaveOccurred())
-		references = map[string]installationReference{}
-		baselines := []imageBaselineOracle{}
-		for _, reference := range []installationReference{{profile: "v0.1.6", revision: "b71ecc32e07ecd87eb330ba8e497c86612f92acd"}, {profile: "bash-baseline", revision: "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"}} {
-			reference.assets, reference.payload = installationGitCatalog(repository, reference.revision)
-			references[reference.profile] = reference
-			baselines = append(baselines, imageBaselineOracle{reference.profile, reference.revision, reference.assets})
-		}
-		Expect(references["v0.1.6"].assets).To(HaveLen(137))
-		Expect(references["bash-baseline"].assets).To(HaveLen(160))
-		Expect(imageCatalogDigest(references["v0.1.6"].assets)).To(Equal("595f75dddcda285ba3b43a0936970ef96af3b9eae66f4beb9fd3a37df5d7e16b"))
-		Expect(imageCatalogDigest(references["bash-baseline"].assets)).To(Equal("8514055a8ee6f79a8fd891a6107e46bd9d0f1a2096e349825db83aafc7b91bbe"))
-		work, err := os.MkdirTemp("", "factory-whole-installation-archive-")
-		Expect(err).NotTo(HaveOccurred())
-		DeferCleanup(os.RemoveAll, work)
-		var targetBinary []byte
-		var assets []imageAssetOracle
-		var payload map[string][]byte
-		revision, targetBinary, assets, payload = installationTargetSnapshot(repository, filepath.Join(work, "committed-target-source"))
-		for _, asset := range assets {
-			Expect(asset.SHA256).To(MatchRegexp("^[0-9a-f]{64}$"), asset.Path)
-			Expect(asset.Bytes).To(BeNumerically("<=", 1<<20), "exact production source asset exceeds installation image limit: %s", asset.Path)
-		}
-		manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", "v9.8.0", runtime.GOOS + "/" + runtime.GOARCH, revision, false, assets, baselines}
-		archive = filepath.Join(work, "factory-runtime.tar.gz")
-		writeFixture(archive, stageArchive(imageFixtureEntries(manifest, payload, targetBinary)), 0600)
-		canon, err := os.ReadFile(filepath.Join(repository, "docs/migration/INSTALLATION_ROLE_MAP.json"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(json.Unmarshal(canon, &roleMap)).To(Succeed())
-		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:57
-		Expect(roleMap.Roles).To(HaveLen(139))
-		Expect(roleMap.CanonicalSourceAssets).To(HaveLen(2))
-		declared := append(append([]installationRoleOracle{}, roleMap.Roles...), roleMap.CanonicalSourceAssets...)
-		Expect(declared).To(HaveLen(141))
-		active := 0
-		for _, role := range declared {
-			if role.Operation != "retire" {
-				active++
-			}
-		}
-		Expect(active).To(Equal(55), "optional retirement declarations must not expand the active installation")
-		stager = filepath.Join(work, "factory-stage")
-		out := imageProcess(repository, nil, "go", "build", "-o", stager, "./cmd/factory-stage")
-		Expect(out.status).To(Equal(0), out.stderr)
-		out = imageProcess(repository, nil, stager, "--installation", "--archive", archive, "--output", filepath.Join(work, "independently-staged"), "--version", manifest.Version, "--revision", revision, "--target", manifest.Target, "--local")
-		Expect(out.status).To(Equal(0), "healthy complete archive must pass the existing stager: %+v", out)
-		prepared = map[string]installationFixtureData{}
-		for _, profile := range []string{"v0.1.6", "bash-baseline"} {
-			prepared[profile] = installationLegacyFixture(binary, references[profile], archive, revision)
-		}
+		setup := installationPrepareSemanticConsumer()
+		binary, prepared, stager, roleMap = setup.binary, setup.prepared, setup.stager, setup.roleMap
 	})
 	fixture := func(profile string) installationFixtureData {
 		return installationCloneLegacyFixture(binary, prepared[profile])
@@ -1260,6 +1283,219 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		Expect(actual).To(Equal(custom))
 	}, Entry("unrecognized later transition implementation", "scripts/lib/runtime_transition.py"), Entry("custom optional budget controller", "scripts/lib/budget.py"), Entry("application Makefile", "Makefile"))
 
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:145
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:223
+	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:326
+	DescribeTable("retains one pending installation after native interruption and recovers with fresh consent", func(direction string) {
+		if direction == "forward" {
+			// Discard this separate genuinely interrupted fixture after removing
+			// its marker; restoring a pathname cannot restore historical custody.
+			// per docs/DECISION_LOG.md:4855
+			var partial installationFixtureData
+			partialID, witnessed := "", false
+			for attempt := 1; attempt <= 3; attempt++ {
+				partial = fixture("bash-baseline")
+				partialID = fmt.Sprintf("missing-partial-marker-%d", attempt)
+				proposal := installationProposal(partial)
+				if _, witnessed = installationInterruptPhase(partial, partialID, proposal["proposal_digest"].(string), "applying", true); witnessed {
+					break
+				}
+			}
+			Expect(witnessed).To(BeTrue(), "a missing-marker refusal needs real applied rows and SIGKILL first")
+			Expect(os.Remove(filepath.Join(partial.root, ".factory/runtime-publication.pending"))).To(Succeed())
+			installationAssertReplayRefused(partial.root, func() cliResult {
+				return installationCommand(partial.driver, partial.root, partial.sentinel, append(partial.arguments(), "--recover", partialID, "--direction", "forward", "--dry-run", "--json")...)
+			})
+		}
+		installed := fixture("bash-baseline")
+		retainedPath := filepath.Join(installed.root, ".githooks/pre-push")
+		retainedOriginal, err := os.Lstat(retainedPath)
+		Expect(err).NotTo(HaveOccurred())
+		retainedOriginalBytes, err := os.ReadFile(retainedPath)
+		Expect(err).NotTo(HaveOccurred())
+		proposal := installationProposal(installed)
+		migration := "interrupted-" + direction
+		args := append([]string{"upgrade"}, installationForwardArguments(installed, migration, proposal["proposal_digest"].(string))...)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		command := exec.CommandContext(ctx, filepath.Join(installed.driver, "factory"), args...) // #nosec G204 -- actual independently compiled driver and fixture-owned literal operation.
+		command.Dir = installed.root
+		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		command.WaitDelay = time.Second
+		for _, entry := range os.Environ() {
+			if !strings.HasPrefix(entry, "FACTORY_BRIDGE_PROTOCOL=") {
+				command.Env = append(command.Env, entry)
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		command.Stdout, command.Stderr = &stdout, &stderr
+		Expect(command.Start()).To(Succeed())
+		waited := false
+		DeferCleanup(func() {
+			if !waited {
+				_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+				_ = command.Wait()
+			}
+		})
+		journalPath := filepath.Join(installed.root, ".factory/installation-transactions", migration+".json")
+		pendingPath := filepath.Join(installed.root, ".factory/runtime-publication.pending")
+		observeAppliedPending := func() bool {
+			body, err := os.ReadFile(journalPath)
+			if err != nil {
+				return false
+			}
+			var journal map[string]any
+			if json.Unmarshal(body, &journal) != nil || journal["phase"] != "applying" {
+				return false
+			}
+			entries, ok := journal["entries"].([]any)
+			if !ok {
+				return false
+			}
+			applied := 0
+			for _, raw := range entries {
+				if raw.(map[string]any)["phase"] == "applied" {
+					applied++
+				}
+			}
+			_, err = os.Lstat(pendingPath)
+			return applied >= 2 && err == nil
+		}
+		Eventually(observeAppliedPending, 20*time.Second, time.Millisecond).Should(BeTrue(), "must observe multiple rows under one live pending marker")
+		Expect(syscall.Kill(command.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+		// Re-read the applying/pending evidence only after an actual native stop.
+		// per docs/DECISION_LOG.md:4695.
+		Eventually(func() bool {
+			stopped, stopErr := installationProcessStopped(command.Process.Pid)
+			Expect(stopErr).NotTo(HaveOccurred())
+			return stopped
+		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "must observe actual stop before accepting partial installation evidence")
+		Expect(observeAppliedPending()).To(BeTrue(), "the stopped installer must retain applying rows and pending")
+		stoppedJournal, err := os.ReadFile(journalPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(syscall.Kill(-command.Process.Pid, syscall.SIGKILL)).To(Succeed())
+		err = command.Wait()
+		waited = true
+		var exit *exec.ExitError
+		Expect(errors.As(err, &exit)).To(BeTrue(), "actual interrupted driver did not exit by signal")
+		status, ok := exit.Sys().(syscall.WaitStatus)
+		Expect(ok).To(BeTrue())
+		Expect(status.Signal()).To(Equal(syscall.SIGKILL))
+		Expect(os.ReadFile(journalPath)).To(Equal(stoppedJournal), "the killed installer cannot advance its durable witness")
+		_, err = os.Lstat(pendingPath)
+		Expect(err).NotTo(HaveOccurred(), "crash cleared unresolved pending evidence")
+		recovery := installationProposal(installed, "--recover", migration, "--direction", direction)
+		Expect(recovery).To(HaveKey("recovery_command"))
+		Expect(recovery).To(HaveKey("recovery_arguments"))
+		recovery = installationReplayEmittedRecovery(installed, recovery)
+		freshArgs := append(installed.arguments(), "--recover", migration, "--direction", direction, "--confirm", recovery["proposal_digest"].(string), "--quiescent")
+		out := installationMutationCommand(installed.driver, installed.root, installed.sentinel, freshArgs...)
+		Expect(out.status).To(Equal(0), "fresh interrupted recovery failed: %+v", out)
+		_, err = os.Lstat(pendingPath)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "qualified terminal recovery retained pending")
+		if direction == "forward" {
+			proof := imageProcess(installed.root, nil, filepath.Join(installed.root, "factory"), "selftest")
+			Expect(proof.status).To(Equal(0), "%+v", proof)
+		} else {
+			after := installationSnapshot(installed.root)
+			for path, value := range installed.before {
+				if path != ".gitignore" && !strings.HasPrefix(path, ".git/") {
+					Expect(after[path]).To(Equal(value), "reverse recovery omitted baseline entry %s", path)
+				}
+			}
+		}
+		// per docs/DECISION_LOG.md:4850
+		replayArgs := append(installed.arguments(), "--recover", migration, "--direction", direction)
+		digest := installationAssertCompletedReplay(installed.root, func() cliResult {
+			return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+		}, func(digest string) cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
+		if direction == "reverse" {
+			installationAssertReplayRefused(installed.root, func() cliResult {
+				return installationCommand(installed.driver, installed.root, installed.sentinel, append(installed.arguments(), "--recover", migration, "--direction", "forward", "--dry-run", "--json")...)
+			})
+			writeFixture(filepath.Join(installed.root, ".factory/budget.json"), budgetHistory(budgetRow("replay-stale-state")), 0600)
+		} else {
+			// Controlled old-record-shape fixture after a real recovery. The new
+			// producer now records receipts for retained rows; emulate only that
+			// older absent receipt, without claiming an old release performed it.
+			// per docs/DECISION_LOG.md:4892
+			relative := ".githooks/pre-push"
+			body, err := os.ReadFile(journalPath)
+			Expect(err).NotTo(HaveOccurred())
+			var record map[string]any
+			decoder := json.NewDecoder(bytes.NewReader(body))
+			decoder.UseNumber()
+			Expect(decoder.Decode(&record)).To(Succeed())
+			current, err := os.Lstat(retainedPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(retainedOriginal, current)).To(BeTrue(), "the control must still have its physical pre-installation original")
+			Expect(current.Mode()).To(Equal(retainedOriginal.Mode()))
+			Expect(current.ModTime()).To(Equal(retainedOriginal.ModTime()))
+			Expect(os.ReadFile(retainedPath)).To(Equal(retainedOriginalBytes))
+			Expect(record["entries"]).To(BeAssignableToTypeOf([]any{}))
+			found := false
+			for _, raw := range record["entries"].([]any) {
+				entry := raw.(map[string]any)
+				if entry["path"] == relative {
+					found = true
+					Expect(entry["before"]).NotTo(BeNil())
+					Expect(entry["observed_after"]).To(Equal(entry["before"]), "the new producer's full native receipt must confirm the original custody")
+					entry["phase"], entry["observed_after"] = "prepared", nil
+				}
+			}
+			Expect(found).To(BeTrue(), "the control needs the independently observed retained original")
+			legacyShape, err := json.Marshal(record)
+			Expect(err).NotTo(HaveOccurred())
+			writeFixture(journalPath, legacyShape, 0600)
+			digest = installationAssertCompletedReplay(installed.root, func() cliResult {
+				return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+			}, func(digest string) cliResult {
+				return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+			})
+			path := filepath.Join(installed.root, filepath.FromSlash(relative))
+			body, err = os.ReadFile(path)
+			Expect(err).NotTo(HaveOccurred())
+			info, err := os.Stat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.Rename(path, filepath.Join(installed.driver, "retained-pre-push-original"))).To(Succeed())
+			writeFixture(path, body, info.Mode().Perm())
+			Expect(os.Chmod(path, info.Mode().Perm())).To(Succeed())
+			foreign, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(info, foreign)).To(BeFalse())
+			Expect(os.ReadFile(path)).To(Equal(body))
+			Expect(foreign.Mode()).To(Equal(info.Mode()))
+			unchanged := installationPreservationWitness(installed.root)
+			fresh := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
+			Expect(fresh.status).To(Equal(2), "a fresh preview cannot grant custody to the equal-byte foreign retained row")
+			blocked := installationDecodeProposal(fresh)
+			Expect(blocked["blockers"]).To(ContainElement(HaveKeyWithValue("path", relative)))
+			Expect(blocked["conflicts"]).To(ContainElement(HaveKeyWithValue("path", relative)))
+			Expect(installationRows(blocked)[relative]["action"]).To(Equal("retain"))
+			unchanged()
+		}
+		installationAssertReplayRefused(installed.root, func() cliResult {
+			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
+		})
+	}, Entry("forward after actual SIGKILL", "forward"), Entry("reverse after actual SIGKILL", "reverse"))
+
+})
+
+// per docs/adr/0131-bounded-ci-feedback.md:79
+var _ = Describe("Whole installation upgrade semantic consumer", Ordered, ContinueOnFailure, Label("installation-custody-and-recovery"), func() {
+	var binary []byte
+	var prepared map[string]installationFixtureData
+	var roleMap installationRoleMapOracle
+	BeforeAll(func() {
+		setup := installationPrepareSemanticConsumer()
+		binary, prepared, roleMap = setup.binary, setup.prepared, setup.roleMap
+	})
+	fixture := func(profile string) installationFixtureData {
+		return installationCloneLegacyFixture(binary, prepared[profile])
+	}
+
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:109
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:255
 	DescribeTable("uses installed native commands and canonical data from a different application cwd", func(command string) {
@@ -1566,204 +1802,6 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		Expect(err).NotTo(HaveOccurred())
 		Expect(restored).To(Equal(state), "rollback changed retained budget history")
 	})
-
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:145
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:223
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:326
-	DescribeTable("retains one pending installation after native interruption and recovers with fresh consent", func(direction string) {
-		if direction == "forward" {
-			// Discard this separate genuinely interrupted fixture after removing
-			// its marker; restoring a pathname cannot restore historical custody.
-			// per docs/DECISION_LOG.md:4855
-			var partial installationFixtureData
-			partialID, witnessed := "", false
-			for attempt := 1; attempt <= 3; attempt++ {
-				partial = fixture("bash-baseline")
-				partialID = fmt.Sprintf("missing-partial-marker-%d", attempt)
-				proposal := installationProposal(partial)
-				if _, witnessed = installationInterruptPhase(partial, partialID, proposal["proposal_digest"].(string), "applying", true); witnessed {
-					break
-				}
-			}
-			Expect(witnessed).To(BeTrue(), "a missing-marker refusal needs real applied rows and SIGKILL first")
-			Expect(os.Remove(filepath.Join(partial.root, ".factory/runtime-publication.pending"))).To(Succeed())
-			installationAssertReplayRefused(partial.root, func() cliResult {
-				return installationCommand(partial.driver, partial.root, partial.sentinel, append(partial.arguments(), "--recover", partialID, "--direction", "forward", "--dry-run", "--json")...)
-			})
-		}
-		installed := fixture("bash-baseline")
-		retainedPath := filepath.Join(installed.root, ".githooks/pre-push")
-		retainedOriginal, err := os.Lstat(retainedPath)
-		Expect(err).NotTo(HaveOccurred())
-		retainedOriginalBytes, err := os.ReadFile(retainedPath)
-		Expect(err).NotTo(HaveOccurred())
-		proposal := installationProposal(installed)
-		migration := "interrupted-" + direction
-		args := append([]string{"upgrade"}, installationForwardArguments(installed, migration, proposal["proposal_digest"].(string))...)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(installed.driver, "factory"), args...) // #nosec G204 -- actual independently compiled driver and fixture-owned literal operation.
-		command.Dir = installed.root
-		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		command.WaitDelay = time.Second
-		for _, entry := range os.Environ() {
-			if !strings.HasPrefix(entry, "FACTORY_BRIDGE_PROTOCOL=") {
-				command.Env = append(command.Env, entry)
-			}
-		}
-		var stdout, stderr bytes.Buffer
-		command.Stdout, command.Stderr = &stdout, &stderr
-		Expect(command.Start()).To(Succeed())
-		waited := false
-		DeferCleanup(func() {
-			if !waited {
-				_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-				_ = command.Wait()
-			}
-		})
-		journalPath := filepath.Join(installed.root, ".factory/installation-transactions", migration+".json")
-		pendingPath := filepath.Join(installed.root, ".factory/runtime-publication.pending")
-		observeAppliedPending := func() bool {
-			body, err := os.ReadFile(journalPath)
-			if err != nil {
-				return false
-			}
-			var journal map[string]any
-			if json.Unmarshal(body, &journal) != nil || journal["phase"] != "applying" {
-				return false
-			}
-			entries, ok := journal["entries"].([]any)
-			if !ok {
-				return false
-			}
-			applied := 0
-			for _, raw := range entries {
-				if raw.(map[string]any)["phase"] == "applied" {
-					applied++
-				}
-			}
-			_, err = os.Lstat(pendingPath)
-			return applied >= 2 && err == nil
-		}
-		Eventually(observeAppliedPending, 20*time.Second, time.Millisecond).Should(BeTrue(), "must observe multiple rows under one live pending marker")
-		Expect(syscall.Kill(command.Process.Pid, syscall.SIGSTOP)).To(Succeed())
-		// Re-read the applying/pending evidence only after an actual native stop.
-		// per docs/DECISION_LOG.md:4695.
-		Eventually(func() bool {
-			stopped, stopErr := installationProcessStopped(command.Process.Pid)
-			Expect(stopErr).NotTo(HaveOccurred())
-			return stopped
-		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "must observe actual stop before accepting partial installation evidence")
-		Expect(observeAppliedPending()).To(BeTrue(), "the stopped installer must retain applying rows and pending")
-		stoppedJournal, err := os.ReadFile(journalPath)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(syscall.Kill(-command.Process.Pid, syscall.SIGKILL)).To(Succeed())
-		err = command.Wait()
-		waited = true
-		var exit *exec.ExitError
-		Expect(errors.As(err, &exit)).To(BeTrue(), "actual interrupted driver did not exit by signal")
-		status, ok := exit.Sys().(syscall.WaitStatus)
-		Expect(ok).To(BeTrue())
-		Expect(status.Signal()).To(Equal(syscall.SIGKILL))
-		Expect(os.ReadFile(journalPath)).To(Equal(stoppedJournal), "the killed installer cannot advance its durable witness")
-		_, err = os.Lstat(pendingPath)
-		Expect(err).NotTo(HaveOccurred(), "crash cleared unresolved pending evidence")
-		recovery := installationProposal(installed, "--recover", migration, "--direction", direction)
-		Expect(recovery).To(HaveKey("recovery_command"))
-		Expect(recovery).To(HaveKey("recovery_arguments"))
-		recovery = installationReplayEmittedRecovery(installed, recovery)
-		freshArgs := append(installed.arguments(), "--recover", migration, "--direction", direction, "--confirm", recovery["proposal_digest"].(string), "--quiescent")
-		out := installationMutationCommand(installed.driver, installed.root, installed.sentinel, freshArgs...)
-		Expect(out.status).To(Equal(0), "fresh interrupted recovery failed: %+v", out)
-		_, err = os.Lstat(pendingPath)
-		Expect(os.IsNotExist(err)).To(BeTrue(), "qualified terminal recovery retained pending")
-		if direction == "forward" {
-			proof := imageProcess(installed.root, nil, filepath.Join(installed.root, "factory"), "selftest")
-			Expect(proof.status).To(Equal(0), "%+v", proof)
-		} else {
-			after := installationSnapshot(installed.root)
-			for path, value := range installed.before {
-				if path != ".gitignore" && !strings.HasPrefix(path, ".git/") {
-					Expect(after[path]).To(Equal(value), "reverse recovery omitted baseline entry %s", path)
-				}
-			}
-		}
-		// per docs/DECISION_LOG.md:4850
-		replayArgs := append(installed.arguments(), "--recover", migration, "--direction", direction)
-		digest := installationAssertCompletedReplay(installed.root, func() cliResult {
-			return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
-		}, func(digest string) cliResult {
-			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
-		})
-		if direction == "reverse" {
-			installationAssertReplayRefused(installed.root, func() cliResult {
-				return installationCommand(installed.driver, installed.root, installed.sentinel, append(installed.arguments(), "--recover", migration, "--direction", "forward", "--dry-run", "--json")...)
-			})
-			writeFixture(filepath.Join(installed.root, ".factory/budget.json"), budgetHistory(budgetRow("replay-stale-state")), 0600)
-		} else {
-			// Controlled old-record-shape fixture after a real recovery. The new
-			// producer now records receipts for retained rows; emulate only that
-			// older absent receipt, without claiming an old release performed it.
-			// per docs/DECISION_LOG.md:4892
-			relative := ".githooks/pre-push"
-			body, err := os.ReadFile(journalPath)
-			Expect(err).NotTo(HaveOccurred())
-			var record map[string]any
-			decoder := json.NewDecoder(bytes.NewReader(body))
-			decoder.UseNumber()
-			Expect(decoder.Decode(&record)).To(Succeed())
-			current, err := os.Lstat(retainedPath)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(os.SameFile(retainedOriginal, current)).To(BeTrue(), "the control must still have its physical pre-installation original")
-			Expect(current.Mode()).To(Equal(retainedOriginal.Mode()))
-			Expect(current.ModTime()).To(Equal(retainedOriginal.ModTime()))
-			Expect(os.ReadFile(retainedPath)).To(Equal(retainedOriginalBytes))
-			Expect(record["entries"]).To(BeAssignableToTypeOf([]any{}))
-			found := false
-			for _, raw := range record["entries"].([]any) {
-				entry := raw.(map[string]any)
-				if entry["path"] == relative {
-					found = true
-					Expect(entry["before"]).NotTo(BeNil())
-					Expect(entry["observed_after"]).To(Equal(entry["before"]), "the new producer's full native receipt must confirm the original custody")
-					entry["phase"], entry["observed_after"] = "prepared", nil
-				}
-			}
-			Expect(found).To(BeTrue(), "the control needs the independently observed retained original")
-			legacyShape, err := json.Marshal(record)
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(journalPath, legacyShape, 0600)
-			digest = installationAssertCompletedReplay(installed.root, func() cliResult {
-				return installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
-			}, func(digest string) cliResult {
-				return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
-			})
-			path := filepath.Join(installed.root, filepath.FromSlash(relative))
-			body, err = os.ReadFile(path)
-			Expect(err).NotTo(HaveOccurred())
-			info, err := os.Stat(path)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(os.Rename(path, filepath.Join(installed.driver, "retained-pre-push-original"))).To(Succeed())
-			writeFixture(path, body, info.Mode().Perm())
-			Expect(os.Chmod(path, info.Mode().Perm())).To(Succeed())
-			foreign, err := os.Lstat(path)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(os.SameFile(info, foreign)).To(BeFalse())
-			Expect(os.ReadFile(path)).To(Equal(body))
-			Expect(foreign.Mode()).To(Equal(info.Mode()))
-			unchanged := installationPreservationWitness(installed.root)
-			fresh := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--dry-run", "--json")...)
-			Expect(fresh.status).To(Equal(2), "a fresh preview cannot grant custody to the equal-byte foreign retained row")
-			blocked := installationDecodeProposal(fresh)
-			Expect(blocked["blockers"]).To(ContainElement(HaveKeyWithValue("path", relative)))
-			Expect(blocked["conflicts"]).To(ContainElement(HaveKeyWithValue("path", relative)))
-			Expect(installationRows(blocked)[relative]["action"]).To(Equal("retain"))
-			unchanged()
-		}
-		installationAssertReplayRefused(installed.root, func() cliResult {
-			return installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, replayArgs...), "--confirm", digest, "--quiescent")...)
-		})
-	}, Entry("forward after actual SIGKILL", "forward"), Entry("reverse after actual SIGKILL", "reverse"))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:411
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:416

@@ -65,10 +65,11 @@ with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
     # The copied runner keeps current policy gates and optional-pack assertions.
     # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
     # docs/adr/0129-go-source-doctor-entrypoint.md:47.
+    # docs/adr/0130-go-source-prerequisite-entrypoint.md:45.
     for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/factory-report.sh", "scripts/factory-metrics.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
-                 "scripts/factory-doctor.sh"):
+                 "scripts/factory-doctor.sh", "scripts/prereq-check.sh"):
         data = subprocess.run([
             "git", "-C", str(source), "show",
             "1754de23de95a7e3c734bedd86894295e823c988:" + name,

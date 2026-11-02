@@ -61,6 +61,9 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   [ADR 0128](../adr/0128-go-source-harness-sync-entrypoints.md).
   Direct doctor conversion reuses the native diagnostic owner in
   [ADR 0129](../adr/0129-go-source-doctor-entrypoint.md).
+  Direct prerequisite discovery reuses the native tool checks and removes its
+  obsolete Python requirement under
+  [ADR 0130](../adr/0130-go-source-prerequisite-entrypoint.md).
   Remaining direct commands/helpers and historical proof cleanup stay separate.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.

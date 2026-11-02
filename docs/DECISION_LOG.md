@@ -5885,3 +5885,17 @@ an exported review setting must not turn offline qualification into a GitHub que
 Review follow-up: omit the six GitHub credential/routing environment keys named
 in ADR 0129 from that fixture, with synthetic child-inheritance regression evidence.
 Keep the disabled lane and private client witness as the no-query controls.
+
+## Decision 145 (2026-11-02 UTC): activate the native source prerequisite entrypoint
+
+After the human merge of PR #160, continue R3 with the direct prerequisite path.
+Delegate to the existing Go owner under ADR 0130, preserving ignored operands,
+caller-relative explicit configuration and caller-PATH version probes. Apply the
+already-approved removal of Python without changing the source compiler or
+product-toolchain distinction. Independent semantic RED precedes replacement.
+
+Keep coherent historical prerequisite bytes in the full shell and optional-pack
+materializers; retain the Java/budget/loop stubs and frozen native oracles.
+Qualify the current direct path with private tool witnesses and exact child
+environments. Remaining command/helper and proof-runner cleanup stays bounded
+separately, and no release-default or migration authority changes here.

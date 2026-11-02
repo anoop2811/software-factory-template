@@ -5882,3 +5882,6 @@ separate; protect the primary checkout and its developer cache during all
 qualification, including indirectly dispatched generator/build commands.
 The health-only doctor criterion must also neutralize inherited review activation;
 an exported review setting must not turn offline qualification into a GitHub query.
+Review follow-up: omit the six GitHub credential/routing environment keys named
+in ADR 0129 from that fixture, with synthetic child-inheritance regression evidence.
+Keep the disabled lane and private client witness as the no-query controls.

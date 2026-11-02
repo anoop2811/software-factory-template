@@ -83,3 +83,10 @@ merge and the next R3 function boundary.
 The health-only native fixture explicitly disables its review lane. An inherited
 `REVIEW_LANE=on` must not override that fixture choice or authorize a GitHub secret
 query. Use a controlled client witness when proving this environment boundary.
+
+The fixture also omits `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+`GITHUB_ENTERPRISE_TOKEN`, `GH_HOST` and `GH_REPO` from the child environment.
+Challenge these exact keys with synthetic values and observe their absence inside
+the owned proof subprocess without printing values. This is fixture hardening,
+not a change to production caller precedence or isolation of stored credentials;
+the disabled lane and controlled client remain the no-query controls.

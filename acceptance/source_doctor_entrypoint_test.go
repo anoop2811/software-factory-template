@@ -16,6 +16,12 @@ func sourceDoctorEnvironment(inherited []string) map[string]string {
 	result := map[string]string{}
 	for _, entry := range inherited {
 		key, value, _ := strings.Cut(entry, "=")
+		// These fixture-only keys must not reach the owned proof.
+		// per docs/adr/0129-go-source-doctor-entrypoint.md:87
+		switch key {
+		case "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST", "GH_REPO":
+			continue
+		}
 		if strings.HasPrefix(key, "OPENCODE_") || strings.HasPrefix(key, "CLAUDE_") || strings.HasPrefix(key, "CODEX_") || key == "COST_PROFILE" || key == "MODEL_PROVIDER" {
 			continue
 		}
@@ -28,6 +34,20 @@ func sourceDoctorEnvironment(inherited []string) map[string]string {
 	return result
 }
 
+// The owned proof records presence flags only, never inherited credential values.
+// per docs/adr/0129-go-source-doctor-entrypoint.md:87
+const sourceDoctorProof = `#!/bin/bash
+if IFS= read -r line; then printf 'INHERITED_INPUT\n' >&2; exit 92; fi
+printf '%s\000' "$PWD" > "$SOURCE_DOCTOR_PROOF_RECORD"
+printf '%s\000' "${GH_TOKEN+x}" "${GITHUB_TOKEN+x}" "${GH_ENTERPRISE_TOKEN+x}" "${GITHUB_ENTERPRISE_TOKEN+x}" "${GH_HOST+x}" "${GH_REPO+x}" > "$SOURCE_DOCTOR_ENV_RECORD"
+if [ -n "${GH_TOKEN+x}${GITHUB_TOKEN+x}${GH_ENTERPRISE_TOKEN+x}${GITHUB_ENTERPRISE_TOKEN+x}${GH_HOST+x}${GH_REPO+x}" ]; then
+  printf 'GITHUB_CONTEXT_PRESENT\n'
+  exit 93
+fi
+if [ "$SOURCE_DOCTOR_PROOF_FAIL" = 1 ]; then printf 'selftest: 0 passed, 1 failed\n'; exit 9; fi
+printf 'selftest: 7 passed, 0 failed\n'
+`
+
 var _ = Describe("Go source runtime entrypoints doctor adapter", func() {
 	// per docs/adr/0129-go-source-doctor-entrypoint.md:25
 	// per docs/adr/0129-go-source-doctor-entrypoint.md:31
@@ -37,7 +57,10 @@ var _ = Describe("Go source runtime entrypoints doctor adapter", func() {
 		caller, inherited := doctorFixture()
 		// Challenge inherited activation without changing a parallel process's environment.
 		// per docs/adr/0129-go-source-doctor-entrypoint.md:83
-		challenged := append(append([]string{}, inherited...), "REVIEW_LANE=on")
+		challenged := append(append([]string{}, inherited...), "REVIEW_LANE=on",
+			"GH_TOKEN=synthetic-token", "GITHUB_TOKEN=synthetic-token",
+			"GH_ENTERPRISE_TOKEN=synthetic-enterprise-token", "GITHUB_ENTERPRISE_TOKEN=synthetic-enterprise-token",
+			"GH_HOST=fixture.invalid", "GH_REPO=fixture/example")
 		environment := sourceDoctorEnvironment(challenged)
 		source := newSourceEntrypointFixture()
 		owner := source.root
@@ -69,7 +92,9 @@ var _ = Describe("Go source runtime entrypoints doctor adapter", func() {
 		environment["SOURCE_DOCTOR_GH_RECORD"] = ghRecord
 		record := filepath.Join(filepath.Dir(caller), "caller proof cwd")
 		environment["SOURCE_DOCTOR_PROOF_RECORD"] = record
-		writeFixture(filepath.Join(caller, "scripts/selftest/run.sh"), []byte("#!/bin/bash\nif IFS= read -r line; then printf 'INHERITED_INPUT\\n' >&2; exit 92; fi\nprintf '%s\\000' \"$PWD\" > \"$SOURCE_DOCTOR_PROOF_RECORD\"\nif [ \"$SOURCE_DOCTOR_PROOF_FAIL\" = 1 ]; then printf 'selftest: 0 passed, 1 failed\\n'; exit 9; fi\nprintf 'selftest: 7 passed, 0 failed\\n'\n"), 0700)
+		envRecord := filepath.Join(filepath.Dir(caller), "proof GitHub context presence")
+		environment["SOURCE_DOCTOR_ENV_RECORD"] = envRecord
+		writeFixture(filepath.Join(caller, "scripts/selftest/run.sh"), []byte(sourceDoctorProof), 0700)
 		live := filepath.Join(caller, ".claude/settings.json")
 		Expect(os.Chmod(live, 0640)).To(Succeed())
 		liveBefore, err := os.Lstat(live)
@@ -83,6 +108,7 @@ var _ = Describe("Go source runtime entrypoints doctor adapter", func() {
 				// The second invocation uses the already qualified native owner without another source build.
 				writeFixture(filepath.Join(owner, "factory"), candidateBinary, 0755)
 				Expect(os.Remove(record)).To(Succeed())
+				Expect(os.Remove(envRecord)).To(Succeed())
 			}
 			beforeOwner, beforeCaller := sourceEntrypointSnapshot(owner), installationSnapshot(caller)
 			observed := handoffNativeExactProcess(nested, environment, "borrowed caller input\n", program, "--help", "", "literal $(not-code)\nline", "--")
@@ -96,6 +122,13 @@ var _ = Describe("Go source runtime entrypoints doctor adapter", func() {
 			AddReportEntry("source-doctor.review-boundary", map[string]any{"failed_proof": failedProof, "gh_called": ghErr == nil, "gh_argv": strings.Split(strings.TrimSuffix(string(ghArgv), "\x00"), "\x00")}, ReportEntryVisibilityNever)
 			Expect(os.IsNotExist(ghErr)).To(BeTrue(), "diagnostic fixture must not query host GitHub")
 			Expect(observed.stdout).To(MatchRegexp(`\[inert\]\s+review lane\s+off`))
+			// Inspect child presence only; even synthetic credential values stay out of reports.
+			// per docs/adr/0129-go-source-doctor-entrypoint.md:87
+			presence, err := os.ReadFile(envRecord)
+			Expect(err).NotTo(HaveOccurred())
+			flags := strings.Split(strings.TrimSuffix(string(presence), "\x00"), "\x00")
+			AddReportEntry("source-doctor.github-context-presence", map[string]any{"failed_proof": failedProof, "presence_flags": flags}, ReportEntryVisibilityNever)
+			Expect(flags).To(Equal([]string{"", "", "", "", "", ""}), "owned proof must receive none of the six challenged GitHub context keys")
 			Expect(sourceEntrypointSnapshot(owner)).To(Equal(beforeOwner))
 			Expect(installationSnapshot(caller)).To(Equal(beforeCaller))
 			if failedProof {

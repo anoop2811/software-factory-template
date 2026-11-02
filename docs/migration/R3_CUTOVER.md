@@ -5,6 +5,8 @@ This is the finite remaining source-cutover inventory for the approved
 new feature roadmap. It was inspected on 2026-11-02 against merged PR #161
 (`f3a0b65`), before the next R3 implementation. The Go owners below already
 exist; their presence does not qualify the remaining direct source paths.
+Progress rows are updated separately from that fixed baseline inventory and name
+their later qualification decision. They do not attribute new work to PR #161.
 
 The inventory contains **14 executable entrypoints, 7 sourceable libraries and
 4 Python runtime modules**. These 25 paths are a cleanup checklist, not equal
@@ -41,7 +43,7 @@ The checklist records source qualification and review, not merely written files.
 
 | Done | Path | Existing Go command / package | Function boundary and remaining evidence |
 |---|---|---|---|
-| [ ] | `scripts/golden-task-eval.sh` | `eval golden` / `evalcmd` | [ADR 0132](../adr/0132-go-source-golden-evaluation.md): implemented and locally qualified, including independent RED/GREEN, direct/Make routing and no-Python scoring. Hosted qualification and merge remain pending; see Decision 147. |
+| [ ] | `scripts/golden-task-eval.sh` | `eval golden` / `evalcmd` | Updated 2026-11-02, Decision 147 / [ADR 0132](../adr/0132-go-source-golden-evaluation.md): implemented and locally qualified, including independent RED/GREEN, direct/Make routing and no-Python scoring. Hosted qualification and merge remain pending. |
 | [ ] | `eval/runners/mock.sh` | `eval run mock` / `evalcmd` | Runner boundary: retain deterministic pass/fail/cheat behavior and golden-evaluation integration. |
 | [ ] | `eval/runners/claude.sh` | `eval run claude` / `evalcmd` | Runner boundary: literal workdir/prompt, existing argv, model selection and log behavior; fake CLI qualification. |
 | [ ] | `eval/runners/codex.sh` | `eval run codex` / `evalcmd` | Same runner boundary, with Codex's existing invocation contract. |

@@ -5941,7 +5941,7 @@ in `.factory/qualification/r3-golden/private-source`; output:
 The report records 42 passed, zero failed. Before replacement, the three new
 criteria failed against the original script; its no-Python case reported
 `golden-task-eval: this retained script requires python3; use ./factory eval golden for native evaluation.`
-Independent report comparison found exactly three new criteria, 3229 to 3232,
+Independent report comparison found the criterion count increased from 3229 to 3232,
 without removing or reducing any prior criterion. The historical Python guard
 now reads its immutable PR #161 source instead of asserting a retired dependency
 against the current native route.
@@ -5957,3 +5957,33 @@ linter refused because its build toolchain was older than the module; the existi
 qualified linter then reported `0 issues.` with `packs/go/.golangci.yml`.
 These are local results; hosted qualification, merge and the remaining R3 paths
 are still open.
+
+Decision 147 review follow-up: make the historical empty-task proof require both
+a successful evaluator copy and an actual successful invocation. Previously,
+both errors were swallowed and an absent results file could pass without an
+evaluation. Independent private negative controls reproduced false success for a
+missing script and an evaluator exiting 44 before this change. Retain the original
+no-result assertion and add a separate exit-status assertion; no production
+runtime behavior changes. Clarify inventory inspection versus later progress,
+design acceptance versus qualification, and the frozen evaluator's remaining
+configuration/runner fixture dependencies. The before/after native criterion
+counts remain 3229 and 3232, not an inclusive range of IDs.
+
+The first hosted Linux base run also exposed a missed qualification update:
+the scheduler still pinned the old 3229-criterion inventory after the three
+new golden criteria were added. Its actual discovery reported 3232 and failed
+closed. Update the pinned total and affected source-family count only from
+independent discovery, retaining the empty-selection negative control and exact
+disjoint/exhaustive identity checks. This is an accounting correction, not a
+change to runtime behavior, a timeout increase or reduced test coverage.
+
+Follow-up local evidence: the independent empty-result controls changed from one
+pass/two failures to three passes. The complete historical suite reports
+`selftest: 218 passed, 0 failed, 0 skipped`; comparison retains all 217 earlier
+assertions and adds the successful-execution assertion. Optional-pack cases remain
+three passed, zero failed. Independent native discovery found 3232 total criteria
+and 28 source-entrypoint criteria. The exact formerly failing scheduler criterion
+then passed in 62.684 seconds, retaining all ten actual partition counts,
+disjoint/exhaustive identity checks and the zero-selection failure control.
+Receipts use separate `review-*` files under `.factory/qualification/r3-golden/`;
+the original 42-criterion native evaluation receipt is unchanged.

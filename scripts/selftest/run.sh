@@ -779,10 +779,11 @@ check "a task with no baseline asks for the baseline" "1" \
 
 # And the eval writes no results file when it scored nothing: an empty result is
 # still a result, and invites a later comparison against a baseline of nothing.
-cp "$LEGACY_TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$EVROOT/scripts/" 2>/dev/null || true
+cp "$LEGACY_TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$EVROOT/scripts/"
 rm -rf "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
 mkdir -p "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
-( cd "$EVROOT" && ./scripts/golden-task-eval.sh ) >/dev/null 2>&1 || true
+check "an eval with no tasks exits successfully" "0" \
+  "$(cd "$EVROOT" && run_status ./scripts/golden-task-eval.sh)"
 check "an eval with no tasks writes no results file" "0" \
   "$(find "$EVROOT/eval/results" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
 

@@ -1,6 +1,6 @@
 # ADR 0132: native source golden-evaluation entrypoint
 
-Status: accepted R3 boundary; independent semantic RED precedes implementation
+Status: accepted design; implementation and qualification evidence are separate
 
 Date: 2026-11-02 UTC
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -27,6 +26,7 @@ type defaultInitFixtures struct {
 	invoker                 handoffReleaseImage
 	source, revision, cache string
 	images                  map[string]defaultInitImage
+	selected                *defaultImageSelected
 }
 
 // A selected-only message witnesses the actual initializer owner, while the
@@ -60,7 +60,7 @@ func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 	Expect(os.Mkdir(cache, 0700)).To(Succeed())
 	cache, err = filepath.EvalSymlinks(cache)
 	Expect(err).NotTo(HaveOccurred())
-	f := &defaultInitFixtures{image, source, revision, cache, map[string]defaultInitImage{}}
+	f := &defaultInitFixtures{invoker: image, source: source, revision: revision, cache: cache, images: map[string]defaultInitImage{}}
 	f.image(defaultInitTag)
 	AddReportEntry("default-init.selected-source", map[string]string{"source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
 	return f
@@ -71,14 +71,32 @@ func (f *defaultInitFixtures) image(version string) defaultInitImage {
 	if image, found := f.images[version]; found {
 		return image
 	}
-	compiler, err := exec.LookPath("go")
-	Expect(err).NotTo(HaveOccurred())
-	compiler, err = filepath.EvalSymlinks(compiler)
-	Expect(err).NotTo(HaveOccurred())
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	result, err := packaging.Build(ctx, packaging.Options{Source: f.source, Revision: f.revision, Version: version, Target: runtime.GOOS + "/" + runtime.GOARCH, Output: filepath.Join(f.cache, version), Compiler: compiler, Installation: true})
-	Expect(err).NotTo(HaveOccurred())
+	// The first selected build and archive share this one deadline. Later
+	// version labels reuse only this container's immutable compiled source.
+	// per docs/adr/0131-bounded-ci-feedback.md:131
+	reused := f.selected != nil
+	if f.selected == nil {
+		f.selected = defaultImagePrepare(ctx, f.source, f.revision, f.cache)
+	}
+	AddReportEntry("default-image.selected", map[string]any{"version": version, "revision": f.revision, "binary_sha256": defaultImageDigest(f.selected.binary), "reused": reused}, ReportEntryVisibilityNever)
+	baselines := make([]imageBaselineOracle, 0, len(f.invoker.references))
+	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
+		reference := f.invoker.references[profile]
+		baselines = append(baselines, imageBaselineOracle{reference.profile, reference.revision, reference.assets})
+	}
+	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", version, runtime.GOOS + "/" + runtime.GOARCH, f.revision, false, f.selected.assets, baselines}
+	var body []byte
+	var err error
+	defaultImagePhase("archive", version, func() {
+		body, err = defaultImageArchive(ctx, imageFixtureEntries(manifest, f.selected.payload, f.selected.binary))
+		Expect(err).NotTo(HaveOccurred())
+	})
+	archivePath := filepath.Join(f.cache, version, "factory-runtime.tar.gz")
+	writeFixture(archivePath, body, 0600)
+	result := packaging.Result{Version: version, Revision: f.revision, Target: manifest.Target, Archive: archivePath, SHA256: defaultImageDigest(body)}
+	Expect(ctx.Err()).NotTo(HaveOccurred())
 	archive, err := os.ReadFile(result.Archive)
 	Expect(err).NotTo(HaveOccurred())
 	entries, _ := imageDecodeArchive(archive)

@@ -61,14 +61,17 @@ unknown resources select one worker. More workers are not a measured speedup
 until the complete qualification run demonstrates it. See
 [ADR 0104](adr/0104-adaptive-qualification-workers.md) for budgets and probe limits.
 
-CI pairs the ten logical groups into five jobs per OS. Each group keeps its own
-JSON/JUnit report and artifact, and both groups are attempted even if one fails.
+CI distributes the ten logical groups across five jobs per OS. Each group keeps
+its own JSON/JUnit report and artifact; all assigned groups run even if one fails.
 The base job runs the complete quality checks once per OS; other invocations use
 `make go-runtime-source-tests`, which runs the selected behavioral qualification
 without repeating formatting, vet, build, lint or security stages. Use the full
-`go-runtime-source-check` target for complete local qualification. The job and
+`go-runtime-source-check` target for complete local qualification. Base runs alone;
+the installation job also runs recovery and source-entrypoints. The job and
 suite deadlines are unchanged. See [ADR 0131](adr/0131-bounded-ci-feedback.md)
 for the fixed grouping, fixture isolation and measurement contract.
+The source-entrypoints group also owns source-qualification and initializer
+copy-inventory proofs, keeping that work off the largest base partition.
 
 ## Adversarial CI review
 

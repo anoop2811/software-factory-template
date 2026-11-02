@@ -32,22 +32,22 @@ removed. The repository's required status check is `selftest`, as read on
 
 | Primary group | Second group |
 | --- | --- |
-| base | source-entrypoints |
+| base | none |
 | release-handoff | default-init |
 | local-upgrade | local-init |
 | historical-recipe | default-upgrade |
-| installation | local-recovery |
+| installation | local-recovery, then source-entrypoints |
 
-These fixed pairs minimize the longest sum of old job durations across both
-baselines. The maximum is 1,161 + 436 = 1,597 seconds for release-handoff plus
-default-init in run 41385426253, before duplicated setup/quality is removed.
-This is a scheduling estimate, not measured new latency. Five macOS jobs avoid
-this workflow's own second wave; other workflows still compete for capacity.
-Retain both OS values, fail-fast false, PR-only supersession, immutable action
-pins and full history. Matrix creation order does not guarantee job priority.
+The initial five pairs minimized old-duration estimates, but hosted run
+41392210314 exhausted the base job's allowance. Keep base on its own and place
+source-entrypoints after installation/recovery, which finished in 593 seconds.
+This revised allocation requires hosted qualification; it is not a measured
+speedup. Five macOS jobs avoid this workflow's own second wave; other workflows
+still compete for capacity. Retain both OS values, fail-fast false, PR-only
+supersession, immutable pins and full history; creation order is not priority.
 
-Attempt both groups after a group failure and return a nonzero lane status if
-either fails. Cancellation remains cancellation. Keep independent JSON/JUnit
+Attempt all assigned groups after a group failure and return nonzero if any
+group fails. Cancellation remains cancellation. Keep independent JSON/JUnit
 paths and always-attempted per-group artifact uploads, including installation.
 Each group retains its own suite deadline; the shared job allowance is unchanged.
 Hosted measurements must determine whether these pairs retain adequate headroom.
@@ -112,3 +112,52 @@ Fetched 2026-11-02 UTC; no version change is proposed:
   — matrix inclusion, failure handling, job timeouts and artifact-step conditions.
 - https://onsi.github.io/ginkgo/#spec-parallelization — worker process isolation.
 - https://onsi.github.io/ginkgo/#ordered-containers — ordered groups remain on one worker.
+
+## Hosted qualification repair
+
+Observed 2026-11-02 in run 41392210314: total elapsed 1,943 seconds, versus the
+previous successful 1,606 seconds. macOS base acceptance took 1,383 seconds on
+two workers, then source-entrypoints was cancelled at the job limit. A metrics
+cancellation criterion read an empty PID file after creation but before writing.
+Two default-upgrade preparations exhausted their existing 90-second image budget
+during archive production. A local-upgrade helper exceeded its deadline while
+capturing a selected worker; an untimestamped completion message does not prove
+whether completion preceded the deadline or whether only pipe draining remained.
+
+Repair fixture readiness by observing a complete positive PID, retaining both
+signal paths and child-disappearance/publication assertions. Prove the empty-file
+window deterministically rather than adding a sleep or increasing an allowance.
+
+Default consumer fixtures may reuse their own immutable selected binary/catalog
+across version-labelled images, using the existing independent image oracle.
+The current production compiler has no version-specific linker substitutions;
+metadata carries version/revision/target. Preserve distinct invoker/selected code,
+actual committed source and baseline assets, all metadata/digest checks, private
+scenario surfaces and container cleanup. Keep one combined 90-second first-image
+budget and report preparation phases. Fast compression is permitted for fixture
+archives; production packaging and its dedicated race qualification stay intact.
+
+The revised five-job allocation has one base group, three two-group lanes, and
+one installation/recovery/source-entrypoints lane. Independently qualify all
+first/second/third failure and empty-selection paths, group-specific artifacts,
+quality ownership, and the unchanged complete local target. All 3,229 criterion
+identities and ten logical groups remain required. Do not increase deadlines,
+retry failed criteria, suppress failures or claim unexplained runtime repair.
+
+If local-upgrade reproduces, separate deadline, leader exit and capture completion
+observations before changing production ownership. A fixture timeout must retain
+its failure and clean its owned children; a printed completion line alone is not
+an exit receipt. Hosted failures remain open until the affected paths pass on the
+new head and the complete workflow supplies actual timing/headroom evidence.
+
+Move the source-validation families `Go source qualification scheduling`,
+`Go source qualification worker execution`, `Go source qualification workflow
+partition` and `Native initializer copy inventory` from base into the existing
+source-entrypoints group. Their 20 criteria consumed 353 aggregate criterion
+seconds in the failing macOS run; that sum is not elapsed-time savings. This
+gives the largest job more headroom while keeping these source checks together.
+Retain exact anchored family matching, boundary-negative selector cases and
+independent discovery. Preserve every old identity, with two additional process
+helper ownership proofs: 3,231 total criteria, base 2,978, source-entrypoints 45,
+and all other group populations unchanged. Qualify this selector change RED
+before changing Make, then demonstrate a disjoint and complete native registry.

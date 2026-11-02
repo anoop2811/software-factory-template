@@ -1,7 +1,7 @@
 # Qualify Ginkgo selectors with actual discovery
 
 Observed 2026-10-10 via the race-enabled native discovery regression (current
-discovery helper: acceptance/source_gate_selection_test.go:307). An anchored family selector passed
+discovery helper: acceptance/source_gate_selection_test.go:325). An anchored family selector passed
 the recording fixture but selected zero real installation specs because Ginkgo
 matches the suite description before the spec text. The base skip consequently
 selected all 2,655 specs; an empty installation selection still returned success.

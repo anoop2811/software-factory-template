@@ -104,18 +104,20 @@ func handoffNativeProcessWithEnvironment(cwd string, environment map[string]stri
 			cmd.Env = append(cmd.Env, key+"="+value)
 		}
 	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	Expect(ctx.Err()).NotTo(HaveOccurred(), "candidate process watchdog: %s", stderr.String())
-	status := 0
+	trace := &handoffProcessTrace{}
+	result, err := handoffObservedRun(ctx, cmd, trace)
+	observation := trace.snapshot()
+	AddReportEntry("release-handoff.process-observation", observation, ReportEntryVisibilityNever)
+	if observation.CaptureForcedClosed || observation.LeaderUnconfirmed {
+		holdFixtureCleanup(cwd, "handoff process or capture closure remains unconfirmed")
+		holdFixtureCleanup(filepath.Dir(program), "handoff process or capture closure remains unconfirmed")
+	}
+	Expect(ctx.Err()).NotTo(HaveOccurred(), "candidate process watchdog: %s", result.stderr)
 	if err != nil {
 		var exit *exec.ExitError
 		Expect(errors.As(err, &exit)).To(BeTrue())
-		status = exit.ExitCode()
 	}
-	return cliResult{stdout.String(), stderr.String(), status}
+	return result
 }
 
 func handoffCommand(ctx context.Context, cwd string, environment map[string]string, input, program string, args ...string) *exec.Cmd {

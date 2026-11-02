@@ -5932,3 +5932,17 @@ hosted latency against both retained successful baselines without promising a
 speedup from configuration alone. Review fixture isolation and every quality/failure
 path before opening the separate PR. Earlier unexplained process-timeout evidence
 remains open for release audit; changing scheduling does not resolve its cause.
+
+Decision 146 hosted correction: run 41392210314 took 32m23s and failed on macOS;
+the local installation improvement did not establish pipeline improvement.
+Apply ADR 0131's hosted repair: leave base alone, move source-entrypoints to the
+shorter installation lane, require complete PID readiness in the metrics fixture,
+and avoid repeated producer work in default consumer images using the existing
+independent image oracle. Preserve deadlines, all criterion identities and real
+selected-code evidence. Investigate the local-upgrade deadline without equating
+its untimestamped completion message to confirmed process exit.
+
+Keep source qualification and copy-inventory proofs with source-entrypoints,
+moving their existing 20 criteria out of the overloaded base partition. Preserve
+the complete registry and add two process-helper ownership controls; measure the
+revised allocation in hosted CI instead of assuming aggregate test time is saved.

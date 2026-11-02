@@ -27,6 +27,7 @@ const sourceGateBaselineCommit = "d60b200ac3a221520d183fca8c7738a5cf2bfdbb"
 // descriptions that must remain in base rather than matching a substring.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
+// per docs/adr/0131-bounded-ci-feedback.md:153
 var sourceGateCases = []struct {
 	Package string `json:"package"`
 	Name    string `json:"name"`
@@ -76,6 +77,23 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Go source launcher signal ownership", "source-entrypoints"},
 	{"./acceptance", "Go factory command acceptance Go source launcher signal ownership-extra unrelated", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Go source launcher signal ownership", "base"},
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling executes disjoint feature partitions while retaining every source quality stage", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification scheduling", "base"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution executes one and two actual workers with exact-once reports and propagates a real worker failure", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification worker execution", "base"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification workflow partition", "base"},
+	{"./acceptance", "Go factory command acceptance Native initializer copy inventory rejects a real untracked Go initializer input behind an adapter and accepts the same tracked input", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Native initializer copy inventory", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Native initializer copy inventory-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Native initializer copy inventory", "base"},
+	{"./internal/qualification", "Go factory command acceptance Native initializer copy inventory remains internal", "base"},
 	{"./acceptance", "Go factory command acceptance Native Go report core renders events", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff", "base"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", "base"},
@@ -435,7 +453,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 	Expect(call.Group).To(Equal(group))
 	Expect(call.Args).To(ContainElement("./acceptance"))
 	Expect(call.Args).NotTo(ContainElement("./..."))
-	// per docs/adr/0131-bounded-ci-feedback.md:73
+	// per docs/adr/0131-bounded-ci-feedback.md:74
 	Expect(len(call.Args)).To(BeNumerically(">=", 3))
 	Expect(call.Args[:3]).To(Equal([]string{"run", "-mod=readonly", "github.com/onsi/ginkgo/v2/ginkgo"}))
 	Expect(call.Args).To(ContainElements("--race", "--timeout=25m", "--fail-on-empty", "--keep-going", "--no-color", "--", "-test.count=1", "-test.timeout=25m"))
@@ -473,7 +491,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0121-local-upgrade-readiness-boundary.md:117
 	// per docs/adr/0122-default-packaged-go-upgrade.md:180
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
-	// per docs/adr/0131-bounded-ci-feedback.md:54
+	// per docs/adr/0131-bounded-ci-feedback.md:57
 	It("executes disjoint feature partitions while retaining every source quality stage", func() {
 		callsByGroup := map[string]sourceGateCall{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
@@ -493,7 +511,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 				}
 				callsByGroup[group] = tests[0]
 				if group == "source-entrypoints" {
-					const family = "^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$)"
+					const family = "^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership|Go source qualification scheduling|Go source qualification worker execution|Go source qualification workflow partition|Native initializer copy inventory)( |$)"
 					Expect(tests[0].Focus).To(Equal(family))
 					Expect(callsByGroup["base"].Skip).To(ContainSubstring(tests[0].Focus))
 				}
@@ -625,18 +643,20 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// measured bounded qualification. per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:152
 		// One timer-publication ownership criterion joins the actual base census.
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:216
-		// Eight native copy-inventory criteria join the measured base partition.
+		// Eight native copy-inventory criteria are measured in the source partition.
 		// per docs/adr/0125-native-initializer-copy-inventory-gate.md:118
-		// Current source entrypoint acceptance joins this family.
+		// Current entrypoint, scheduler and inventory acceptance share the source family.
 		// per docs/adr/0127-go-source-observability-entrypoints.md:42; per docs/adr/0128-go-source-harness-sync-entrypoints.md:58
 		// per docs/adr/0129-go-source-doctor-entrypoint.md:63
 		// per docs/adr/0130-go-source-prerequisite-entrypoint.md:57
-		Expect(negativeTotal).To(Equal(3229))
+		// Two process-owner helper proofs stay in base; twenty source-validation criteria move to the source lane.
+		// per docs/adr/0131-bounded-ci-feedback.md:153
+		Expect(negativeTotal).To(Equal(3231))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3229))
-		expectedCounts := map[string]int{"base": 2996, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 25}
+		Expect(allTotal).To(Equal(3231))
+		expectedCounts := map[string]int{"base": 2978, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 45}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -659,7 +679,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
 	// per docs/adr/0101-go-release-handoff.md:560
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
-	// per docs/adr/0131-bounded-ci-feedback.md:56
+	// per docs/adr/0131-bounded-ci-feedback.md:57
 	DescribeTable("attempts the complete qualification union and propagates every group failure", func(selection, failing string) {
 		for _, target := range []string{"go-runtime-source-check", "go-runtime-source-tests"} {
 			failures := []string{failing}
@@ -710,7 +730,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 
 	// per docs/adr/0102-parallel-go-qualification.md:29
 	// per docs/adr/0104-adaptive-qualification-workers.md:36
-	// per docs/adr/0131-bounded-ci-feedback.md:69
+	// per docs/adr/0131-bounded-ci-feedback.md:70
 	It("refuses invalid worker selection before any qualification work", func() {
 		for _, target := range []string{"go-runtime-source-check", "go-runtime-source-tests"} {
 			for _, setting := range []string{"GO_RUNTIME_TEST_PROCS", "GO_RUNTIME_TEST_MAX_PROCS"} {
@@ -745,7 +765,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:529
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
-	// per docs/adr/0131-bounded-ci-feedback.md:69
+	// per docs/adr/0131-bounded-ci-feedback.md:70
 	DescribeTable("refuses an invalid explicit selection before any test process", func(group string) {
 		for _, target := range []string{"go-runtime-source-check", "go-runtime-source-tests"} {
 			fixture := sourceGateMakeFixture()
@@ -796,8 +816,9 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/DECISION_LOG.md:4529
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
 	// per docs/adr/0131-bounded-ci-feedback.md:25
-	// per docs/adr/0131-bounded-ci-feedback.md:64
-	// per docs/adr/0131-bounded-ci-feedback.md:95
+	// per docs/adr/0131-bounded-ci-feedback.md:65
+	// per docs/adr/0131-bounded-ci-feedback.md:96
+	// per docs/adr/0131-bounded-ci-feedback.md:140
 	It("preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -853,7 +874,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldLinter, newLinter, 1)
 		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldSecurity, newSecurity, 1)
 		// per docs/adr/0131-bounded-ci-feedback.md:25
-		pairs := map[string]string{"base": "source-entrypoints", "release-handoff": "default-init", "local-upgrade": "local-init", "historical-recipe": "default-upgrade", "installation": "local-recovery"}
+		allocation := map[string][]string{"base": {"base"}, "release-handoff": {"release-handoff", "default-init"}, "local-upgrade": {"local-upgrade", "local-init"}, "historical-recipe": {"historical-recipe", "default-upgrade"}, "installation": {"installation", "local-recovery", "source-entrypoints"}}
 		byOS := map[string][]string{}
 		for _, identifier := range []string{"go-runtime", "go-runtime-installation"} {
 			job := candidate.Jobs[identifier]
@@ -872,17 +893,19 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
 				Expect(job.Strategy.Matrix.Group).To(ConsistOf("release-handoff", "local-upgrade", "historical-recipe", "installation"))
 				Expect(job.Strategy.Matrix.Include).To(HaveLen(4))
-				included := map[string]string{}
+				included := map[string][]string{}
 				for _, row := range job.Strategy.Matrix.Include {
-					Expect(row).To(HaveLen(2), "include must augment existing pairs, not add an OS or lane")
+					Expect(row).To(HaveLen(3), "include must augment existing lanes, not add an OS or primary group")
 					primary, ok := row["group"].(string)
 					Expect(ok).To(BeTrue())
 					followup, ok := row["followup"].(string)
 					Expect(ok).To(BeTrue())
+					tertiary, ok := row["tertiary"].(string)
+					Expect(ok).To(BeTrue())
 					Expect(included).NotTo(HaveKey(primary))
-					included[primary] = followup
+					included[primary] = []string{followup, tertiary}
 				}
-				Expect(included).To(Equal(map[string]string{"release-handoff": "default-init", "local-upgrade": "local-init", "historical-recipe": "default-upgrade", "installation": "local-recovery"}))
+				Expect(included).To(Equal(map[string][]string{"release-handoff": {"default-init", ""}, "local-upgrade": {"local-init", ""}, "historical-recipe": {"default-upgrade", ""}, "installation": {"local-recovery", "source-entrypoints"}}))
 				groups = job.Strategy.Matrix.Group
 			}
 			cache, pathStep, install, runner := sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}
@@ -915,10 +938,13 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			Expect(runner.If).To(BeEmpty(), "a cache hit never skips qualification")
 			Expect(runner.Shell).To(BeElementOf("", "bash"))
 			Expect(runner.Run).NotTo(ContainSubstring("matrix.os"), "the executed lane recipe is OS-neutral; both platforms remain independently hosted")
-			Expect(artifacts).To(HaveLen(2))
-			expressions := []string{"${{ matrix.group }}", "${{ matrix.followup }}"}
+			if identifier != "go-runtime" {
+				Expect(artifacts).To(HaveLen(3))
+			}
+			expressions := []string{"${{ matrix.group }}", "${{ matrix.followup }}", "${{ matrix.tertiary }}"}
 			if identifier == "go-runtime" {
-				expressions = []string{"base", "source-entrypoints"}
+				Expect(artifacts).To(HaveLen(1))
+				expressions = []string{"base"}
 			}
 			expectedArtifacts := map[string]string{}
 			for _, group := range expressions {
@@ -926,7 +952,11 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			}
 			for _, artifact := range artifacts {
 				Expect(artifact.Uses).To(Equal("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"))
-				Expect(artifact.If).To(Equal("always()"), "failed installation and followup groups retain their own reports")
+				artifactIf := "always()"
+				if artifact.With["name"] == "go-runtime-${{ matrix.tertiary }}-${{ runner.os }}-${{ runner.arch }}" {
+					artifactIf = "always() && matrix.tertiary != ''"
+				}
+				Expect(artifact.If).To(Equal(artifactIf), "every assigned group retains reports after failure")
 				name, ok := artifact.With["name"].(string)
 				Expect(ok).To(BeTrue())
 				Expect(expectedArtifacts).To(HaveKey(name))
@@ -935,7 +965,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			}
 			Expect(expectedArtifacts).To(BeEmpty())
 			if identifier == "go-runtime" {
-				Expect(job.Steps).To(HaveLen(10))
+				Expect(job.Steps).To(HaveLen(9))
 				Expect(cache.Uses).To(Equal("actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"))
 				Expect(cache.ID).To(Equal("quality-tools"))
 				Expect(cache.If).To(BeEmpty())
@@ -951,15 +981,22 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				normalizedInstall.If, normalizedInstall.Env = "", nil
 				Expect(normalizedInstall).To(Equal(original.Steps[4]), "preserve every exact quality-tool pin and installation operand")
 			} else {
-				Expect(job.Steps).To(HaveLen(7))
+				Expect(job.Steps).To(HaveLen(8))
 				Expect(cache.Uses).To(BeEmpty())
 				Expect(pathStep.Run).To(BeEmpty())
 				Expect(install.Run).To(BeEmpty(), "test-only lanes do not provision analyzers")
 			}
 			for _, primary := range groups {
-				followup := pairs[primary]
+				assigned := allocation[primary]
+				followup, tertiary := "", ""
+				if len(assigned) > 1 {
+					followup = assigned[1]
+				}
+				if len(assigned) > 2 {
+					tertiary = assigned[2]
+				}
 				for _, osName := range job.Strategy.Matrix.OS {
-					byOS[osName] = append(byOS[osName], primary, followup)
+					byOS[osName] = append(byOS[osName], assigned...)
 				}
 				type laneCase struct {
 					name, limit, fail, empty, quality string
@@ -969,12 +1006,12 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				if primary == "release-handoff" {
 					successLimit = "1"
 				}
-				scenarios := []laneCase{
-					{name: "success", limit: successLimit},
-					{name: "first-failure", limit: "4", fail: primary, warm: primary == "base"},
-					{name: "second-failure", limit: "4", fail: followup, warm: primary == "base"},
-					{name: "first-empty", limit: "4", empty: primary, warm: primary == "base"},
-					{name: "second-empty", limit: "4", empty: followup, warm: primary == "base"},
+				scenarios := []laneCase{{name: "success", limit: successLimit}}
+				positions := []string{"first", "second", "third"}
+				for index, group := range assigned {
+					scenarios = append(scenarios,
+						laneCase{name: positions[index] + "-failure", limit: "4", fail: group, warm: primary == "base"},
+						laneCase{name: positions[index] + "-empty", limit: "4", empty: group, warm: primary == "base"})
 				}
 				if primary == "base" {
 					scenarios = append(scenarios,
@@ -988,6 +1025,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					expand := func(value string) string {
 						value = strings.ReplaceAll(value, "${{ matrix.group }}", primary)
 						value = strings.ReplaceAll(value, "${{ matrix.followup }}", followup)
+						value = strings.ReplaceAll(value, "${{ matrix.tertiary }}", tertiary)
 						value = strings.ReplaceAll(value, "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}", scenario.limit)
 						return strings.ReplaceAll(value, "${{ runner.temp }}", fixture.root)
 					}
@@ -1031,7 +1069,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 						writeFixture(filepath.Join(fixture.root, "cases.json"), data, 0600)
 					}
 					status, calls, quality := sourceGateRun(fixture, "set -e -o pipefail\n"+expand(runner.Run), environment)
-					AddReportEntry("source-gate.workflow-lane", map[string]any{"primary": primary, "followup": followup, "scenario": scenario.name, "warm": scenario.warm, "cap": scenario.limit, "status": status, "quality": quality}, ReportEntryVisibilityNever)
+					AddReportEntry("source-gate.workflow-lane", map[string]any{"primary": primary, "groups": assigned, "scenario": scenario.name, "warm": scenario.warm, "cap": scenario.limit, "status": status, "quality": quality}, ReportEntryVisibilityNever)
 					if scenario.fail == "" && scenario.empty == "" && scenario.quality == "" {
 						Expect(status).To(Equal(0))
 					} else {
@@ -1046,15 +1084,15 @@ var _ = Describe("Go source qualification workflow partition", func() {
 							segments[len(segments)-1] = append(segments[len(segments)-1], call)
 						}
 					}
-					Expect(segments).To(HaveLen(2), "the second make invocation must run after a first failure")
+					Expect(segments).To(HaveLen(len(assigned)), "all assigned make invocations must run after any earlier failure")
 					for _, segment := range segments {
 						sourceGateAssertWorkerPlan(segment, "auto", scenario.limit)
 					}
 					sourceGateAssertInternal(calls, primary == "base" && scenario.quality != "gofmt")
 					tests := sourceGateTests(calls)
-					expectedGroups := []string{primary, followup}
+					expectedGroups := append([]string{}, assigned...)
 					if scenario.quality == "gofmt" {
-						expectedGroups = []string{followup}
+						expectedGroups = assigned[1:]
 					}
 					Expect(tests).To(HaveLen(len(expectedGroups)))
 					for index, group := range expectedGroups {

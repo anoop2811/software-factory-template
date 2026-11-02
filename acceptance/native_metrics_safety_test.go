@@ -264,11 +264,12 @@ var _ = Describe("Native Go metrics publication safety", func() {
 		Expect(exited.ExitCode()).To(Equal(1))
 		Expect(stderr.String()).To(ContainSubstring("output"))
 	})
+	// per docs/adr/0131-bounded-ci-feedback.md:127
 	DescribeTable("cancels an observed Git child before publication", func(signal syscall.Signal) {
 		root, cwd, environment := metricsFixture()
 		bin := filepath.Join(cwd, "blocked-git")
 		marker := filepath.Join(cwd, "git-pid")
-		writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/bash\nprintf '%s' \"$$\" > \"$METRICS_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
+		writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/bash\nprintf '%s\\n' \"$$\" > \"$METRICS_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "metrics", "--html", "--no-open") // #nosec G204 -- compiled fixture.
 		command.Dir, command.Env = cwd, append(environment, "PATH="+bin, "METRICS_PID_MARKER="+marker)
@@ -285,11 +286,11 @@ var _ = Describe("Native Go metrics publication safety", func() {
 			cancel()
 			Eventually(done, 3*time.Second).Should(BeClosed())
 		})
-		var raw []byte
-		Eventually(func() error { var err error; raw, err = os.ReadFile(marker); return err }, 5*time.Second).Should(Succeed())
-		var err error
-		pid, err = strconv.Atoi(string(raw))
-		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			var err error
+			pid, err = metricsPIDReceipt(marker)
+			return err
+		}, 5*time.Second).Should(Succeed())
 		Expect(command.Process.Signal(signal)).To(Succeed())
 		var waitErr error
 		Eventually(done, 7*time.Second).Should(Receive(&waitErr))
@@ -299,7 +300,7 @@ var _ = Describe("Native Go metrics publication safety", func() {
 		Expect(stderr.String()).To(ContainSubstring("cancel"))
 		Expect(syscall.Kill(pid, 0)).To(Equal(syscall.ESRCH))
 		pid = 0
-		_, err = os.Stat(filepath.Join(cwd, ".factory/metrics.html"))
+		_, err := os.Stat(filepath.Join(cwd, ".factory/metrics.html"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, Entry("SIGINT", syscall.SIGINT), Entry("SIGTERM", syscall.SIGTERM))
 	It("keeps event data inert in the generated script element", func() {
@@ -400,3 +401,23 @@ var _ = Describe("Native Go metrics publication safety", func() {
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	}, Entry("FIFO", "fifo"), Entry("large", "large"), Entry("binary", "binary"))
 })
+
+// A PID is admitted only after its complete positive receipt is published.
+// per docs/adr/0131-bounded-ci-feedback.md:127
+func metricsPIDReceipt(path string) (int, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	if !strings.HasSuffix(string(raw), "\n") {
+		return 0, errors.New("incomplete metrics PID receipt")
+	}
+	pid, err := strconv.Atoi(strings.TrimSuffix(string(raw), "\n"))
+	if err != nil {
+		return 0, err
+	}
+	if pid <= 0 {
+		return 0, errors.New("metrics PID must be positive")
+	}
+	return pid, nil
+}

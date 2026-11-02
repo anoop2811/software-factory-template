@@ -10,4 +10,5 @@ Provenance: observed 2026-11-02 by reading GitHub job timestamps and Ginkgo JSON
 artifacts for https://github.com/anoop2811/software-factory-template/actions/runs/41370385630.
 The separate successful run 41385426253 was already faster before the performance
 change. Retain both baselines and report setup/cache differences when measuring.
-The scheduling and coverage contract remains in docs/adr/0131-bounded-ci-feedback.md:17.
+The scheduling contract remains in docs/adr/0131-bounded-ci-feedback.md:33;
+criterion-preservation requirements remain in docs/adr/0131-bounded-ci-feedback.md:89.

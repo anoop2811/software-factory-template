@@ -38,13 +38,13 @@ removed. The repository's required status check is `selftest`, as read on
 | historical-recipe | default-upgrade |
 | installation | local-recovery |
 
-These fixed pairs minimize the longest paired duration across both retained
-baselines (1,597 seconds before removing duplicated setup/quality), and reduce this workflow from
-ten to five macOS jobs, avoiding its own second wave of queued jobs. They do not
-reserve account capacity or guarantee priority over other workflows. Retain both
-OS matrix values, fail-fast false, existing PR-only supersession, immutable
-action pins and full-history source checkout. Do not depend on matrix creation
-order as a scheduling guarantee.
+These fixed pairs minimize the longest sum of old job durations across both
+baselines. The maximum is 1,161 + 436 = 1,597 seconds for release-handoff plus
+default-init in run 41385426253, before duplicated setup/quality is removed.
+This is a scheduling estimate, not measured new latency. Five macOS jobs avoid
+this workflow's own second wave; other workflows still compete for capacity.
+Retain both OS values, fail-fast false, PR-only supersession, immutable action
+pins and full history. Matrix creation order does not guarantee job priority.
 
 Attempt both groups after a group failure and return a nonzero lane status if
 either fails. Cancellation remains cancellation. Keep independent JSON/JUnit

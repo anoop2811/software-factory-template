@@ -282,9 +282,12 @@ var _ = Describe("Go source runtime entrypoints prerequisite adapter", func() {
 
 	// per docs/adr/0130-go-source-prerequisite-entrypoint.md:82
 	// per docs/adr/0130-go-source-prerequisite-entrypoint.md:89
+	// Historical-only custody after native direct evaluation replaces this guard.
+	// per docs/adr/0132-go-source-golden-evaluation.md:45
 	It("refuses retained golden evaluation without Python before creating scratch or invoking a runner", func() {
-		body, err := os.ReadFile("../scripts/golden-task-eval.sh")
-		Expect(err).NotTo(HaveOccurred())
+		frozen := imageProcess("..", map[string]string{"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull}, "git", "show", "f3a0b6520917e104883cc89b123d7244fa0c46a7:scripts/golden-task-eval.sh")
+		Expect(frozen.status).To(Equal(0), "%+v", frozen)
+		body := []byte(frozen.stdout)
 		var violations []string
 		for _, mode := range []string{"help", "no-tasks", "runner-validation", "missing-python"} {
 			root, assets := fixtureDirectories()

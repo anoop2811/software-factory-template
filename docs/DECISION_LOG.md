@@ -5916,3 +5916,44 @@ path its own early presence check after help/task/runner validation, before scra
 files or potentially paid runner work. Keep the Go prerequisite owner Python-free
 and preserve accurate inventory entries for pending source conversion. ADR 0130's
 added retained-evaluator contract requires independent RED and runner-absence proof.
+
+## Decision 147 (2026-11-02 UTC): resume R3 with native direct golden evaluation
+
+The operator stopped further performance work on PR #162 and requested completion
+of R3. Resume conversion on a separate branch based on merged PR #161. PR #162
+is still open at this decision; no merge or performance outcome is assumed here.
+
+Apply [ADR 0132](adr/0132-go-source-golden-evaluation.md) to the direct golden
+evaluator and its Make target. Reuse `internal/evalcmd`; remove the duplicate
+Bash/Python evaluator from this active entrypoint while preserving caller-owned
+tasks, explicit runners, result schemas, fingerprints and failure behavior.
+Independent outside-in RED must precede replacement. Keep historical regression
+inputs coherent and explicitly test-only, with no production fallback.
+
+Track remaining R3 command, helper and proof cleanup separately. This decision
+authorizes the implementation boundary, not a completed test, merged PR, published
+candidate or closed release gate.
+
+Decision 147 local qualification (2026-11-02 UTC): the independent author ran
+`rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -count=1 -timeout=5m ./acceptance -ginkgo.focus='Native orchestration eval|Go source runtime entrypoints golden evaluation adapter|refuses retained golden evaluation without Python' -ginkgo.no-color -ginkgo.json-report=../golden-and-native-eval.json`
+in `.factory/qualification/r3-golden/private-source`; output:
+`ok github.com/anoop2811/software-factory-template/acceptance 27.385s`.
+The report records 42 passed, zero failed. Before replacement, the three new
+criteria failed against the original script; its no-Python case reported
+`golden-task-eval: this retained script requires python3; use ./factory eval golden for native evaluation.`
+Independent report comparison found exactly three new criteria, 3229 to 3232,
+without removing or reducing any prior criterion. The historical Python guard
+now reads its immutable PR #161 source instead of asserting a retired dependency
+against the current native route.
+
+The affected historical suites ran in a separate private copy and reported
+`selftest: 217 passed, 0 failed, 0 skipped` and `optional-packs: 3 passed, 0 failed`.
+The first full-suite attempt inherited the implementer role and failed its
+unset-role control; the corrected fixture environment passed without a code
+change. Source-review lenses found no correctness, security or evidence findings.
+Local `go vet ./...`, shell syntax, shellcheck, Ginkgo dialect, workflow,
+hook-existence and native copy-inventory checks exited zero. The ordinary local
+linter refused because its build toolchain was older than the module; the existing
+qualified linter then reported `0 issues.` with `packs/go/.golangci.yml`.
+These are local results; hosted qualification, merge and the remaining R3 paths
+are still open.

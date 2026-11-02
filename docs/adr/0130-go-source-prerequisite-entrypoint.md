@@ -90,3 +90,7 @@ Independent outside-in acceptance must first observe the old script invoke an
 owned runner before failing for missing Python. Then require the clear early
 failure, no runner invocation and no published result, alongside unchanged help
 and empty-task outcomes. Keep every existing criterion and discover the new census.
+
+Historical scope: [ADR 0132](0132-go-source-golden-evaluation.md) replaces this
+direct evaluator with native routing. The prerequisite behavior above remains an
+immutable regression fixture, not a current Python runtime requirement.

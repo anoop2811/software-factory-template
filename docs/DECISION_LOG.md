@@ -6119,3 +6119,112 @@ retained actual adapter, child-start, group-absence, oracle and private-token
 witnesses. No paid harness ran. Receipts are under the ignored
 `.factory/qualification/r3-runners/` directory; hosted checks, their review
 responses and merge remain pending. Full `make check` was not run locally.
+
+Decision 148 hosted qualification correction (2026-11-03 UTC): run
+[41591918079](https://github.com/anoop2811/software-factory-template/actions/runs/41591918079)
+exposed fixture portability errors that the serial local run did not reveal.
+The mock scoring criterion invoked the existing Bash golden adapter through
+`/bin/sh`; Ubuntu's shell rejected its Bash substitution. Invoke that adapter
+through its declared interpreter and retain the new POSIX runner invocation
+criteria. The bootstrap witness also recorded unrelated subsidiary Bash
+startups, overwriting the intended launcher arguments on macOS. Restrict the
+witness to the exact owned launcher and `eval run` arguments, preserving its
+real-process evidence. Neither correction changes production behavior or
+relaxes scoring, custody or process-exit assertions. Independently investigate
+the remaining macOS compiler-cancellation failure before deciding its remedy.
+
+Decision 148 fixture custody refinement: the hosted review identified that the
+test binary's detached-child mode accepted its private argv marker without
+checking the fixture environment. Require an absolute readiness path under the
+explicit private temporary directory and a working directory within that owner
+before writing or spawning. Exercise refusals in the existing receipt criterion.
+Pre-readiness child failures already have an owning kill/wait path; additionally,
+retain and report the fixture directory if cleanup cannot recover a valid child
+identity after handoff. Do not signal an unproven PID or weaken the immediate
+live-child evidence. These safeguards apply only to the test helper.
+
+Decision 148 bare-script owner correction: independent review reproduced
+`sh mock.sh` finding the runner through PATH while leaving `$0` bare. From a
+foreign working directory the adapter then executed that directory's unrelated
+factory. Refuse a bare operand without a caller-local regular readable script
+before resolving any parent; retain local bare invocation and explicit paths,
+including ordinary direct PATH execution. Do not attempt a second PATH search
+with potentially different shell semantics. Independently require every runner
+to refuse the ambiguous form without executing an unrelated factory.
+
+Decision 148 compiler shutdown correction: the macOS job returned an ownership
+error with the separately grouped compiler still present. An independent private
+probe reproduced the same failure by adding 80 ms of scheduling delay before
+each cleanup sleep: the outer controller exhausted its existing two-second
+cooperative grace while the source launcher was still polling before escalation.
+Reduce process creation inside that loop: probe a present group with the Bash
+builtin directly, capturing diagnostics only after failure, and use five 100 ms
+TERM polls and ten 100 ms KILL polls. This retains the nominal half-second and
+one-second phase allowances while reducing sleep launches by 80 percent. Keep
+absence/error classification, admission, child reap, conventional signal status
+and uncertain-build retention intact. Do not enlarge the global grace or task
+timeout. Require independent delayed-cleanup RED/GREEN plus the existing source
+signal and nested cancellation regressions before accepting this correction.
+
+Decision 148 truncated receipt correction: independent review refuted the
+suggested false oracle pass on stderr overflow, but reproduced a narrower
+custody failure. A custom controller emitted a valid uncertainty receipt after
+16 MiB of diagnostics and exited normally; capture overflow suppressed the
+oracle yet the evaluator published zero and deleted work still used by the
+controller's detached child. Treat an external runner's output-limit result as
+incomplete nested-ownership evidence: return an error, preserve and identify its
+private work, and publish no score. Keep native direct-harness output handling
+and ordinary custom nonzero scoring unchanged. Record this explicit EX-002
+difference and require an independent overflow/retention regression before code.
+
+Decision 148 Bash witness clarification: an independent comparison of system
+Bash 3.2 and the locally preferred Bash showed that Bash 3.2 reads BASH_ENV before
+assigning the script's `$0` and positional operands. Filtering at startup alone
+therefore misses the intended launcher on that host. Install a private DEBUG
+witness which records only after the actual owned launcher and `eval run`
+operands become visible, then disables itself. Exercise the system Bash in this
+fixture and preserve the later unrelated-startup negative control. Apply the
+same actual-execution identity check to the private delayed-cleanup injection.
+A missing delay marker is a fixture failure, not evidence of a runtime defect;
+rerun its RED against the committed launcher before claiming that regression.
+
+Decision 148 cold-fixture startup allowance: the two-worker source qualification
+recorded the delayed fixture returning a one-second timeout before any compiler
+PID/handshake existed; the ordinary cold case in the same run completed cleanup.
+Allow three seconds of task execution only in the cold-compiler fixtures so the
+instrumented source startup can reach the process whose cleanup is under test.
+Keep their live-start witness, injected scheduling cost, eight-second completion
+bound and actual PID/group absence assertions. Production timeouts and the
+outer two-second shutdown grace stay unchanged, as do the other one-second
+runner fixtures. Re-establish the old-launcher cleanup failure at this allowance
+before accepting the corrected-launcher result; a pre-start timeout cannot stand
+in for either RED or GREEN ownership evidence.
+
+Decision 148 corrected local qualification (2026-11-03 UTC): in a private clone
+with the qualified Go-compatible quality tools and the healthy local historical
+Python 3.12.0 on PATH, `FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local make
+go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2
+GO_RUNTIME_REPORT_DIR=../ci-make-source-qualified` exited zero. Its output was
+`Ran 54 of 3258 Specs in 118.188 seconds` and
+`54 Passed | 0 Failed | 0 Pending | 3204 Skipped`. Lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported zero vulnerabilities
+affecting the code; it separately listed ten module-only, uncalled findings.
+This is the source group, not an assertion that every Make group ran locally.
+
+In a separate private clone, the command
+`FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -run '^TestAcceptance$'
+-count=1 -timeout=10m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Native orchestration eval( |$)'
+-ginkgo.fail-on-empty -ginkgo.json-report=../ci-native-eval-final.json -v`
+reported `Ran 38 of 3258 Specs in 29.432 seconds` and
+`38 Passed | 0 Failed | 0 Pending | 3220 Skipped`.
+
+The source report retains the actual delayed five-poll witness, absent compiler
+PID/group before fixture cleanup, and complete 16,777,327-byte overflow emission
+with a live detached child, retained work and no oracle/results. Independent
+correctness/security probes reproduced those outcomes and preserved ordinary
+custom exit-1/125 scoring. The test reviewer independently parsed the final
+two-worker report. Raw receipts are under
+`.factory/qualification/r3-runners/ci-make-source-qualified/` and
+`ci-native-eval-final.json`; fresh hosted checks/review and merge remain pending.

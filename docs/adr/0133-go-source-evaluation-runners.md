@@ -148,3 +148,44 @@ uncertainty receipt if cleanup discovers more; uncertainty always wins. Source
 bootstrap reporting is lightweight shell transport because the Go runtime may
 not yet exist. Qualify natural compiler failure and injected observation
 uncertainty through the real source runner/evaluator boundary without a timeout.
+
+## Bare shell operands
+
+Some shells locate `sh mock.sh` through PATH but leave `$0` as `mock.sh`.
+Without a caller-local regular readable script, that name does not establish
+the runner's owner. Refuse it before parent traversal rather than selecting a
+factory relative to the caller or repeating a potentially different PATH search.
+Use an explicit script path for this form. Local `sh mock.sh` from the runner
+directory and ordinary direct PATH execution remain supported; the existing
+final-file symlink refusal still applies. Qualification must put an unrelated
+factory above the foreign caller and prove that none of the five adapters
+executes it.
+
+## Compiler cleanup under nested supervision
+
+The source compiler is separately grouped from its controller. Its existing
+nominal half-second TERM grace must leave time for force and reap within the
+outer supervisor's existing two-second cooperative grace. Repeated subshell and
+sleep launches add scheduling cost beyond their requested sleep durations.
+Probe a present group with the Bash builtin without a subshell; capture a failed
+probe separately to retain explicit absence versus observation uncertainty.
+Poll at 100 ms for five TERM and ten KILL observations, preserving the nominal
+phase allowances with fewer spawned sleeps. Keep admission, actual child reap,
+signal statuses and retained-build uncertainty unchanged. The bounded source
+fixture must exercise delayed cleanup scheduling as well as ordinary execution.
+This correction adds no dependency and does not enlarge task or global grace
+limits. As with any process supervision, scheduler stalls can still exhaust a
+deadline; such exhaustion must remain an ownership error, never a successful run.
+
+## Incomplete external receipt capture
+
+An external controller can exit normally after reporting a nested ownership
+failure. If captured output exceeds its bound, the parent's receipt channel
+may be incomplete even when that direct process has exited. Treat an external
+runner's `output_limit` result as uncertain nested ownership: return an error,
+retain and identify its private task directory, and invoke no oracle or score
+publication. A deliberately chatty controller must not cause live inputs to be
+deleted merely by placing its uncertainty receipt beyond the capture limit.
+Qualify this with a real detached-child witness and observed overflow. Preserve
+the existing native direct-harness behavior and ordinary custom nonzero scoring;
+only the incomplete external-controller boundary receives this stricter rule.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -58,10 +59,12 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\nexit 0\n"), 0700)
 	tools, ready := filepath.Join(base, "tools"), filepath.Join(base, "harness started")
 	sourceOwner, sourceBefore := "", map[string]string(nil)
+	sourceCompiler := external == "source-compiler" || external == "source-compiler-slow"
+	delayedPolls := filepath.Join(base, "delayed source polls")
 	harnessCalled := filepath.Join(base, "HARNESS_CALLED")
 	body := "#!/bin/sh\nprintf 'FIXED\\n' > answer.txt\nprintf '%s\\t%s\\n' \"$$\" \"$PWD\" >> \"$SOURCE_RUNNER_READY\"\nexec /bin/sleep 60\n"
 	switch {
-	case external == "source-compiler":
+	case sourceCompiler:
 		sourceOwner = filepath.Join(base, "cold source owner")
 		launcher, err := os.ReadFile("../factory")
 		Expect(err).NotTo(HaveOccurred())
@@ -91,7 +94,30 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		"SOURCE_RUNNER_HARNESS_CALLED": harnessCalled,
 		"GIT_CONFIG_NOSYSTEM":          "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 	}
-	args := []string{"--harness", "claude", "--runs", "1", "--timeout", "1"}
+	if external == "source-compiler-slow" {
+		// Delay only the actual source controller's cleanup polling, keeping its
+		// shipped bytes and the outer supervisor's deadline unchanged.
+		// per docs/adr/0133-go-source-evaluation-runners.md:166
+		startup := filepath.Join(base, "delayed polling.sh")
+		writeFixture(startup, []byte(`set -T
+trap 'if [ "$0" = "$SOURCE_RUNNER_DELAYED_LAUNCHER" ]; then
+  case "$BASH_COMMAND" in
+    "/bin/sleep 0.02"|"/bin/sleep 0.1") printf "delay\n" >> "$SOURCE_RUNNER_DELAYED_POLLS"; /bin/sleep 0.08 ;;
+  esac
+fi' DEBUG
+`), 0600)
+		environment["BASH_ENV"] = startup
+		environment["SOURCE_RUNNER_DELAYED_LAUNCHER"] = filepath.Join(sourceOwner, "factory")
+		environment["SOURCE_RUNNER_DELAYED_POLLS"] = delayedPolls
+	}
+	timeoutSeconds := 1
+	if sourceCompiler {
+		// Leave startup headroom for system Bash with the test-only DEBUG witness.
+		// The nested supervisor's cleanup grace remains unchanged.
+		// per docs/adr/0133-go-source-evaluation-runners.md:166
+		timeoutSeconds = 3
+	}
+	args := []string{"--harness", "claude", "--runs", "1", "--timeout", strconv.Itoa(timeoutSeconds)}
 	if mode == "parent-cancellation" {
 		args[len(args)-1] = "60"
 	}
@@ -163,6 +189,9 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		if !joined || (group > 1 && !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)) {
 			holdFixtureCleanup(base, "evaluation process did not join after owned cancellation fixture cleanup")
 		}
+		if joined {
+			AddReportEntry("source-runner.fixture-cleanup", map[string]any{"external": external, "pid": pid, "group": group, "status": command.ProcessState.ExitCode(), "stdout": stdout.String(), "stderr": stderr.String()}, ReportEntryVisibilityNever)
+		}
 	})
 	Eventually(func() bool {
 		pid, work = readReady()
@@ -186,6 +215,12 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	Eventually(finished, 8*time.Second).Should(Receive(&returned), "cancellation remains bounded, including a TERM-ignoring runner")
 	joined = true
 	Expect(ctx.Err()).NotTo(HaveOccurred())
+	if external == "source-compiler-slow" {
+		polls, err := os.ReadFile(delayedPolls)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(polls)).To(ContainSubstring("delay\n"), "the controlled cleanup scheduling delay must actually execute")
+		AddReportEntry("source-runner.delayed-source-polls", map[string]any{"delay_ms": 80, "polls": bytes.Count(polls, []byte("delay\n"))}, ReportEntryVisibilityNever)
+	}
 	pidAbsent := errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
 	groupAbsent := errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
 	AddReportEntry("source-runner.nested-shutdown", map[string]any{"mode": mode, "explicit": explicit, "external": external, "parent_pid": command.Process.Pid, "harness_pid": pid, "harness_group": group, "pid_absent_before_cleanup": pidAbsent, "group_absent_before_cleanup": groupAbsent, "status": command.ProcessState.ExitCode(), "stdout": stdout.String(), "stderr": stderr.String()}, ReportEntryVisibilityNever)
@@ -210,7 +245,7 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	}
 	Expect(stdout.String()).NotTo(ContainSubstring("1/1 passed"))
 	resultPath := filepath.Join(root, "eval/results/claude-current.json")
-	if mode == "parent-cancellation" || (external != "" && external != "source-compiler") {
+	if mode == "parent-cancellation" || (external != "" && !sourceCompiler) {
 		Expect(returned).To(HaveOccurred())
 		Expect(command.ProcessState.ExitCode()).NotTo(Equal(0))
 		_, err = os.Lstat(resultPath)
@@ -229,7 +264,7 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		}
 	} else {
 		Expect(returned).NotTo(HaveOccurred(), "%s", stderr.String())
-		Expect(stdout.String()).To(ContainSubstring("hit the 1s cap"))
+		Expect(stdout.String()).To(ContainSubstring("hit the " + strconv.Itoa(timeoutSeconds) + "s cap"))
 		data, err := os.ReadFile(resultPath)
 		Expect(err).NotTo(HaveOccurred())
 		var result orchestrationResults
@@ -255,13 +290,18 @@ func init() {
 	if len(os.Args) < 3 || os.Args[1] != sourceRunnerDetachedHandshake {
 		return
 	}
+	path, base := os.Getenv("SOURCE_RUNNER_DETACHED_READY"), os.Getenv("TMPDIR")
+	work, err := os.Getwd()
+	relative, relativeErr := filepath.Rel(base, work)
+	if err != nil || relativeErr != nil || !filepath.IsAbs(base) || !filepath.IsAbs(path) || filepath.Dir(path) != filepath.Clean(base) ||
+		relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		os.Exit(95)
+	}
 	if os.Args[2] == "hold" {
-		work, err := os.Getwd()
 		_, present := os.LookupEnv("FACTORY_EVAL_OWNERSHIP_TOKEN")
 		receipt := sourceRunnerDetachedReceipt{os.Getpid(), syscall.Getpgrp(), work, present}
 		data, encodeErr := json.Marshal(receipt)
-		path := os.Getenv("SOURCE_RUNNER_DETACHED_READY")
-		if err != nil || encodeErr != nil || os.WriteFile(path+".pending", data, 0600) != nil || os.Rename(path+".pending", path) != nil { // #nosec G703 -- readiness destination belongs to the private evaluator fixture; no production input enables this mode.
+		if encodeErr != nil || os.WriteFile(path+".pending", data, 0600) != nil || os.Rename(path+".pending", path) != nil { // #nosec G703 -- absolute readiness destination is a direct child of the explicitly supplied private TMPDIR, with cwd containment checked before any mutation; no production input enables this mode.
 			os.Exit(96)
 		}
 		ready := os.NewFile(3, "detached child ready")
@@ -272,8 +312,12 @@ func init() {
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
 	}
-	if os.Args[2] != "cli" {
+	overflow := os.Args[2] == "overflow"
+	if os.Args[2] != "cli" && !overflow {
 		os.Exit(98)
+	}
+	if overflow {
+		signal.Ignore(syscall.SIGTERM, syscall.SIGPIPE)
 	}
 	if err := os.WriteFile("answer.txt", []byte("FIXED\n"), 0600); err != nil {
 		os.Exit(99)
@@ -288,7 +332,9 @@ func init() {
 	}
 	child := exec.Command(executable, sourceRunnerDetachedHandshake, "hold") // #nosec G204 -- current evaluator image and fixed private fixture mode; no shell command is constructed.
 	child.Env = os.Environ()
-	child.Stdout, child.Stderr = os.Stdout, os.Stderr
+	if !overflow {
+		child.Stdout, child.Stderr = os.Stdout, os.Stderr
+	}
 	child.ExtraFiles = []*os.File{readyWriter}
 	child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := child.Start(); err != nil {
@@ -304,6 +350,18 @@ func init() {
 	select {
 	case ok := <-observed:
 		if ok {
+			if overflow {
+				payload := []byte("\nfactory-eval-result-v1 " + os.Getenv("FACTORY_EVAL_OWNERSHIP_TOKEN") + " ownership-unconfirmed\n")
+				if os.Getenv("SOURCE_RUNNER_CAPTURE_OVERFLOW") == "1" {
+					payload = append(bytes.Repeat([]byte{'x'}, 16<<20), payload...)
+				}
+				written, writeErr := os.Stderr.Write(payload)
+				completed := strconv.Itoa(written) + "/" + strconv.Itoa(len(payload)) + "/" + strconv.FormatBool(writeErr == nil) + "\n"
+				if os.WriteFile(path+".written", []byte(completed), 0600) != nil { // #nosec G703 -- readiness sibling is within the same explicitly validated private TMPDIR; only this test fixture produces the completion witness.
+					os.Exit(103)
+				}
+				os.Exit(125)
+			}
 			os.Exit(0)
 		}
 	case <-time.After(5 * time.Second):
@@ -319,17 +377,19 @@ func sourceRunnerDetachedCleanup(base, ready string) {
 	GinkgoHelper()
 	DeferCleanup(func() {
 		var receipt sourceRunnerDetachedReceipt
-		if data, err := os.ReadFile(ready); err == nil && json.Unmarshal(data, &receipt) == nil &&
-			receipt.PID > 1 && receipt.Group == receipt.PID && receipt.Group != syscall.Getpgrp() {
-			if group, err := syscall.Getpgid(receipt.PID); err == nil && group == receipt.Group {
-				_ = syscall.Kill(-group, syscall.SIGKILL)
-			}
-			for attempt := 0; attempt < 150 && !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH); attempt++ {
-				time.Sleep(20 * time.Millisecond)
-			}
-			if !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH) {
-				holdFixtureCleanup(base, "detached evaluation fixture group remains present after owned cleanup")
-			}
+		data, err := os.ReadFile(ready)
+		if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.PID <= 1 || receipt.Group != receipt.PID || receipt.Group == syscall.Getpgrp() {
+			holdFixtureCleanup(base, "detached evaluation fixture receipt is unavailable or invalid; process custody is unknown")
+			return
+		}
+		if group, err := syscall.Getpgid(receipt.PID); err == nil && group == receipt.Group {
+			_ = syscall.Kill(-group, syscall.SIGKILL)
+		}
+		for attempt := 0; attempt < 150 && !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH); attempt++ {
+			time.Sleep(20 * time.Millisecond)
+		}
+		if !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH) {
+			holdFixtureCleanup(base, "detached evaluation fixture group remains present after owned cleanup")
 		}
 	})
 }
@@ -485,6 +545,30 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 				Expect(installationSnapshot(owner)).To(Equal(beforeOwner))
 				Expect(installationSnapshot(physicalCaller)).To(Equal(beforeCaller))
 			}
+		}
+		// Bare shell lookup must not turn the caller's grandparents into an owner.
+		// per docs/adr/0133-go-source-evaluation-runners.md:154
+		owner, caller := fixtureDirectories()
+		program := sourceRunnerAdapter(owner, harness)
+		base := filepath.Dir(owner)
+		ownerCalled, foreignCalled := filepath.Join(base, "LOCAL_OWNER_CALLED"), filepath.Join(base, "FOREIGN_OWNER_CALLED")
+		writeFixture(filepath.Join(owner, "factory"), []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" > \"$SOURCE_ENTRY_OWNER\"\nexit 63\n"), 0700)
+		writeFixture(filepath.Join(caller, "factory"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_ENTRY_FOREIGN\"\nexit 64\n"), 0700)
+		foreignCWD := filepath.Join(caller, "x", "y")
+		Expect(os.MkdirAll(foreignCWD, 0700)).To(Succeed())
+		environment := map[string]string{"PATH": filepath.Dir(program) + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "SOURCE_ENTRY_OWNER": ownerCalled, "SOURCE_ENTRY_FOREIGN": foreignCalled}
+		bare := filepath.Base(program)
+		local := sourceRunnerInvoke(filepath.Dir(program), environment, "", bare, true, "literal work")
+		Expect(local).To(Equal(cliResult{"", "", 63}), "bare shell invocation in the actual runner directory remains supported")
+		Expect(os.ReadFile(ownerCalled)).To(Equal([]byte("eval\x00run\x00" + harness + "\x00literal work\x00")))
+		Expect(os.Remove(ownerCalled)).To(Succeed())
+		foreign := sourceRunnerInvoke(foreignCWD, environment, "", bare, true, "literal work")
+		Expect(foreign.status).To(Equal(2), "PATH-searched bare shell invocation must refuse before choosing a caller-relative owner: %+v", foreign)
+		Expect(foreign.stdout).To(BeEmpty())
+		Expect(foreign.stderr).NotTo(BeEmpty())
+		for _, path := range []string{ownerCalled, foreignCalled} {
+			_, err := os.Lstat(path)
+			Expect(os.IsNotExist(err)).To(BeTrue(), "bare PATH shell invocation must not execute any factory owner: %s", path)
 		}
 	}, Entry("mock", "mock"), Entry("Claude", "claude"), Entry("Codex", "codex"), Entry("OpenCode", "opencode"), Entry("unwired example", "example-harness"))
 
@@ -708,13 +792,13 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 		}
 		beforeOwner := installationSnapshot(owner)
 		var baseline []byte
-		for index, mode := range []string{"pass", "fail", "cheat"} {
+		for _, mode := range []string{"pass", "fail", "cheat"} {
 			environment["FACTORY_MOCK_MODE"] = mode
 			args := []string{"--harness", "mock", "--runner", program, "--runs", "1"}
 			if mode == "pass" {
 				args = append(args, "--save-baseline")
 			}
-			observed := sourceRunnerInvoke(caller, environment, "", golden, index%2 != 0, args...)
+			observed := sourceRunnerInvoke(caller, environment, "", golden, false, args...)
 			current := orchestrationReadResults(caller, "current")
 			Expect(current.Runner).To(Equal(program))
 			Expect(current.Tasks).To(HaveLen(1))
@@ -773,7 +857,9 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 	// per docs/adr/0133-go-source-evaluation-runners.md:61
 	// per docs/adr/0133-go-source-evaluation-runners.md:83
 	It("settles a cold source compiler group before the outer golden timeout returns", func() {
-		sourceRunnerCancellation("timeout", true, "source-compiler")
+		for _, mode := range []string{"source-compiler", "source-compiler-slow"} {
+			sourceRunnerCancellation("timeout", true, mode)
+		}
 	})
 
 	// per docs/adr/0133-go-source-evaluation-runners.md:111
@@ -825,6 +911,62 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 			for _, forbidden := range []string{oracleCalled, filepath.Join(root, "eval/results/claude-current.json")} {
 				_, err = os.Lstat(forbidden)
 				Expect(os.IsNotExist(err)).To(BeTrue(), "uncertain nested ownership must neither score nor publish: %s", forbidden)
+			}
+		}
+	})
+
+	// per docs/adr/0133-go-source-evaluation-runners.md:182
+	It("retains live task custody when an external runner exceeds the receipt capture bound", func() {
+		for _, overflow := range []bool{false, true} {
+			root, _ := fixtureDirectories()
+			base := filepath.Dir(root)
+			writeFixture(filepath.Join(root, "factory"), candidateBinary, 0700)
+			golden := sourceGoldenAdapter(root)
+			writeFixture(filepath.Join(root, "factory.yaml"), []byte("review_lane: off\n"), 0600)
+			writeFixture(filepath.Join(root, "AGENTS.md"), []byte("Private incomplete receipt fixture.\n"), 0600)
+			orchestrationTask(root, "reference-answer")
+			ready, oracleCalled := filepath.Join(base, "external child ready"), filepath.Join(base, "ORACLE_CALLED")
+			writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\nexit 0\n"), 0700)
+			runner := filepath.Join(root, "custom external controller")
+			writeFixture(runner, []byte("#!/bin/sh\ncd \"$1\" || exit 94\nexec \"$SOURCE_RUNNER_FIXTURE\" "+sourceRunnerDetachedHandshake+" overflow\n"), 0700)
+			environment := map[string]string{
+				"PATH": "/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
+				"FACTORY_CONFIG": filepath.Join(root, "factory.yaml"), "SOURCE_RUNNER_FIXTURE": sourceCompilerHelperImage,
+				"SOURCE_RUNNER_DETACHED_READY": ready, "SOURCE_RUNNER_ORACLE_CALLED": oracleCalled,
+				"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
+			}
+			if overflow {
+				environment["SOURCE_RUNNER_CAPTURE_OVERFLOW"] = "1"
+			}
+			sourceRunnerDetachedCleanup(base, ready)
+			observed := sourceRunnerInvoke(root, environment, "", golden, false, "--harness", "mock", "--runner", runner, "--runs", "1", "--timeout", "10")
+			data, err := os.ReadFile(ready)
+			Expect(err).NotTo(HaveOccurred())
+			var receipt sourceRunnerDetachedReceipt
+			Expect(json.Unmarshal(data, &receipt)).To(Succeed())
+			Expect(receipt.PID).To(BeNumerically(">", 1))
+			Expect(receipt.Group).To(Equal(receipt.PID))
+			Expect(receipt.Group).NotTo(Equal(syscall.Getpgrp()))
+			Expect(syscall.Kill(receipt.PID, 0)).To(Succeed(), "the detached devnull child remains alive independently of the exited controller")
+			Expect(syscall.Kill(-receipt.Group, 0)).To(Succeed())
+			Expect(receipt.TokenPresent).To(BeTrue(), "the selected custom controller receives this attempt's private receipt token")
+			written, err := os.ReadFile(ready + ".written")
+			Expect(err).NotTo(HaveOccurred())
+			expectedBytes := len("\nfactory-eval-result-v1 " + strings.Repeat("a", 64) + " ownership-unconfirmed\n")
+			if overflow {
+				expectedBytes += 16 << 20
+			}
+			Expect(string(written)).To(Equal(strconv.Itoa(expectedBytes)+"/"+strconv.Itoa(expectedBytes)+"/true\n"), "the real controller must finish writing the complete receipt after the requested output volume")
+			AddReportEntry("source-runner.incomplete-receipt", map[string]any{"overflow": overflow, "status": observed.status, "stdout": observed.stdout, "stderr": observed.stderr, "receipt": receipt, "written": string(written)}, ReportEntryVisibilityNever)
+			Expect(observed.status).To(Equal(1), "%+v", observed)
+			Expect(observed.stderr).To(ContainSubstring(strconv.Quote(receipt.Work)))
+			Expect(observed.stdout).NotTo(ContainSubstring("hit the 10s cap"))
+			Expect(observed.stdout).NotTo(ContainSubstring("1/1 passed"))
+			Expect(observed.stderr).NotTo(ContainSubstring("factory-eval-result-v1"))
+			Expect(os.ReadFile(filepath.Join(receipt.Work, "answer.txt"))).To(Equal([]byte("FIXED\n")))
+			for _, forbidden := range []string{oracleCalled, filepath.Join(root, "eval/results/mock-current.json")} {
+				_, err = os.Lstat(forbidden)
+				Expect(os.IsNotExist(err)).To(BeTrue(), "incomplete external ownership reporting must neither score nor publish: %s", forbidden)
 			}
 		}
 	})
@@ -932,6 +1074,9 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 		for _, name := range []string{"bash", "sh", "mktemp", "rm"} {
 			path, err := exec.LookPath(name)
 			Expect(err).NotTo(HaveOccurred())
+			if name == "bash" {
+				path = "/bin/bash"
+			}
 			path, err = filepath.EvalSymlinks(path)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(os.Symlink(path, filepath.Join(tools, name))).To(Succeed())
@@ -942,15 +1087,26 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 			writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nprintf '%s\\n' \"$$\" > \"$SOURCE_BOOTSTRAP_COMPILER_PID\"\nprintf 'controlled compiler failure\\n' >&2\nexit 42\n"), 0700)
 		}
 		startup := filepath.Join(base, "bootstrap witness.sh")
-		writeFixture(startup, []byte("printf '%s\\000' \"$0\" \"$@\" > \"$SOURCE_BOOTSTRAP_CALLS\"\n"), 0600)
+		// System Bash 3.2 reads BASH_ENV before assigning script argv. Capture
+		// the first actual launcher command rather than the startup environment.
+		writeFixture(startup, []byte(`trap 'if [ "$0" = "$SOURCE_BOOTSTRAP_LAUNCHER" ] && [ "${1-}" = eval ] && [ "${2-}" = run ]; then
+  printf "%s\000" "$0" "$@" > "$SOURCE_BOOTSTRAP_CALLS"
+  trap - DEBUG
+fi' DEBUG
+`), 0600)
 		environment := map[string]string{
 			"PATH": tools, "HOME": caller, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": startup, "ENV": "",
 			"FACTORY_CONFIG": filepath.Join(caller, "factory.yaml"), "SOURCE_BOOTSTRAP_CALLS": calls, "SOURCE_BOOTSTRAP_COMPILER_PID": compilerPID,
-			"SOURCE_BOOTSTRAP_ORACLE": oracle, "SOURCE_BOOTSTRAP_HARNESS": harness, "SOURCE_BOOTSTRAP_OLD_RUNTIME": oldRuntime,
+			"SOURCE_BOOTSTRAP_LAUNCHER": filepath.Join(root, "factory"),
+			"SOURCE_BOOTSTRAP_ORACLE":   oracle, "SOURCE_BOOTSTRAP_HARNESS": harness, "SOURCE_BOOTSTRAP_OLD_RUNTIME": oldRuntime,
 			"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 		}
 		before := installationSnapshot(root)
 		observed := sourceRunnerInvoke(caller, environment, "", golden, false, "--harness", "mock", "--runner", runner, "--runs", "1", "--timeout", "10")
+		// A later, unrelated Bash startup must not replace the launcher witness.
+		// per docs/adr/0133-go-source-evaluation-runners.md:149
+		probe := sourceRunnerInvoke(caller, environment, "", filepath.Join(tools, "bash"), false, "-c", ":")
+		Expect(probe).To(Equal(cliResult{"", "", 0}))
 		raw, err := os.ReadFile(calls)
 		Expect(err).NotTo(HaveOccurred())
 		fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")

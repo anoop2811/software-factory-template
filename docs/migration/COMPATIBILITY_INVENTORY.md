@@ -106,6 +106,7 @@ this register does not claim legacy error parity or completed qualification.
 | Unreadable real-runner task | Could invoke the CLI with an empty prompt | Status 1; no CLI invocation |
 | Timed-out external runner killed without acknowledging shutdown | Could score zero and return evaluator status 0 after observing only its direct group | Status 1 and no score publication when nested ownership cannot be confirmed; graceful cleanup remains bounded |
 | Nested factory runner or source bootstrap reports execution failure | A normal nonzero controller exit could still permit a passing oracle score | An attempt-bound private receipt suppresses oracle scoring; ownership uncertainty additionally retains the private task directory and reports an error |
+| External runner exceeds the captured-output limit | Could score zero and delete work despite losing a nested uncertainty receipt | Status 1, retained private work and no score publication because nested ownership evidence is incomplete |
 
 Valid runs retain their workdir, literal prompt, optional model, argv and log
 contract. An ordinary completed real CLI's nonzero exit still permits oracle
@@ -113,6 +114,11 @@ scoring. Cancellation and uncertain ownership remain failures. EX-002 does not
 change installed/native runner argument behavior or authorize a fallback to old
 scripts. The external golden-runner shutdown correction applies to source and
 installed evaluation alike; both reuse the same native supervisor.
+
+The private receipt reports failure; it does not authenticate selected custom
+runner code. That executable receives its attempt token and can deliberately
+refuse or request retention, just as it can already fail. Real harness CLIs do
+not receive the token. See ADR 0133's nested runner result propagation contract.
 
 ## Candidate accounting progress
 

@@ -365,6 +365,10 @@ func goldenRun(ctx context.Context, o goldenOptions, root, source, runnerPath st
 		receipt = readRunnerReceipt(result.Stderr, token)
 	}
 	retainWork = result.OwnershipUnconfirmed || receipt == "ownership-unconfirmed"
+	// Overflow may hide a nested ownership receipt. docs/adr/0133-go-source-evaluation-runners.md:185.
+	if !o.nativeRunner && result.Outcome == "output_limit" {
+		retainWork = true
+	}
 	timedOut = errors.Is(runCtx.Err(), context.DeadlineExceeded) || result.Outcome == "timeout"
 	cancel()
 	if ctx.Err() != nil {

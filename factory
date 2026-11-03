@@ -169,6 +169,10 @@ source_spawn_compiler() {
 
 source_group_present() {
   local observation
+  # Successful probes need no subprocess. docs/adr/0133-go-source-evaluation-runners.md:170.
+  if builtin kill -0 -- "-$SOURCE_CHILD" 2>/dev/null; then
+    return 0
+  fi
   if observation="$(LC_ALL=C builtin kill -0 -- "-$SOURCE_CHILD" 2>&1)"; then
     return 0
   fi
@@ -222,7 +226,8 @@ source_finish_absent_group() {
 
 source_stop_build() {
   [ -n "$SOURCE_CHILD" ] || return 0
-  local source_signal source_attempt source_attempts=25 source_probe
+  # Keep nominal grace with fewer sleep processes. docs/adr/0133-go-source-evaluation-runners.md:172.
+  local source_signal source_attempt source_attempts=5 source_probe
   if source_group_present; then
     :
   else
@@ -236,20 +241,20 @@ source_stop_build() {
     builtin kill -CONT -- "-$SOURCE_CHILD" 2>/dev/null || :
     for ((source_attempt=0; source_attempt<source_attempts; source_attempt++)); do
       if source_group_present; then
-        /bin/sleep 0.02
+        /bin/sleep 0.1
       else
         source_probe=$?
         if [ "$source_probe" -ne 1 ]; then
           # Inspection uncertainty remains uncertainty. A terminating group may
           # become explicitly absent within this same bounded cleanup allowance.
-          /bin/sleep 0.02
+          /bin/sleep 0.1
           continue
         fi
         source_finish_absent_group
         return
       fi
     done
-    source_attempts=50
+    source_attempts=10
   done
   return 1
 }

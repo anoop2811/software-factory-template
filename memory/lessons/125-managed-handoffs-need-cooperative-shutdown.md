@@ -30,3 +30,14 @@ does not carry that nested result; the per-attempt failure-receipt contract is
 `docs/adr/0133-go-source-evaluation-runners.md:109`, including pre-exec source
 bootstrap failures. Keep ordinary custom-runner exit semantics separate from
 explicitly reported factory execution failure.
+
+Two further PR #164 probes on 2026-11-03 UTC showed why the wrapper still matters:
+80 ms of extra scheduling cost per shell poll exhausted the outer grace before
+compiler cleanup, and a valid uncertainty receipt beyond a 16 MiB capture limit
+was lost while a detached child still used work that the evaluator deleted.
+The first probe returned an ownership error; the second scored zero, so neither
+was evidence of a false passing score. The canonical remedies and limits are in
+docs/adr/0133-go-source-evaluation-runners.md:166 and
+docs/adr/0133-go-source-evaluation-runners.md:182. Exact process observations are
+retained under `.factory/qualification/r3-runners/cold-timing-wmj0_ygv/probe.json`
+and `.factory/qualification/r3-runners/receipt-overflow-3m08gj7n/result.json`.

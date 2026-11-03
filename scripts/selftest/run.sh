@@ -21,6 +21,7 @@ trap 'rm -rf "$SANDBOX"' EXIT
 # native installed selftest. docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
 # Report/metrics provenance: docs/adr/0127-go-source-observability-entrypoints.md:34.
 # Prerequisite provenance: docs/adr/0130-go-source-prerequisite-entrypoint.md:45.
+# Golden evaluator provenance: docs/adr/0132-go-source-golden-evaluation.md:45.
 LEGACY_TEMPLATE_ROOT="$TEMPLATE_ROOT"
 if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   [ "$(sed -n '2p' "$TEMPLATE_ROOT/scripts/factory-init.sh")" = '# Factory native initializer adapter: source-v1' ]; then
@@ -33,7 +34,7 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
     scripts/factory-report.sh scripts/factory-metrics.sh \
     scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh \
-    scripts/factory-doctor.sh scripts/prereq-check.sh; do
+    scripts/factory-doctor.sh scripts/prereq-check.sh scripts/golden-task-eval.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
@@ -778,10 +779,11 @@ check "a task with no baseline asks for the baseline" "1" \
 
 # And the eval writes no results file when it scored nothing: an empty result is
 # still a result, and invites a later comparison against a baseline of nothing.
-cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$EVROOT/scripts/" 2>/dev/null || true
+cp "$LEGACY_TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$EVROOT/scripts/"
 rm -rf "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
 mkdir -p "$EVROOT/eval/golden-tasks" "$EVROOT/eval/results"
-( cd "$EVROOT" && ./scripts/golden-task-eval.sh ) >/dev/null 2>&1 || true
+check "an eval with no tasks exits successfully" "0" \
+  "$(cd "$EVROOT" && run_status ./scripts/golden-task-eval.sh)"
 check "an eval with no tasks writes no results file" "0" \
   "$(find "$EVROOT/eval/results" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
 
@@ -835,7 +837,7 @@ check "a quote in the embedded program would be caught" "1" \
 GTROOT="$SANDBOX/gteval"
 mkdir -p "$GTROOT/scripts" "$GTROOT/eval/golden-tasks/t1" "$GTROOT/eval/runners" "$GTROOT/eval/results"
 ( cd "$GTROOT" && git init -q )
-cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GTROOT/scripts/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GTROOT/scripts/"
 printf 'do the thing\n' > "$GTROOT/eval/golden-tasks/t1/task.md"
 printf '#!/bin/sh\nexit 0\n' > "$GTROOT/eval/golden-tasks/t1/verify.sh"
 # Stub runners: the parser is what is under test, not any real harness — this
@@ -955,7 +957,7 @@ fi
 # flags a regression from a saved baseline. The mock runner keeps it credential-free.
 GEROOT="$SANDBOX/geval"
 mkdir -p "$GEROOT/eval/golden-tasks/reference-answer" "$GEROOT/eval/runners" "$GEROOT/scripts"
-cp "$TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GEROOT/scripts/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/golden-task-eval.sh" "$GEROOT/scripts/"
 # Self-contained task + mock runner, so the fixture depends only on the framework
 # script (not on the repo's shipped example files, which an upgrade may not add).
 printf 'Create answer.txt containing FIXED.\n' > "$GEROOT/eval/golden-tasks/reference-answer/task.md"

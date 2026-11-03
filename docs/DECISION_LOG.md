@@ -5916,3 +5916,112 @@ path its own early presence check after help/task/runner validation, before scra
 files or potentially paid runner work. Keep the Go prerequisite owner Python-free
 and preserve accurate inventory entries for pending source conversion. ADR 0130's
 added retained-evaluator contract requires independent RED and runner-absence proof.
+
+## Decision 147 (2026-11-02 UTC): resume R3 with native direct golden evaluation
+
+The operator stopped further performance work on PR #162 and requested completion
+of R3. Resume conversion on a separate branch based on merged PR #161. PR #162
+is still open at this decision; no merge or performance outcome is assumed here.
+
+Apply [ADR 0132](adr/0132-go-source-golden-evaluation.md) to the direct golden
+evaluator and its Make target. Reuse `internal/evalcmd`; remove the duplicate
+Bash/Python evaluator from this active entrypoint while preserving caller-owned
+tasks, explicit runners, result schemas, fingerprints and failure behavior.
+Independent outside-in RED must precede replacement. Keep historical regression
+inputs coherent and explicitly test-only, with no production fallback.
+
+Track remaining R3 command, helper and proof cleanup separately. This decision
+authorizes the implementation boundary, not a completed test, merged PR, published
+candidate or closed release gate.
+
+Decision 147 local qualification (2026-11-02 UTC): the independent author ran
+`rtk proxy env FACTORY_AGENT_ROLE=spec-writer go test -count=1 -timeout=5m ./acceptance -ginkgo.focus='Native orchestration eval|Go source runtime entrypoints golden evaluation adapter|refuses retained golden evaluation without Python' -ginkgo.no-color -ginkgo.json-report=../golden-and-native-eval.json`
+in `.factory/qualification/r3-golden/private-source`; output:
+`ok github.com/anoop2811/software-factory-template/acceptance 27.385s`.
+The report records 42 passed, zero failed. Before replacement, the three new
+criteria failed against the original script; its no-Python case reported
+`golden-task-eval: this retained script requires python3; use ./factory eval golden for native evaluation.`
+Independent report comparison found the criterion count increased from 3229 to 3232,
+without removing or reducing any prior criterion. The historical Python guard
+now reads its immutable PR #161 source instead of asserting a retired dependency
+against the current native route.
+
+The affected historical suites ran in a separate private copy and reported
+`selftest: 217 passed, 0 failed, 0 skipped` and `optional-packs: 3 passed, 0 failed`.
+The first full-suite attempt inherited the implementer role and failed its
+unset-role control; the corrected fixture environment passed without a code
+change. Source-review lenses found no correctness, security or evidence findings.
+Local `go vet ./...`, shell syntax, shellcheck, Ginkgo dialect, workflow,
+hook-existence and native copy-inventory checks exited zero. The ordinary local
+linter refused because its build toolchain was older than the module; the existing
+qualified linter then reported `0 issues.` with `packs/go/.golangci.yml`.
+These are local results; hosted qualification, merge and the remaining R3 paths
+are still open.
+
+Decision 147 review follow-up: make the historical empty-task proof require both
+a successful evaluator copy and an actual successful invocation. Previously,
+both errors were swallowed and an absent results file could pass without an
+evaluation. Independent private negative controls reproduced false success for a
+missing script and an evaluator exiting 44 before this change. Retain the original
+no-result assertion and add a separate exit-status assertion; no production
+runtime behavior changes. Clarify inventory inspection versus later progress,
+design acceptance versus qualification, and the frozen evaluator's remaining
+configuration/runner fixture dependencies. The before/after native criterion
+counts remain 3229 and 3232, not an inclusive range of IDs.
+
+The first hosted Linux base run also exposed a missed qualification update:
+the scheduler still pinned the old 3229-criterion inventory after the three
+new golden criteria were added. Its actual discovery reported 3232 and failed
+closed. Update the pinned total and affected source-family count only from
+independent discovery, retaining the empty-selection negative control and exact
+disjoint/exhaustive identity checks. This is an accounting correction, not a
+change to runtime behavior, a timeout increase or reduced test coverage.
+
+Follow-up local evidence: the independent empty-result controls changed from one
+pass/two failures to three passes. The complete historical suite reports
+`selftest: 218 passed, 0 failed, 0 skipped`; comparison retains all 217 earlier
+assertions and adds the successful-execution assertion. Optional-pack cases remain
+three passed, zero failed. Independent native discovery found 3232 total criteria
+and 28 source-entrypoint criteria. The exact formerly failing scheduler criterion
+then passed in 62.684 seconds, retaining all ten actual partition counts,
+disjoint/exhaustive identity checks and the zero-selection failure control.
+Receipts use separate `review-*` files under `.factory/qualification/r3-golden/`;
+the original 42-criterion native evaluation receipt is unchanged.
+Decision 147 CI follow-up (2026-11-03 UTC): keep PR #163 independent of the
+stopped PR #162 performance branch. Hosted run 41473183811 reports a
+default-upgrade fixture `publish bundle: context deadline exceeded` and a
+release-handoff suite timeout with 43 of 44 attempted criteria passed. The three
+cancelled macOS jobs have no assigned runner or executed steps; cancellation is
+not evidence of a test failure. The completed handoff workers accumulated about
+1443 and 1412 seconds of criterion time, so the final process stack alone does
+not establish a hung child.
+
+Use the real compiled packaging CLI for default-consumer setup, and fastest
+compression only for independently authored test archives, as specified in
+[ADR 0132](adr/0132-go-source-golden-evaluation.md). Preserve current budgets,
+workflow scheduling, production packaging behavior, race-qualified packager
+coverage and every existing behavioral criterion. This decision authorizes the
+repair; it does not claim the next hosted run succeeds.
+
+Local fixture comparison ran in private baseline/candidate copies at 33dc98f,
+with `FACTORY_CLI_TEST_RACE` unset and `GORACE=atexit_sleep_ms=0`:
+
+```sh
+go test -race -count=1 -timeout=25m -v ./acceptance \
+  -ginkgo.focus="^Go factory command acceptance (Go default packaged upgrade authenticates the declared stable default and previews a genuine legacy project through the selected planner|Whole installation upgrade release candidate handoff backup retention does not expire A when C fails its actual installed native proof)$" \
+  -ginkgo.v -ginkgo.no-color -ginkgo.fail-on-empty \
+  -ginkgo.json-report=../fixture-candidate-focused.json
+```
+
+The baseline used the same command with `fixture-baseline-focused.json`.
+Outputs were `Ran 2 of 3232 Specs in 186.011 seconds` before and
+`Ran 2 of 3232 Specs in 156.266 seconds` after; both reported
+`2 Passed | 0 Failed | 0 Pending | 3230 Skipped`. This local comparison predates
+the subsequent absolute-compiler-path and conservative failed-process custody
+refinements; final broader and hosted qualification remain pending at this entry.
+The scratch archive comparison demonstrated identical decoded headers, payload
+and padding (17,800,704 bytes); its source and RED/GREEN receipts are retained
+under `.factory/qualification/r3-golden/fixture_archive_parity_test.go` and
+`fixture-parity-{red,green}.json`. The scratch criterion is not in the repository
+test census. Final-tree `go vet ./...` exited 0 and the qualified
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`

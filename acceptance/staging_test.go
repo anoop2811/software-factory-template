@@ -73,7 +73,9 @@ func main() {
 func stageArchive(entries []stageEntry) []byte {
 	GinkgoHelper()
 	var compressed bytes.Buffer
-	gz := gzip.NewWriter(&compressed)
+	// per docs/adr/0132-go-source-golden-evaluation.md:92
+	gz, err := gzip.NewWriterLevel(&compressed, gzip.BestSpeed)
+	Expect(err).NotTo(HaveOccurred())
 	tw := tar.NewWriter(gz)
 	for _, entry := range entries {
 		h := &tar.Header{Name: entry.name, Mode: entry.mode, Typeflag: entry.kind, Size: int64(len(entry.body))}

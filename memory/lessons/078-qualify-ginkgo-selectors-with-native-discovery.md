@@ -41,3 +41,10 @@ Provenance: [pinned SpecReport serializer](https://github.com/onsi/ginkgo/blob/v
 read from the qualified module source; the retained failed-run JSON likewise
 lacks those keys. This observation changes the evaluator, not the canonical
 scheduling contract in docs/adr/0107-published-release-qualification.md:222.
+
+Observed 2026-11-02 in [PR #163 Linux base job](https://github.com/anoop2811/software-factory-template/actions/runs/41467496817/job/125352127988):
+the new golden-evaluation criteria passed their focused suite, but the scheduler
+still pinned 3229 after native discovery increased to 3232. Comparing criterion
+names for additions/removals did not execute that pinned assertion. When adding
+criteria, update the affected family and total from actual discovery and run the
+scheduler's disjoint/exhaustive check as part of the same qualification.

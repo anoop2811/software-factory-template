@@ -76,12 +76,16 @@ without an override, config discovery uses the caller's Git root with cwd fallba
 Python is no longer required by this check. Source execution still needs Go to
 build the factory; the installed runtime only checks Go when the product has a
 configured minimum. See [ADR 0130](../adr/0130-go-source-prerequisite-entrypoint.md).
-The retained direct `scripts/golden-task-eval.sh` path checks its own Python
-requirement before invoking a runner; native `factory eval golden` uses Go.
+Direct `scripts/golden-task-eval.sh` and `make golden-eval` now enter the existing
+native `factory eval golden` owner. Scoring no longer requires Python; historical
+scorer fixtures remain explicit test-only inputs. See
+[ADR 0132](../adr/0132-go-source-golden-evaluation.md).
 The source checkout retains other direct command/helper bodies and explicit
 historical fixtures until their separate entrypoint and proof-runner cleanup.
 Their presence does not establish release readiness or a runtime fallback in
-an opted-in Go installation. No Go or Python interpreter is required for the
+an opted-in Go installation. The finite remaining source paths and historical
+proof obligations are tracked in [R3 cutover](R3_CUTOVER.md).
+No Go or Python interpreter is required for the
 converted installed orchestration; retained JSON validation gates still require
 `jq`, and configured product packs can require their own toolchains.
 

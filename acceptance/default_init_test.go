@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/packaging"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,9 +25,9 @@ type defaultInitImage struct {
 	binary, archive []byte
 }
 type defaultInitFixtures struct {
-	invoker                 handoffReleaseImage
-	source, revision, cache string
-	images                  map[string]defaultInitImage
+	invoker                           handoffReleaseImage
+	source, revision, cache, packager string
+	images                            map[string]defaultInitImage
 }
 
 // A selected-only message witnesses the actual initializer owner, while the
@@ -60,10 +61,44 @@ func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 	Expect(os.Mkdir(cache, 0700)).To(Succeed())
 	cache, err = filepath.EvalSymlinks(cache)
 	Expect(err).NotTo(HaveOccurred())
-	f := &defaultInitFixtures{image, source, revision, cache, map[string]defaultInitImage{}}
+	f := &defaultInitFixtures{invoker: image, source: source, revision: revision, cache: cache, images: map[string]defaultInitImage{}}
 	f.image(defaultInitTag)
 	AddReportEntry("default-init.selected-source", map[string]string{"source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
 	return f
+}
+
+// Supervision is fixture setup only; the selected-runtime assertions remain
+// independent of the producer. per docs/adr/0132-go-source-golden-evaluation.md:82
+func (f *defaultInitFixtures) setupCommand(ctx context.Context, cooperative bool, argv ...string) []byte {
+	GinkgoHelper()
+	environment := map[string]string{}
+	for _, entry := range os.Environ() {
+		key, value, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(key, "GIT_") {
+			environment[key] = value
+		}
+	}
+	var result native.CommandResult
+	var err error
+	if cooperative {
+		result, err = native.ExecuteCommandCooperative(ctx, f.source, argv, environment, 90*time.Second)
+	} else {
+		result, err = native.ExecuteCommandWithOptions(ctx, f.source, argv, environment, native.CommandOptions{StdoutLimit: 16 << 20, StderrLimit: 16 << 20})
+	}
+	// A failed CLI can flatten nested ownership uncertainty into a nonzero exit.
+	// per docs/adr/0132-go-source-golden-evaluation.md:88
+	packagerFailed := cooperative && (err != nil || result.Outcome != "completed" || result.ExitCode == nil || *result.ExitCode != 0)
+	if ctx.Err() != nil || result.OwnershipUnconfirmed || result.ProcessPID != 0 && !result.ExitConfirmed || packagerFailed {
+		holdFixtureCleanup(f.invoker.work, "default image setup did not confirm completed process ownership")
+	}
+	Expect(ctx.Err()).NotTo(HaveOccurred(), "default image setup deadline: %s", result.Stderr)
+	Expect(err).NotTo(HaveOccurred(), "default image setup: %s", result.Stderr)
+	Expect(result.OwnershipUnconfirmed).To(BeFalse())
+	Expect(result.ExitConfirmed).To(BeTrue())
+	Expect(result.Outcome).To(Equal("completed"), "default image setup: %s", result.Stderr)
+	Expect(result.ExitCode).NotTo(BeNil())
+	Expect(*result.ExitCode).To(BeZero(), "default image setup: %s", result.Stderr)
+	return result.Stdout
 }
 
 func (f *defaultInitFixtures) image(version string) defaultInitImage {
@@ -75,10 +110,25 @@ func (f *defaultInitFixtures) image(version string) defaultInitImage {
 	Expect(err).NotTo(HaveOccurred())
 	compiler, err = filepath.EvalSymlinks(compiler)
 	Expect(err).NotTo(HaveOccurred())
+	compiler, err = filepath.Abs(compiler)
+	Expect(err).NotTo(HaveOccurred())
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	result, err := packaging.Build(ctx, packaging.Options{Source: f.source, Revision: f.revision, Version: version, Target: runtime.GOOS + "/" + runtime.GOARCH, Output: filepath.Join(f.cache, version), Compiler: compiler, Installation: true})
-	Expect(err).NotTo(HaveOccurred())
+	// Compile once, inside the first image's existing deadline, then exercise the
+	// real producer for every version. per docs/adr/0132-go-source-golden-evaluation.md:86
+	if f.packager == "" {
+		program := filepath.Join(f.invoker.work, "fixture-packager")
+		args := []string{compiler, "build"}
+		if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
+			args = append(args, "-race")
+		}
+		args = append(args, "-o", program, "./cmd/factory-package")
+		f.setupCommand(ctx, false, args...)
+		f.packager = program
+	}
+	output := f.setupCommand(ctx, true, f.packager, "--source", f.source, "--revision", f.revision, "--version", version, "--target", runtime.GOOS+"/"+runtime.GOARCH, "--output", filepath.Join(f.cache, version), "--go", compiler, "--installation")
+	var result packaging.Result
+	Expect(json.Unmarshal(output, &result)).To(Succeed())
 	archive, err := os.ReadFile(result.Archive)
 	Expect(err).NotTo(HaveOccurred())
 	entries, _ := imageDecodeArchive(archive)

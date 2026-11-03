@@ -64,7 +64,11 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   Direct prerequisite discovery reuses the native tool checks and removes its
   obsolete Python requirement under
   [ADR 0130](../adr/0130-go-source-prerequisite-entrypoint.md).
-  Remaining direct commands/helpers and historical proof cleanup stay separate.
+  Direct golden evaluation reuses the existing native evaluator under
+  [ADR 0132](../adr/0132-go-source-golden-evaluation.md).
+  Remaining direct commands/helpers and historical proof cleanup are enumerated
+  in [the R3 cutover checklist](R3_CUTOVER.md). Source changes do not by themselves
+  close a release gate; review and hosted qualification are recorded separately.
 - Artifact verification, deterministic selection, local packaging and authenticated
   inert staging exist for the original runtime-only bundle.
 - Confined adoption/preview, ignored recovery creation and read-only restoration

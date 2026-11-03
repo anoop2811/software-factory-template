@@ -15,3 +15,18 @@ The canonical cooperative-budget, normal-exit and retained-input contract is
 `docs/adr/0122-default-packaged-go-upgrade.md:146`. The parent observes its direct
 group; normal selected-runtime completion delegates nested cleanup to that
 qualified controller rather than inventing a transitive process-tree proof.
+
+Observed again on 2026-11-03 UTC during R3 runner review: replacing an executable
+shell runner with a Go adapter introduced another separately grouped harness.
+A private fake CLI completed after the evaluator reported a one-second timeout;
+the frozen shell control did not. Independent timeout and parent-cancellation
+regressions then observed the live CLI PID at evaluator return before cleanup.
+The runner boundary and explicit shutdown correction are recorded in
+`docs/adr/0133-go-source-evaluation-runners.md:70`. Audit the supervising caller
+when converting an entrypoint, not only the new adapter's local behavior.
+The same review then observed a nested controller returning ordinary status 1
+for uncertain pipe ownership while its parent scored a pass. Normal exit alone
+does not carry that nested result; the per-attempt failure-receipt contract is
+`docs/adr/0133-go-source-evaluation-runners.md:109`, including pre-exec source
+bootstrap failures. Keep ordinary custom-runner exit semantics separate from
+explicitly reported factory execution failure.

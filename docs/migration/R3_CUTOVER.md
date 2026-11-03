@@ -43,7 +43,7 @@ The checklist records source qualification and review, not merely written files.
 
 | Done | Path | Existing Go command / package | Function boundary and remaining evidence |
 |---|---|---|---|
-| [ ] | `scripts/golden-task-eval.sh` | `eval golden` / `evalcmd` | Updated 2026-11-02, Decision 147 / [ADR 0132](../adr/0132-go-source-golden-evaluation.md): implemented and locally qualified, including independent RED/GREEN, direct/Make routing and no-Python scoring. Hosted qualification and merge remain pending. |
+| [x] | `scripts/golden-task-eval.sh` | `eval golden` / `evalcmd` | Merged PR #163 on 2026-11-03, Decision 147 / [ADR 0132](../adr/0132-go-source-golden-evaluation.md): independent RED/GREEN, direct/Make routing and no-Python scoring; all 32 hosted checks passed on `a34b046`. Merge `b33ab2f` has the same tree. |
 | [ ] | `eval/runners/mock.sh` | `eval run mock` / `evalcmd` | Runner boundary: retain deterministic pass/fail/cheat behavior and golden-evaluation integration. |
 | [ ] | `eval/runners/claude.sh` | `eval run claude` / `evalcmd` | Runner boundary: literal workdir/prompt, existing argv, model selection and log behavior; fake CLI qualification. |
 | [ ] | `eval/runners/codex.sh` | `eval run codex` / `evalcmd` | Same runner boundary, with Codex's existing invocation contract. |
@@ -57,6 +57,15 @@ The checklist records source qualification and review, not merely written files.
 | [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Controller boundary: preserve configuration, models, state and process ownership while removing Python dispatch. |
 | [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
 | [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Proof-runner boundary: native public routing plus independent custody/coverage for the broader historical regressions; see the proof-retirement ledger. |
+
+The five evaluation-runner rows have local implementation and independent
+qualification under Decision 148 / [ADR 0133](../adr/0133-go-source-evaluation-runners.md).
+Twenty-five new criteria cover their source routing, native execution, nested
+shutdown, failure reporting and source-bootstrap refusal. The combined local race
+run passed 72 criteria; final test inventory/partition qualification passed all
+11 selected criteria with 3257 total and 53 source criteria. These five rows stay
+open until hosted checks, review responses and merge complete. They are not five
+new runtime capabilities: their native owners already existed.
 
 ## Remaining sourceable libraries
 

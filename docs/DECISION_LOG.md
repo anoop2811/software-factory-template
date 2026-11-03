@@ -6025,3 +6025,97 @@ under `.factory/qualification/r3-golden/fixture_archive_parity_test.go` and
 `fixture-parity-{red,green}.json`. The scratch criterion is not in the repository
 test census. Final-tree `go vet ./...` exited 0 and the qualified
 `golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+
+## Decision 148 (2026-11-03 UTC): route source evaluation runners through Go
+
+Continue R3 after merged PR #163 with one bounded boundary: the five shipped
+evaluation runners. [ADR 0133](adr/0133-go-source-evaluation-runners.md) records
+physical-owner routing, POSIX invocation, literal transport, existing native
+runner semantics, explicit legacy error differences and independent acceptance.
+Keep mock evaluation free and real harness qualification behind owned fake CLIs.
+Reuse the native runner rather than copying execution logic into new wrappers.
+Keep customization guidance, frozen regression custody and every existing test
+assertion. This decision precedes implementation and does not claim tests pass.
+The paused performance PR #162 remains excluded.
+
+Decision 148 review correction: a private fake Claude runner wrote a completion
+marker after the evaluator had already reported its one-second cap. The converted
+adapter enters a Go controller whose CLI child has a separate process group;
+immediately killing the outer group orphaned that child. Reuse the existing
+cooperative command supervisor at the external golden-runner boundary, as
+specified in ADR 0133, and require independent timeout/cancellation regression
+evidence before implementation. Keep explicit/custom runner execution and its
+ownership checks; do not bypass a selected adapter by expanding frozen digests.
+This also makes unacknowledged external-runner shutdown an explicit EX-002
+failure with no published score. Keep the original nontrapping fixture as a
+negative ownership case, and retain timeout score-zero coverage with a controlled
+runner that acknowledges child termination and reap before exiting. Independent
+review identified this distinction before implementation; it is a deliberate
+contract correction, not an assertion that old timeout statuses are unchanged.
+
+Decision 148 retention refinement: independent review then observed a deliberately
+non-acknowledging controller's separate child still alive after evaluation
+returned an ownership error, while its private task directory had been deleted.
+Preserve and identify that directory when runner/oracle ownership is unconfirmed,
+before any context-error return. Retain generic error sanitization and expose
+only the quoted generated path. ADR 0133 records this bounded safety correction;
+ordinary confirmed cleanup remains automatic.
+
+Decision 148 nested-result correction: security review reproduced a pipe-holding
+detached CLI child surviving an inner runner's ordinary status-1 error, while
+the outer evaluator published score 1 and deleted the work directory. Normal
+outer exit had hidden explicitly uncertain inner ownership. Add ADR 0133's
+per-attempt private failure receipt, clear its token before invoking a harness,
+and preserve ordinary custom nonzero scoring. Neither a reserved exit code nor
+expanded built-in hashes may silently reinterpret a custom runner. Independent
+detached-child regression and receipt isolation are required before implementation.
+
+Decision 148 bootstrap receipt closure: a real source launcher with a fake
+compiler exiting 42 returned 42 directly, but the evaluator still ran an
+always-passing oracle and published score 1. A separate private observation-fault
+fixture reached the existing compiler-uncertainty status 125 and had the same
+false-pass problem. Extend the narrow requested receipt to pre-exec source
+failures, including early refusals, without changing direct statuses or compiler
+custody. This is source-bootstrap transport for the same runner boundary, not a
+new compiler implementation or a global exit-code reservation.
+
+Decision 148 local qualification (2026-11-03 UTC): the independent test author
+first observed all twelve original runner criteria fail on the old scripts.
+Additional RED runs exposed live nested harnesses/compilers after cancellation,
+deleted uncertain work, lost nested failure status and pre-exec false passes.
+The final focused race command ran in a private checkout:
+
+```sh
+FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -run '^TestAcceptance$' \
+  -count=1 -timeout=10m -ginkgo.no-color \
+  -ginkgo.focus='^Go factory command acceptance (Go source runtime entrypoints evaluation runner adapters|Native orchestration eval|Go source launcher signal ownership|Go source runtime entrypoints (enters the existing native command surface|forwards each direct entrypoint))( |$)' \
+  -ginkgo.fail-on-empty -ginkgo.json-report=../runner-bootstrap-final-focused-green.json -v
+```
+
+Output: `Ran 72 of 3257 Specs in 96.651 seconds` and
+`72 Passed | 0 Failed | 0 Pending | 3185 Skipped`. Subsequent fixture-only
+quality changes used the actual executable path and validated the private work
+path before reading it. Their five affected protocol criteria passed under race
+in 28.088 seconds. Final independent discovery found 3257 total criteria and 53
+in the existing source partition; all other partition counts are unchanged.
+The scheduling/workflow selector
+`^Go factory command acceptance Go source qualification (scheduling|workflow partition)( |$)`
+with the same test/race options reported `11 Passed | 0 Failed | 0 Pending | 3246 Skipped`
+in 89.526 seconds, retaining actual disjoint/exhaustive partition discovery.
+
+The historical runner reported `selftest: 218 passed, 0 failed, 0 skipped` and
+the optional-pack runner reported `optional-packs: 3 passed, 0 failed`. Final
+private-tree `go vet ./...` exited zero and the qualified
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+Shellcheck, shell syntax, Ginkgo dialect and shared-adapter checks exited zero.
+The explicit private native copy gate reported
+`copy-manifest-check: every native initializer copy input is safe and git-tracked`.
+The configured citation hook intentionally skips without a prefix; a separate
+local bounds check resolves the changed documentation citations.
+
+Correctness and security reviewers re-ran their reproduced failures against
+fresh private builds and reported no remaining findings. Tests/evidence review
+retained actual adapter, child-start, group-absence, oracle and private-token
+witnesses. No paid harness ran. Receipts are under the ignored
+`.factory/qualification/r3-runners/` directory; hosted checks, their review
+responses and merge remain pending. Full `make check` was not run locally.

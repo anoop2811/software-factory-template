@@ -90,6 +90,30 @@ acceptance references before cleanup.
 | Product packs | Go, TypeScript, Java/Gradle/Maven and polyglot behavior; pack test regexes, local hooks and unchanged product build selection | `packs/*/pack.yaml`, pack hook/build/workflow entries; `scripts/selftest/java-build-tool.sh`, `scripts/selftest/maven-quality.sh`, `scripts/selftest/optional-packs.sh` |
 | Tests and CI | Behavioral negative controls, registered-hook proofs and explicit asset completeness rather than shell-text grep success; separate optional/paid gating | `scripts/hooks/copy-manifest-check.sh:4`, `scripts/selftest/`, `.github/workflows/`, `eval/` |
 
+## EX-002: source runner rejection semantics
+
+[ADR 0133](../adr/0133-go-source-evaluation-runners.md) records the source
+cutover's adoption of the existing native runner error contract and the
+separately qualified corrections to nested evaluation failure handling.
+Implementation, independent regression qualification and review are required;
+this register does not claim legacy error parity or completed qualification.
+
+| Input | Previous behavior | Adopted Go behavior |
+|---|---|---|
+| Missing real-runner operand | Status 1 | Status 2 for missing command operands |
+| Unwired example | Status 1 | Status 2, no model or fallback |
+| Invalid mock work directory | Could return 0 after failed `cd` | Status 1; no answer publication |
+| Unreadable real-runner task | Could invoke the CLI with an empty prompt | Status 1; no CLI invocation |
+| Timed-out external runner killed without acknowledging shutdown | Could score zero and return evaluator status 0 after observing only its direct group | Status 1 and no score publication when nested ownership cannot be confirmed; graceful cleanup remains bounded |
+| Nested factory runner or source bootstrap reports execution failure | A normal nonzero controller exit could still permit a passing oracle score | An attempt-bound private receipt suppresses oracle scoring; ownership uncertainty additionally retains the private task directory and reports an error |
+
+Valid runs retain their workdir, literal prompt, optional model, argv and log
+contract. An ordinary completed real CLI's nonzero exit still permits oracle
+scoring. Cancellation and uncertain ownership remain failures. EX-002 does not
+change installed/native runner argument behavior or authorize a fallback to old
+scripts. The external golden-runner shutdown correction applies to source and
+installed evaluation alike; both reuse the same native supervisor.
+
 ## Candidate accounting progress
 
 The [native usage accounting candidate](USAGE.md) starts G2 with decoded-event

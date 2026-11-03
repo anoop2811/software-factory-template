@@ -1,20 +1,13 @@
 #!/bin/sh
-# eval/runners/mock.sh
-# A deterministic mock runner for the eval harness's own self-test. It calls no
-# model — it just exercises the scorer so the harness is provable in CI without
-# credentials. FACTORY_MOCK_MODE selects the behaviour:
-#   pass  (default) — solve the reference task (verify.sh will pass)
-#   fail            — produce nothing (verify.sh will fail)
-#   cheat           — solve, but tamper the oracle (integrity check must catch it)
-#
-# The runner contract — the same shape a real opencode / Claude / Codex runner
-# implements: `runner <workdir>`. The runner reads <workdir>/task.md and writes
-# its implementation into <workdir>. Its exit status is ignored; verify.sh scores.
-WORKDIR="$1"
-cd "$WORKDIR" || exit 0
-case "${FACTORY_MOCK_MODE:-pass}" in
-  pass)  printf 'FIXED\n' > answer.txt ;;
-  fail)  : ;;
-  cheat) printf 'FIXED\n' > answer.txt; : > verify.sh ;;
-esac
-exit 0
+# Factory native evaluation runner adapter: source-v1
+# docs/adr/0133-go-source-evaluation-runners.md:18.
+set -e
+[ ! -L "$0" ] || {
+  printf '%s\n' 'factory eval run: invoke the physical source adapter instead of a file symlink' >&2
+  exit 2
+}
+_factory_root=${0%/*}
+[ "$_factory_root" != "$0" ] || _factory_root=.
+_factory_root="$(CDPATH='' cd -P -- "$_factory_root/../.." && pwd -P && printf '.')" || exit
+_factory_root=${_factory_root%??}
+exec "$_factory_root/factory" eval run mock "$@"

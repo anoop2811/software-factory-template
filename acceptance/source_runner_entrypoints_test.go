@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -40,6 +41,28 @@ func sourceRunnerInvoke(cwd string, environment map[string]string, input, progra
 	return handoffNativeExactProcess(cwd, environment, input, program, args...)
 }
 
+// A recorded fixture group is authority; a later PID lookup cannot replace it.
+// per docs/adr/0133-go-source-evaluation-runners.md:86
+func sourceRunnerStopObservedGroup(pid, expectedGroup int) (bool, error) {
+	if pid <= 1 || expectedGroup <= 1 || expectedGroup == syscall.Getpgrp() {
+		return false, errors.New("fixture process group was not safely admitted")
+	}
+	actual, err := syscall.Getpgid(pid)
+	if errors.Is(err, syscall.ESRCH) && errors.Is(syscall.Kill(-expectedGroup, 0), syscall.ESRCH) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("observe recorded fixture process group: %w", err)
+	}
+	if actual != expectedGroup {
+		return false, fmt.Errorf("fixture PID %d now belongs to group %d instead of recorded group %d", pid, actual, expectedGroup)
+	}
+	if err := syscall.Kill(-expectedGroup, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		return false, fmt.Errorf("stop recorded fixture process group: %w", err)
+	}
+	return false, nil
+}
+
 // A real public evaluator must settle the independently grouped native harness
 // before returning; fixture cleanup runs only after that observation.
 // per docs/adr/0133-go-source-evaluation-runners.md:78
@@ -68,6 +91,29 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		sourceOwner = filepath.Join(base, "cold source owner")
 		launcher, err := os.ReadFile("../factory")
 		Expect(err).NotTo(HaveOccurred())
+		if external == "source-compiler-slow" {
+			// Inject scheduling overhead only in the private cleanup function.
+			// Bash versions expose different BASH_COMMAND values in signal traps.
+			// per docs/adr/0133-go-source-evaluation-runners.md:166
+			anchor := []byte("source_stop_build() {\n")
+			Expect(bytes.Count(launcher, anchor)).To(Equal(1))
+			start := bytes.Index(launcher, anchor)
+			end := bytes.Index(launcher[start:], []byte("\n}\n"))
+			Expect(end).To(BeNumerically(">", 0))
+			end += start
+			var delayed strings.Builder
+			polls := 0
+			for _, line := range strings.SplitAfter(string(launcher[start:end]), "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), "/bin/sleep ") {
+					Expect(strings.Fields(line)).To(HaveLen(2), "the fixture must identify a standalone cleanup sleep")
+					polls++
+					delayed.WriteString("        printf 'delay\\n' >> \"$SOURCE_RUNNER_DELAYED_POLLS\"\n        /bin/sleep 0.08\n")
+				}
+				delayed.WriteString(line)
+			}
+			Expect(polls).To(Equal(2), "both cleanup polling sites must receive the scheduling delay")
+			launcher = []byte(string(launcher[:start]) + delayed.String() + string(launcher[end:]))
+		}
 		writeFixture(filepath.Join(sourceOwner, "factory"), launcher, 0700)
 		writeFixture(filepath.Join(sourceOwner, "factory-go"), []byte("untouched previous developer output\n"), 0600)
 		runner = sourceRunnerAdapter(sourceOwner, "claude")
@@ -95,24 +141,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		"GIT_CONFIG_NOSYSTEM":          "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 	}
 	if external == "source-compiler-slow" {
-		// Delay only the actual source controller's cleanup polling, keeping its
-		// shipped bytes and the outer supervisor's deadline unchanged.
-		// per docs/adr/0133-go-source-evaluation-runners.md:166
-		startup := filepath.Join(base, "delayed polling.sh")
-		writeFixture(startup, []byte(`set -T
-trap 'if [ "$0" = "$SOURCE_RUNNER_DELAYED_LAUNCHER" ]; then
-  case "$BASH_COMMAND" in
-    "/bin/sleep 0.02"|"/bin/sleep 0.1") printf "delay\n" >> "$SOURCE_RUNNER_DELAYED_POLLS"; /bin/sleep 0.08 ;;
-  esac
-fi' DEBUG
-`), 0600)
-		environment["BASH_ENV"] = startup
-		environment["SOURCE_RUNNER_DELAYED_LAUNCHER"] = filepath.Join(sourceOwner, "factory")
 		environment["SOURCE_RUNNER_DELAYED_POLLS"] = delayedPolls
 	}
 	timeoutSeconds := 1
 	if sourceCompiler {
-		// Leave startup headroom for system Bash with the test-only DEBUG witness.
+		// Leave startup headroom for the cold source controller.
 		// The nested supervisor's cleanup grace remains unchanged.
 		// per docs/adr/0133-go-source-evaluation-runners.md:166
 		timeoutSeconds = 3
@@ -136,7 +169,7 @@ fi' DEBUG
 	Expect(command.Start()).To(Succeed())
 	finished := make(chan error, 1)
 	go func() { finished <- command.Wait() }()
-	joined, pid, group, work := false, 0, 0, ""
+	joined, childSettled, pid, group, work := false, false, 0, 0, ""
 	readReady := func() (int, string) {
 		data, err := os.ReadFile(ready)
 		if err != nil {
@@ -157,12 +190,17 @@ fi' DEBUG
 	}
 	DeferCleanup(func() {
 		cleanObservedChild := func() {
+			if childSettled {
+				return
+			}
 			if pid == 0 {
 				pid, _ = readReady()
 			}
-			if actual, err := syscall.Getpgid(pid); pid > 1 && err == nil && actual > 1 && actual != syscall.Getpgrp() {
-				group = actual
-				_ = syscall.Kill(-actual, syscall.SIGKILL)
+			settled, err := sourceRunnerStopObservedGroup(pid, group)
+			childSettled = settled
+			if err != nil {
+				holdFixtureCleanup(base, "recorded evaluation fixture process identity is unconfirmed")
+				AddReportEntry("source-runner.fixture-identity-uncertain", map[string]any{"pid": pid, "recorded_group": group, "error": err.Error()}, ReportEntryVisibilityNever)
 			}
 		}
 		cleanObservedChild()
@@ -183,10 +221,14 @@ fi' DEBUG
 		// Read again after joining: a failing readiness assertion can race a late
 		// child handshake while the public parent is receiving its cleanup signal.
 		cleanObservedChild()
-		for attempt := 0; group > 1 && attempt < 100 && !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH); attempt++ {
+		for attempt := 0; !childSettled && pid > 1 && group > 1 && attempt < 100; attempt++ {
+			childSettled = errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) && errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
+			if childSettled {
+				break
+			}
 			time.Sleep(20 * time.Millisecond)
 		}
-		if !joined || (group > 1 && !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)) {
+		if !joined || !childSettled {
 			holdFixtureCleanup(base, "evaluation process did not join after owned cancellation fixture cleanup")
 		}
 		if joined {
@@ -223,6 +265,7 @@ fi' DEBUG
 	}
 	pidAbsent := errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
 	groupAbsent := errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
+	childSettled = pidAbsent && groupAbsent
 	AddReportEntry("source-runner.nested-shutdown", map[string]any{"mode": mode, "explicit": explicit, "external": external, "parent_pid": command.Process.Pid, "harness_pid": pid, "harness_group": group, "pid_absent_before_cleanup": pidAbsent, "group_absent_before_cleanup": groupAbsent, "status": command.ProcessState.ExitCode(), "stdout": stdout.String(), "stderr": stderr.String()}, ReportEntryVisibilityNever)
 	Expect(pidAbsent).To(BeTrue(), "the evaluator returned while its harness PID %d was still present", pid)
 	Expect(groupAbsent).To(BeTrue(), "the evaluator returned while its harness group %d was still present", group)
@@ -382,13 +425,20 @@ func sourceRunnerDetachedCleanup(base, ready string) {
 			holdFixtureCleanup(base, "detached evaluation fixture receipt is unavailable or invalid; process custody is unknown")
 			return
 		}
-		if group, err := syscall.Getpgid(receipt.PID); err == nil && group == receipt.Group {
-			_ = syscall.Kill(-group, syscall.SIGKILL)
+		settled, err := sourceRunnerStopObservedGroup(receipt.PID, receipt.Group)
+		if err != nil {
+			holdFixtureCleanup(base, "detached evaluation fixture process identity is unconfirmed")
+			AddReportEntry("source-runner.detached-identity-uncertain", map[string]any{"pid": receipt.PID, "recorded_group": receipt.Group, "error": err.Error()}, ReportEntryVisibilityNever)
+			return
 		}
-		for attempt := 0; attempt < 150 && !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH); attempt++ {
+		for attempt := 0; !settled && attempt < 150; attempt++ {
+			settled = errors.Is(syscall.Kill(receipt.PID, 0), syscall.ESRCH) && errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH)
+			if settled {
+				break
+			}
 			time.Sleep(20 * time.Millisecond)
 		}
-		if !errors.Is(syscall.Kill(-receipt.Group, 0), syscall.ESRCH) {
+		if !settled {
 			holdFixtureCleanup(base, "detached evaluation fixture group remains present after owned cleanup")
 		}
 	})

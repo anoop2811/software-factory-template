@@ -6228,3 +6228,42 @@ custom exit-1/125 scoring. The test reviewer independently parsed the final
 two-worker report. Raw receipts are under
 `.factory/qualification/r3-runners/ci-make-source-qualified/` and
 `ci-native-eval-final.json`; fresh hosted checks/review and merge remain pending.
+
+Decision 148 portable delay injection: the Linux source job on `272d3cb` passed
+53 criteria but did not observe the delayed-cleanup marker. An isolated real
+TERM-handler probe showed Bash 3.2 exposing the handler's sleep through DEBUG,
+while Bash 5.3 exposed the interrupted `wait` instead. Replace only this private
+delay mechanism with checked source-copy injection: require one
+`source_stop_build` body and exactly two standalone sleep statements within it,
+then prepend the owned 80 ms delay and witness without depending on their sleep
+duration. Keep production code, startup allowance, outer grace and all process
+assertions unchanged. Re-establish old-source RED and corrected-source GREEN
+with this portable fixture; do not add a production test switch.
+
+Decision 148 fixture group authority: the next review noted that cancellation
+cleanup could replace its previously observed group with a different current
+group for the recorded PID. Restrict cleanup to the originally admitted group;
+after observed closure, do not acquire new signal authority by probing that PID
+again. Missing or changed identity retains and reports the fixture instead.
+Qualify refusal with a separately owned foreign-group witness. This is bounded
+fixture hardening, not a claim to eliminate every POSIX PID-reuse race or a new
+platform-specific process-identity implementation.
+
+Decision 148 portable-fixture qualification (2026-11-03 UTC): the checked
+injection observed the old launcher leave its compiler alive under both system
+Bash 3.2 and Bash 5.3. Corrected-source runs passed with an actual five-poll delay
+witness and PID/group absence before fixture cleanup under both interpreters.
+An independent two-child probe reproduced the old cleanup targeting group B
+despite recording group A; the actual new helper rejects that mismatch, preserves
+B, still stops A, and returns settled state only after observed closure.
+
+The same private source Make command above, with
+`GO_RUNTIME_REPORT_DIR="$PWD/../ci-portable-source-qualified"`, exited zero:
+`Ran 54 of 3258 Specs in 133.301 seconds` and
+`54 Passed | 0 Failed | 0 Pending | 3204 Skipped`. Lint and gosec each reported
+zero issues, and govulncheck reported zero vulnerabilities affecting the code.
+The unchanged census/partition test had already passed all eleven criteria in
+103.687 seconds. Evidence is retained under
+`.factory/qualification/r3-runners/ci-portable-source-qualified/`,
+`portable-cold-{system,bash5}-{red,green}.json` in the private source clones,
+and `custody-current-probe.go`. The fresh hosted Linux/macOS run remains required.

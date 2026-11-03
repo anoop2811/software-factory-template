@@ -5987,3 +5987,41 @@ then passed in 62.684 seconds, retaining all ten actual partition counts,
 disjoint/exhaustive identity checks and the zero-selection failure control.
 Receipts use separate `review-*` files under `.factory/qualification/r3-golden/`;
 the original 42-criterion native evaluation receipt is unchanged.
+Decision 147 CI follow-up (2026-11-03 UTC): keep PR #163 independent of the
+stopped PR #162 performance branch. Hosted run 41473183811 reports a
+default-upgrade fixture `publish bundle: context deadline exceeded` and a
+release-handoff suite timeout with 43 of 44 attempted criteria passed. The three
+cancelled macOS jobs have no assigned runner or executed steps; cancellation is
+not evidence of a test failure. The completed handoff workers accumulated about
+1443 and 1412 seconds of criterion time, so the final process stack alone does
+not establish a hung child.
+
+Use the real compiled packaging CLI for default-consumer setup, and fastest
+compression only for independently authored test archives, as specified in
+[ADR 0132](adr/0132-go-source-golden-evaluation.md). Preserve current budgets,
+workflow scheduling, production packaging behavior, race-qualified packager
+coverage and every existing behavioral criterion. This decision authorizes the
+repair; it does not claim the next hosted run succeeds.
+
+Local fixture comparison ran in private baseline/candidate copies at 33dc98f,
+with `FACTORY_CLI_TEST_RACE` unset and `GORACE=atexit_sleep_ms=0`:
+
+```sh
+go test -race -count=1 -timeout=25m -v ./acceptance \
+  -ginkgo.focus="^Go factory command acceptance (Go default packaged upgrade authenticates the declared stable default and previews a genuine legacy project through the selected planner|Whole installation upgrade release candidate handoff backup retention does not expire A when C fails its actual installed native proof)$" \
+  -ginkgo.v -ginkgo.no-color -ginkgo.fail-on-empty \
+  -ginkgo.json-report=../fixture-candidate-focused.json
+```
+
+The baseline used the same command with `fixture-baseline-focused.json`.
+Outputs were `Ran 2 of 3232 Specs in 186.011 seconds` before and
+`Ran 2 of 3232 Specs in 156.266 seconds` after; both reported
+`2 Passed | 0 Failed | 0 Pending | 3230 Skipped`. This local comparison predates
+the subsequent absolute-compiler-path and conservative failed-process custody
+refinements; final broader and hosted qualification remain pending at this entry.
+The scratch archive comparison demonstrated identical decoded headers, payload
+and padding (17,800,704 bytes); its source and RED/GREEN receipts are retained
+under `.factory/qualification/r3-golden/fixture_archive_parity_test.go` and
+`fixture-parity-{red,green}.json`. The scratch criterion is not in the repository
+test census. Final-tree `go vet ./...` exited 0 and the qualified
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`

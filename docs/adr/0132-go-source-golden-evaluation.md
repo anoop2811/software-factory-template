@@ -70,3 +70,31 @@ and owned fake runners; never infer success merely from an adapter's text.
 Run affected native and historical suites, quality gates and the review diamond.
 Record actual RED/GREEN commands and results. Hosted checks and review responses
 must precede any completion or merge claim. Release qualification remains separate.
+
+## CI qualification follow-up
+
+PR #163 remains based on merged PR #161; the stopped scheduling and parallelism
+work in PR #162 is not a dependency. Repair only the consumer-fixture preparation
+that exhausted existing macOS budgets. Keep workflow topology, worker selection,
+the 25-minute suite deadline, the 90-second image deadline and behavioral
+assertions unchanged.
+
+Default initialization and upgrade fixtures may invoke the real compiled
+`cmd/factory-package` with the same explicit source, revision, version, target,
+compiler and installation options instead of calling its library inside the
+race-instrumented test process. This is setup for a consumer test, not a substitute
+for the dedicated race-enabled packager tests. Compile the setup utility once
+per fixture, keep compilation and its first invocation within the existing image
+deadline, supervise subprocess completion, and decode its actual JSON result.
+Every selected image must still come from the production packager and the
+committed selected source; no fabricated manifest or reused unqualified binary.
+
+Test-owned tar/gzip fixtures may use fastest compression while preserving every
+decoded header and payload. Production archive compression remains unchanged.
+This supersedes only ADR 0105's restriction that the shared test archive encoder
+retain its previous compression level; its payload, boundary and timing-evidence
+requirements still apply.
+Compare decoded entries and run the real handoff and default-init/upgrade
+consumers before claiming qualification. Existing race instrumentation and all
+criterion identities remain in place. A local timing sample does not establish
+a hosted pipeline improvement; hosted success must be observed on the new head.

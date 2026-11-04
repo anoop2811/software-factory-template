@@ -6774,3 +6774,28 @@ with report directory `r3-review/source-corrected`. It exited zero:
 configured lint `0 issues.`, gosec `Issues : 0`, and govulncheck
 `Your code is affected by 0 vulnerabilities.`. These results qualify the
 corrections locally and do not substitute for the corrected hosted head.
+
+Decision 150 scheduler fixture correction, before code: the corrected hosted
+Linux source and historical jobs passed 71 and 19 criteria. The base job exposed
+one existing workflow-preservation assertion that permits only the original
+number of setup steps. The approved source-only module preparation adds one
+step in the installation matrix. Extend that evaluator with the explicit new
+setup contract: present once, only for source-entrypoints, before qualification,
+locked module acquisition followed by the lockfile guard. Keep every original
+setup, matrix, platform, ordering and discovery assertion; exercise the added
+step through the controlled scheduler fixture rather than merely increasing
+its allowed count. Qualify the complete scheduling/workflow group before push.
+
+Decision 150 scheduler evidence: the unchanged old criterion failed locally
+with ten actual steps versus nine expected (`0 Passed | 1 Failed`, 5.681s).
+The corrected complete group ran in private `r3-review/scheduler-source` using
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=6m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source qualification (scheduling|workflow partition) '
+-ginkgo.fail-on-empty -ginkgo.json-report=../review-scheduler-qualified.json -v`.
+It reported `11 Passed | 0 Failed | 0 Pending | 3264 Skipped` in 115.039 seconds,
+including source-only warm/cold preparation and download/lockfile failure stops.
+The criterion census is unchanged. Configured golangci-lint reported
+`0 issues.`; independent correctness and test review retained no findings.
+This correction changes only the evaluator and decision log, not runtime or CI
+behavior. The full corrected hosted head still needs qualification before merge.

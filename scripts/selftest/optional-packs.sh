@@ -78,6 +78,23 @@ with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
         ], env=environment, capture_output=True, check=True, timeout=10).stdout
         (fixture / name).write_bytes(data)
         (fixture / name).chmod(0o755)
+    # Complete historical review command/library inputs before Git custody ends.
+    # docs/adr/0135-go-source-review-entrypoints.md:46.
+    for name in ("scripts/factory-review-lane.sh", "scripts/adversarial-review.sh"):
+        data = subprocess.run([
+            "git", "-C", str(source), "show",
+            "f3a0b6520917e104883cc89b123d7244fa0c46a7:" + name,
+        ], env=environment, capture_output=True, check=True, timeout=10).stdout
+        (fixture / name).write_bytes(data)
+    # Keep current policy dependencies current. Their historical consumers need
+    # explicit isolation once a later reader/helper cutover changes these bytes.
+    for name in ("scripts/lib/config.sh", "scripts/lib/color.sh"):
+        historical = subprocess.run([
+            "git", "-C", str(source), "show",
+            "f3a0b6520917e104883cc89b123d7244fa0c46a7:" + name,
+        ], env=environment, capture_output=True, check=True, timeout=10).stdout
+        require((fixture / name).read_bytes() == historical,
+                "isolate changed historical review dependency: " + name, "")
     subprocess.run(["git", "init", "-q", str(fixture)], env=environment, check=True)
     packs = workspace / "packs"
     (fixture / "packs").rename(packs)

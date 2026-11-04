@@ -27,10 +27,13 @@ Go-client cases. Counts are registrations, not expanded runtime test totals.
 `run.sh` is grouped below because loops and conditional pack availability change
 its expanded count; a lexical count must not be presented as executed coverage.
 
-The only work performed to create this map was source reading and deterministic
-text extraction. No native or historical behavioral suite ran for this document.
-All retirement qualification is **OPEN**. No percentage is inferred from matching
-names, table length or the size of the existing native suite.
+The original map was created through source reading and deterministic text
+extraction, without running native or historical behavioral suites. Later
+qualification is recorded separately below, with its decision and evidence.
+Budget, loop and general-family dispositions remain **OPEN**. Review retention
+under Decision 150 has local execution evidence; review and merge are pending.
+No percentage is inferred from matching names, table length or the size of the
+existing native suite.
 
 - **C (candidate):** a named native criterion addresses the stated behavior;
   compare the complete old assertions and run the relevant criterion before
@@ -318,6 +321,45 @@ Historical source: [scripts/selftest/adversarial-review.sh](https://github.com/a
 | R51 | base and endpoint route slugs are forwarded literally (`:750`) | R-body, R-controls | P | One endpoint slug is covered; qualify the accepted base/endpoint vocabulary. |
 | R52 | invalid configured provider slugs refuse before HTTP (`:751`) | R-controls | C | Invalid provider slug refuses before HTTP. |
 | R53 | invalid caller route is inert data and refuses before HTTP (`:752`) | R-controls | P | Compare shell-looking invalid route, zero requests and no execution witness. |
+
+### Review custody under Decision 150
+
+R01-R15 and R17-R53 are selected for **RETAINED-HISTORICAL**, subject to final
+review and merge of the source-review boundary. Their purpose is to preserve the former
+curl/jq request, timeout, payload and selected-client regression evidence.
+`scripts/selftest/adversarial-review.sh` now materializes the provider engine
+and matching config reader from immutable
+`f3a0b6520917e104883cc89b123d7244fa0c46a7`. Its curl/client substitutes and
+responses remain test-owned. Its workflow trust, deadline and explicit-client
+assertions continue to inspect the current workflow files. The command is
+invoked only by development/template CI; it is not installed or discovered as
+the native public selftest, and no public command can fall back to it.
+
+In a private qualification checkout, `FACTORY_AGENT_ROLE=spec-writer
+bash scripts/selftest/adversarial-review.sh` reported
+`adversarial-review: 53 passed, 0 failed`. This run used local Python 3.12.0
+on PATH for historical fixture tools. It qualifies retention of those old
+assertions, not native equivalence for each transport mechanism. Existing
+native fixed-HTTP/streaming acceptance and new direct-source qualification
+remain separate evidence. The payload-size oracle also receives an explicit
+immutable source identity. The final combined source/payload/workflow acceptance
+command recorded in Decision 150 passed all 23 selected criteria, including all
+six retained payload cases.
+
+R16 retains its active/generated explicit-client and credential wiring checks.
+Its blanket assertion that no setup-go step may appear in the generated
+workflow is selected for **NATIVE-REPLACED**: the user invariant is that an
+adopter's application is not compiled to obtain the factory runtime. A canonical
+factory source checkout does require preparation. Independent source/adopter/
+installed/explicit-client selection and cold module-cache qualification replace
+that text predicate under docs/adr/0135-go-source-review-entrypoints.md:78.
+Before updating the predicate, the changed template produced
+`adversarial-review: 52 passed, 1 failed`, with only R16 failing. After replacement,
+the same historical command reported `adversarial-review: 53 passed, 0 failed`.
+The new source preparation criterion and actual fresh-cache workflow criterion
+passed in the 23-case focused run and the 71-case full source run. Independent
+review retained no findings. Hosted checks and merge remain pending; no
+registration is silently removed.
 
 ## General selftest families
 

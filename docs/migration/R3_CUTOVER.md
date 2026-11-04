@@ -49,9 +49,9 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `eval/runners/codex.sh` | `eval run codex` / `evalcmd` | PR #164 / ADR 0133: the same boundary under Codex's invocation contract. |
 | [x] | `eval/runners/opencode.sh` | `eval run opencode` / `evalcmd` | PR #164 / ADR 0133: the same boundary under OpenCode's invocation contract. |
 | [x] | `eval/runners/example-harness.sh` | `eval run example-harness` / `evalcmd` | PR #164 / ADR 0133: deliberately unwired example refuses without selecting a model. |
-| [ ] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Decision 149 / [ADR 0134](../adr/0134-go-source-structural-evaluation.md): locally qualified source routing, real three-harness role controls, Make and four pack consumers; hosted checks and merge pending. |
-| [ ] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Review-execution boundary: existing provider/configuration semantics, fake HTTP qualification and the review workflow's direct-script consumer. |
-| [ ] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Review administration: opt-in enable/disable/status behavior, workflow ownership, terminal input and historical fixtures. |
+| [x] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Merged [PR #165](https://github.com/anoop2811/software-factory-template/pull/165), Decision 149 / [ADR 0134](../adr/0134-go-source-structural-evaluation.md): source routing, real three-harness role controls, Make and four pack consumers; qualification below. |
+| [ ] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Decision 150 / [ADR 0135](../adr/0135-go-source-review-entrypoints.md): locally qualified source/HTTP routing and shipped workflow with fresh module-cache preparation; full source 71/3275 passed. Hosted checks and merge pending. |
+| [ ] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Decision 150 / ADR 0135: locally qualified opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; hosted checks and merge pending. |
 | [ ] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Configuration migration: dry-run/apply, preserved data and failure behavior, historical fixtures. |
 | [ ] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Check orchestration: eight-stage ordering, real stdin, caller role, Git ranges and local-hook operand compatibility. |
 | [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Controller boundary: preserve configuration, models, state and process ownership while removing Python dispatch. |
@@ -78,10 +78,43 @@ fixture wait; its unchanged targeted rerun passed. The original stall was not
 reproduced and its cause is unproven; this does not claim a timing correction.
 These are not five new runtime capabilities: their native owners already existed.
 
-Across the fixed baseline and earlier completed rows, 13 of 21 direct source
+The structural evaluator merged in PR #165 on 2026-11-04 as
+[`aec8d12`](https://github.com/anoop2811/software-factory-template/commit/aec8d12b9c9495d8461ad6383221183d40d3d6c2).
+Its final head `4d5fb70` passed all 32 hosted checks. Linux and macOS source jobs
+each passed 63 criteria. The final advisory review covered all nine changed
+files and twelve fragments, with findings answered. Copilot could not review
+because of account quota. An unchanged macOS historical-job rerun passed after
+three earlier historical failures; their cause remains unproven and no timing
+fix is claimed. These are recorded prior qualification results, not a new run
+made by this documentation update.
+
+Across the fixed baseline and earlier completed rows, 14 of 21 direct source
 entrypoints are merged. Including the seven sourceable libraries and four Python
-modules, that is 13 of 32 inventory paths (40.6%), with 19 remaining. These are
+modules, that is 14 of 32 inventory paths (43.8%), with 18 remaining. These are
 path counts, not effort-weighted implementation or release percentages.
+
+## Grouped delivery order
+
+Decision 150 groups the remaining paths by their consumers and compatibility
+boundaries. Each PR includes affected fixture custody, checks and review; the
+next group starts after the previous PR merges. Seven PRs is a delivery target,
+not a guarantee that unresolved evidence cannot require a further split.
+
+| Order | Group | Inventory paths |
+|---|---|---:|
+| 1 | Review execution and review-lane administration | 2 |
+| 2 | Config migration, config/role readers and budget-config reader | 4 |
+| 3 | Events, timing, color and hooksPath helpers | 4 |
+| 4 | Check/pre-push orchestration | 1 |
+| 5 | Budget command source cutover | 1 |
+| 6 | Loop source cutover and four shared Python runtime retirements | 5 |
+| 7 | Public selftest and final historical-test separation | 1 |
+
+The Python loop imports the budget engine, so removing shared modules waits
+until both public controllers and every historical consumer have a qualified
+disposition. Each controller group closes its own proof-retirement rows rather
+than deferring all historical coverage to the final selftest group. R4-R7 remain
+separate release work after R3.
 
 ## Remaining sourceable libraries
 
@@ -129,6 +162,10 @@ Existing installation ownership, backup and customized-file rules still apply.
 - Review request fixtures copy the current provider script and mock its legacy
   transport. Preserve every required behavior through native coverage or clearly
   identified historical custody; changing the wrapper alone is insufficient.
+- Generated source review jobs must provision the source toolchain and locked
+  modules before invoking native adapters. R4 must separately rehearse fresh
+  adopter CI runners: Git checkout does not transfer an ignored local installed
+  runtime. Local installed-command success alone does not qualify runner delivery.
 - Public native selftest currently proves fourteen core gate pairs. That is not
   parity with all historical configuration, packs, upgrade, eval and reporting
   regressions. The [proof-retirement ledger](R3_PROOF_RETIREMENT.md) records the

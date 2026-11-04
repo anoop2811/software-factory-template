@@ -38,6 +38,12 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
+  # Complete review fixture dependencies, never current runtime fallbacks.
+  # docs/adr/0135-go-source-review-entrypoints.md:46.
+  for asset in scripts/factory-review-lane.sh scripts/adversarial-review.sh \
+    scripts/lib/config.sh scripts/lib/color.sh; do
+    git -C "$TEMPLATE_ROOT" show "f3a0b6520917e104883cc89b123d7244fa0c46a7:$asset" > "$LEGACY_TEMPLATE_ROOT/$asset"
+  done
 fi
 
 # Gate firings during the self-test log to a sandbox event log, not the real
@@ -1090,8 +1096,8 @@ if [ -f "$REVIEW_TEMPLATE" ]; then
   RLROOT="$SANDBOX/reviewlane"
   mkdir -p "$RLROOT/scripts/lib" "$RLROOT/packs/review-lane"
   ( cd "$RLROOT" && git init -q )
-  cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
-  cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$RLROOT/scripts/lib/"
+  cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$RLROOT/scripts/"
+  cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$RLROOT/scripts/lib/"
   cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$RLROOT/packs/review-lane/"
   printf 'project_name: t\nmodel_provider: "anthropic"\nreview_lane: "off"\n' > "$RLROOT/factory.yaml"
   check "review lane is off until asked for" "0" \
@@ -1148,8 +1154,8 @@ if [ -f "$REVIEW_TEMPLATE" ]; then
   PENDROOT="$SANDBOX/pending"
   mkdir -p "$PENDROOT/scripts/lib" "$PENDROOT/packs/review-lane"
   ( cd "$PENDROOT" && git init -q )
-  cp "$TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
-  cp "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PENDROOT/scripts/lib/"
+  cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-review-lane.sh" "$PENDROOT/scripts/"
+  cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/color.sh" "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$PENDROOT/scripts/lib/"
   cp "$TEMPLATE_ROOT/packs/review-lane/review-pr.yml" "$PENDROOT/packs/review-lane/"
   # Settings left in a legacy factory.config, deliberately: this doubles as the
   # proof that a repo which has not migrated still has its settings honoured

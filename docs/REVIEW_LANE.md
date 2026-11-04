@@ -16,7 +16,7 @@ A model reviews the diff of every pull request and posts one advisory comment.
 ./factory review-lane enable        # installs the workflow, records the choice
 ```
 
-### The one step that is yours
+### Provider credentials
 
 **The lane cannot work until you add a repository secret.** Nothing in the
 factory can do this for you.
@@ -34,6 +34,17 @@ also end with a highlighted **Action required** block naming the secret, printed
 last so it does not scroll away.
 
 Check any time with `./factory review-lane status`, or `./factory doctor`.
+
+### Runner runtime
+
+The review job also needs a trusted factory runtime. Current canonical source
+checkouts prepare their declared Go toolchain and locked dependencies before
+the review step. Go-installed projects use a packaged runtime and do not need
+a compiler; provision that runtime on the runner, since Git checkout does not
+copy a developer's local installation. For explicit batched review, provision
+a compatible binary and set `REVIEW_GO_CLIENT` to its absolute path, as described
+in [self-hosting](SELF_HOSTING.md#budgeted-batch-review). The workflow never
+builds an ordinary adopter application to obtain its review client.
 
 `disable` **removes** the workflow file rather than leaving it inert: a dormant
 `pull_request_target` workflow sitting in a repository is an invitation to switch

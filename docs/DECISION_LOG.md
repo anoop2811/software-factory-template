@@ -6531,3 +6531,139 @@ Bash adapters and the four extracted pack steps using default shell semantics.
 Configured `golangci-lint run --config packs/go/.golangci.yml ./...` reported
 `0 issues.`. There is no new criterion or production-code change. Fresh full
 source and hosted qualification of this fixture correction remain pending.
+
+## Decision 150 (2026-11-04 UTC): group source review execution and lane administration
+
+The user approved completing the remaining R3 boundaries sequentially in
+cohesive groups. Start from merged PR #165 (`aec8d12`), not the paused performance
+branch. The target delivery groups are review execution/lane, configuration and
+role/budget readers, remaining shared helpers, check orchestration, budget,
+loop/shared Python retirement, and public selftest/historical-test separation.
+Each group includes its consumers, fixture custody, checks and review before
+merge; the inventory counts are not effort estimates or release percentages.
+
+Adopt [ADR 0135](adr/0135-go-source-review-entrypoints.md). Keep the two public
+review script paths as physical-owner adapters to the existing Go commands.
+Qualify the shipped direct-script workflow step as well as ordinary source
+invocation. Preserve native request privacy, explicit-client selection,
+no-fallback failure, opt-in lane management and workflow ownership. No runtime
+rewrite, dependency pin, paid request or public release activation is intended.
+
+Retain old transport assertions as isolated development-only evidence with
+explicit revision and dependencies. `git diff
+f3a0b6520917e104883cc89b123d7244fa0c46a7 HEAD -- scripts/adversarial-review.sh
+scripts/lib/config.sh scripts/factory-review-lane.sh` returned no output on the
+new branch before edits. That identity is source custody, not executed behavior.
+Independent source RED/GREEN, historical results, native checks, review and
+hosted qualification are outstanding and will be recorded separately.
+
+Decision 150 custody refinement, before the correction: independent review
+identified that overwriting config/color at the optional-pack fixture root
+would also freeze current policy dependencies. Keep those root libraries current;
+require their bytes to equal the declared historical review dependency revision
+before running this mixed fixture. A later reader/helper conversion must isolate
+its historical consumers explicitly instead of silently inheriting changed
+bytes. The primary general runner already has a separate historical template
+and keeps its current gate subjects outside it.
+
+Decision 150 source-consumer prerequisite correction, before code: independent
+execution of the shipped compatibility step passed with the historical engine
+but failed after source delegation, both without Go and with Go 1.27.3 plus
+empty module caches (`module lookup disabled by GOPROXY=off`). The original
+consumer test supplied a compiled owner and did not establish cold source
+preparation. This is a current consumer regression, not a provider failure.
+
+When no explicit review client is selected, classify only the canonical factory
+source layout using its module identity and source-bootstrap inputs. For that
+layout, provision Go from its go.mod, acquire locked modules, reject lockfile
+changes, and run the actual source owner's help command before exposing review
+credentials. Then retain the same single-request adapter invocation. Do not
+compile an adopter application, alter explicit-client selection, enable batches
+implicitly, or add a compiler dependency to installed projects. Installed
+workflows retain their existing obligation to provision a trusted runtime.
+Qualify the extracted preparation and review steps using an actual private
+source launcher and fresh module cache, with an immutable local module proxy
+and private HTTP/GitHub services. Observe missing preparation fail first.
+
+Reuse the repository's pinned actions/setup-go v7.0.0 commit `b7ad1da` (official
+release dated 2026-07-16). Its
+[action definition](https://raw.githubusercontent.com/actions/setup-go/b7ad1dad31e06c5925ef5d2fc7ad053ef454303e/action.yml)
+and [release](https://github.com/actions/setup-go/releases/tag/v7.0.0), fetched
+2026-11-04 UTC, confirm go-version-file and cache inputs and the existing pin.
+This adds no toolchain version pin and no new runtime dependency.
+
+The preparation action receives an explicit empty token input; provider and
+GitHub write tokens remain scoped to the review steps. Preserve safe failure
+reporting across the old shell and native diagnostics by accepting the exact
+existing failure categories with or without their final period. This is not
+permission to publish arbitrary stderr or provider bodies.
+
+The old R16 workflow fixture equates compiler-free adopters with the absence
+of any setup-go text anywhere in the generated template. Source-only preparation
+makes that implementation predicate obsolete. Replace that one predicate with
+independent behavioral source/adopter/installed/explicit-client classification
+and prerequisite qualification; retain its other active/generated client and
+credential wiring assertions. Record this partial native replacement separately
+from the retained historical provider-engine assertions.
+
+Decision 150 fixture PATH correction, before code: security review found the
+cold-source workflow test placed its fake-gh directory after `/usr/bin`.
+A hosted runner's real gh could therefore replace the private GitHub fixture.
+Prepend the dedicated fake-tool directory, which contains no Go executable,
+while retaining the qualified compiler before jq's directory. Keep all provider
+and GitHub traffic local and independently exercise the ordering defect.
+
+Decision 150 local evidence: independent source qualification ran
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=5m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source runtime entrypoints review adapters '
+-ginkgo.fail-on-empty -ginkgo.json-report=../review-full-red.json -v`
+in the private `r3-review/spec-source` checkout. The old bodies reported
+`0 Passed | 7 Failed` in 2.812 seconds. The subsequent actual cold-source
+negative control failed before HTTP with missing modules; the controlled
+ambient-gh negative control reported status 84 and
+`unexpected ambient GitHub client` in 4.549 seconds.
+
+Final independent qualification used the same race options, `-timeout=7m`, focus
+`^Go factory command acceptance (Go source runtime entrypoints review adapters|Adversarial review large payload boundary|Budgeted review workflow security and publication) `
+and report `../review-final-qualified.json`. It reported
+`23 Passed | 0 Failed | 0 Pending | 3252 Skipped` in 21.885 seconds: eight new
+source criteria, six retained payload criteria and nine existing workflow
+security criteria. This includes actual fresh module-cache preparation through
+a local file proxy, real source compilation, private HTTP/GitHub services and
+failure publication. Separate existing-native acceptance with the same race
+options, `-timeout=10m` and focus
+`^Go factory command acceptance (Native orchestration review|Native Go review-lane)`
+reported `80 Passed | 0 Failed` in 33.812 seconds before the new source criteria.
+
+The final enclosing command in private `r3-review/qualification-source` was
+`FACTORY_AGENT_ROLE=refactorer FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local
+make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2
+GO_RUNTIME_REPORT_DIR="$PWD/../source-final"`, with qualified Go/quality tools
+and historical Python 3.12.0 on PATH. It exited zero:
+`71 Passed | 0 Failed | 0 Pending | 3204 Skipped` in 174.006 seconds under race;
+configured lint reported `0 issues.`, gosec `Issues : 0`, and govulncheck
+`No vulnerabilities found.` for code reachable from this module.
+The complete/disjoint partition criterion, run under race with focus
+`^Go factory command acceptance Go source qualification scheduling executes disjoint feature partitions while retaining every source quality stage$`,
+passed against all 3275 discovered identities in 73.972 seconds. An earlier
+mistyped focus failed explicitly under fail-on-empty and is not qualification.
+
+Historical commands ran privately with local Python 3.12.0 on PATH:
+`bash scripts/selftest/adversarial-review.sh` reported
+`adversarial-review: 53 passed, 0 failed`; `bash scripts/selftest/run.sh` reported
+`selftest: 218 passed, 0 failed, 0 skipped`; and
+`bash scripts/selftest/optional-packs.sh` reported
+`optional-packs: 3 passed, 0 failed`. The changed-library negative control
+exited 1 with `isolate changed historical review dependency:
+scripts/lib/config.sh` before the unmodified optional fixture passed.
+
+Independent correctness/security/tests review closed the optional-policy
+freezing, source preparation and fake-gh PATH findings. A separate adapter
+probe passed 90 transport/refusal cases. Bash syntax and Shellcheck exited zero;
+`go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -ignore
+'unexpected key "cache-mode" for "job" section'
+packs/review-lane/review-pr.yml` exited zero with no output. Artifacts are under
+`.factory/qualification/r3-review/`. Hosted checks and human review/merge remain
+pending; these results do not close a release gate.

@@ -6484,3 +6484,50 @@ exited zero. Independent correctness/security/tests review found no retained
 defects; real private consumer probes also passed without Go or Python on PATH.
 The final small assertion change received separate independent test review.
 Hosted checks, review responses and human merge remain outstanding.
+
+Decision 149 hosted compiler-selection correction, before code: Linux source
+CI on `4468fd4` passed 62 criteria and failed the new compilation criterion:
+`go.mod requires go >= 1.27.3 (running go 1.26.10; GOTOOLCHAIN=local)`.
+The fixture put jq's system directory before the already selected source
+compiler. Preserve the source helper's compiler-first PATH when adding probe
+utilities, and reproduce the ordering defect with a controlled wrong-compiler
+decoy. Keep offline compilation, private source custody and all role assertions.
+No production runtime, toolchain pin, timeout or criterion count changes.
+Evidence: job 126392510463 in run 41774788233 and
+`.factory/qualification/r3-structural/ci-linux-source-4468fd4.log`.
+
+The completed advisory review also requests explicit invalid/missing-harness
+source assertions and faithful pack-step shell execution. Add those checks to
+the existing source criteria, retaining the canonical native status-2 usage
+contract. Evaluate other advisory claims against the complete helper and owner
+sources before accepting changes; incomplete review fragments do not establish
+that the real evaluator is a stub or that a cited file is absent.
+
+Decision 149 pack-shell qualification: the four current pack workflows declare
+no workflow/job shell default or step shell. GitHub's authoritative
+[workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsshell),
+fetched 2026-11-04 UTC, specifies `bash -e {0}` for this Linux/macOS case;
+explicit Bash adds `pipefail`. Execute the extracted step as a private script
+with those default flags and assert the relevant shell overrides remain absent,
+instead of silently testing stricter flags. This changes only the consumer test.
+
+Decision 149 fixture HOME refinement, before code: keep the private project
+HOME for compilation and subsequent real-gate probes. Query the already selected
+evaluator Go tool for its effective `GOCACHE` and `GOMODCACHE`, pass those two
+absolute cache paths explicitly, and disable user Go env-file loading with
+`GOENV=off`. This retains intentional shared compiler/module caches and offline
+compilation while narrowing the fixture's access to user configuration. It is
+an isolation improvement, not evidence that the old test modified user files.
+
+Decision 149 review-correction evidence: a private project-tool `go` decoy
+reproduced the wrong selection with status 83 under the old PATH ordering
+(`0 Passed | 1 Failed` in 1.851 seconds). The decoy stays in the existing
+criterion. With source compiler precedence restored, explicit cache paths and
+private HOME, the seven-criterion race command above with report
+`../structural-review-green.json` reported
+`7 Passed | 0 Failed | 0 Pending | 3260 Skipped` in 9.348 seconds.
+It also exercised missing/invalid harness arguments through direct and explicit
+Bash adapters and the four extracted pack steps using default shell semantics.
+Configured `golangci-lint run --config packs/go/.golangci.yml ./...` reported
+`0 issues.`. There is no new criterion or production-code change. Fresh full
+source and hosted qualification of this fixture correction remain pending.

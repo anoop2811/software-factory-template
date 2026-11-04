@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"maps"
 	"os"
 	"os/exec"
@@ -192,12 +193,32 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 	It("compiles its private source owner and evaluates all three caller-owned real denial gates", func() {
 		source := newSourceEntrypointFixture()
 		base := filepath.Dir(source.root)
+		project := sourceStructuralProject(source.caller, base)
+		projectTools := filepath.Join(base, "project tools")
+		decoy := filepath.Join(base, "project compiler called")
+		writeFixture(filepath.Join(projectTools, "go"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_STRUCTURAL_DECOY_GO\"\nprintf 'unexpected project Go compiler\\n' >&2\nexit 83\n"), 0700)
+		project["PATH"] = projectTools + string(os.PathListSeparator) + project["PATH"]
+		project["SOURCE_STRUCTURAL_DECOY_GO"] = decoy
 		environment := maps.Clone(source.environment)
-		for name, value := range sourceStructuralProject(source.caller, base) {
+		for name, value := range project {
 			environment[name] = value
 		}
-		environment["PATH"] += ":" + source.environment["PATH"]
-		environment["HOME"] = os.Getenv("HOME")
+		environment["PATH"] = source.environment["PATH"] + string(os.PathListSeparator) + project["PATH"]
+		compiler, err := exec.LookPath("go")
+		Expect(err).NotTo(HaveOccurred())
+		compiler, err = filepath.EvalSymlinks(compiler)
+		Expect(err).NotTo(HaveOccurred())
+		cacheQuery := exec.Command(compiler, "env", "-json", "GOCACHE", "GOMODCACHE") // #nosec G204 -- evaluator-selected compiler, fixed read-only environment query before project tools enter PATH.
+		cacheQuery.Env = append(os.Environ(), "GOTOOLCHAIN=local")
+		cacheBytes, err := cacheQuery.Output()
+		Expect(err).NotTo(HaveOccurred())
+		var caches map[string]string
+		Expect(json.Unmarshal(cacheBytes, &caches)).To(Succeed())
+		for _, name := range []string{"GOCACHE", "GOMODCACHE"} {
+			Expect(filepath.IsAbs(caches[name])).To(BeTrue(), "%s must be an explicit evaluator cache", name)
+			environment[name] = caches[name]
+		}
+		environment["GOENV"] = "off"
 		program := sourceStructuralAdapter(source.root)
 		before := sourceEntrypointSnapshot(source.root)
 		for index, harness := range []string{"opencode", "claude", "codex"} {
@@ -216,6 +237,15 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 			}
 		}
 		sourceStructuralProbes(environment, 3)
+		for _, bash := range []bool{false, true} {
+			for _, args := range [][]string{nil, {"--harness=bogus"}} {
+				observed := sourceStructuralInvoke(source.caller, environment, "", program, bash, args...)
+				Expect(observed).To(Equal(cliResult{"", "usage: harness-structural-eval.sh --harness=opencode|claude|codex\n", 2}))
+			}
+		}
+		sourceStructuralProbes(environment, 3)
+		_, err = os.Lstat(decoy)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "project tooling must not shadow the evaluator-selected source compiler")
 	})
 
 	// per docs/adr/0134-go-source-structural-evaluation.md:39
@@ -237,25 +267,41 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 	// per docs/adr/0134-go-source-structural-evaluation.md:39
 	It("executes the actual structural steps from every language-pack workflow with a native runtime", func() {
 		root, environment := sourceStructuralNativeFixture()
+		type defaults struct {
+			Run map[string]any `yaml:"run"`
+		}
+		type step struct {
+			sourceGateWorkflowStep `yaml:",inline"`
+			Shell                  *string `yaml:"shell"`
+		}
 		for _, path := range []string{"packs/go/workflows/ci.yml", "packs/typescript/workflows/ci.yml", "packs/java/workflows/ci.yml", "packs/java/maven/workflows/ci.yml"} {
 			body, err := os.ReadFile(filepath.Join("..", path))
 			Expect(err).NotTo(HaveOccurred())
 			var workflow struct {
-				Jobs map[string]sourceGateWorkflowJob `yaml:"jobs"`
+				Defaults defaults `yaml:"defaults"`
+				Jobs     map[string]struct {
+					Defaults defaults `yaml:"defaults"`
+					Steps    []step   `yaml:"steps"`
+				} `yaml:"jobs"`
 			}
 			Expect(yaml.Unmarshal(body, &workflow)).To(Succeed())
+			Expect(workflow.Defaults.Run).NotTo(HaveKey("shell"))
 			var selected []sourceGateWorkflowStep
 			for _, job := range workflow.Jobs {
 				for _, step := range job.Steps {
 					if strings.Contains(step.Run, "harness-structural-eval.sh") {
-						selected = append(selected, step)
+						Expect(job.Defaults.Run).NotTo(HaveKey("shell"))
+						Expect(step.Shell).To(BeNil())
+						selected = append(selected, step.sourceGateWorkflowStep)
 					}
 				}
 			}
 			Expect(selected).To(HaveLen(1), "%s must retain its structural consumer", path)
 			Expect(selected[0].If).To(BeEmpty())
 			Expect(selected[0].Env).To(BeEmpty())
-			observed := handoffNativeExactProcess(root, environment, "", "/bin/bash", "-e", "-o", "pipefail", "-c", selected[0].Run)
+			script := filepath.Join(filepath.Dir(root), "pack structural step")
+			writeFixture(script, []byte(selected[0].Run), 0600)
+			observed := handoffNativeExactProcess(root, environment, "", "/bin/bash", "-e", script)
 			Expect(observed).To(Equal(cliResult{sourceStructuralSuccess("opencode") + sourceStructuralSuccess("claude") + sourceStructuralSuccess("codex"), "", 0}), path)
 			Expect(os.ReadFile(environment["SOURCE_STRUCTURAL_OWNER"])).To(Equal([]byte("eval\x00structural\x00--harness=opencode\x00eval\x00structural\x00--harness=claude\x00eval\x00structural\x00--harness=codex\x00")))
 			sourceStructuralProbes(environment, 3)

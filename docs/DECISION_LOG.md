@@ -6667,3 +6667,110 @@ probe passed 90 transport/refusal cases. Bash syntax and Shellcheck exited zero;
 packs/review-lane/review-pr.yml` exited zero with no output. Artifacts are under
 `.factory/qualification/r3-review/`. Hosted checks and human review/merge remain
 pending; these results do not close a release gate.
+
+Decision 150 hosted fixture correction, before code: PR #166's Linux budget job
+on `e58cb12` passed 31 criteria and timed out after 60 seconds in its historical
+installer criterion. The budget, loop and Java installer fixture materializers
+replace the dispatcher/init/doctor bodies but still copied the newly native
+review-lane adapter. A historical dispatcher must receive its corresponding
+historical review commands, rather than route back through a current adapter.
+Extend those three existing immutable dependency lists with both review script
+paths. Their bodies and config/color dependencies are byte-identical between
+the existing `1754de23` fixture revision and the declared `f3a0b65` review oracle
+(`git diff` over those four paths returned no output). Keep every assertion and
+existing timeout; qualify the complete affected budget, loop and Java suites.
+This corrects test custody, not native controller behavior or timeout limits.
+
+Decision 150 review follow-up, before code: strengthen the existing source
+refusal criterion with non-executable owners and explicit PATH, caller, home
+and runtime-override decoys. No refusal may invoke an alternate owner. Compare
+shell failure status with the same platform's absolute-exec reference rather
+than invent a portable numeric exit status. Exercise an intentional fallback
+mutation before qualifying the current adapters; retain the criterion census.
+Rename only human-facing single-request review headings and failure text to
+"Compatibility" because that route now also executes the native source owner.
+Preserve the existing legacy mode, report schema and step selectors as public
+compatibility contracts. Update the historical workflow wording assertion and
+qualify actual generated-workflow publication.
+
+Decision 150 historical upgrade assertion correction, before code: hosted Linux
+qualification exposed an overbroad old-byte assertion at
+`acceptance/obsolete_cache_retirement_test.go:298`. It included the review
+workflow and metrics template, although the independent obsolete-cache oracle
+excludes those two required, still-owned assets. The observed workflow digest
+matches the candidate template; forward replacement is required behavior.
+Preserve the candidate change and every unowned/unknown cache check. Assert the
+two active assets equal the candidate image after upgrade, and the complete
+original cache snapshot after rollback. Keep historical 58-row journal,
+manifest and receipt checks unchanged. No installation runtime change or
+frozen candidate is warranted.
+
+Decision 150 cold-cache fixture provisioning, before code: the Linux source
+job's ordinary test build does not download modules used only on other
+platforms. Its evaluator cache therefore lacked the locked mousetrap module,
+and could not serve as a complete local proxy for `go mod download`. Add an
+explicit source-entrypoints-only locked-module setup step before qualification,
+with a go.mod/go.sum mutation check. The test then copies the exact required
+module versions' proxy artifacts into a private immutable proxy and reports a
+clear setup precondition for missing artifacts. Keep the consumer module cache
+empty and all behavioral acquisition local; never omit a platform-specific
+requirement, silently use the public network in the test, or assume a warm
+developer cache. Qualify a deliberately incomplete private proxy before the
+complete proxy. This CI setup change requires review as a protected path.
+
+Decision 150 proxy refinement, before code: qualification showed that copying
+only root requirements misses earlier transitive go.mod metadata required by
+Go's module graph (Cobra's go-md2man dependency). Use the qualified Go tool to
+materialize that graph in a separate private staging cache through a file-only
+proxy backed by the explicitly provisioned evaluator cache. Copy only the
+locked go.mod/go.sum into the staging module and reject changes. Its completed
+download cache becomes the private proxy for a second, initially empty consumer
+cache. Keep both fixture preparation and behavioral acquisition offline, clear
+private-module bypass settings, and qualify an incomplete proxy negative
+control. This avoids maintaining a second module graph resolver in test code.
+
+Decision 150 corrective evidence: private complete historical reruns of
+`bash scripts/selftest/budget.sh`, `bash scripts/selftest/loop.sh`,
+`bash scripts/selftest/java-build-tool.sh` and
+`bash scripts/selftest/adversarial-review.sh` reported, respectively,
+`32 passed, 0 failed`, `40 passed, 0 failed`, `6 passed, 0 failed` and
+`adversarial-review: 53 passed, 0 failed`. All registrations and timeouts remain.
+
+The independent author ran the same focused 23-criterion race command recorded
+above with report `../review-followup-qualified.json`: it reported
+`23 Passed | 0 Failed | 0 Pending | 3252 Skipped` in 23.344 seconds.
+The source test SHA256 is
+`27ba83bf02b663d904326c6e2d3ff49d6e39234a019abe2a799ca3bedfa8b499`.
+An intentional fallback first failed the new decoy assertion; deleting the
+private staged proxy's mousetrap metadata then failed actual preparation in
+2.134 seconds before any provider request. The enclosing criterion succeeds
+through a proxy path containing spaces, with its separate consumer cache cold.
+
+The cache preservation/upgrade/rollback criterion ran privately under
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local
+go test -race ./acceptance -run '^TestAcceptance$' -count=1 -timeout=10m
+-ginkgo.no-color -ginkgo.focus='preserves unowned equal-looking leftovers and replays the original minimal transaction generation$'
+-ginkgo.fail-on-empty -ginkgo.json-report=../historical-cache-corrected.json -v`.
+It reported `1 Passed | 0 Failed | 0 Pending | 3274 Skipped` in 193.165 seconds,
+including exact original cache restoration and historical transaction evidence.
+An earlier over-anchored focus failed on empty selection; the first corrected
+assertion also exposed a fixture target-name mismatch, corrected before this
+successful run. Neither failed invocation is qualification evidence.
+
+Independent correctness, security and test reviewers inspected the final
+corrective bytes and retained no findings. Pinned actionlint on both changed
+workflows exited zero; configured golangci-lint reported `0 issues.`.
+The initial hosted adversarial job completed both batches and all 16 files in
+95 seconds; completion is review coverage, not approval. Its findings require
+individual replies, and the corrected head still requires hosted qualification
+and human review of the protected CI setup change before merge.
+
+Final enclosing corrective qualification ran the same private
+`FACTORY_AGENT_ROLE=refactorer FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local
+make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2`
+with report directory `r3-review/source-corrected`. It exited zero:
+`71 Passed | 0 Failed | 0 Pending | 3204 Skipped` in 165.368 seconds;
+configured lint `0 issues.`, gosec `Issues : 0`, and govulncheck
+`Your code is affected by 0 vulnerabilities.`. These results qualify the
+corrections locally and do not substitute for the corrected hosted head.

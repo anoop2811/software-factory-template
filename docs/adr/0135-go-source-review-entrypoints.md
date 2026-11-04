@@ -92,3 +92,11 @@ this correction does not silently opt a single-request user into batch costs.
 Test cold module acquisition through a local immutable module proxy and actual
 source execution, not only a compiled recording owner. Missing preparation must
 fail before the private provider is contacted.
+
+Source qualification explicitly provisions locked modules with `go mod download`
+before constructing the local proxy; a platform-specific test build alone is
+not a complete module download. The fixture uses the qualified Go tool to stage
+the locked graph through a file-only proxy, checks both lockfiles unchanged,
+and then exercises the actual workflow with a separate empty consumer cache.
+Neither fixture preparation nor behavioral acquisition may bypass the local
+proxy through private-module settings or contact a public module service.

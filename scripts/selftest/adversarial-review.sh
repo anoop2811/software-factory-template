@@ -253,7 +253,7 @@ trusted_workflow_guard() {
             '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and .head.sha == $head' \
           jq -n --arg status "$status" --arg repository "$REPO" --arg base "$EXPECTED_BASE" --arg head "$head" \
             '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
-            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+            printf 'Commit: `%s`. Compatibility single request; no batch coverage manifest.\n\n' "$head"
 IDENTITY_ARGUMENTS
   unsafe_head_uses="$(printf '%s\n' "$runs" |
     grep -E 'EXPECTED_HEAD|\$\{?head([^[:alnum:]_]|$)' |

@@ -143,6 +143,12 @@ jobs:
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
           go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec
           go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+      - name: Provision locked modules for source workflow qualification
+        if: matrix.group == 'source-entrypoints'
+        # docs/adr/0135-go-source-review-entrypoints.md:78.
+        run: |
+          GOTOOLCHAIN=local go mod download
+          git diff --exit-code -- go.mod go.sum
       # docs/adr/0102-parallel-go-qualification.md:32 — isolated handoff groups.
       - name: Outside-in compatibility, race, dialect, quality and candidate build
         run: make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"

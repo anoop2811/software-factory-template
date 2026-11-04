@@ -74,6 +74,33 @@ func sourceReviewGoCaches() map[string]string {
 	return caches
 }
 
+// Setup provisions every locked module; behavioral downloads use only this copy.
+// per docs/adr/0135-go-source-review-entrypoints.md:92
+func sourceReviewModuleProxy(cache, temporary string, environment map[string]string) string {
+	GinkgoHelper()
+	root := filepath.Join(temporary, "proxy source module")
+	locked := make(map[string][]byte)
+	for _, path := range []string{"go.mod", "go.sum"} {
+		body, err := os.ReadFile(filepath.Join("..", path))
+		Expect(err).NotTo(HaveOccurred())
+		locked[path] = body
+		writeFixture(filepath.Join(root, path), body, 0600)
+	}
+	staging := maps.Clone(environment)
+	maps.Copy(staging, map[string]string{"GOMODCACHE": filepath.Join(temporary, "proxy staging modules"), "GOPROXY": (&url.URL{Scheme: "file", Path: filepath.Join(cache, "cache/download")}).String(), "GOPRIVATE": "", "GONOPROXY": "", "GONOSUMDB": "", "GOSUMDB": "off", "GOENV": "off", "GOWORK": "off", "GOTOOLCHAIN": "local"})
+	Expect(staging["GOMODCACHE"]).NotTo(Equal(environment["GOMODCACHE"]))
+	compiler, err := exec.LookPath("go")
+	Expect(err).NotTo(HaveOccurred())
+	compiler, err = filepath.EvalSymlinks(compiler)
+	Expect(err).NotTo(HaveOccurred())
+	prepared := handoffNativeExactProcess(root, staging, "", compiler, "mod", "download")
+	Expect(prepared.status).To(BeZero(), "fixture setup requires the complete locked module cache; run go mod download before qualification: %+v", prepared)
+	for path, body := range locked {
+		Expect(os.ReadFile(filepath.Join(root, path))).To(Equal(body), "proxy preparation must preserve %s", path)
+	}
+	return (&url.URL{Scheme: "file", Path: filepath.Join(staging["GOMODCACHE"], "cache/download")}).String()
+}
+
 // Run the extracted Actions script with its unoverridden Unix default shell.
 // per docs/adr/0135-go-source-review-entrypoints.md:39
 func sourceReviewWorkflowRun(root string, environment map[string]string, body string) cliResult {
@@ -124,27 +151,41 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 	// per docs/adr/0135-go-source-review-entrypoints.md:21
 	It("refuses missing or aliased owners and preserves owner failure without fallback", func() {
 		for _, name := range []string{"adversarial-review.sh", "factory-review-lane.sh"} {
-			for _, mode := range []string{"failed", "missing", "file-alias"} {
+			for _, mode := range []string{"failed", "missing", "non-executable", "file-alias"} {
 				for _, bash := range []bool{false, true} {
 					owner, caller := fixtureDirectories()
+					base := filepath.Dir(owner)
 					program := sourceReviewAdapter(owner, name)
+					ownerCommand := filepath.Join(owner, "factory")
 					if mode != "missing" {
-						writeFixture(filepath.Join(owner, "factory"), []byte("#!/bin/sh\nprintf 'owner stdout\\n'\nprintf 'owner stderr\\n' >&2\nexit 47\n"), 0700)
+						writeFixture(ownerCommand, []byte("#!/bin/sh\nprintf 'owner stdout\\n'\nprintf 'owner stderr\\n' >&2\nexit 47\n"), 0700)
+					}
+					if mode == "non-executable" {
+						Expect(os.Chmod(ownerCommand, 0600)).To(Succeed())
 					}
 					if mode == "file-alias" {
 						alias := filepath.Join(caller, "aliased review")
 						Expect(os.Symlink(program, alias)).To(Succeed())
 						program = alias
 					}
+					foreign, tools, decoy := filepath.Join(base, "foreign"), filepath.Join(base, "tools"), filepath.Join(base, "decoy called")
+					for _, path := range []string{filepath.Join(caller, "factory"), filepath.Join(foreign, "factory"), filepath.Join(tools, "factory")} {
+						writeFixture(path, []byte("#!/bin/sh\nprintf '%s\\n' \"$0\" >> \"$REVIEW_DECOY\"\nprintf '%s\\n' \"$REVIEW_REFUSED_OWNER\" >&2\nexit 87\n"), 0700)
+					}
+					environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "REVIEW_DECOY": decoy, "REVIEW_REFUSED_OWNER": ownerCommand, "FACTORY_RUNTIME_BINARY": filepath.Join(foreign, "factory"), "FACTORY_HOME": foreign}
 					beforeOwner, beforeCaller := installationSnapshot(owner), installationSnapshot(caller)
-					observed := sourceStructuralInvoke(caller, map[string]string{"PATH": "/usr/bin:/bin", "BASH_ENV": "", "ENV": ""}, "", program, bash, "status")
+					observed := sourceStructuralInvoke(caller, environment, "", program, bash, "status")
+					_, err := os.Lstat(decoy)
+					Expect(os.IsNotExist(err)).To(BeTrue(), "%s mode=%s bash=%t must not select a fallback: %+v", name, mode, bash, observed)
 					switch mode {
 					case "failed":
 						Expect(observed).To(Equal(cliResult{"owner stdout\n", "owner stderr\n", 47}))
-					case "missing":
-						Expect(observed.status).NotTo(BeZero())
+					case "missing", "non-executable":
+						reference := handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", "set -e; exec \"$@\"", "absolute exec reference", ownerCommand, "status")
+						Expect(reference.status).NotTo(BeZero())
+						Expect(observed.status).To(Equal(reference.status))
 						Expect(observed.stdout).To(BeEmpty())
-						Expect(observed.stderr).To(ContainSubstring(filepath.Join(owner, "factory")))
+						Expect(observed.stderr).To(ContainSubstring(ownerCommand))
 					case "file-alias":
 						Expect(observed.status).To(Equal(2))
 						Expect(observed.stdout).To(BeEmpty())
@@ -399,7 +440,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		environment := maps.Clone(source.environment)
 		caches := sourceReviewGoCaches()
 		maps.Copy(environment, map[string]string{"HOME": temporary, "TMPDIR": temporary, "GOENV": "off", "GOCACHE": caches["GOCACHE"], "GOMODCACHE": filepath.Join(temporary, "empty modules"), "GOFLAGS": "-modcacherw", "FACTORY_CONFIG": filepath.Join(temporary, "factory.yaml")})
-		environment["GOPROXY"] = (&url.URL{Scheme: "file", Path: filepath.Join(caches["GOMODCACHE"], "cache/download")}).String()
+		environment["GOPROXY"] = sourceReviewModuleProxy(caches["GOMODCACHE"], temporary, environment)
 		writeFixture(environment["FACTORY_CONFIG"], []byte("model_provider: openrouter\nreview_model: fixture/model\n"), 0600)
 		sourceReviewAdapter(root, "adversarial-review.sh")
 		for _, path := range []string{"go.mod", "go.sum"} {
@@ -496,7 +537,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		Expect(report).To(Equal(map[string]any{"version": float64(1), "mode": "legacy-single-request", "status": "complete", "repository": "fixture/project", "base": ciReviewBase, "head": ciReviewHead, "batch_coverage_available": false}))
 		comment, err := os.ReadFile(environment["CAPTURE_COMMENT"])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(comment)).To(And(ContainSubstring("advisory): complete"), ContainSubstring(ciReviewHead), ContainSubstring("No findings.")))
+		Expect(string(comment)).To(And(ContainSubstring("Compatibility adversarial review (advisory): complete"), ContainSubstring(ciReviewHead), ContainSubstring("No findings.")))
 		Expect(string(comment)).NotTo(ContainSubstring("PRIVATE_REVIEW_KEY"))
 		calls, err := os.ReadFile(environment["REVIEW_GH_CALLS"])
 		Expect(err).NotTo(HaveOccurred())
@@ -510,7 +551,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		Expect(service.observed()).To(HaveLen(2), "one request per review without hidden retries or fallback")
 		comment, err = os.ReadFile(environment["CAPTURE_COMMENT"])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(comment)).To(And(ContainSubstring("advisory): failed"), ContainSubstring("adversarial-review: HTTP request failed")))
+		Expect(string(comment)).To(And(ContainSubstring("Compatibility adversarial review (advisory): failed"), ContainSubstring("adversarial-review: HTTP request failed")))
 		Expect(string(comment)).NotTo(ContainSubstring("PRIVATE_"))
 		body, err = os.ReadFile(filepath.Join(failedTemp, "factory-review-output/report.json"))
 		Expect(err).NotTo(HaveOccurred())

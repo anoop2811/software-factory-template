@@ -121,8 +121,8 @@ jobs:
           if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
           FACTORY_BRIDGE_PROTOCOL='' "$REVIEW_GO_CLIENT" "${args[@]}"
 
-      # Explicit compatibility path for adopters that have not installed the
-      # Go client. Only this path retains the old single-request size boundary.
+      # Default single-request compatibility path when REVIEW_GO_CLIENT is unset.
+      # This path retains the existing single-request size boundary.
       - name: Review legacy (no batch coverage)
         if: steps.client.outputs.mode == 'legacy'
         env:
@@ -148,13 +148,13 @@ jobs:
           status=failed
           if [ "$size" -gt "$MAX_DIFF_BYTES" ]; then
             status=skipped
-            printf 'Legacy review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
+            printf 'Compatibility review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
           elif [ -z "$REVIEW_API_KEY" ]; then
             printf 'Model review did not run: repository secret __REVIEW_API_KEY_SECRET__ is missing.\n' > "$review"
           elif ./scripts/adversarial-review.sh "$RUNNER_TEMP/factory-review.diff" > "$review" 2> "$RUNNER_TEMP/factory-review-legacy.err" && [ -s "$review" ]; then
             status=complete
           else
-            printf 'Legacy model review failed; this pull request has not received a completed model review.\n' > "$review"
+            printf 'Compatibility model review failed; this pull request has not received a completed model review.\n' > "$review"
             # Publish only fixed classifications; provider stderr can contain secrets.
             while IFS= read -r reason; do
               case "${reason%.}" in
@@ -174,10 +174,10 @@ jobs:
             '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
             > "$RUNNER_TEMP/factory-review-output/report.json"
           {
-            printf '## Legacy adversarial review (advisory): %s\n\n' "$status"
+            printf '## Compatibility adversarial review (advisory): %s\n\n' "$status"
             # Markdown backticks are literal delimiters, not shell substitution.
             # shellcheck disable=SC2016
-            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+            printf 'Commit: `%s`. Compatibility single request; no batch coverage manifest.\n\n' "$head"
             cat "$review"
           } > "$RUNNER_TEMP/factory-review-comment.md"
           gh pr comment "$PR" --repo "$REPO" --body-file "$RUNNER_TEMP/factory-review-comment.md"

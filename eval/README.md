@@ -61,13 +61,41 @@ A directory `eval/golden-tasks/<name>/` with:
 ### A runner
 
 `runner <workdir>` — reads `<workdir>/task.md` and writes an implementation into
-`<workdir>`. Its exit status is ignored; `verify.sh` scores the result. The
+`<workdir>`. An ordinary completed run is scored by `verify.sh`; a timeout,
+cancellation or changed oracle cannot pass. The
 shipped `eval/runners/mock.sh` calls **no model** — it exercises the scorer both
 ways so the harness is provable in CI without credentials (the self-test uses
 it). `claude.sh`, `codex.sh` and `opencode.sh` are **real**: they drive their
 harness headlessly with your keys and budget, so they are opt-in but not yours
-to write. `example-harness.sh` is the skeleton for a harness the factory does
-not configure; read one of the real three first.
+to write. These five public script paths delegate to `factory eval run NAME`.
+The source checkout uses its Go launcher; an installed project uses its packaged
+binary. `example-harness.sh` deliberately refuses execution and calls no model.
+
+The native runners return 2 for missing operands or an unwired harness and 1 for
+an invalid work directory, unreadable task or unavailable CLI. This replaces
+legacy cases that could report mock success after a failed directory change or
+invoke a real CLI after failing to read its task. A real CLI's ordinary nonzero
+exit still leaves scoring to the oracle. Logs remain `<harness>-runner.log` in
+the task directory; `FACTORY_EVAL_MODEL` selects an optional model.
+Evaluation allows a bounded graceful shutdown so a runner can stop its own
+children. If shutdown cannot be confirmed, evaluation returns an error without
+publishing a score; killing only the outer runner is insufficient evidence.
+The error identifies a retained private task directory when process ownership is
+uncertain. Inspect it only after stopping the outstanding work; confirmed cleanup
+still removes temporary task directories automatically.
+
+For another harness, create your own executable runner and select it explicitly:
+
+```sh
+./scripts/golden-task-eval.sh --harness my-harness --runner ./tools/my-runner.sh
+```
+
+Your runner receives the work directory as its first argument. Read `task.md`,
+invoke the harness in that directory using its documented headless mode, and
+write the implementation there without changing `verify.sh`. Keep prompts and
+model arguments literal. Configure the harness's implementer permissions before
+running it. The shipped adapters are delegation points; customization belongs
+in your explicitly selected runner.
 
 **Headless permissions bite first.** A non-interactive run has nobody to approve
 anything, and `ask` permissions do not fail cleanly: the primary session

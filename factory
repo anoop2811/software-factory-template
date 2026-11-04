@@ -4,6 +4,20 @@ SOURCE_MONITOR=0
 case "$-" in *m*) SOURCE_MONITOR=1 ;; esac
 set +m
 
+# Bootstrap rejection must reach the requesting evaluator before native exec.
+# docs/adr/0133-go-source-evaluation-runners.md:139.
+SOURCE_EVAL_RUN=0
+if [ "${1-}" = eval ] && [ "${2-}" = run ]; then
+  SOURCE_EVAL_RUN=1
+fi
+source_eval_receipt() {
+  local status=$1 token=${FACTORY_EVAL_OWNERSHIP_TOKEN:-}
+  [ "$SOURCE_EVAL_RUN" -eq 1 ] && [ "$status" -ne 0 ] && [ "${#token}" -eq 64 ] || return 0
+  case "$token" in *[!0123456789abcdef]*) return 0 ;; esac
+  printf 'factory-eval-result-v1 %s %s\n' "$token" "${2:-failed}" >&2 || :
+}
+trap 'source_eval_receipt "$?"' EXIT
+
 # Source checkouts are developer tools; installed launchers execute their
 # authenticated packaged runtime without a compiler.
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:25.
@@ -155,6 +169,10 @@ source_spawn_compiler() {
 
 source_group_present() {
   local observation
+  # Successful probes need no subprocess. docs/adr/0133-go-source-evaluation-runners.md:170.
+  if builtin kill -0 -- "-$SOURCE_CHILD" 2>/dev/null; then
+    return 0
+  fi
   if observation="$(LC_ALL=C builtin kill -0 -- "-$SOURCE_CHILD" 2>&1)"; then
     return 0
   fi
@@ -208,7 +226,8 @@ source_finish_absent_group() {
 
 source_stop_build() {
   [ -n "$SOURCE_CHILD" ] || return 0
-  local source_signal source_attempt source_attempts=25 source_probe
+  # Keep nominal grace with fewer sleep processes. docs/adr/0133-go-source-evaluation-runners.md:172.
+  local source_signal source_attempt source_attempts=5 source_probe
   if source_group_present; then
     :
   else
@@ -222,26 +241,28 @@ source_stop_build() {
     builtin kill -CONT -- "-$SOURCE_CHILD" 2>/dev/null || :
     for ((source_attempt=0; source_attempt<source_attempts; source_attempt++)); do
       if source_group_present; then
-        /bin/sleep 0.02
+        /bin/sleep 0.1
       else
         source_probe=$?
         if [ "$source_probe" -ne 1 ]; then
           # Inspection uncertainty remains uncertainty. A terminating group may
           # become explicitly absent within this same bounded cleanup allowance.
-          /bin/sleep 0.02
+          /bin/sleep 0.1
           continue
         fi
         source_finish_absent_group
         return
       fi
     done
-    source_attempts=50
+    source_attempts=10
   done
   return 1
 }
 
 source_cleanup() {
+  local source_exit_status=$?
   source_restore_stderr
+  source_eval_receipt "$source_exit_status"
   set +m
   if [ "$SOURCE_RETAIN" -eq 0 ] && ! source_stop_build TERM; then
     SOURCE_RETAIN=1
@@ -249,6 +270,7 @@ source_cleanup() {
   if [ "$SOURCE_RETAIN" -eq 0 ]; then
     rm -f -- "$BUILD" "$SOURCE_DIAGNOSTICS" "$SOURCE_ADMISSION"
   else
+    source_eval_receipt 1 ownership-unconfirmed
     printf 'factory: compiler ownership is unconfirmed; preserve private source build %s\n' "$BUILD" >&2
   fi
 }

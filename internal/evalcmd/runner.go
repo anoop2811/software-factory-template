@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strings"
 
@@ -13,7 +14,13 @@ import (
 )
 
 func runner(ctx context.Context, args []string, _ string, environment map[string]string, stderr io.Writer) int {
+	// Only explicit normal decisions acknowledge completion. docs/adr/0133-go-source-evaluation-runners.md:213.
+	receipt := "ownership-unconfirmed"
+	defer func() {
+		writeRunnerReceipt(stderr, environment[runnerOwnershipToken], receipt)
+	}()
 	if len(args) < 2 {
+		receipt = "failed"
 		fmt.Fprintln(stderr, "usage: factory eval run HARNESS WORKDIR")
 		return 2
 	}
@@ -21,14 +28,19 @@ func runner(ctx context.Context, args []string, _ string, environment map[string
 	switch harness {
 	case "mock", "claude", "codex", "opencode":
 	default:
+		receipt = "failed"
 		fmt.Fprintf(stderr, "factory eval run: runner %s is not wired\n", harness)
 		return 2
 	}
 	result, err := runHarness(ctx, harness, work, environment)
 	if err != nil || result.OwnershipUnconfirmed || !result.ExitConfirmed || (result.Outcome != "completed" && result.Outcome != "failed") {
+		if !result.OwnershipUnconfirmed {
+			receipt = "failed"
+		}
 		fmt.Fprintf(stderr, "%s runner: could not complete the run\n", harness)
 		return 1
 	}
+	receipt = "completed"
 	return 0
 }
 
@@ -60,7 +72,10 @@ func runHarness(ctx context.Context, harness, work string, environment map[strin
 		argv = append(argv, "--model", model)
 	}
 	argv = append(argv, strings.TrimRight(strings.ReplaceAll(string(prompt), "\x00", ""), "\n"))
-	result, err := native.ExecuteCommandWithOptions(ctx, work, argv, environment, native.CommandOptions{StdoutLimit: fileLimit, StderrLimit: fileLimit, MergeStderr: true})
+	// Keep the receipt token out of harness environments. docs/adr/0133-go-source-evaluation-runners.md:128.
+	variables := maps.Clone(environment)
+	delete(variables, runnerOwnershipToken)
+	result, err := native.ExecuteCommandWithOptions(ctx, work, argv, variables, native.CommandOptions{StdoutLimit: fileLimit, StderrLimit: fileLimit, MergeStderr: true})
 	if ctx.Err() == nil && result.Outcome == "failed" && result.ExitConfirmed && !result.OwnershipUnconfirmed && result.ExitCode != nil && *result.ExitCode != 0 {
 		err = nil // The source runner returns success after the CLI's ordinary exit.
 	}

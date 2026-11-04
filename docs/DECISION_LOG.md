@@ -6025,3 +6025,373 @@ under `.factory/qualification/r3-golden/fixture_archive_parity_test.go` and
 `fixture-parity-{red,green}.json`. The scratch criterion is not in the repository
 test census. Final-tree `go vet ./...` exited 0 and the qualified
 `golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+
+## Decision 148 (2026-11-03 UTC): route source evaluation runners through Go
+
+Continue R3 after merged PR #163 with one bounded boundary: the five shipped
+evaluation runners. [ADR 0133](adr/0133-go-source-evaluation-runners.md) records
+physical-owner routing, POSIX invocation, literal transport, existing native
+runner semantics, explicit legacy error differences and independent acceptance.
+Keep mock evaluation free and real harness qualification behind owned fake CLIs.
+Reuse the native runner rather than copying execution logic into new wrappers.
+Keep customization guidance, frozen regression custody and every existing test
+assertion. This decision precedes implementation and does not claim tests pass.
+The paused performance PR #162 remains excluded.
+
+Decision 148 review correction: a private fake Claude runner wrote a completion
+marker after the evaluator had already reported its one-second cap. The converted
+adapter enters a Go controller whose CLI child has a separate process group;
+immediately killing the outer group orphaned that child. Reuse the existing
+cooperative command supervisor at the external golden-runner boundary, as
+specified in ADR 0133, and require independent timeout/cancellation regression
+evidence before implementation. Keep explicit/custom runner execution and its
+ownership checks; do not bypass a selected adapter by expanding frozen digests.
+This also makes unacknowledged external-runner shutdown an explicit EX-002
+failure with no published score. Keep the original nontrapping fixture as a
+negative ownership case, and retain timeout score-zero coverage with a controlled
+runner that acknowledges child termination and reap before exiting. Independent
+review identified this distinction before implementation; it is a deliberate
+contract correction, not an assertion that old timeout statuses are unchanged.
+
+Decision 148 retention refinement: independent review then observed a deliberately
+non-acknowledging controller's separate child still alive after evaluation
+returned an ownership error, while its private task directory had been deleted.
+Preserve and identify that directory when runner/oracle ownership is unconfirmed,
+before any context-error return. Retain generic error sanitization and expose
+only the quoted generated path. ADR 0133 records this bounded safety correction;
+ordinary confirmed cleanup remains automatic.
+
+Decision 148 nested-result correction: security review reproduced a pipe-holding
+detached CLI child surviving an inner runner's ordinary status-1 error, while
+the outer evaluator published score 1 and deleted the work directory. Normal
+outer exit had hidden explicitly uncertain inner ownership. Add ADR 0133's
+per-attempt private failure receipt, clear its token before invoking a harness,
+and preserve ordinary custom nonzero scoring. Neither a reserved exit code nor
+expanded built-in hashes may silently reinterpret a custom runner. Independent
+detached-child regression and receipt isolation are required before implementation.
+
+Decision 148 bootstrap receipt closure: a real source launcher with a fake
+compiler exiting 42 returned 42 directly, but the evaluator still ran an
+always-passing oracle and published score 1. A separate private observation-fault
+fixture reached the existing compiler-uncertainty status 125 and had the same
+false-pass problem. Extend the narrow requested receipt to pre-exec source
+failures, including early refusals, without changing direct statuses or compiler
+custody. This is source-bootstrap transport for the same runner boundary, not a
+new compiler implementation or a global exit-code reservation.
+
+Decision 148 local qualification (2026-11-03 UTC): the independent test author
+first observed all twelve original runner criteria fail on the old scripts.
+Additional RED runs exposed live nested harnesses/compilers after cancellation,
+deleted uncertain work, lost nested failure status and pre-exec false passes.
+The final focused race command ran in a private checkout:
+
+```sh
+FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -run '^TestAcceptance$' \
+  -count=1 -timeout=10m -ginkgo.no-color \
+  -ginkgo.focus='^Go factory command acceptance (Go source runtime entrypoints evaluation runner adapters|Native orchestration eval|Go source launcher signal ownership|Go source runtime entrypoints (enters the existing native command surface|forwards each direct entrypoint))( |$)' \
+  -ginkgo.fail-on-empty -ginkgo.json-report=../runner-bootstrap-final-focused-green.json -v
+```
+
+Output: `Ran 72 of 3257 Specs in 96.651 seconds` and
+`72 Passed | 0 Failed | 0 Pending | 3185 Skipped`. Subsequent fixture-only
+quality changes used the actual executable path and validated the private work
+path before reading it. Their five affected protocol criteria passed under race
+in 28.088 seconds. Final independent discovery found 3257 total criteria and 53
+in the existing source partition; all other partition counts are unchanged.
+The scheduling/workflow selector
+`^Go factory command acceptance Go source qualification (scheduling|workflow partition)( |$)`
+with the same test/race options reported `11 Passed | 0 Failed | 0 Pending | 3246 Skipped`
+in 89.526 seconds, retaining actual disjoint/exhaustive partition discovery.
+
+The historical runner reported `selftest: 218 passed, 0 failed, 0 skipped` and
+the optional-pack runner reported `optional-packs: 3 passed, 0 failed`. Final
+private-tree `go vet ./...` exited zero and the qualified
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+Shellcheck, shell syntax, Ginkgo dialect and shared-adapter checks exited zero.
+The explicit private native copy gate reported
+`copy-manifest-check: every native initializer copy input is safe and git-tracked`.
+The configured citation hook intentionally skips without a prefix; a separate
+local bounds check resolves the changed documentation citations.
+
+Correctness and security reviewers re-ran their reproduced failures against
+fresh private builds and reported no remaining findings. Tests/evidence review
+retained actual adapter, child-start, group-absence, oracle and private-token
+witnesses. No paid harness ran. Receipts are under the ignored
+`.factory/qualification/r3-runners/` directory; hosted checks, their review
+responses and merge remain pending. Full `make check` was not run locally.
+
+Decision 148 hosted qualification correction (2026-11-03 UTC): run
+[41591918079](https://github.com/anoop2811/software-factory-template/actions/runs/41591918079)
+exposed fixture portability errors that the serial local run did not reveal.
+The mock scoring criterion invoked the existing Bash golden adapter through
+`/bin/sh`; Ubuntu's shell rejected its Bash substitution. Invoke that adapter
+through its declared interpreter and retain the new POSIX runner invocation
+criteria. The bootstrap witness also recorded unrelated subsidiary Bash
+startups, overwriting the intended launcher arguments on macOS. Restrict the
+witness to the exact owned launcher and `eval run` arguments, preserving its
+real-process evidence. Neither correction changes production behavior or
+relaxes scoring, custody or process-exit assertions. Independently investigate
+the remaining macOS compiler-cancellation failure before deciding its remedy.
+
+Decision 148 fixture custody refinement: the hosted review identified that the
+test binary's detached-child mode accepted its private argv marker without
+checking the fixture environment. Require an absolute readiness path under the
+explicit private temporary directory and a working directory within that owner
+before writing or spawning. Exercise refusals in the existing receipt criterion.
+Pre-readiness child failures already have an owning kill/wait path; additionally,
+retain and report the fixture directory if cleanup cannot recover a valid child
+identity after handoff. Do not signal an unproven PID or weaken the immediate
+live-child evidence. These safeguards apply only to the test helper.
+
+Decision 148 bare-script owner correction: independent review reproduced
+`sh mock.sh` finding the runner through PATH while leaving `$0` bare. From a
+foreign working directory the adapter then executed that directory's unrelated
+factory. Refuse a bare operand without a caller-local regular readable script
+before resolving any parent; retain local bare invocation and explicit paths,
+including ordinary direct PATH execution. Do not attempt a second PATH search
+with potentially different shell semantics. Independently require every runner
+to refuse the ambiguous form without executing an unrelated factory.
+
+Decision 148 compiler shutdown correction: the macOS job returned an ownership
+error with the separately grouped compiler still present. An independent private
+probe reproduced the same failure by adding 80 ms of scheduling delay before
+each cleanup sleep: the outer controller exhausted its existing two-second
+cooperative grace while the source launcher was still polling before escalation.
+Reduce process creation inside that loop: probe a present group with the Bash
+builtin directly, capturing diagnostics only after failure, and use five 100 ms
+TERM polls and ten 100 ms KILL polls. This retains the nominal half-second and
+one-second phase allowances while reducing sleep launches by 80 percent. Keep
+absence/error classification, admission, child reap, conventional signal status
+and uncertain-build retention intact. Do not enlarge the global grace or task
+timeout. Require independent delayed-cleanup RED/GREEN plus the existing source
+signal and nested cancellation regressions before accepting this correction.
+
+Decision 148 truncated receipt correction: independent review refuted the
+suggested false oracle pass on stderr overflow, but reproduced a narrower
+custody failure. A custom controller emitted a valid uncertainty receipt after
+16 MiB of diagnostics and exited normally; capture overflow suppressed the
+oracle yet the evaluator published zero and deleted work still used by the
+controller's detached child. Treat an external runner's output-limit result as
+incomplete nested-ownership evidence: return an error, preserve and identify its
+private work, and publish no score. Keep native direct-harness output handling
+and ordinary custom nonzero scoring unchanged. Record this explicit EX-002
+difference and require an independent overflow/retention regression before code.
+
+Decision 148 Bash witness clarification: an independent comparison of system
+Bash 3.2 and the locally preferred Bash showed that Bash 3.2 reads BASH_ENV before
+assigning the script's `$0` and positional operands. Filtering at startup alone
+therefore misses the intended launcher on that host. Install a private DEBUG
+witness which records only after the actual owned launcher and `eval run`
+operands become visible, then disables itself. Exercise the system Bash in this
+fixture and preserve the later unrelated-startup negative control. Apply the
+same actual-execution identity check to the private delayed-cleanup injection.
+A missing delay marker is a fixture failure, not evidence of a runtime defect;
+rerun its RED against the committed launcher before claiming that regression.
+
+Decision 148 cold-fixture startup allowance: the two-worker source qualification
+recorded the delayed fixture returning a one-second timeout before any compiler
+PID/handshake existed; the ordinary cold case in the same run completed cleanup.
+Allow three seconds of task execution only in the cold-compiler fixtures so the
+instrumented source startup can reach the process whose cleanup is under test.
+Keep their live-start witness, injected scheduling cost, eight-second completion
+bound and actual PID/group absence assertions. Production timeouts and the
+outer two-second shutdown grace stay unchanged, as do the other one-second
+runner fixtures. Re-establish the old-launcher cleanup failure at this allowance
+before accepting the corrected-launcher result; a pre-start timeout cannot stand
+in for either RED or GREEN ownership evidence.
+
+Decision 148 corrected local qualification (2026-11-03 UTC): in a private clone
+with the qualified Go-compatible quality tools and the healthy local historical
+Python 3.12.0 on PATH, `FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local make
+go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2
+GO_RUNTIME_REPORT_DIR=../ci-make-source-qualified` exited zero. Its output was
+`Ran 54 of 3258 Specs in 118.188 seconds` and
+`54 Passed | 0 Failed | 0 Pending | 3204 Skipped`. Lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported zero vulnerabilities
+affecting the code; it separately listed ten module-only, uncalled findings.
+This is the source group, not an assertion that every Make group ran locally.
+
+In a separate private clone, the command
+`FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -run '^TestAcceptance$'
+-count=1 -timeout=10m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Native orchestration eval( |$)'
+-ginkgo.fail-on-empty -ginkgo.json-report=../ci-native-eval-final.json -v`
+reported `Ran 38 of 3258 Specs in 29.432 seconds` and
+`38 Passed | 0 Failed | 0 Pending | 3220 Skipped`.
+
+The source report retains the actual delayed five-poll witness, absent compiler
+PID/group before fixture cleanup, and complete 16,777,327-byte overflow emission
+with a live detached child, retained work and no oracle/results. Independent
+correctness/security probes reproduced those outcomes and preserved ordinary
+custom exit-1/125 scoring. The test reviewer independently parsed the final
+two-worker report. Raw receipts are under
+`.factory/qualification/r3-runners/ci-make-source-qualified/` and
+`ci-native-eval-final.json`; fresh hosted checks/review and merge remain pending.
+
+Decision 148 portable delay injection: the Linux source job on `272d3cb` passed
+53 criteria but did not observe the delayed-cleanup marker. An isolated real
+TERM-handler probe showed Bash 3.2 exposing the handler's sleep through DEBUG,
+while Bash 5.3 exposed the interrupted `wait` instead. Replace only this private
+delay mechanism with checked source-copy injection: require one
+`source_stop_build` body and exactly two standalone sleep statements within it,
+then prepend the owned 80 ms delay and witness without depending on their sleep
+duration. Keep production code, startup allowance, outer grace and all process
+assertions unchanged. Re-establish old-source RED and corrected-source GREEN
+with this portable fixture; do not add a production test switch.
+
+Decision 148 fixture group authority: the next review noted that cancellation
+cleanup could replace its previously observed group with a different current
+group for the recorded PID. Restrict cleanup to the originally admitted group;
+after observed closure, do not acquire new signal authority by probing that PID
+again. Missing or changed identity retains and reports the fixture instead.
+Qualify refusal with a separately owned foreign-group witness. This is bounded
+fixture hardening, not a claim to eliminate every POSIX PID-reuse race or a new
+platform-specific process-identity implementation.
+
+Decision 148 portable-fixture qualification (2026-11-03 UTC): the checked
+injection observed the old launcher leave its compiler alive under both system
+Bash 3.2 and Bash 5.3. Corrected-source runs passed with an actual five-poll delay
+witness and PID/group absence before fixture cleanup under both interpreters.
+An independent two-child probe reproduced the old cleanup targeting group B
+despite recording group A; the actual new helper rejects that mismatch, preserves
+B, still stops A, and returns settled state only after observed closure.
+
+The same private source Make command above, with
+`GO_RUNTIME_REPORT_DIR="$PWD/../ci-portable-source-qualified"`, exited zero:
+`Ran 54 of 3258 Specs in 133.301 seconds` and
+`54 Passed | 0 Failed | 0 Pending | 3204 Skipped`. Lint and gosec each reported
+zero issues, and govulncheck reported zero vulnerabilities affecting the code.
+The unchanged census/partition test had already passed all eleven criteria in
+103.687 seconds. Evidence is retained under
+`.factory/qualification/r3-runners/ci-portable-source-qualified/`,
+`portable-cold-{system,bash5}-{red,green}.json` in the private source clones,
+and `custody-current-probe.go`. The fresh hosted Linux/macOS run remains required.
+
+Decision 148 adapter refusal receipt: the next hosted review identified a
+pre-bootstrap gap. Independent probes across all five adapters with missing,
+non-executable or broken-interpreter owners all ran an always-passing oracle and
+published score 1, despite invoking no factory runtime. Install the same narrow
+failure receipt at the adapter's exit boundary before owner/path checks. Emit it
+only on a nonzero refusal with a valid per-attempt token; successful exec replaces
+the shell and leaves reporting to the factory/native owner. Preserve each direct
+shell status and ordinary custom-runner exit semantics rather than reserving
+126/127 or another code. This shell transport must remain standalone because its
+purpose is to report that the owning runtime could not be entered. Independently
+qualify pre-exec refusals, invalid-token silence and literal successful handoff.
+
+Decision 148 portable handoff correction, before implementation: shell probes
+showed that failed `exec` bypasses EXIT traps in system Bash 3.2 and Bash 5,
+although Dash runs them. Replace the proposed exit-only reporting with a private
+`handoff-pending` receipt emitted before every adapter check and a terminal
+`completed` receipt from the native runner's successful return decision. Ordered
+completion closes only the currently pending handoff; failures are sticky and
+ownership uncertainty dominates. An unmatched handoff skips the oracle and scores
+the attempt as failed. Existing uncertainty and output-limit handling still retain
+work and abort. Initialize native receipt state to uncertainty until an explicit
+normal outcome is known, so a panic cannot acknowledge success through a default
+zero return value. Untokened output/status and ordinary custom-runner nonzero
+scoring remain unchanged. This requires no extra supervisor or shell dependency.
+The independent shell probes are retained in
+`.factory/qualification/r3-runners/exit-transport-qa5h3e5l/results.json` and
+`exec-trap-probe.c4jIqmgi/`; ADR 0133 defines the final protocol and test boundaries.
+
+Decision 148 token alias correction, before implementation: local implementation
+review observed that a caller-exported `_factory_token=caller-value` retained
+its export attribute when the adapter assigned the private token to it. The real
+fake Claude CLI received the token under that alias even though native execution
+removed the canonical variable. Render directly from the guarded canonical
+variable instead of allocating a shell alias. Extend the existing token-removal
+criterion to prove the caller's alias value survives unchanged and the private
+token does not reach the CLI. The actual witness is retained in
+`.factory/qualification/r3-runners/adapter-token-export.PmpvRzbb/witness`.
+
+Decision 148 hosted fixture readiness correction, before code: the `025ec53`
+macOS base job passed 2970 criteria and failed the manual-loop SIGINT criterion
+at `strconv.Atoi("")`. The fixture waited for file existence, but shell output
+redirection creates the PID file before `printf` publishes its contents. Wait
+within the existing readiness deadline for a complete valid positive PID before
+assigning signal authority; retain the live-child observation and all subsequent
+interruption, checkpoint and cleanup assertions. Reproduce the empty-file
+publication window independently before accepting the correction. No production
+loop behavior or timeout allowance changes. Hosted evidence:
+https://github.com/anoop2811/software-factory-template/actions/runs/41662711832/job/126010712599
+and `.factory/qualification/r3-runners/ci-macos-base-025ec53.log`.
+
+Decision 148 handoff qualification: independent discovery now finds 3260 total
+criteria, 56 source criteria and 28 evaluation-runner criteria. The three focused
+criteria first failed on the old implementation: missing owner scored 1, pending
+handoff scored two passes, and normal native completion emitted no receipt.
+The initial corrected run passed all three in 82.227 seconds. The additional
+exported-alias assertion then failed against the actual CLI environment, before
+passing in 7.613 seconds after direct canonical-variable rendering.
+
+The private source Make command recorded above, using
+`GO_RUNTIME_REPORT_DIR="$PWD/../adapter-handoff-source-qualified"`, reported
+`Ran 56 of 3260 Specs in 151.507 seconds` and
+`56 Passed | 0 Failed | 0 Pending | 3204 Skipped` under two-worker race execution.
+The separate private command
+`FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local go test -race ./acceptance
+-run '^TestAcceptance$' -count=1 -timeout=10m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance (Native orchestration eval|Go source
+qualification (scheduling|workflow partition))( |$)' -ginkgo.fail-on-empty
+-ginkgo.json-report=../handoff-native-partition.json -v`
+exited zero with `49 Passed | 0 Failed | 0 Pending | 3211 Skipped` in
+190.487 seconds. Independent shell/runtime probes passed 155/155 cases across
+four shells: 60 owner refusals, 60 direct token/alias controls, 15 ordered receipt
+cases and 20 actual nested evaluations. These cover real oracle omission,
+unchanged ordinary custom exits and retained uncertain ownership.
+
+The manual-loop readiness regression with a private 300 ms publication delay
+first reproduced both SIGINT and SIGTERM failures at `strconv.Atoi("")` in
+4.056 seconds. Separate cleanup receipts observed both owned groups absent.
+The actual final-tree command with the same race acceptance options and
+`-timeout=5m -ginkgo.focus='^Go factory command acceptance G2 manual loop process
+signals( |$)|^G2 manual loop process signals( |$)'`
+reported `2 Passed | 0 Failed | 0 Pending | 3258 Skipped` in 2.727 seconds.
+This is focused qualification, not a claim that the entire base suite ran locally.
+
+The controlled manual-loop GREEN retained that same publication delay and passed
+both signal cases in 3.535 seconds. The complete source Make command exited zero;
+lint reported `0 issues.`, gosec reported `Issues : 0`, and govulncheck reported
+zero vulnerabilities affecting the code (ten module-only uncalled findings).
+Reports are retained under `.factory/qualification/r3-runners/`, including
+`adapter-handoff-source-qualified/`, `handoff-native-partition.json`,
+`handoff-manual-final.json` and `ci-manual-readiness/manual-readiness-green.json`.
+The current hosted head still has the previously reproduced manual readiness
+failure; fresh hosted qualification of this correction remains required.
+
+Decision 148 bare-path fixture portability (2026-11-04 UTC), before code:
+Linux source CI on `cd0c42b` passed 55 criteria and failed the new bare-path
+receipt case. Independent probes across all five adapters showed Dash refusing
+the bare script operand before opening the PATH-resident adapter; no adapter
+receipt can exist when the adapter never runs. Bash enters that same adapter and
+reaches its explicit ambiguous-owner refusal. Exercise this particular PATH-search
+scenario with explicit `/bin/bash` in both the outer fixture and its direct
+token/status controls. Keep ordinary direct and explicit `/bin/sh` coverage for
+the other owner modes. Preserve all score/oracle, token, literal-output and status
+assertions; change no production code, command contract, timeout or criterion
+count. Evidence: `ci-linux-source-cd0c42b.log` and
+`bare-shell-entry-5_b5wrjz/results.json` under the private qualification directory.
+Use the same explicit Bash interpreter for the existing caller-local and foreign
+bare-operand transport controls, so Linux must exercise the adapter's own guard
+instead of satisfying refusal through Dash's earlier script-open error. Direct
+and explicit POSIX-shell transport coverage remains in the surrounding matrix.
+
+Decision 148 portability qualification: the private Dash reproduction failed at
+the same bare-path oracle assertion (`0 Passed | 1 Failed` in 6.641 seconds).
+The corrected five transport entries and owner-refusal criterion passed
+`6 Passed | 0 Failed | 0 Pending | 3254 Skipped` in 40.894 seconds. The same
+source Make command recorded above, now using
+`GO_RUNTIME_REPORT_DIR="$PWD/../adapter-bare-shell-source-qualified"`, reported
+`Ran 56 of 3260 Specs in 145.012 seconds` and
+`56 Passed | 0 Failed | 0 Pending | 3204 Skipped`. The criterion count and
+production bytes are unchanged; the direct and POSIX-shell matrices still run.
+The enclosing Make command exited zero; configured lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported zero vulnerabilities
+affecting the code. Focused evidence used the race acceptance command with
+`-timeout=5m -ginkgo.focus='^Go factory command acceptance Go source runtime
+entrypoints evaluation runner adapters (reports adapter refusals|transports
+literal operands)' -ginkgo.fail-on-empty`, recorded in
+`adapter-bare-shell-green.log` and its JSON report. Independent test review read
+the final two-worker report and all thirty owner-refusal witnesses.

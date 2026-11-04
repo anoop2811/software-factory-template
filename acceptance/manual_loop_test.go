@@ -431,11 +431,18 @@ var _ = Describe("G2 manual loop process signals", func() {
 			cancel()
 			Eventually(done, 3*time.Second).Should(BeClosed())
 		})
-		var raw []byte
-		Eventually(func() error { var err error; raw, err = os.ReadFile(marker); return err }, 4*time.Second).Should(Succeed())
-		var err error
-		pid, err = strconv.Atoi(strings.TrimSpace(string(raw)))
-		Expect(err).NotTo(HaveOccurred())
+		Eventually(func() bool {
+			raw, err := os.ReadFile(marker)
+			if err != nil {
+				return false
+			}
+			observed, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+			if err != nil || observed <= 1 {
+				return false
+			}
+			pid = observed
+			return true
+		}, 4*time.Second).Should(BeTrue(), "wait for the complete child PID after the shell creates its readiness file")
 		Expect(syscall.Kill(pid, 0)).To(Succeed())
 		Eventually(func() bool {
 			data, err := os.ReadFile(filepath.Join(checkout, ".factory/loops.json"))

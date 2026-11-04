@@ -14,3 +14,12 @@ while the CI oracle returned help. Executing tagged CPython argparse sources
 isolated the behavior change between v3.12.2 and v3.12.3. Canonical qualification:
 docs/adr/0072-go-budget-argument-compatibility.md; command/output evidence:
 docs/migration/BUDGET_ARGUMENTS.md.
+
+Observed 2026-11-03 UTC during PR #164 qualification: system Bash 3.2 reads
+BASH_ENV before assigning script operands, while Bash 5.3 reports the interrupted
+`wait` through DEBUG during a TERM handler rather than its cleanup sleeps.
+Independent startup and real-signal probes separated these two behaviors after
+the [Linux source job](https://github.com/anoop2811/software-factory-template/actions/runs/41659954065/job/126000216737)
+missed the delay witness. Instrumentation needs its own positive execution proof;
+an absent marker is not runtime RED evidence. Decision 148 in
+`docs/DECISION_LOG.md` records the portable private-copy correction.

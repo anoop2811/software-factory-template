@@ -234,8 +234,12 @@ var _ = Describe("Native orchestration eval", func() {
 				}
 			}
 		})
-		writeFixture(runner, []byte("#!/bin/sh\nprintf 'FIXED\\n' > \"$1/answer.txt\"\n/bin/sleep 60 &\nprintf '%s\\n' \"$!\" > \"$CHILD_PID_FILE\"\nwait\n"), 0700)
-		result := orchestrationEval(root, append(environment, "CHILD_PID_FILE="+pidfile), "golden", "--runner="+runner, "--timeout=1")
+		// Acknowledged shutdown preserves timeout scoring; the unchanged original
+		// non-trapping body has separate fail-closed source runner acceptance.
+		// per docs/adr/0133-go-source-evaluation-runners.md:88
+		writeFixture(runner, []byte("#!/bin/sh\nprintf 'FIXED\\n' > \"$1/answer.txt\"\n/bin/sleep 60 &\nowned_child=$!\nprintf '%s\\n' \"$owned_child\" > \"$CHILD_PID_FILE\"\ntrap 'kill \"$owned_child\" 2>/dev/null || :; wait \"$owned_child\" 2>/dev/null || :; printf settled > \"$CHILD_CLEANUP_FILE\"; exit 0' TERM INT\nwait \"$owned_child\"\n"), 0700)
+		cleanup := filepath.Join(root, "child-cleanup")
+		result := orchestrationEval(root, append(environment, "CHILD_PID_FILE="+pidfile, "CHILD_CLEANUP_FILE="+cleanup), "golden", "--runner="+runner, "--timeout=1")
 		Expect(result.status).To(Equal(0), result.stderr)
 		Expect(result.stdout).To(ContainSubstring("hit the 1s cap"))
 		Expect(orchestrationReadResults(root, "current").Tasks[0].Passes).To(BeZero())
@@ -244,6 +248,7 @@ var _ = Describe("Native orchestration eval", func() {
 		pid, err := strconv.Atoi(strings.TrimSpace(string(raw)))
 		Expect(err).NotTo(HaveOccurred())
 		Eventually(func() bool { return transitionAlive(root, pid) }, 3*time.Second, 25*time.Millisecond).Should(BeFalse())
+		Expect(os.ReadFile(cleanup)).To(Equal([]byte("settled")), "the controlled runner must acknowledge that it killed and waited for its child")
 	})
 
 	// per docs/adr/0099-native-factory-orchestration.md:106

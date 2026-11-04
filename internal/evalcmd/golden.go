@@ -3,6 +3,7 @@ package evalcmd
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -265,8 +266,18 @@ func golden(ctx context.Context, args []string, root string, environment map[str
 	return 0
 }
 
-func goldenError(stderr io.Writer, _ error) int {
+// Report retained inputs without exposing arbitrary execution errors.
+// docs/adr/0133-go-source-evaluation-runners.md:98.
+type retainedGoldenWorkError struct{ path string }
+
+func (*retainedGoldenWorkError) Error() string { return "golden work directory retained" }
+
+func goldenError(stderr io.Writer, err error) int {
 	fmt.Fprintln(stderr, "golden-task-eval: evaluation could not complete")
+	var retained *retainedGoldenWorkError
+	if errors.As(err, &retained) {
+		fmt.Fprintf(stderr, "golden-task-eval: retained work directory %q\n", retained.path)
+	}
 	return 1
 }
 
@@ -319,7 +330,14 @@ func goldenRun(ctx context.Context, o goldenOptions, root, source, runnerPath st
 	if err != nil {
 		return false, false, err
 	}
-	defer func() { returned = errors.Join(returned, os.RemoveAll(work)) }()
+	retainWork := false
+	defer func() {
+		if retainWork {
+			returned = errors.Join(returned, &retainedGoldenWorkError{path: work})
+			return
+		}
+		returned = errors.Join(returned, os.RemoveAll(work))
+	}()
 	if err := copyTask(ctx, source, work); err != nil {
 		return false, false, err
 	}
@@ -329,20 +347,37 @@ func goldenRun(ctx context.Context, o goldenOptions, root, source, runnerPath st
 	}
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(o.seconds)*time.Second)
 	var result native.CommandResult
+	var receipt string
 	if o.nativeRunner {
 		result, err = runHarness(runCtx, o.harness, work, environment)
 	} else {
-		result, err = native.ExecuteCommand(runCtx, root, []string{runnerPath, work}, environment, time.Duration(o.seconds)*time.Second)
+		// Bind nested failure reports to this attempt. docs/adr/0133-go-source-evaluation-runners.md:116.
+		var random [32]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			cancel()
+			return false, false, err
+		}
+		token := hex.EncodeToString(random[:])
+		variables := maps.Clone(environment)
+		variables[runnerOwnershipToken] = token
+		// Let runner controllers settle nested groups. docs/adr/0133-go-source-evaluation-runners.md:78.
+		result, err = native.ExecuteCommandCooperative(runCtx, root, []string{runnerPath, work}, variables, time.Duration(o.seconds)*time.Second)
+		receipt = readRunnerReceipt(result.Stderr, token)
+	}
+	retainWork = result.OwnershipUnconfirmed || receipt == "ownership-unconfirmed"
+	// Overflow may hide a nested ownership receipt. docs/adr/0133-go-source-evaluation-runners.md:185.
+	if !o.nativeRunner && result.Outcome == "output_limit" {
+		retainWork = true
 	}
 	timedOut = errors.Is(runCtx.Err(), context.DeadlineExceeded) || result.Outcome == "timeout"
 	cancel()
 	if ctx.Err() != nil {
 		return false, timedOut, ctx.Err()
 	}
-	if result.OwnershipUnconfirmed {
+	if retainWork {
 		return false, timedOut, errors.New("runner ownership unconfirmed")
 	}
-	if err != nil || !result.ExitConfirmed || (result.Outcome != "completed" && result.Outcome != "failed") {
+	if receipt == "failed" || err != nil || !result.ExitConfirmed || (result.Outcome != "completed" && result.Outcome != "failed") {
 		return false, timedOut, nil
 	}
 	if timedOut {
@@ -355,6 +390,7 @@ func goldenRun(ctx context.Context, o goldenOptions, root, source, runnerPath st
 	oracleCtx, stop := context.WithTimeout(ctx, time.Duration(o.seconds)*time.Second)
 	defer stop()
 	oracle, err := native.ExecuteCommand(oracleCtx, work, []string{"sh", "verify.sh"}, environment, time.Duration(o.seconds)*time.Second)
+	retainWork = oracle.OwnershipUnconfirmed
 	if ctx.Err() != nil {
 		return false, false, ctx.Err()
 	}

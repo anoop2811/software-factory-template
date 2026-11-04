@@ -6395,3 +6395,92 @@ entrypoints evaluation runner adapters (reports adapter refusals|transports
 literal operands)' -ginkgo.fail-on-empty`, recorded in
 `adapter-bare-shell-green.log` and its JSON report. Independent test review read
 the final two-worker report and all thirty owner-refusal witnesses.
+
+## Decision 149 (2026-11-04 UTC): route source structural evaluation to Go
+
+PR #164 is merged at `9b7ef1f`; its tree matches the qualified `9c60eff`
+head. Continue R3 with only the structural-evaluation boundary described in
+[ADR 0134](adr/0134-go-source-structural-evaluation.md). Record this design
+before implementation. Reuse the existing native owner and the established
+physical-source adapter; preserve the caller's harness wiring, explicit probe
+roles, private config, streams and status. Keep Make and pack consumer paths.
+
+The template selftest job currently executes `make eval` before its Go setup
+and locked module acquisition. Move those existing prerequisites before native
+source use without changing action versions, job topology or worker counts.
+Independent outside-in source criteria must observe RED before the adapter
+changes, then exercise actual native routing, real gates, owner refusals and
+consumer commands. Existing native structural acceptance remains the detailed
+semantic proof. No model calls, product dependencies, public release defaults
+or paused PR #162 performance work are added. Qualification is pending.
+
+Decision 149 focused qualification: the independent author ran
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=7m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source runtime entrypoints
+structural evaluation adapter ' -ginkgo.fail-on-empty
+-ginkgo.json-report=../structural-full-red.json -v` in the private pre-change
+source checkout. The old script and workflow reported
+`0 Passed | 7 Failed | 0 Pending | 3260 Skipped` in 4.288 seconds.
+Failures exercised owner transport/refusal, absent source compilation, missing
+native Make/pack handoffs and prerequisites ordered after source execution.
+
+The same command against the final adapter and tests, with report
+`../structural-final-green.json`, reported
+`7 Passed | 0 Failed | 0 Pending | 3260 Skipped` in 9.635 seconds.
+The first attempted GREEN exposed a fixture setup error: Go's VCS status
+refreshed `.git/index` because the new test omitted existing source-fixture Git
+isolation. Reusing the complete established environment preserves the original
+snapshot assertions, including the index. No production change or custody
+exclusion was made for this fixture correction. Independent native discovery
+found 3267 total criteria and 63 in the exact source Make family.
+
+The root's separate existing-native command used the same race acceptance
+options, `-timeout=5m` and
+`-ginkgo.focus='^Go factory command acceptance Native orchestration eval
+(distinguishes missing structural adapters|evaluates caller project inputs.*structural|probes the real denial hook)'`.
+It reported `7 Passed | 0 Failed | 0 Pending | 3253 Skipped` in 8.178 seconds
+before adding the new source criteria. In the private qualification checkout,
+`make eval` then reported `harness-structural-eval: PASS` for all three harnesses.
+The historical `./scripts/selftest/run.sh` reported
+`selftest: 218 passed, 0 failed, 0 skipped` with local Python 3.12.0 on PATH.
+All evidence is under `.factory/qualification/r3-structural/`; these local
+results do not assert a hosted run, live harness observation or release readiness.
+
+Decision 149 quality follow-up, before the fixture correction: the full private
+source Make run passed all 63 source criteria in 155.851 seconds, then stopped
+at configured lint with G703 on the new test's `os.Lstat(config)`. That path
+comes from the observed child, after a Gomega assertion constrains its parent.
+Keep the parent assertion and prove cleanup by enumerating the known fixture
+temporary directory and checking the basename is absent. Avoid a filesystem
+lookup through child-provided path data; do not exclude the assertion, suppress
+the rule or change production behavior. Re-run the seven affected criteria and
+configured quality gates; hosted checks must qualify the final commit.
+
+Decision 149 final local qualification: the source command was
+`FACTORY_AGENT_ROLE=refactorer FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local
+make go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2
+GO_RUNTIME_REPORT_DIR="$PWD/../source-qualified"` in the private qualification
+checkout, with the qualified Go-compatible tools and local historical Python
+3.12.0 on PATH. It reported
+`63 Passed | 0 Failed | 0 Pending | 3204 Skipped` in 155.851 seconds under race,
+then exited at the lint finding recorded above. After changing only that cleanup
+assertion, the same focused seven-criterion race command with report
+`../structural-cleanup-green.json` passed all seven in 11.477 seconds.
+`GOTOOLCHAIN=local golangci-lint run --config packs/go/.golangci.yml ./...`
+then reported `0 issues.`; `gosec ./...` reported `Issues : 0` and
+`govulncheck ./...` reported zero vulnerabilities affecting the code (ten
+module-only uncalled findings). These quality commands exited zero separately;
+this does not assert a second enclosing Make run.
+
+The separate race acceptance command, using `-timeout=5m`, report
+`../partition.json` and focus
+`^Go factory command acceptance Go source qualification (scheduling|workflow partition)( |$)`,
+reported `11 Passed | 0 Failed | 0 Pending | 3256 Skipped` in 118.343 seconds.
+It discovers the actual complete/disjoint groups rather than deriving the total
+from the edited expectation. Bash syntax, Shellcheck and pinned actionlint
+exited zero. Independent correctness/security/tests review found no retained
+defects; real private consumer probes also passed without Go or Python on PATH.
+The final small assertion change received separate independent test review.
+Hosted checks, review responses and human merge remain outstanding.

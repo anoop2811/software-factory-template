@@ -22,6 +22,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Go (source runtime and pinned actionlint)
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: Provision locked source runtime modules
+        # The source copy gate compiles offline; setup owns acquisition.
+        # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:227.
+        run: |
+          if [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
+             [ -f go.mod ] && grep -Fxq 'module github.com/anoop2811/software-factory-template' go.mod &&
+             [ -f scripts/factory-init.sh ] &&
+             [ "$(sed -n '2p' scripts/factory-init.sh)" = '# Factory native initializer adapter: source-v1' ]; then
+            go mod download
+            git diff --exit-code -- go.mod go.sum
+          fi
+
       - name: Break/fix self-tests (every gate proven)
         run: ./scripts/selftest/run.sh
 
@@ -53,23 +70,6 @@ jobs:
           shellcheck -s sh -S warning runtime/shell/readers.sh
           shellcheck -s bash -S warning runtime/shell/config.sh
           shellcheck -s bash -S warning runtime/shell/helpers.sh
-
-      - name: Set up Go (for pinned actionlint)
-        uses: actions/setup-go@v6
-        with:
-          go-version: 'stable'
-
-      - name: Provision locked source runtime modules
-        # The source copy gate compiles offline; setup owns acquisition.
-        # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:227.
-        run: |
-          if [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
-             [ -f go.mod ] && grep -Fxq 'module github.com/anoop2811/software-factory-template' go.mod &&
-             [ -f scripts/factory-init.sh ] &&
-             [ "$(sed -n '2p' scripts/factory-init.sh)" = '# Factory native initializer adapter: source-v1' ]; then
-            go mod download
-            git diff --exit-code -- go.mod go.sum
-          fi
 
       - name: actionlint
         # GitHub's new job cache-mode is not yet in the latest tagged parser.

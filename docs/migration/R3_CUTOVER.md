@@ -44,12 +44,12 @@ The checklist records source qualification and review, not merely written files.
 | Done | Path | Existing Go command / package | Function boundary and remaining evidence |
 |---|---|---|---|
 | [x] | `scripts/golden-task-eval.sh` | `eval golden` / `evalcmd` | Merged [PR #163](https://github.com/anoop2811/software-factory-template/pull/163) on 2026-11-03, Decision 147 / [ADR 0132](../adr/0132-go-source-golden-evaluation.md): independent RED/GREEN, direct/Make routing and no-Python scoring; all 32 hosted checks passed on [`a34b046`](https://github.com/anoop2811/software-factory-template/commit/a34b0462881efb9f8f4f9e0229fcfab079db5b0b). Merge [`b33ab2f`](https://github.com/anoop2811/software-factory-template/commit/b33ab2fa5a602355a9348fd497b7466c2514aaa6) has the same tree. |
-| [ ] | `eval/runners/mock.sh` | `eval run mock` / `evalcmd` | Runner boundary: retain deterministic pass/fail/cheat behavior and golden-evaluation integration. |
-| [ ] | `eval/runners/claude.sh` | `eval run claude` / `evalcmd` | Runner boundary: literal workdir/prompt, existing argv, model selection and log behavior; fake CLI qualification. |
-| [ ] | `eval/runners/codex.sh` | `eval run codex` / `evalcmd` | Same runner boundary, with Codex's existing invocation contract. |
-| [ ] | `eval/runners/opencode.sh` | `eval run opencode` / `evalcmd` | Same runner boundary, with OpenCode's existing invocation contract. |
-| [ ] | `eval/runners/example-harness.sh` | `eval run example-harness` / `evalcmd` | Preserve the deliberately unwired example and its refusal; do not select a model. |
-| [ ] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Structural-eval boundary: three adapter probes, real role-denial controls, Make and pack CI consumers. |
+| [x] | `eval/runners/mock.sh` | `eval run mock` / `evalcmd` | PR #164 / ADR 0133: deterministic pass/fail/cheat behavior and actual golden integration; qualification below. |
+| [x] | `eval/runners/claude.sh` | `eval run claude` / `evalcmd` | PR #164 / ADR 0133: literal operands, model/log behavior and owned nested shutdown through fake CLI qualification. |
+| [x] | `eval/runners/codex.sh` | `eval run codex` / `evalcmd` | PR #164 / ADR 0133: the same boundary under Codex's invocation contract. |
+| [x] | `eval/runners/opencode.sh` | `eval run opencode` / `evalcmd` | PR #164 / ADR 0133: the same boundary under OpenCode's invocation contract. |
+| [x] | `eval/runners/example-harness.sh` | `eval run example-harness` / `evalcmd` | PR #164 / ADR 0133: deliberately unwired example refuses without selecting a model. |
+| [ ] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Decision 149 / [ADR 0134](../adr/0134-go-source-structural-evaluation.md): locally qualified source routing, real three-harness role controls, Make and four pack consumers; hosted checks and merge pending. |
 | [ ] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Review-execution boundary: existing provider/configuration semantics, fake HTTP qualification and the review workflow's direct-script consumer. |
 | [ ] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Review administration: opt-in enable/disable/status behavior, workflow ownership, terminal input and historical fixtures. |
 | [ ] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Configuration migration: dry-run/apply, preserved data and failure behavior, historical fixtures. |
@@ -58,7 +58,9 @@ The checklist records source qualification and review, not merely written files.
 | [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
 | [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Proof-runner boundary: native public routing plus independent custody/coverage for the broader historical regressions; see the proof-retirement ledger. |
 
-The five evaluation-runner rows have local implementation and independent
+The five evaluation-runner rows merged in
+[PR #164](https://github.com/anoop2811/software-factory-template/pull/164) on
+2026-11-04. They have local implementation and independent
 qualification under Decision 148 / [ADR 0133](../adr/0133-go-source-evaluation-runners.md).
 Twenty-eight new criteria cover their source routing, native execution, nested
 shutdown, failure reporting, source-bootstrap refusal, bounded receipt capture
@@ -67,9 +69,19 @@ suite passed all 56 source criteria under race with two workers; the separate
 native evaluation and partition run passed 49. Independent discovery found 3260
 total criteria. Decision 148 records the earlier
 qualification and the subsequent portability/ownership corrections separately.
-These five rows stay open until hosted checks, review responses and merge
-complete. They are not five new runtime capabilities: their native owners already
-existed.
+All 32 hosted checks passed on
+[`9c60eff`](https://github.com/anoop2811/software-factory-template/commit/9c60eff04d30ac0e45dcadcae77c70a1c1ae5b9a),
+and review findings received responses before merge. Merge
+[`9b7ef1f`](https://github.com/anoop2811/software-factory-template/commit/9b7ef1ff4f2990309e94af61a19839e94e56cebf)
+has the same tree. One macOS source attempt failed an existing eight-second
+fixture wait; its unchanged targeted rerun passed. The original stall was not
+reproduced and its cause is unproven; this does not claim a timing correction.
+These are not five new runtime capabilities: their native owners already existed.
+
+Across the fixed baseline and earlier completed rows, 13 of 21 direct source
+entrypoints are merged. Including the seven sourceable libraries and four Python
+modules, that is 13 of 32 inventory paths (40.6%), with 19 remaining. These are
+path counts, not effort-weighted implementation or release percentages.
 
 ## Remaining sourceable libraries
 

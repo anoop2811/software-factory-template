@@ -20,6 +20,12 @@ It uses its own temporary config, so it passes or fails on wiring — not on
 whatever your `factory.yaml` happens to arm. What it deliberately does not
 claim: live in-harness behavior. That's a separate, manual observation.
 
+The public script delegates to `factory eval structural --harness=NAME`.
+A source checkout uses its Go launcher; an installed project uses the packaged
+binary. The command reads wiring and gates from the caller's project. Existing
+shared validation gates keep their own prerequisites; this evaluation calls no
+model and needs no harness credentials.
+
 ## Golden tasks — real scoring; the tasks are yours
 
 `scripts/golden-task-eval.sh` runs each task under `eval/golden-tasks/<name>/`

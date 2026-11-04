@@ -6267,3 +6267,96 @@ The unchanged census/partition test had already passed all eleven criteria in
 `.factory/qualification/r3-runners/ci-portable-source-qualified/`,
 `portable-cold-{system,bash5}-{red,green}.json` in the private source clones,
 and `custody-current-probe.go`. The fresh hosted Linux/macOS run remains required.
+
+Decision 148 adapter refusal receipt: the next hosted review identified a
+pre-bootstrap gap. Independent probes across all five adapters with missing,
+non-executable or broken-interpreter owners all ran an always-passing oracle and
+published score 1, despite invoking no factory runtime. Install the same narrow
+failure receipt at the adapter's exit boundary before owner/path checks. Emit it
+only on a nonzero refusal with a valid per-attempt token; successful exec replaces
+the shell and leaves reporting to the factory/native owner. Preserve each direct
+shell status and ordinary custom-runner exit semantics rather than reserving
+126/127 or another code. This shell transport must remain standalone because its
+purpose is to report that the owning runtime could not be entered. Independently
+qualify pre-exec refusals, invalid-token silence and literal successful handoff.
+
+Decision 148 portable handoff correction, before implementation: shell probes
+showed that failed `exec` bypasses EXIT traps in system Bash 3.2 and Bash 5,
+although Dash runs them. Replace the proposed exit-only reporting with a private
+`handoff-pending` receipt emitted before every adapter check and a terminal
+`completed` receipt from the native runner's successful return decision. Ordered
+completion closes only the currently pending handoff; failures are sticky and
+ownership uncertainty dominates. An unmatched handoff skips the oracle and scores
+the attempt as failed. Existing uncertainty and output-limit handling still retain
+work and abort. Initialize native receipt state to uncertainty until an explicit
+normal outcome is known, so a panic cannot acknowledge success through a default
+zero return value. Untokened output/status and ordinary custom-runner nonzero
+scoring remain unchanged. This requires no extra supervisor or shell dependency.
+The independent shell probes are retained in
+`.factory/qualification/r3-runners/exit-transport-qa5h3e5l/results.json` and
+`exec-trap-probe.c4jIqmgi/`; ADR 0133 defines the final protocol and test boundaries.
+
+Decision 148 token alias correction, before implementation: local implementation
+review observed that a caller-exported `_factory_token=caller-value` retained
+its export attribute when the adapter assigned the private token to it. The real
+fake Claude CLI received the token under that alias even though native execution
+removed the canonical variable. Render directly from the guarded canonical
+variable instead of allocating a shell alias. Extend the existing token-removal
+criterion to prove the caller's alias value survives unchanged and the private
+token does not reach the CLI. The actual witness is retained in
+`.factory/qualification/r3-runners/adapter-token-export.PmpvRzbb/witness`.
+
+Decision 148 hosted fixture readiness correction, before code: the `025ec53`
+macOS base job passed 2970 criteria and failed the manual-loop SIGINT criterion
+at `strconv.Atoi("")`. The fixture waited for file existence, but shell output
+redirection creates the PID file before `printf` publishes its contents. Wait
+within the existing readiness deadline for a complete valid positive PID before
+assigning signal authority; retain the live-child observation and all subsequent
+interruption, checkpoint and cleanup assertions. Reproduce the empty-file
+publication window independently before accepting the correction. No production
+loop behavior or timeout allowance changes. Hosted evidence:
+https://github.com/anoop2811/software-factory-template/actions/runs/41662711832/job/126010712599
+and `.factory/qualification/r3-runners/ci-macos-base-025ec53.log`.
+
+Decision 148 handoff qualification: independent discovery now finds 3260 total
+criteria, 56 source criteria and 28 evaluation-runner criteria. The three focused
+criteria first failed on the old implementation: missing owner scored 1, pending
+handoff scored two passes, and normal native completion emitted no receipt.
+The initial corrected run passed all three in 82.227 seconds. The additional
+exported-alias assertion then failed against the actual CLI environment, before
+passing in 7.613 seconds after direct canonical-variable rendering.
+
+The private source Make command recorded above, using
+`GO_RUNTIME_REPORT_DIR="$PWD/../adapter-handoff-source-qualified"`, reported
+`Ran 56 of 3260 Specs in 151.507 seconds` and
+`56 Passed | 0 Failed | 0 Pending | 3204 Skipped` under two-worker race execution.
+The separate private command
+`FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local go test -race ./acceptance
+-run '^TestAcceptance$' -count=1 -timeout=10m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance (Native orchestration eval|Go source
+qualification (scheduling|workflow partition))( |$)' -ginkgo.fail-on-empty
+-ginkgo.json-report=../handoff-native-partition.json -v`
+exited zero with `49 Passed | 0 Failed | 0 Pending | 3211 Skipped` in
+190.487 seconds. Independent shell/runtime probes passed 155/155 cases across
+four shells: 60 owner refusals, 60 direct token/alias controls, 15 ordered receipt
+cases and 20 actual nested evaluations. These cover real oracle omission,
+unchanged ordinary custom exits and retained uncertain ownership.
+
+The manual-loop readiness regression with a private 300 ms publication delay
+first reproduced both SIGINT and SIGTERM failures at `strconv.Atoi("")` in
+4.056 seconds. Separate cleanup receipts observed both owned groups absent.
+The actual final-tree command with the same race acceptance options and
+`-timeout=5m -ginkgo.focus='^Go factory command acceptance G2 manual loop process
+signals( |$)|^G2 manual loop process signals( |$)'`
+reported `2 Passed | 0 Failed | 0 Pending | 3258 Skipped` in 2.727 seconds.
+This is focused qualification, not a claim that the entire base suite ran locally.
+
+The controlled manual-loop GREEN retained that same publication delay and passed
+both signal cases in 3.535 seconds. The complete source Make command exited zero;
+lint reported `0 issues.`, gosec reported `Issues : 0`, and govulncheck reported
+zero vulnerabilities affecting the code (ten module-only uncalled findings).
+Reports are retained under `.factory/qualification/r3-runners/`, including
+`adapter-handoff-source-qualified/`, `handoff-native-partition.json`,
+`handoff-manual-final.json` and `ci-manual-readiness/manual-readiness-green.json`.
+The current hosted head still has the previously reproduced manual readiness
+failure; fresh hosted qualification of this correction remains required.

@@ -13,14 +13,14 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/native"
 )
 
-func runner(ctx context.Context, args []string, _ string, environment map[string]string, stderr io.Writer) (status int) {
-	ownershipUnconfirmed := false
+func runner(ctx context.Context, args []string, _ string, environment map[string]string, stderr io.Writer) int {
+	// Only explicit normal decisions acknowledge completion. docs/adr/0133-go-source-evaluation-runners.md:213.
+	receipt := "ownership-unconfirmed"
 	defer func() {
-		if status != 0 {
-			writeRunnerReceipt(stderr, environment[runnerOwnershipToken], ownershipUnconfirmed)
-		}
+		writeRunnerReceipt(stderr, environment[runnerOwnershipToken], receipt)
 	}()
 	if len(args) < 2 {
+		receipt = "failed"
 		fmt.Fprintln(stderr, "usage: factory eval run HARNESS WORKDIR")
 		return 2
 	}
@@ -28,15 +28,19 @@ func runner(ctx context.Context, args []string, _ string, environment map[string
 	switch harness {
 	case "mock", "claude", "codex", "opencode":
 	default:
+		receipt = "failed"
 		fmt.Fprintf(stderr, "factory eval run: runner %s is not wired\n", harness)
 		return 2
 	}
 	result, err := runHarness(ctx, harness, work, environment)
-	ownershipUnconfirmed = result.OwnershipUnconfirmed
 	if err != nil || result.OwnershipUnconfirmed || !result.ExitConfirmed || (result.Outcome != "completed" && result.Outcome != "failed") {
+		if !result.OwnershipUnconfirmed {
+			receipt = "failed"
+		}
 		fmt.Fprintf(stderr, "%s runner: could not complete the run\n", harness)
 		return 1
 	}
+	receipt = "completed"
 	return 0
 }
 

@@ -473,6 +473,34 @@ func sourceRunnerReceiptCase(mode string) {
 		" malformed-token) printf 'factory-eval-result-v1 %sx ownership-unconfirmed\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2 ;;\n" +
 		" unknown-status) printf 'factory-eval-result-v1 %s success\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2 ;;\n" +
 		" stdout) printf 'factory-eval-result-v1 %s ownership-unconfirmed\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" ;;\nesac\nexit 125\n"
+	// Use the actual selected external-runner boundary to exercise ordered
+	// terminal acknowledgement, including stale and incomplete receipts.
+	// per docs/adr/0133-go-source-evaluation-runners.md:204
+	handshake := map[string]string{
+		"pending":                     "emit handoff-pending",
+		"pending-completed":           "emit handoff-pending; emit completed",
+		"completed-only":              "emit completed",
+		"completed-pending":           "emit completed; emit handoff-pending",
+		"pending-completed-pending":   "emit handoff-pending; emit completed; emit handoff-pending",
+		"pending-foreign-completed":   "emit handoff-pending; printf 'factory-eval-result-v1 %s completed\\n' \"$SOURCE_RUNNER_STALE_TOKEN\" >&2",
+		"pending-stale-completed":     "emit handoff-pending; if [ -f \"$SOURCE_RUNNER_PRIOR_TOKEN\" ]; then prior=$(/bin/cat \"$SOURCE_RUNNER_PRIOR_TOKEN\"); printf 'factory-eval-result-v1 %s completed\\n' \"$prior\" > \"$SOURCE_RUNNER_EMITTED\"; /bin/cat \"$SOURCE_RUNNER_EMITTED\" >&2; else printf '%s' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" > \"$SOURCE_RUNNER_PRIOR_TOKEN\"; fi",
+		"pending-partial-completed":   "emit handoff-pending; printf 'factory-eval-result-v1 %s completed' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2",
+		"pending-prefixed-completed":  "emit handoff-pending; printf 'prefix factory-eval-result-v1 %s completed\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2",
+		"pending-completed-stdout":    "emit handoff-pending; printf 'factory-eval-result-v1 %s completed\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\"",
+		"foreign-pending":             "printf 'factory-eval-result-v1 %s handoff-pending\\n' \"$SOURCE_RUNNER_STALE_TOKEN\" >&2",
+		"partial-pending":             "printf 'factory-eval-result-v1 %s handoff-pending' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2",
+		"failed-completed":            "emit failed; emit completed",
+		"completed-failed":            "emit completed; emit failed",
+		"pending-completed-failed":    "emit handoff-pending; emit completed; emit failed",
+		"uncertain-completed":         "emit ownership-unconfirmed; emit completed",
+		"completed-uncertain":         "emit completed; emit ownership-unconfirmed",
+		"pending-uncertain-completed": "emit handoff-pending; emit ownership-unconfirmed; emit completed",
+	}
+	if sequence, ok := handshake[mode]; ok {
+		body = strings.Split(body, "case \"$SOURCE_RUNNER_RECEIPT_MODE\" in\n")[0] +
+			"emit() { printf 'factory-eval-result-v1 %s %s\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" \"$1\" >&2; }\n" + sequence + "\nexit 125\n"
+	}
+
 	writeFixture(runner, []byte(body), 0700)
 	stale := strings.Repeat("b", 64)
 	environment := map[string]string{
@@ -486,7 +514,7 @@ func sourceRunnerReceiptCase(mode string) {
 	raw, err := os.ReadFile(calls)
 	Expect(err).NotTo(HaveOccurred())
 	attempts := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
-	uncertain := mode == "ownership-unconfirmed" || mode == "both" || mode == "both-reversed"
+	uncertain := mode == "ownership-unconfirmed" || mode == "both" || mode == "both-reversed" || mode == "uncertain-completed" || mode == "completed-uncertain" || mode == "pending-uncertain-completed"
 	if uncertain {
 		Expect(attempts).To(HaveLen(1), "fatal uncertainty must not retry or proceed to the next evaluation attempt")
 	} else {
@@ -517,10 +545,14 @@ func sourceRunnerReceiptCase(mode string) {
 	Expect(observed.stdout).NotTo(ContainSubstring("factory-eval-result-v1"))
 	Expect(observed.stderr).NotTo(ContainSubstring("factory-eval-result-v1"))
 	Expect(observed.stderr).NotTo(ContainSubstring("private child diagnostics"))
-	if mode == "stale" {
+	if mode == "stale" || mode == "pending-stale-completed" {
 		prior := strings.Split(attempts[0], "\t")[0]
 		Expect(os.ReadFile(environment["SOURCE_RUNNER_PRIOR_TOKEN"])).To(Equal([]byte(prior)))
-		Expect(os.ReadFile(environment["SOURCE_RUNNER_EMITTED"])).To(Equal([]byte("factory-eval-result-v1 "+prior+" ownership-unconfirmed\n")), "the second attempt must actually replay the first attempt's valid receipt")
+		status := "ownership-unconfirmed"
+		if mode == "pending-stale-completed" {
+			status = "completed"
+		}
+		Expect(os.ReadFile(environment["SOURCE_RUNNER_EMITTED"])).To(Equal([]byte("factory-eval-result-v1 "+prior+" "+status+"\n")), "the second attempt must actually replay the first attempt's valid receipt")
 	}
 	if uncertain {
 		Expect(observed.status).To(Equal(1))
@@ -536,7 +568,10 @@ func sourceRunnerReceiptCase(mode string) {
 	current := orchestrationReadResults(root, "current")
 	Expect(current.Tasks).To(HaveLen(1))
 	Expect(current.Tasks[0].Runs).To(Equal(2))
-	if mode == "failed" {
+	failed := mode == "failed" || mode == "pending" || mode == "completed-pending" || mode == "pending-completed-pending" ||
+		mode == "pending-foreign-completed" || mode == "pending-stale-completed" || mode == "pending-partial-completed" || mode == "pending-prefixed-completed" || mode == "pending-completed-stdout" ||
+		mode == "failed-completed" || mode == "completed-failed" || mode == "pending-completed-failed"
+	if failed {
 		Expect(current.Tasks[0].Passes).To(BeZero())
 		_, err = os.Lstat(oracleCalled)
 		Expect(os.IsNotExist(err)).To(BeTrue(), "nested rejection must not execute the oracle")
@@ -676,6 +711,121 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 					Expect(installationSnapshot(owner)).To(Equal(beforeOwner))
 					Expect(installationSnapshot(caller)).To(Equal(beforeCaller))
 				}
+			}
+		}
+	})
+
+	// per docs/adr/0133-go-source-evaluation-runners.md:197
+	// per docs/adr/0133-go-source-evaluation-runners.md:204
+	It("reports adapter refusals before bootstrap without running the golden oracle", func() {
+		for _, harness := range []string{"mock", "claude", "codex", "opencode", "example-harness"} {
+			for _, mode := range []string{"missing-owner", "non-executable-owner", "broken-interpreter", "file-alias", "bare-path", "unacknowledged-handoff"} {
+				owner, foreign := fixtureDirectories()
+				base, caller := filepath.Dir(owner), filepath.Join(foreign, "project", "nested")
+				program := sourceRunnerAdapter(owner, harness)
+				ownerPath := filepath.Join(owner, "factory")
+				ownerCalled, fallbackCalled, oracleCalled := filepath.Join(base, "OWNER_CALLED"), filepath.Join(base, "FALLBACK_CALLED"), filepath.Join(base, "ORACLE_CALLED")
+				ownerBody := []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" > \"$SOURCE_ADAPTER_OWNER_CALLED\"\nprintf 'owner stdout\\n'\nprintf 'owner stderr\\n' >&2\nexit 47\n")
+				if mode != "missing-owner" {
+					if mode == "broken-interpreter" {
+						ownerBody = []byte("#!/factory-deliberately-absent-interpreter\nexit 47\n")
+					}
+					writeFixture(ownerPath, ownerBody, 0700)
+					if mode == "non-executable-owner" {
+						Expect(os.Chmod(ownerPath, 0600)).To(Succeed())
+					}
+				}
+				writeFixture(filepath.Join(foreign, "factory"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_ADAPTER_FALLBACK\"\nexit 49\n"), 0700)
+				writeFixture(filepath.Join(caller, "factory"), candidateBinary, 0700)
+				golden := sourceGoldenAdapter(caller)
+				writeFixture(filepath.Join(caller, "factory.yaml"), []byte("review_lane: off\n"), 0600)
+				writeFixture(filepath.Join(caller, "AGENTS.md"), []byte("Private adapter bootstrap fixture.\n"), 0600)
+				orchestrationTask(caller, "reference-answer")
+				writeFixture(filepath.Join(caller, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_ADAPTER_ORACLE\"\nexit 0\n"), 0700)
+				work := filepath.Join(caller, "direct work")
+				writeFixture(filepath.Join(work, "task.md"), []byte("Literal direct adapter task.\n"), 0600)
+				if mode == "file-alias" {
+					alias := filepath.Join(base, "aliased runner")
+					Expect(os.Symlink(program, alias)).To(Succeed())
+					program = alias
+				}
+				if mode == "bare-path" {
+					program = filepath.Base(program)
+				}
+				environment := map[string]string{
+					"PATH": filepath.Join(owner, "eval/runners") + ":/usr/bin:/bin", "HOME": caller, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
+					"FACTORY_CONFIG": filepath.Join(caller, "factory.yaml"), "SOURCE_ADAPTER_PROGRAM": program, "SOURCE_ADAPTER_OWNER": ownerPath, "SOURCE_ADAPTER_HARNESS": harness,
+					"SOURCE_ADAPTER_OWNER_CALLED": ownerCalled, "SOURCE_ADAPTER_FALLBACK": fallbackCalled, "SOURCE_ADAPTER_ORACLE": oracleCalled,
+					"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
+				}
+				reference := filepath.Join(base, "plain shell exec reference")
+				writeFixture(reference, []byte("#!/bin/sh\nset -e\nexec \"$SOURCE_ADAPTER_OWNER\" eval run \"$SOURCE_ADAPTER_HARNESS\" \"$1\"\n"), 0700)
+				expectedStatus := 2
+				if mode != "file-alias" && mode != "bare-path" {
+					expectedStatus = sourceRunnerInvoke(caller, environment, "", reference, false, work).status
+					Expect(expectedStatus).NotTo(BeZero())
+				}
+				if mode == "unacknowledged-handoff" {
+					Expect(os.Remove(ownerCalled)).To(Succeed(), "the plain-shell reference witness cannot satisfy the real selected-runner check")
+				}
+
+				delete(environment, "FACTORY_EVAL_OWNERSHIP_TOKEN")
+				calls, wrapper := filepath.Join(base, "outer runner work"), filepath.Join(base, "selected runner")
+				environment["SOURCE_ADAPTER_OUTER_WORK"] = calls
+				invocation := "exec \"$SOURCE_ADAPTER_PROGRAM\" \"$@\"\n"
+				if mode == "bare-path" {
+					invocation = "exec /bin/sh \"$SOURCE_ADAPTER_PROGRAM\" \"$@\"\n"
+				}
+				writeFixture(wrapper, []byte("#!/bin/sh\nprintf '%s\\000' \"$1\" > \"$SOURCE_ADAPTER_OUTER_WORK\"\n"+invocation), 0700)
+				observed := sourceRunnerInvoke(caller, environment, "", golden, false, "--harness", "mock", "--runner", wrapper, "--runs", "1")
+				Expect(observed.status).To(BeZero(), "%+v", observed)
+				Expect(observed.stderr).To(BeEmpty())
+				current := orchestrationReadResults(caller, "current")
+				Expect(current.Tasks).To(HaveLen(1))
+				Expect(current.Tasks[0].Runs).To(Equal(1))
+				Expect(current.Tasks[0].Passes).To(BeZero(), "harness=%s mode=%s must reject before its always-passing oracle", harness, mode)
+				Expect(current.Tasks[0].Score).To(BeZero())
+				_, oracleErr := os.Lstat(oracleCalled)
+				Expect(os.IsNotExist(oracleErr)).To(BeTrue(), "a pending adapter without native completion must not reach its oracle")
+				if mode != "unacknowledged-handoff" {
+					_, err := os.Lstat(ownerCalled)
+					Expect(os.IsNotExist(err)).To(BeTrue(), "adapter refusal must not execute its owner")
+				}
+				actualWork, err := os.ReadFile(calls)
+				Expect(err).NotTo(HaveOccurred(), "the outer evaluator must execute the selected adapter fixture")
+				fields := strings.Split(strings.TrimSuffix(string(actualWork), "\x00"), "\x00")
+				Expect(fields).To(HaveLen(1))
+				Expect(filepath.Dir(fields[0])).To(Equal(base))
+				Expect(filepath.Base(fields[0])).To(HavePrefix("factory-golden-"))
+				if mode == "unacknowledged-handoff" {
+					Expect(os.ReadFile(ownerCalled)).To(Equal([]byte("eval\x00run\x00"+harness+"\x00"+fields[0]+"\x00")), "the selected adapter must execute its stub owner with this actual private work")
+				}
+				_, err = os.Lstat(fields[0])
+				Expect(os.IsNotExist(err)).To(BeTrue(), "confirmed adapter refusal keeps ordinary private-work cleanup")
+				_, err = os.Lstat(fallbackCalled)
+				Expect(os.IsNotExist(err)).To(BeTrue())
+				for _, shell := range []bool{false, true} {
+					if mode == "bare-path" && !shell {
+						continue
+					}
+					delete(environment, "FACTORY_EVAL_OWNERSHIP_TOKEN")
+					baseline := sourceRunnerInvoke(caller, environment, "", program, shell, work)
+					Expect(baseline.status).To(Equal(expectedStatus), "harness=%s mode=%s shell=%t: %+v", harness, mode, shell, baseline)
+					Expect(baseline.stderr).NotTo(ContainSubstring("factory-eval-result-v1"))
+					for _, invalid := range []string{"", strings.Repeat("d", 63), strings.Repeat("d", 65), strings.Repeat("D", 64), strings.Repeat("g", 64), "malformed\n" + strings.Repeat("d", 64)} {
+						environment["FACTORY_EVAL_OWNERSHIP_TOKEN"] = invalid
+						Expect(sourceRunnerInvoke(caller, environment, "", program, shell, work)).To(Equal(baseline), "invalid private tokens must preserve direct output and status")
+					}
+					token := strings.Repeat("d", 64)
+					environment["FACTORY_EVAL_OWNERSHIP_TOKEN"] = token
+					direct := sourceRunnerInvoke(caller, environment, "", program, shell, work)
+					receipt := "factory-eval-result-v1 " + token + " handoff-pending\n"
+					Expect(direct.stderr).To(HavePrefix(receipt), "the pending receipt precedes even owner/path refusal: harness=%s mode=%s shell=%t", harness, mode, shell)
+					Expect(strings.Count(direct.stderr, receipt)).To(Equal(1))
+					direct.stderr = strings.TrimPrefix(direct.stderr, receipt)
+					Expect(direct).To(Equal(baseline), "private pending reporting preserves the direct shell status and diagnostic")
+				}
+				AddReportEntry("source-runner.adapter-bootstrap-refusal", map[string]any{"harness": harness, "mode": mode, "direct_status": expectedStatus, "outer_status": observed.status, "passes": current.Tasks[0].Passes}, ReportEntryVisibilityNever)
 			}
 		}
 	})
@@ -1023,6 +1173,8 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 
 	// per docs/adr/0133-go-source-evaluation-runners.md:117
 	// per docs/adr/0133-go-source-evaluation-runners.md:128
+	// per docs/adr/0133-go-source-evaluation-runners.md:213
+	// per docs/adr/0133-go-source-evaluation-runners.md:224
 	It("validates direct runner receipts and removes their private token before launching a real CLI", func() {
 		root, _ := fixtureDirectories()
 		base := filepath.Dir(root)
@@ -1033,12 +1185,14 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 		work := filepath.Join(root, "valid work")
 		writeFixture(filepath.Join(work, "task.md"), []byte("Literal direct task.\n"), 0600)
 		token := strings.Repeat("a", 64)
-		environment := map[string]string{"PATH": tools, "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "", "FACTORY_EVAL_OWNERSHIP_TOKEN": token, "SOURCE_RUNNER_CLI_ENV": called}
+		environment := map[string]string{"PATH": tools, "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "", "FACTORY_EVAL_OWNERSHIP_TOKEN": token, "SOURCE_RUNNER_CLI_ENV": called, "_factory_token": "caller-value"}
 		observed := sourceRunnerInvoke(root, environment, "", program, false, work)
-		Expect(observed).To(Equal(cliResult{"", "", 0}), "ordinary real CLI nonzero status still receives oracle scoring")
+		Expect(observed).To(Equal(cliResult{"", "factory-eval-result-v1 " + token + " handoff-pending\nfactory-eval-result-v1 " + token + " completed\n", 0}), "ordinary real CLI nonzero status completes native supervision and still receives oracle scoring")
 		cliEnvironment, err := os.ReadFile(called)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(cliEnvironment)).NotTo(ContainSubstring("FACTORY_EVAL_OWNERSHIP_TOKEN="), "the token must be absent, rather than merely empty, in the real harness environment")
+		Expect(strings.Split(string(cliEnvironment), "\n")).To(ContainElement("_factory_token=caller-value"), "receipt rendering must not overwrite an inherited exported caller variable")
+		Expect(string(cliEnvironment)).NotTo(ContainSubstring(token), "the private token must not reach the real CLI under an alternate variable name")
 		for _, invalid := range []string{"", strings.Repeat("a", 63), strings.Repeat("a", 65), strings.Repeat("A", 64), strings.Repeat("g", 64), token + "\ninjected line"} {
 			environment["FACTORY_EVAL_OWNERSHIP_TOKEN"] = invalid
 			observed = sourceRunnerInvoke(root, environment, "", program, false, filepath.Join(root, "absent work"))
@@ -1089,6 +1243,20 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 	// per docs/adr/0133-go-source-evaluation-runners.md:135
 	It("ignores stale or malformed receipts and preserves ordinary custom exit 125 oracle scoring", func() {
 		for _, mode := range []string{"none", "foreign", "stale", "prefix", "suffix", "partial", "malformed-token", "unknown-status", "stdout"} {
+			sourceRunnerReceiptCase(mode)
+		}
+	})
+
+	// per docs/adr/0133-go-source-evaluation-runners.md:197
+	// per docs/adr/0133-go-source-evaluation-runners.md:204
+	It("requires ordered matching completion after a private adapter handoff", func() {
+		for _, mode := range []string{
+			"pending", "pending-completed", "completed-only", "completed-pending", "pending-completed-pending",
+			"pending-foreign-completed", "pending-stale-completed", "pending-partial-completed", "pending-prefixed-completed", "pending-completed-stdout",
+			"foreign-pending", "partial-pending", "failed-completed", "completed-failed", "pending-completed-failed",
+			"uncertain-completed", "completed-uncertain", "pending-uncertain-completed",
+		} {
+			By("checking receipt sequence " + mode)
 			sourceRunnerReceiptCase(mode)
 		}
 	})

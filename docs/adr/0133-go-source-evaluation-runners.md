@@ -114,12 +114,12 @@ Normal process exit is insufficient when a nested factory controller explicitly
 could not establish cleanup. Carry that result across the process boundary.
 
 For each external evaluation attempt, generate a fresh unpredictable private
-token and pass it in `FACTORY_EVAL_OWNERSHIP_TOKEN`. A native `eval run` failure
-may emit a versioned stderr receipt bound to that token, distinguishing ordinary
-execution rejection from ownership uncertainty. The parent recognizes only an
+token and pass it in `FACTORY_EVAL_OWNERSHIP_TOKEN`. Native `eval run` reports
+versioned stderr receipts bound to that token, distinguishing completion,
+execution rejection and ownership uncertainty. The parent recognizes only an
 exact complete line `factory-eval-result-v1 TOKEN STATUS`, where TOKEN is 64
-lowercase hexadecimal characters and STATUS is `failed` or `ownership-unconfirmed`.
-Nested rejection cannot run the oracle; nested
+lowercase hexadecimal characters. Statuses include `failed`, `ownership-unconfirmed`,
+and the handoff states defined below. Nested rejection cannot run the oracle; nested
 uncertainty additionally causes a fatal error and retains the task directory.
 Direct runner statuses stay unchanged. Custom runner nonzero exits, including
 125, still receive ordinary oracle scoring without a matching receipt. Do not
@@ -189,3 +189,40 @@ deleted merely by placing its uncertainty receipt beyond the capture limit.
 Qualify this with a real detached-child witness and observed overflow. Preserve
 the existing native direct-harness behavior and ordinary custom nonzero scoring;
 only the incomplete external-controller boundary receives this stricter rule.
+
+## Adapter refusals before bootstrap
+
+The owning launcher may be absent, non-executable or have an unavailable
+interpreter, so its own bootstrap receipt cannot cover every adapter failure.
+Emit a private `handoff-pending` receipt before all adapter owner/path checks,
+only for a valid per-attempt token. An EXIT trap is insufficient: failed `exec`
+bypasses that trap in supported Bash versions. The owning native runner emits
+`completed` only after its normal successful return decision. Keep the existing
+`failed` and `ownership-unconfirmed` terminal receipts. No extra shell supervisor,
+helper dependency or shell-specific exec option is needed.
+
+Read matching complete receipt lines in order. `handoff-pending` opens a handoff;
+`completed` closes the currently pending handoff, but cannot erase a previous
+`failed` or `ownership-unconfirmed` result. Completion before a later pending
+receipt does not acknowledge that later handoff. An unmatched pending receipt
+means a failed attempt with no oracle. Explicit uncertainty and incomplete output
+capture still retain the work and abort evaluation. This distinguishes the
+reproduced pre-exec refusals without changing custody guarantees for arbitrary
+custom executable code, which this private protocol does not authenticate.
+
+Initialize native receipt state conservatively to `ownership-unconfirmed` until
+a normal return decision is reached: a panic must not emit completion merely
+because a named return value defaults to zero. Explicit argument refusals and
+confirmed ordinary execution failures select `failed`; explicit successful
+runner completion selects `completed`. Preserve untokened direct shell status,
+streams and operands, invalid-token silence and ordinary custom-runner nonzero
+scoring. Test all five adapters with missing, non-executable and broken-interpreter
+owners, rejected adapter paths, valid/invalid tokens, successful native handoff
+and ordered completion. No ordinary exit code is globally reserved, and no
+fallback runtime may run.
+
+Render the adapter receipt directly from its canonical private variable. Do not
+copy the token to a shell temporary: a caller-exported variable with that name
+would retain its export attribute and leak the token through an alias to the
+real harness. Preserve that caller variable's original value and qualify this
+case in the existing native token-removal criterion.

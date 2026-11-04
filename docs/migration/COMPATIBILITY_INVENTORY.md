@@ -105,7 +105,7 @@ this register does not claim legacy error parity or completed qualification.
 | Invalid mock work directory | Could return 0 after failed `cd` | Status 1; no answer publication |
 | Unreadable real-runner task | Could invoke the CLI with an empty prompt | Status 1; no CLI invocation |
 | Timed-out external runner killed without acknowledging shutdown | Could score zero and return evaluator status 0 after observing only its direct group | Status 1 and no score publication when nested ownership cannot be confirmed; graceful cleanup remains bounded |
-| Nested factory runner or source bootstrap reports execution failure | A normal nonzero controller exit could still permit a passing oracle score | An attempt-bound private receipt suppresses oracle scoring; ownership uncertainty additionally retains the private task directory and reports an error |
+| Source adapter, source bootstrap or nested factory runner reports execution failure | A normal nonzero controller exit could still permit a passing oracle score | An attempt-bound private receipt suppresses oracle scoring, including failures before the owning runtime starts; ownership uncertainty additionally retains the private task directory and reports an error |
 | External runner exceeds the captured-output limit | Could score zero and delete work despite losing a nested uncertainty receipt | Status 1, retained private work and no score publication because nested ownership evidence is incomplete |
 
 Valid runs retain their workdir, literal prompt, optional model, argv and log

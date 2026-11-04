@@ -2,6 +2,13 @@
 # Factory native evaluation runner adapter: source-v1
 # docs/adr/0133-go-source-evaluation-runners.md:18.
 set -e
+# A failed exec can bypass EXIT traps. docs/adr/0133-go-source-evaluation-runners.md:197.
+if [ "${FACTORY_EVAL_OWNERSHIP_TOKEN+x}" = x ] && [ "${#FACTORY_EVAL_OWNERSHIP_TOKEN}" -eq 64 ]; then
+  case "$FACTORY_EVAL_OWNERSHIP_TOKEN" in
+    *[!0123456789abcdef]*) ;;
+    *) printf 'factory-eval-result-v1 %s handoff-pending\n' "$FACTORY_EVAL_OWNERSHIP_TOKEN" >&2 || : ;;
+  esac
+fi
 [ ! -L "$0" ] || {
   printf '%s\n' 'factory eval run: invoke the physical source adapter instead of a file symlink' >&2
   exit 2

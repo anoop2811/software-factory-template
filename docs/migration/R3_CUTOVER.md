@@ -60,11 +60,12 @@ The checklist records source qualification and review, not merely written files.
 
 The five evaluation-runner rows have local implementation and independent
 qualification under Decision 148 / [ADR 0133](../adr/0133-go-source-evaluation-runners.md).
-Twenty-six new criteria cover their source routing, native execution, nested
-shutdown, failure reporting, source-bootstrap refusal and bounded receipt capture.
-After hosted feedback, the actual local source gate passed all 54 source criteria
-under race with two workers; the separate native evaluation run passed 38.
-Independent discovery found 3258 total criteria. Decision 148 records the earlier
+Twenty-eight new criteria cover their source routing, native execution, nested
+shutdown, failure reporting, source-bootstrap refusal, bounded receipt capture
+and acknowledged adapter handoff. After hosted feedback, the actual local source
+suite passed all 56 source criteria under race with two workers; the separate
+native evaluation and partition run passed 49. Independent discovery found 3260
+total criteria. Decision 148 records the earlier
 qualification and the subsequent portability/ownership corrections separately.
 These five rows stay open until hosted checks, review responses and merge
 complete. They are not five new runtime capabilities: their native owners already

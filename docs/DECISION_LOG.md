@@ -6360,3 +6360,38 @@ Reports are retained under `.factory/qualification/r3-runners/`, including
 `handoff-manual-final.json` and `ci-manual-readiness/manual-readiness-green.json`.
 The current hosted head still has the previously reproduced manual readiness
 failure; fresh hosted qualification of this correction remains required.
+
+Decision 148 bare-path fixture portability (2026-11-04 UTC), before code:
+Linux source CI on `cd0c42b` passed 55 criteria and failed the new bare-path
+receipt case. Independent probes across all five adapters showed Dash refusing
+the bare script operand before opening the PATH-resident adapter; no adapter
+receipt can exist when the adapter never runs. Bash enters that same adapter and
+reaches its explicit ambiguous-owner refusal. Exercise this particular PATH-search
+scenario with explicit `/bin/bash` in both the outer fixture and its direct
+token/status controls. Keep ordinary direct and explicit `/bin/sh` coverage for
+the other owner modes. Preserve all score/oracle, token, literal-output and status
+assertions; change no production code, command contract, timeout or criterion
+count. Evidence: `ci-linux-source-cd0c42b.log` and
+`bare-shell-entry-5_b5wrjz/results.json` under the private qualification directory.
+Use the same explicit Bash interpreter for the existing caller-local and foreign
+bare-operand transport controls, so Linux must exercise the adapter's own guard
+instead of satisfying refusal through Dash's earlier script-open error. Direct
+and explicit POSIX-shell transport coverage remains in the surrounding matrix.
+
+Decision 148 portability qualification: the private Dash reproduction failed at
+the same bare-path oracle assertion (`0 Passed | 1 Failed` in 6.641 seconds).
+The corrected five transport entries and owner-refusal criterion passed
+`6 Passed | 0 Failed | 0 Pending | 3254 Skipped` in 40.894 seconds. The same
+source Make command recorded above, now using
+`GO_RUNTIME_REPORT_DIR="$PWD/../adapter-bare-shell-source-qualified"`, reported
+`Ran 56 of 3260 Specs in 145.012 seconds` and
+`56 Passed | 0 Failed | 0 Pending | 3204 Skipped`. The criterion count and
+production bytes are unchanged; the direct and POSIX-shell matrices still run.
+The enclosing Make command exited zero; configured lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported zero vulnerabilities
+affecting the code. Focused evidence used the race acceptance command with
+`-timeout=5m -ginkgo.focus='^Go factory command acceptance Go source runtime
+entrypoints evaluation runner adapters (reports adapter refusals|transports
+literal operands)' -ginkgo.fail-on-empty`, recorded in
+`adapter-bare-shell-green.log` and its JSON report. Independent test review read
+the final two-worker report and all thirty owner-refusal witnesses.

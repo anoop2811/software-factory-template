@@ -631,7 +631,8 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 				Expect(installationSnapshot(physicalCaller)).To(Equal(beforeCaller))
 			}
 		}
-		// Bare shell lookup must not turn the caller's grandparents into an owner.
+		// Bash searches PATH for bare script operands; Dash rejects before entry.
+		// This must exercise the adapter's own caller-relative owner refusal.
 		// per docs/adr/0133-go-source-evaluation-runners.md:154
 		owner, caller := fixtureDirectories()
 		program := sourceRunnerAdapter(owner, harness)
@@ -643,11 +644,11 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 		Expect(os.MkdirAll(foreignCWD, 0700)).To(Succeed())
 		environment := map[string]string{"PATH": filepath.Dir(program) + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "SOURCE_ENTRY_OWNER": ownerCalled, "SOURCE_ENTRY_FOREIGN": foreignCalled}
 		bare := filepath.Base(program)
-		local := sourceRunnerInvoke(filepath.Dir(program), environment, "", bare, true, "literal work")
+		local := sourceRunnerInvoke(filepath.Dir(program), environment, "", "/bin/bash", false, bare, "literal work")
 		Expect(local).To(Equal(cliResult{"", "", 63}), "bare shell invocation in the actual runner directory remains supported")
 		Expect(os.ReadFile(ownerCalled)).To(Equal([]byte("eval\x00run\x00" + harness + "\x00literal work\x00")))
 		Expect(os.Remove(ownerCalled)).To(Succeed())
-		foreign := sourceRunnerInvoke(foreignCWD, environment, "", bare, true, "literal work")
+		foreign := sourceRunnerInvoke(foreignCWD, environment, "", "/bin/bash", false, bare, "literal work")
 		Expect(foreign.status).To(Equal(2), "PATH-searched bare shell invocation must refuse before choosing a caller-relative owner: %+v", foreign)
 		Expect(foreign.stdout).To(BeEmpty())
 		Expect(foreign.stderr).NotTo(BeEmpty())
@@ -774,7 +775,9 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 				environment["SOURCE_ADAPTER_OUTER_WORK"] = calls
 				invocation := "exec \"$SOURCE_ADAPTER_PROGRAM\" \"$@\"\n"
 				if mode == "bare-path" {
-					invocation = "exec /bin/sh \"$SOURCE_ADAPTER_PROGRAM\" \"$@\"\n"
+					// Reach the adapter through actual PATH lookup before its refusal.
+					// per docs/adr/0133-go-source-evaluation-runners.md:154
+					invocation = "exec /bin/bash \"$SOURCE_ADAPTER_PROGRAM\" \"$@\"\n"
 				}
 				writeFixture(wrapper, []byte("#!/bin/sh\nprintf '%s\\000' \"$1\" > \"$SOURCE_ADAPTER_OUTER_WORK\"\n"+invocation), 0700)
 				observed := sourceRunnerInvoke(caller, environment, "", golden, false, "--harness", "mock", "--runner", wrapper, "--runs", "1")
@@ -808,17 +811,23 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 					if mode == "bare-path" && !shell {
 						continue
 					}
+					invoke := func() cliResult {
+						if mode == "bare-path" {
+							return sourceRunnerInvoke(caller, environment, "", "/bin/bash", false, program, work)
+						}
+						return sourceRunnerInvoke(caller, environment, "", program, shell, work)
+					}
 					delete(environment, "FACTORY_EVAL_OWNERSHIP_TOKEN")
-					baseline := sourceRunnerInvoke(caller, environment, "", program, shell, work)
+					baseline := invoke()
 					Expect(baseline.status).To(Equal(expectedStatus), "harness=%s mode=%s shell=%t: %+v", harness, mode, shell, baseline)
 					Expect(baseline.stderr).NotTo(ContainSubstring("factory-eval-result-v1"))
 					for _, invalid := range []string{"", strings.Repeat("d", 63), strings.Repeat("d", 65), strings.Repeat("D", 64), strings.Repeat("g", 64), "malformed\n" + strings.Repeat("d", 64)} {
 						environment["FACTORY_EVAL_OWNERSHIP_TOKEN"] = invalid
-						Expect(sourceRunnerInvoke(caller, environment, "", program, shell, work)).To(Equal(baseline), "invalid private tokens must preserve direct output and status")
+						Expect(invoke()).To(Equal(baseline), "invalid private tokens must preserve direct output and status")
 					}
 					token := strings.Repeat("d", 64)
 					environment["FACTORY_EVAL_OWNERSHIP_TOKEN"] = token
-					direct := sourceRunnerInvoke(caller, environment, "", program, shell, work)
+					direct := invoke()
 					receipt := "factory-eval-result-v1 " + token + " handoff-pending\n"
 					Expect(direct.stderr).To(HavePrefix(receipt), "the pending receipt precedes even owner/path refusal: harness=%s mode=%s shell=%t", harness, mode, shell)
 					Expect(strings.Count(direct.stderr, receipt)).To(Equal(1))

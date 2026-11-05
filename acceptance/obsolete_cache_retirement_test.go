@@ -292,10 +292,33 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 		const id = "unowned-minimal-leftovers"
 		applied := handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--migration-id", id, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
 		Expect(applied.status).To(Equal(0), "%+v", applied)
+		// Still-consumed owned assets advance with the candidate; omitted and
+		// unknown cache paths retain their original bytes and modes.
+		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:66
+		activeCache := map[string][]byte{}
+		candidateEntries, _ := imageDecodeArchive(image.archive)
+		for _, path := range minimalInitializerCache {
+			archiveSuffix := "/installation/assets/" + path
+			for _, entry := range candidateEntries {
+				if strings.HasSuffix(entry.name, archiveSuffix) {
+					Expect(activeCache).NotTo(HaveKey(".factory/assets/scaffold/" + path))
+					activeCache[".factory/assets/scaffold/"+path] = entry.body
+				}
+			}
+		}
+		Expect(activeCache).To(HaveLen(len(minimalInitializerCache)))
 		current := installationSnapshot(root)
 		for path, value := range snapshot {
 			if strings.HasPrefix(path, ".factory/assets/scaffold/") {
-				Expect(current[path]).To(Equal(value), path)
+				if expected, owned := activeCache[path]; owned {
+					asset := filepath.Join(root, filepath.FromSlash(path))
+					Expect(os.ReadFile(asset)).To(Equal(expected), path)
+					info, err := os.Lstat(asset)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(info.Mode()).To(Equal(os.FileMode(0600)), path)
+				} else {
+					Expect(current[path]).To(Equal(value), path)
+				}
 			}
 		}
 		for _, path := range obsoleteCacheOracle() {
@@ -309,6 +332,12 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 		Expect(os.ReadFile(journal)).To(Equal(journalBytes))
 		Expect(os.ReadFile(manifest)).To(Equal(manifestBytes))
 		Expect(os.ReadFile(receipt)).To(Equal(receiptBytes))
+		restoredCache := installationSnapshot(root)
+		for path, value := range snapshot {
+			if strings.HasPrefix(path, ".factory/assets/scaffold/") {
+				Expect(restoredCache[path]).To(Equal(value), "rollback restores original cache: %s", path)
+			}
+		}
 
 		Expect(os.ReadFile(unknown)).To(Equal([]byte("unknown local history is never cleanup authority\n")))
 		AddReportEntry("obsolete-cache.unowned-minimal", map[string]any{"old_rows": 58, "leftovers": 83, "retirement_rows": 141, "rollback_status": completed.status}, ReportEntryVisibilityNever)

@@ -46,8 +46,8 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
 
-      # A trusted absolute binary is an explicit adopter opt-in. Enabling the
-      # lane alone never installs Go or builds commands from an adopter's repo.
+      # A trusted absolute binary is an explicit adopter opt-in. Only a canonical
+      # factory source checkout prepares its own Go runtime below.
       - name: Select the explicitly configured review client
         id: client
         env:
@@ -55,11 +55,35 @@ jobs:
         run: |
           if [ -z "$REVIEW_GO_CLIENT" ]; then
             echo 'mode=legacy' >> "$GITHUB_OUTPUT"
+            if [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
+               [ -f go.mod ] && [ -f go.sum ] &&
+               grep -Fxq 'module github.com/anoop2811/software-factory-template' go.mod &&
+               [ -f scripts/factory-init.sh ] &&
+               [ "$(sed -n '2p' scripts/factory-init.sh)" = '# Factory native initializer adapter: source-v1' ]; then
+              echo 'source=true' >> "$GITHUB_OUTPUT"
+            fi
           else
             case "$REVIEW_GO_CLIENT" in /*) ;; *) echo 'REVIEW_GO_CLIENT must be an absolute trusted executable.' >&2; exit 1 ;; esac
             [ -x "$REVIEW_GO_CLIENT" ] || { echo 'Configured review client is not executable.' >&2; exit 1; }
             echo 'mode=go' >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Set up Go for the factory source runtime
+        if: steps.client.outputs.source == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+          token: ''
+
+      - name: Prepare the factory source runtime
+        if: steps.client.outputs.source == 'true'
+        # Source preparation runs before credential-bearing review steps.
+        # docs/adr/0135-go-source-review-entrypoints.md:78.
+        run: |
+          GOTOOLCHAIN=local go mod download
+          git diff --exit-code -- go.mod go.sum
+          ./factory --help > /dev/null
 
       # Official https://github.com/actions/cache/releases/tag/v6.1.0
       - name: Restore authenticated completed batches
@@ -97,8 +121,8 @@ jobs:
           if [ -n "$EXPECTED_HEAD" ]; then args+=(--expected-head "$EXPECTED_HEAD"); fi
           FACTORY_BRIDGE_PROTOCOL='' "$REVIEW_GO_CLIENT" "${args[@]}"
 
-      # Explicit compatibility path for adopters that have not installed the
-      # Go client. Only this path retains the old single-request size boundary.
+      # Default single-request compatibility path when REVIEW_GO_CLIENT is unset.
+      # This path retains the existing single-request size boundary.
       - name: Review legacy (no batch coverage)
         if: steps.client.outputs.mode == 'legacy'
         env:
@@ -124,17 +148,17 @@ jobs:
           status=failed
           if [ "$size" -gt "$MAX_DIFF_BYTES" ]; then
             status=skipped
-            printf 'Legacy review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
+            printf 'Compatibility review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
           elif [ -z "$REVIEW_API_KEY" ]; then
             printf 'Model review did not run: repository secret __REVIEW_API_KEY_SECRET__ is missing.\n' > "$review"
           elif ./scripts/adversarial-review.sh "$RUNNER_TEMP/factory-review.diff" > "$review" 2> "$RUNNER_TEMP/factory-review-legacy.err" && [ -s "$review" ]; then
             status=complete
           else
-            printf 'Legacy model review failed; this pull request has not received a completed model review.\n' > "$review"
+            printf 'Compatibility model review failed; this pull request has not received a completed model review.\n' > "$review"
             # Publish only fixed classifications; provider stderr can contain secrets.
             while IFS= read -r reason; do
-              case "$reason" in
-                'adversarial-review: request timed out.'|'adversarial-review: transport failure.'|'adversarial-review: HTTP request failed.'|'adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length).')
+              case "${reason%.}" in
+                'adversarial-review: request timed out'|'adversarial-review: transport failure'|'adversarial-review: HTTP request failed'|'adversarial-review: incomplete review: OpenRouter reached the response token limit (finish_reason=length)')
                   printf '\n%s\n' "$reason" >> "$review" ;;
                 'adversarial-review: the model returned no review'*)
                   printf '\nThe provider returned no completed review.\n' >> "$review" ;;
@@ -150,8 +174,10 @@ jobs:
             '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
             > "$RUNNER_TEMP/factory-review-output/report.json"
           {
-            printf '## Legacy adversarial review (advisory): %s\n\n' "$status"
-            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+            printf '## Compatibility adversarial review (advisory): %s\n\n' "$status"
+            # Markdown backticks are literal delimiters, not shell substitution.
+            # shellcheck disable=SC2016
+            printf 'Commit: `%s`. Compatibility single request; no batch coverage manifest.\n\n' "$head"
             cat "$review"
           } > "$RUNNER_TEMP/factory-review-comment.md"
           gh pr comment "$PR" --repo "$REPO" --body-file "$RUNNER_TEMP/factory-review-comment.md"

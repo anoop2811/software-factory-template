@@ -65,9 +65,12 @@ with tempfile.TemporaryDirectory(prefix="factory-java-build-tool-") as temporary
     # This matrix retains its pre-conversion initializer/dispatcher engine.
     # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
     # docs/adr/0129-go-source-doctor-entrypoint.md:47.
+    # Review adapters must not call back into this historical dispatcher.
+    # docs/adr/0135-go-source-review-entrypoints.md:46.
     for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
-                 "scripts/factory-doctor.sh"):
+                 "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
+                 "scripts/adversarial-review.sh"):
         data = subprocess.run([
             "git", "-C", str(source), "show",
             "1754de23de95a7e3c734bedd86894295e823c988:" + name,

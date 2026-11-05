@@ -104,6 +104,12 @@ def operand(*names):
 with open(os.environ['SOURCE_GATE_CASES']) as source:cases=json.load(source)
 is_runner=bool(args and args[0]=='run' and 'github.com/onsi/ginkgo/v2/ginkgo' in args)
 is_helper=bool(args and args[0]=='run' and './internal/qualification/cmd/worker-count' in args)
+if args==['mod','download']:
+ record['group']='module-setup'
+ record['toolchain']=os.environ.get('GOTOOLCHAIN','')
+ lock=os.environ.get('SOURCE_GATE_MUTATE_LOCK','')
+ if lock in ['go.mod','go.sum']:
+  target=pathlib.Path(lock);target.write_text(target.read_text()+'\nfixture changed the lockfile\n')
 if is_helper:
  record['group']='worker-plan'
  record['requested']=os.environ.get('GO_RUNTIME_TEST_PROCS','')
@@ -162,6 +168,7 @@ type sourceGateCall struct {
 	Requested string   `json:"requested"`
 	Maximum   string   `json:"maximum"`
 	Plan      string   `json:"plan"`
+	Toolchain string   `json:"toolchain"`
 }
 
 var sourceGateWorkerHelperPath string
@@ -183,7 +190,7 @@ func sourceGateMakeFixture() sourceGateFixture {
 	root, err := filepath.EvalSymlinks(GinkgoT().TempDir())
 	Expect(err).NotTo(HaveOccurred())
 	fixture := sourceGateFixture{root: root, goLog: filepath.Join(root, "go-calls.jsonl"), qualityLog: filepath.Join(root, "quality-calls")}
-	for _, path := range []string{"Makefile", "go.mod"} {
+	for _, path := range []string{"Makefile", "go.mod", "go.sum"} {
 		body, err := os.ReadFile(filepath.Join("..", path))
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, path), body, 0600)
@@ -598,12 +605,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0133-go-source-evaluation-runners.md:59
 		// Seven structural-evaluation criteria join the independently discovered source census.
 		// per docs/adr/0134-go-source-structural-evaluation.md:59
-		Expect(negativeTotal).To(Equal(3267))
+		// Eight review entrypoint criteria join the independently discovered source census.
+		// per docs/adr/0135-go-source-review-entrypoints.md:63
+		Expect(negativeTotal).To(Equal(3275))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3267))
-		expectedCounts := map[string]int{"base": 2996, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 63}
+		Expect(allTotal).To(Equal(3275))
+		expectedCounts := map[string]int{"base": 2996, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 71}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -751,6 +760,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0101-go-release-handoff.md:560
 	// per docs/DECISION_LOG.md:4529
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
+	// per docs/adr/0135-go-source-review-entrypoints.md:78
 	It("preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -824,11 +834,24 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				groups = job.Strategy.Matrix.Group
 			}
 			// per docs/adr/0101-go-release-handoff.md:597
-			Expect(job.Steps).To(HaveLen(len(original.Steps) + 3))
+			extraSetup := 3
+			if identifier == "go-runtime-installation" {
+				extraSetup++
+			}
+			Expect(job.Steps).To(HaveLen(len(original.Steps) + extraSetup))
 			cache, pathStep, install, artifact := sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}
+			moduleSetup, moduleIndex, runnerIndex := sourceGateWorkflowStep{}, -1, -1
 			normalized := []sourceGateWorkflowStep{}
-			for _, step := range job.Steps {
+			for index, step := range job.Steps {
+				if step.Name == original.Steps[len(original.Steps)-1].Name {
+					runnerIndex = index
+				}
 				switch {
+				// per docs/adr/0135-go-source-review-entrypoints.md:81
+				case step.Name == "Provision locked modules for source workflow qualification":
+					Expect(moduleIndex).To(Equal(-1), "source module setup must occur exactly once")
+					moduleSetup, moduleIndex = step, index
+					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Provision locked modules for source workflow qualification", If: "matrix.group == 'source-entrypoints'", Run: "GOTOOLCHAIN=local go mod download\ngit diff --exit-code -- go.mod go.sum\n"}))
 				// per docs/adr/0102-parallel-go-qualification.md:44
 				case strings.HasPrefix(step.Uses, "actions/upload-artifact@"):
 					Expect(artifact.Uses).To(BeEmpty())
@@ -846,6 +869,12 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					}
 					normalized = append(normalized, step)
 				}
+			}
+			if identifier == "go-runtime-installation" {
+				Expect(moduleIndex).To(BeNumerically(">", 1), "locked acquisition must follow the pinned compiler setup")
+				Expect(moduleIndex).To(BeNumerically("<", runnerIndex), "source fixtures need their complete module proxy before qualification")
+			} else {
+				Expect(moduleIndex).To(Equal(-1), "non-source base qualification does not need extra module acquisition")
 			}
 			Expect(artifact.Uses).To(Equal("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"))
 			Expect(artifact).To(Equal(job.Steps[len(job.Steps)-1]), "report retention must follow the attempted source runner")
@@ -870,6 +899,22 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			runner := normalized[len(normalized)-1]
 			Expect(runner.If).To(BeEmpty(), "a cache hit never skips source qualification")
 			Expect(runner.Name).To(Equal(original.Steps[len(original.Steps)-1].Name))
+			if moduleIndex >= 0 {
+				for _, refusal := range []string{"download", "go.mod", "go.sum"} {
+					fixture := sourceGateMakeFixture()
+					environment := []string{"SOURCE_GATE_MUTATE_LOCK=" + refusal}
+					if refusal == "download" {
+						environment = []string{"SOURCE_GATE_FAIL_GROUP=module-setup"}
+					}
+					script := "set -e\n" + moduleSetup.Run + strings.ReplaceAll(runner.Run, "${{ matrix.group }}", "source-entrypoints")
+					status, calls, quality := sourceGateRun(fixture, script, environment)
+					Expect(status).NotTo(BeZero(), "failed module setup must prevent source qualification: %s", refusal)
+					Expect(calls).To(HaveLen(1), "neither a worker plan nor tests may start after failed preparation")
+					Expect(calls[0].Args).To(Equal([]string{"mod", "download"}))
+					Expect(calls[0].Toolchain).To(Equal("local"))
+					Expect(quality).To(BeEmpty())
+				}
+			}
 			for _, group := range groups {
 				for _, warm := range []bool{false, true} {
 					fixture := sourceGateMakeFixture()
@@ -909,8 +954,29 @@ var _ = Describe("Go source qualification workflow partition", func() {
 						environment = append(environment, key+"="+expand(value))
 					}
 					environment = append(environment, "PATH="+toolDirectory+string(os.PathListSeparator)+filepath.Join(fixture.root, "tools")+string(os.PathListSeparator)+os.Getenv("PATH"))
+					if moduleSetup.If == "matrix.group == 'source-entrypoints'" && group == "source-entrypoints" {
+						status, _, _ := sourceGateRun(fixture, "set -e\n"+moduleSetup.Run, environment)
+						Expect(status).To(BeZero(), "source module acquisition and lockfile check must run on both cache outcomes")
+					}
 					status, calls, quality := sourceGateRun(fixture, expand(runner.Run), environment)
 					Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed with warm=%t", identifier, group, warm)
+					moduleCalls, planIndex := []sourceGateCall{}, -1
+					for index, call := range calls {
+						if call.Group == "module-setup" {
+							Expect(planIndex).To(Equal(-1), "module setup must precede the worker plan")
+							Expect(call.Args).To(Equal([]string{"mod", "download"}))
+							Expect(call.Toolchain).To(Equal("local"))
+							moduleCalls = append(moduleCalls, call)
+						}
+						if call.Group == "worker-plan" {
+							planIndex = index
+						}
+					}
+					if group == "source-entrypoints" {
+						Expect(moduleCalls).To(HaveLen(1))
+					} else {
+						Expect(moduleCalls).To(BeEmpty(), "the source-only condition must not acquire modules for %s", group)
+					}
 					sourceGateAssertWorkerPlan(calls, "auto", workerLimit)
 					tests := sourceGateTests(calls)
 					Expect(tests).To(HaveLen(1))

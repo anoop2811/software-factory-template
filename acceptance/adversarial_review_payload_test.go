@@ -15,16 +15,26 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// The transport-specific oracle remains immutable development evidence.
+// per docs/adr/0135-go-source-review-entrypoints.md:46
+func adversarialReviewFrozen(path string) []byte {
+	GinkgoHelper()
+	command := exec.Command("git", "show", "f3a0b6520917e104883cc89b123d7244fa0c46a7:"+path) // #nosec G204 -- immutable local oracle and fixed test-owned input paths.
+	command.Dir = ".."
+	data, err := command.Output()
+	Expect(err).NotTo(HaveOccurred())
+	return data
+}
+
 var _ = Describe("Adversarial review large payload boundary", func() {
 	// per docs/DECISION_LOG.md:2478
+	// per docs/adr/0135-go-source-review-entrypoints.md:46
 	DescribeTable("carries the complete diff without payload-sized argv and removes private temporaries", func(provider string, goClient bool, transportFailure bool) {
 		base, err := os.MkdirTemp("", "factory-review-payload-")
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(func() { Expect(os.RemoveAll(base)).To(Succeed()) })
-		script, err := os.ReadFile("../scripts/adversarial-review.sh")
-		Expect(err).NotTo(HaveOccurred())
-		configuration, err := os.ReadFile("../scripts/lib/config.sh")
-		Expect(err).NotTo(HaveOccurred())
+		script := adversarialReviewFrozen("scripts/adversarial-review.sh")
+		configuration := adversarialReviewFrozen("scripts/lib/config.sh")
 		writeFixture(filepath.Join(base, "template/scripts/adversarial-review.sh"), script, 0700)
 		writeFixture(filepath.Join(base, "template/scripts/lib/config.sh"), configuration, 0600)
 		writeFixture(filepath.Join(base, "factory.yaml"), []byte("model_provider: openrouter\n"), 0600)
@@ -101,7 +111,7 @@ else:
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, "/bin/bash", filepath.Join(base, "template/scripts/adversarial-review.sh"), diffPath) // #nosec G204 -- actual repository script in isolated fixture, literal diff path, fake HTTP only.
+		command := exec.CommandContext(ctx, "/bin/bash", filepath.Join(base, "template/scripts/adversarial-review.sh"), diffPath) // #nosec G204 -- immutable historical script in isolated fixture, literal diff path, fake HTTP only.
 		command.Env = environment
 		command.Dir = base
 		var stdout, stderr bytes.Buffer

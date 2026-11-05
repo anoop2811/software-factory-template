@@ -1,14 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-# Real provider-script boundary, fake HTTP only. docs/adr/0052-self-hosted-adversarial-review.md:30.
+# Historical transport evidence, fake HTTP only. Current source routing is
+# covered independently in Go. docs/adr/0135-go-source-review-entrypoints.md:46.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v jq >/dev/null 2>&1 || { echo "adversarial-review selftest: jq is required" >&2; exit 1; }
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/factory-adversarial-review.XXXXXX")"
 trap 'rm -rf "$FIXTURE"' EXIT
 mkdir -p "$FIXTURE/template/scripts/lib" "$FIXTURE/bin"
-cp "$ROOT/scripts/adversarial-review.sh" "$FIXTURE/template/scripts/"
-cp "$ROOT/scripts/lib/config.sh" "$FIXTURE/template/scripts/lib/"
+for source in scripts/adversarial-review.sh scripts/lib/config.sh; do
+  git -C "$ROOT" show "f3a0b6520917e104883cc89b123d7244fa0c46a7:$source" > "$FIXTURE/template/$source"
+done
 
 cat > "$FIXTURE/bin/curl" <<'CURL'
 #!/bin/bash
@@ -251,7 +253,7 @@ trusted_workflow_guard() {
             '.head.repo.full_name == $repo and .base.repo.full_name == $repo and .base.ref == $branch and .base.sha == $base and .head.sha == $head' \
           jq -n --arg status "$status" --arg repository "$REPO" --arg base "$EXPECTED_BASE" --arg head "$head" \
             '{version:1,mode:"legacy-single-request",status:$status,repository:$repository,base:$base,head:$head,batch_coverage_available:false}' \
-            printf 'Commit: `%s`. Legacy single request; no batch coverage manifest.\n\n' "$head"
+            printf 'Commit: `%s`. Compatibility single request; no batch coverage manifest.\n\n' "$head"
 IDENTITY_ARGUMENTS
   unsafe_head_uses="$(printf '%s\n' "$runs" |
     grep -E 'EXPECTED_HEAD|\$\{?head([^[:alnum:]_]|$)' |
@@ -675,9 +677,10 @@ go_client_workflow_wiring() {
   sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$active" |
     grep -q '^          REVIEW_HTTP_RETRIES:.*1' || return 1
 
-  # Generated adopters receive opt-in variables only. Enabling the lane must
-  # not introduce a Go installation or build requirement.
-  ! grep -q 'actions/setup-go@\|go build .*cmd/factory' "$generated" || return 1
+  # Source-only preparation and compiler-free adopter classification now have
+  # independent real-entrypoint coverage. The old blanket absence-of-setup-go
+  # predicate cannot distinguish them. docs/adr/0135-go-source-review-entrypoints.md:78.
+  # Keep the generated explicit-client wiring assertions here.
   sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$generated" |
     grep -q '^          REVIEW_GO_CLIENT:.*vars.REVIEW_GO_CLIENT' || return 1
   sed -n '/^      - name: Review$/,/^      - name: Post the review$/p' "$generated" |

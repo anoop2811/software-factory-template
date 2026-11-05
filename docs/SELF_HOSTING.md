@@ -82,9 +82,9 @@ limits and opt-in routing. Coverage succeeds only for complete current-head work
 findings stay advisory. Rerun through Actions > Adversarial review.
 Generated workflows need a trusted absolute `REVIEW_GO_CLIENT` to opt in.
 
-### Legacy single-diff compatibility runner
+### Single-diff compatibility runner
 
-The legacy runner permits one HTTP request per run, a 200000-byte diff, a 1200-second
+The compatibility workflow permits one HTTP request per run, a 200000-byte diff, a 1200-second
 total request deadline (with a separate 15-second connection limit) and a configured 32768-token OpenRouter output cap for this repository.
 The shared runner defaults to 8192 when no cap is configured. Set
 `review_max_tokens` in `factory.yaml` or `REVIEW_MAX_TOKENS` in the environment
@@ -92,7 +92,7 @@ to a decimal value from 1024 through 32768; the caller value wins. An explicitly
 empty `REVIEW_MAX_TOKENS` overrides YAML and uses the shared 8192-token default.
 Leave the environment variable unset to use the configured YAML cap. Oversized diffs are
 skipped explicitly; truncated responses and failures are reported as unperformed
-or incomplete reviews. Legacy skips/failures exit nonzero; findings stay advisory.
+or incomplete reviews. Compatibility skips/failures exit nonzero; findings stay advisory.
 OpenRouter's routing and billing remain provider-owned;
 these controls are not a strict dollar ceiling. Local fixtures never call a model.
 
@@ -107,10 +107,11 @@ setting is intentionally not a factory.yaml key.
 Generated review-lane workflows carry the same variable binding. Older installed
 workflows need their normal upgrade before that binding is available.
 
-The deadline controls waiting time, not the model's token allowance. Timeouts
-now report safe HTTP/timing/byte evidence and never publish partial findings.
+The deadline controls waiting time, not the model's token allowance. The native
+single-request command reports sanitized failure categories and never publishes
+partial findings; raw provider errors and request bodies remain private.
 They do not prove the provider performed no work or incurred no cost. There is
-no automatic retry in the legacy curl client and no automatic provider fallback.
+no automatic retry in this fixed-HTTP path and no automatic provider fallback.
 The PR #87 failure hit the old hard-coded
 180-second curl deadline; its discarded partial response cannot establish why
 the provider took longer. See [ADR-0065](adr/0065-adversarial-review-transport-deadline.md);
@@ -157,7 +158,8 @@ The repository workflow selects the Go OpenRouter client described in
 [ADR-0067](adr/0067-streaming-adversarial-review-client.md). It builds the existing
 pinned module from the trusted base commit before supplying the review secret.
 The PR diff remains data; PR-head code is never built in the privileged job.
-The shared shell entry point still supports Codex, Claude Code and OpenCode.
+The retained shell entry point delegates to `factory review`; it does not need
+a Codex, Claude Code or OpenCode CLI to make provider HTTP requests.
 
 The client reads streamed events and publishes findings only after a complete,
 successfully terminated response. Heartbeats, reasoning and HTTP 200 alone are
@@ -168,7 +170,7 @@ tests cannot establish a provider's actual billing or availability.
 
 | Setting | Repository workflow | Adopter default | Meaning |
 | --- | --- | --- | --- |
-| `REVIEW_GO_CLIENT` | Trusted-base compiled binary | Empty (legacy curl) | Absolute path to a trusted compatible factory Go binary |
+| `REVIEW_GO_CLIENT` | Trusted-base compiled binary | Empty (single-request compatibility mode) | Absolute path to a trusted compatible factory Go binary |
 | `REVIEW_HTTP_RETRIES` | `1` | `0` | At most one retry for an initial HTTP 429/503; `0` disables |
 | `REVIEW_TIMEOUT_SECONDS` | `1080` | `1080` in generated workflows | One total deadline, including backoff and retry, range 1..1200; hosted job ceiling is 20 minutes |
 | `REVIEW_PARALLELISM` | Explicit repository variable `4` | `1` | Concurrent requests, range 1..4, sharing the same run-wide budgets |
@@ -185,9 +187,17 @@ Generated adopter workflows expose the client path and retry variables without
 requiring an application Go module. To opt in, provision a trusted compatible
 binary on the runner and set REVIEW_GO_CLIENT to its absolute path. The script
 does not build, download or silently fall back after selecting that client.
-An empty client setting keeps the existing curl implementation, including its
-single-attempt behavior; REVIEW_HTTP_RETRIES applies only to the Go client.
-The Go installation/cleanup migration remains a separate acceptance boundary.
+An empty client setting retains single-request behavior. In current source and
+Go installations that request is handled by `factory review` using native HTTP;
+older unupgraded scripts retain curl. REVIEW_HTTP_RETRIES does not add retries
+to native fixed-HTTP compatibility mode.
+
+For a canonical factory source checkout, the generated workflow prepares the
+Go version declared in go.mod and its locked modules, then exercises the source
+launcher before exposing review credentials. It does not build an adopter's
+application module. Installed projects must provision their trusted packaged
+runtime on each runner; a developer's local installation is not transferred by
+Git checkout. Explicit-client workflows keep their existing provisioning path.
 
 The parallel client keeps all existing request, input-byte and token caps. A
 failed batch stops new paid requests; already admitted siblings finish within

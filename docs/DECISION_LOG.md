@@ -6799,3 +6799,36 @@ The criterion census is unchanged. Configured golangci-lint reported
 `0 issues.`; independent correctness and test review retained no findings.
 This correction changes only the evaluator and decision log, not runtime or CI
 behavior. The full corrected hosted head still needs qualification before merge.
+
+Decision 150 review-test hygiene, before code: the third hosted review identified
+two useful evaluator improvements without a runtime defect. Require exactly
+one collected preparation step before executing it, and bind its shell-policy
+check to that actual preparation command rather than an English name substring.
+Keep the existing shell contract, source/adopter classification, credential
+ordering and complete workflow execution. No product behavior or test census
+changes are needed for these two corrections.
+
+Decision 150 bounded credential-order coverage, before code: security review
+found no current leak, but the existing ordering assertion examines only step
+environment values. Extend that same assertion to string-valued action inputs
+and run-script text, where Actions expressions can also pass credentials.
+Keep this an evaluator for the shipped workflow rather than a new general
+expression scanner. Observe a private pre-preparation credential-input mutation
+fail, then qualify the unchanged credential-free preparation. Correct the
+explicit-client citation from the blank ADR line 86 to its contract at line 87.
+
+Decision 150 final review-test evidence: the independent author ran the focused
+23-criterion race command above in private `r3-review/review-hygiene-source`
+with report `../review-hygiene-qualified.json`. It reported
+`23 Passed | 0 Failed | 0 Pending | 3252 Skipped` in 22.660 seconds; configured
+golangci-lint reported `0 issues.`. The qualified source-test SHA256 is
+`0fec4c9a1b39a3af330516bc5c8bea11af54748d7a5a099f4849197c586e3cfb`.
+Private negative controls rejected a credential in a checkout action input,
+a credential in the existing client-selection script, and an explicit shell
+override after renaming preparation. The retained combined boundary report
+reported `0 Passed | 2 Failed` in 1.850 seconds. The prior name-based assertion
+accepted the renamed-shell mutation; the corrected assertion rejected it.
+Independent security and test reviewers inspected these artifacts and closed
+the minor findings. An independent Bash 3.2/5.3 probe also passed all 92
+PATH/direct/Bash/source/alias/refusal controls, refuting the claimed no-slash
+owner-resolution defect. No runtime change or new criterion was introduced.

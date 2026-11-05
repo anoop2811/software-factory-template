@@ -331,7 +331,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 	})
 
 	// per docs/adr/0135-go-source-review-entrypoints.md:78
-	// per docs/adr/0135-go-source-review-entrypoints.md:86
+	// per docs/adr/0135-go-source-review-entrypoints.md:87
 	It("prepares only canonical source before credentials and stops on acquisition or lockfile failure", func() {
 		workflow := ciReviewLoadWorkflow("packs/review-lane/review-pr.yml")
 		steps := workflow.Jobs["review"].Steps
@@ -348,7 +348,16 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 				Expect(prepareIndex).To(Equal(-1))
 				prepareIndex = index
 			}
+			credentials := []string{step.Run}
 			for _, value := range step.Env {
+				credentials = append(credentials, value)
+			}
+			for _, value := range step.With {
+				if literal, ok := value.(string); ok {
+					credentials = append(credentials, literal)
+				}
+			}
+			for _, value := range credentials {
 				if strings.Contains(value, "secrets.") && index < credentialsIndex {
 					credentialsIndex = index
 				}
@@ -463,6 +472,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 				preparation = append(preparation, step)
 			}
 		}
+		Expect(preparation).To(HaveLen(1))
 		Expect(selected).To(HaveLen(1))
 		Expect(selected[0].If).To(Equal("steps.client.outputs.mode == 'legacy'"))
 		Expect(selected[0].Env["REVIEW_GO_CLIENT"]).To(BeEmpty())
@@ -472,6 +482,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 				Defaults map[string]map[string]any `yaml:"defaults"`
 				Steps    []struct {
 					Name  string  `yaml:"name"`
+					Run   string  `yaml:"run"`
 					Shell *string `yaml:"shell"`
 				} `yaml:"steps"`
 			} `yaml:"jobs"`
@@ -482,7 +493,7 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		Expect(shellPolicy.Defaults["run"]).NotTo(HaveKey("shell"))
 		Expect(shellPolicy.Jobs["review"].Defaults["run"]).NotTo(HaveKey("shell"))
 		for _, step := range shellPolicy.Jobs["review"].Steps {
-			if step.Name == selected[0].Name || step.Name == selection.Name || strings.Contains(step.Name, "Prepare") {
+			if step.Name == selected[0].Name || step.Name == selection.Name || step.Run == preparation[0].Run {
 				Expect(step.Shell).To(BeNil())
 			}
 		}
@@ -525,7 +536,6 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		AddReportEntry("source-review.cold-workflow", map[string]any{"status": observed.status, "provider_requests": len(service.observed()), "review_error": string(diagnostic)}, ReportEntryVisibilityNever)
 		Expect(observed).To(Equal(cliResult{"", "", 0}))
 		Expect(service.observed()).To(HaveLen(1))
-		Expect(preparation).To(HaveLen(1))
 		Expect(os.ReadFile(environment["GITHUB_OUTPUT"])).To(ContainSubstring("source=true\n"))
 		compiled, err := os.ReadFile(filepath.Join(root, "factory-go"))
 		Expect(err).NotTo(HaveOccurred())

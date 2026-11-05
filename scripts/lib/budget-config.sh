@@ -1,25 +1,21 @@
 #!/bin/bash
-# Shared parsed budget settings: docs/LOOPS.md:29.
-# Shared role model resolution: docs/LOOPS.md:51.
-# Caller sources config.sh and roles.sh first.
-export FACTORY_BUDGET_ROOT
-FACTORY_BUDGET_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-for entry in \
-  'enabled false' 'max_attempts 1' 'max_session_runs 5' \
-  'timeout_seconds 300' 'session_seconds 900' 'max_concurrent 1' \
-  'estimated_usd' 'action stop'
-do
-  read -r key default <<< "$entry"
-  value="$(factory_config_get "budget_$key" "${default:-}")"
-  var="FACTORY_BUDGET_$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
-  printf -v "$var" '%s' "$value"
-  export "${var?}"
-done
-
-factory_budget_model() {
-  local harness="$1" role="$2" tier model_var
-  tier="$(resolve_tier "${COST_PROFILE:-standard}" "$(role_tier "$role")")"
-  model_var="$(printf '%s_%s_MODEL' "$harness" "$tier" | tr '[:lower:]' '[:upper:]')"
-  printf '%s' "${!model_var:-}"
+# Factory native budget configuration reader: source-v1
+# docs/adr/0136-go-source-configuration-entrypoints.md:42.
+_factory_source_budget_load() {
+  builtin local _factory_source_root
+  builtin test ! -L "${BASH_SOURCE[0]}" || {
+    builtin printf '%s\n' 'factory budget: source the physical configuration library instead of a file symlink' >&2
+    return 2
+  }
+  _factory_source_root=${BASH_SOURCE[0]%/*}
+  builtin test "$_factory_source_root" != "${BASH_SOURCE[0]}" || _factory_source_root=.
+  _factory_source_root="$(CDPATH='' builtin cd -P -- "$_factory_source_root/../.." && builtin pwd -P && builtin printf '.')" || return
+  _factory_source_root=${_factory_source_root%$'\n.'}
+  # shellcheck source=../../runtime/shell/helpers.sh
+  builtin . "$_factory_source_root/runtime/shell/helpers.sh" || return
+  # shellcheck source=../../runtime/shell/source.sh
+  builtin . "$_factory_source_root/runtime/shell/source.sh"
 }
-factory_config_export
+_factory_source_budget_load || return
+builtin unset -f _factory_source_budget_load
+factory_budget_config

@@ -50,9 +50,9 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `eval/runners/opencode.sh` | `eval run opencode` / `evalcmd` | PR #164 / ADR 0133: the same boundary under OpenCode's invocation contract. |
 | [x] | `eval/runners/example-harness.sh` | `eval run example-harness` / `evalcmd` | PR #164 / ADR 0133: deliberately unwired example refuses without selecting a model. |
 | [x] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Merged [PR #165](https://github.com/anoop2811/software-factory-template/pull/165), Decision 149 / [ADR 0134](../adr/0134-go-source-structural-evaluation.md): source routing, real three-harness role controls, Make and four pack consumers; qualification below. |
-| [ ] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Decision 150 / [ADR 0135](../adr/0135-go-source-review-entrypoints.md): locally qualified source/HTTP routing and shipped workflow with fresh module-cache preparation; full source 71/3275 passed. Hosted checks and merge pending. |
-| [ ] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Decision 150 / ADR 0135: locally qualified opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; hosted checks and merge pending. |
-| [ ] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Configuration migration: dry-run/apply, preserved data and failure behavior, historical fixtures. |
+| [x] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Merged PR #166, Decision 150 / [ADR 0135](../adr/0135-go-source-review-entrypoints.md): source/HTTP routing and shipped workflow with fresh module-cache preparation; full source 71/3275 passed. All 32 final hosted checks passed. |
+| [x] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Merged PR #166, Decision 150 / ADR 0135: opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; all 32 final hosted checks passed. |
+| [ ] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody implemented; local qualification below, hosted checks and merge pending. |
 | [ ] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Check orchestration: eight-stage ordering, real stdin, caller role, Git ranges and local-hook operand compatibility. |
 | [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Controller boundary: preserve configuration, models, state and process ownership while removing Python dispatch. |
 | [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
@@ -88,10 +88,27 @@ three earlier historical failures; their cause remains unproven and no timing
 fix is claimed. These are recorded prior qualification results, not a new run
 made by this documentation update.
 
-Across the fixed baseline and earlier completed rows, 14 of 21 direct source
+The review group merged in [PR #166](https://github.com/anoop2811/software-factory-template/pull/166)
+on 2026-11-05 UTC as `5fabe9c`. Its final head `74cb382` passed all 32 hosted
+checks; the unchanged macOS local-upgrade rerun passed after watchdog/deadline
+failures on the first attempt. Their cause remains unproven. The final model
+review completed all 21 files and 48 fragments in 126 seconds and received
+per-finding responses. These are recorded results, not a new qualification run.
+
+Across the fixed baseline and earlier completed rows, 16 of 21 direct source
 entrypoints are merged. Including the seven sourceable libraries and four Python
-modules, that is 14 of 32 inventory paths (43.8%), with 18 remaining. These are
+modules, that is 16 of 32 inventory paths (50%), with 16 remaining. These are
 path counts, not effort-weighted implementation or release percentages.
+
+Group 2 is implemented under Decision 151 / ADR 0136 but is not included in the
+merged count. Independent configuration/structural checks passed 134 criteria;
+the final eight new source criteria passed after review corrections. Separate
+native configuration/helper/scheduling, source-proof/recovery and transition
+runs passed 355, 71 and 88 criteria respectively. Historical development checks
+retain their assertions and passed 218 general, 3 optional-pack, 6 Java, 32 budget
+and 40 loop cases. Enclosing source qualification and hosted review are recorded
+separately in Decision 151. The four rows remain unchecked until merge; that
+will bring this inventory to 20/32 (62.5%), leaving 12 paths in five groups.
 
 ## Grouped delivery order
 
@@ -125,13 +142,13 @@ and budget exports are intentional effects and require independent checks.
 
 | Done | Path | Existing owner / bridge | Remaining compatibility evidence |
 |---|---|---|---|
-| [ ] | `scripts/lib/config.sh` | `config`; `runtime/shell/readers.sh`, `runtime/shell/config.sh` | Source locator/bootstrap, flat-file and environment precedence, literal export/setter plans, local-hook expansion and caller variable attributes. |
-| [ ] | `scripts/lib/roles.sh` | `roles`; `runtime/shell/readers.sh` | Role/tier functions, missing operands, nounset callers and no source-time execution. |
+| [ ] | `scripts/lib/config.sh` | `config`; `runtime/shell/readers.sh`, `runtime/shell/config.sh` | Decision 151 / ADR 0136: canonical native reads/plans through physical source transport; inert loading, caller attributes and real policy consumers locally qualified; hosted checks and merge pending. |
+| [ ] | `scripts/lib/roles.sh` | `roles`; `runtime/shell/readers.sh` | Decision 151 / ADR 0136: shared native role/tier reader, inert Bash/POSIX selection and explicit POSIX-owner refusal locally qualified; hosted checks and merge pending. |
 | [ ] | `scripts/lib/events.sh` | `eventlog`, `helpers`; `runtime/shell/helpers.sh` | Best-effort append/retention and gate consumers; logging failure must not change gate decisions. |
 | [ ] | `scripts/lib/timing.sh` | `helpers`; `runtime/shell/helpers.sh` | Duration formatting, zero/unknown fallback and sourceable POSIX caller behavior. |
 | [ ] | `scripts/lib/color.sh` | `presentation`, `helpers`; `runtime/shell/helpers.sh` | Source-time TTY/NO_COLOR palette, literal action-box output and caller overrides. |
 | [ ] | `scripts/lib/hookspath.sh` | `githooks`, `helpers`; `runtime/shell/helpers.sh` | Git's actual configured/executable hook classification and literal returned path. |
-| [ ] | `scripts/lib/budget-config.sh` | `config`, `roles`, `helpers`; `runtime/shell/helpers.sh` | Source-time complete settings plan, model-tier resolution and all-or-nothing caller-variable validation. |
+| [ ] | `scripts/lib/budget-config.sh` | `config`, `roles`, `helpers`; `runtime/shell/helpers.sh` | Decision 151 / ADR 0136: shared native complete settings plan, model routes and source-time exports locally qualified; hosted checks and merge pending. |
 
 ## Legacy Python runtime retirement
 

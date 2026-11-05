@@ -33,7 +33,8 @@ LEGACY_ENTRYPOINTS = {
     for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
-                 "scripts/adversarial-review.sh")
+                 "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh",
+                 "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/budget-config.sh")
 }
 
 
@@ -81,7 +82,10 @@ class Fixture:
             elif origin.is_file():
                 shutil.copy2(origin, target)
         self.bin = self.root / "fixture-bin"
-        historical_entrypoints(self.root, ("factory",))
+        # Complete the historical controller's readers even for subset fixtures.
+        # docs/adr/0136-go-source-configuration-entrypoints.md:79.
+        historical_entrypoints(self.root, ("factory", "scripts/lib/config.sh",
+                                          "scripts/lib/roles.sh", "scripts/lib/budget-config.sh"))
         self.bin.mkdir()
         for harness in ("codex", "claude", "opencode"):
             shutil.copy2(SOURCE / "scripts/selftest/loop/fake_cli.py", self.bin / harness)

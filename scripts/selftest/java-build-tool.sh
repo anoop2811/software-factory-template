@@ -70,7 +70,8 @@ with tempfile.TemporaryDirectory(prefix="factory-java-build-tool-") as temporary
     for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
-                 "scripts/adversarial-review.sh"):
+                 "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh",
+                 "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/budget-config.sh"):
         data = subprocess.run([
             "git", "-C", str(source), "show",
             "1754de23de95a7e3c734bedd86894295e823c988:" + name,

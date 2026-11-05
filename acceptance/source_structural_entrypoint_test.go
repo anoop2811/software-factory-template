@@ -48,6 +48,9 @@ func sourceStructuralProject(root, base string) map[string]string {
 		}
 		writeFixture(filepath.Join(root, path), body, 0700)
 	}
+	// The current gate reads configuration through its complete native closure.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+	sourceConfigLibraryAssets(root)
 	writeFixture(filepath.Join(root, "scripts/hooks/test-edit-denial.sh"), []byte("#!/bin/sh\n\"$SOURCE_STRUCTURAL_GATE\" \"$@\"\nstatus=$?\nprintf '%s\\000%s\\000%s\\000' \"$FACTORY_AGENT_ROLE\" \"$status\" \"$FACTORY_CONFIG\" >> \"$SOURCE_STRUCTURAL_PROBES\"\nexit \"$status\"\n"), 0700)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("test_file_patterns: ''\n"), 0600)
 	jq, err := exec.LookPath("jq")
@@ -72,8 +75,9 @@ func sourceStructuralNativeFixture() (string, map[string]string) {
 	sourceStructuralAdapter(root)
 	environment["SOURCE_STRUCTURAL_NATIVE"] = filepath.Join(base, "native evaluator")
 	environment["SOURCE_STRUCTURAL_OWNER"] = filepath.Join(base, "owner calls")
+	environment["SOURCE_STRUCTURAL_CONFIG_OWNER"] = filepath.Join(base, "configuration calls")
 	writeFixture(environment["SOURCE_STRUCTURAL_NATIVE"], candidateBinary, 0700)
-	writeFixture(filepath.Join(root, "factory"), []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_OWNER\"\nexec \"$SOURCE_STRUCTURAL_NATIVE\" \"$@\"\n"), 0700)
+	writeFixture(filepath.Join(root, "factory"), []byte("#!/bin/sh\ncase \"${1-}\" in config) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_CONFIG_OWNER\" ;; *) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_OWNER\" ;; esac\nexec \"$SOURCE_STRUCTURAL_NATIVE\" \"$@\"\n"), 0700)
 	return root, environment
 }
 
@@ -81,6 +85,14 @@ func sourceStructuralNativeFixture() (string, map[string]string) {
 // per docs/adr/0134-go-source-structural-evaluation.md:25
 func sourceStructuralProbes(environment map[string]string, calls int) {
 	GinkgoHelper()
+	// Configuration now enters the same real owner without changing the exact
+	// public evaluation argument receipt.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+	if path := environment["SOURCE_STRUCTURAL_CONFIG_OWNER"]; path != "" {
+		body, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Count(string(body), "config\x00get\x00test_file_patterns\x00")).To(Equal(calls * 2))
+	}
 	raw, err := os.ReadFile(environment["SOURCE_STRUCTURAL_PROBES"])
 	Expect(err).NotTo(HaveOccurred())
 	fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
@@ -194,6 +206,11 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 		source := newSourceEntrypointFixture()
 		base := filepath.Dir(source.root)
 		project := sourceStructuralProject(source.caller, base)
+		// The caller's real gate owns its native configuration closure, using
+		// the same binary that this actual source invocation must first build.
+		// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+		project["SOURCE_STRUCTURAL_NATIVE"] = filepath.Join(source.root, "factory-go")
+		writeFixture(filepath.Join(source.caller, "factory"), []byte("#!/bin/sh\nexec \"$SOURCE_STRUCTURAL_NATIVE\" \"$@\"\n"), 0700)
 		projectTools := filepath.Join(base, "project tools")
 		decoy := filepath.Join(base, "project compiler called")
 		writeFixture(filepath.Join(projectTools, "go"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_STRUCTURAL_DECOY_GO\"\nprintf 'unexpected project Go compiler\\n' >&2\nexit 83\n"), 0700)
@@ -306,6 +323,7 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 			Expect(os.ReadFile(environment["SOURCE_STRUCTURAL_OWNER"])).To(Equal([]byte("eval\x00structural\x00--harness=opencode\x00eval\x00structural\x00--harness=claude\x00eval\x00structural\x00--harness=codex\x00")))
 			sourceStructuralProbes(environment, 3)
 			Expect(os.Remove(environment["SOURCE_STRUCTURAL_OWNER"])).To(Succeed())
+			Expect(os.Remove(environment["SOURCE_STRUCTURAL_CONFIG_OWNER"])).To(Succeed())
 			Expect(os.Remove(environment["SOURCE_STRUCTURAL_PROBES"])).To(Succeed())
 		}
 	})

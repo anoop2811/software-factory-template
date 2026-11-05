@@ -23,6 +23,10 @@ func discoveryFixture() string {
 		Expect(readErr).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, target), data, 0700)
 	}
+	// Current policy must use the current reader and its private native owner.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+	sourceConfigLibraryAssets(root)
+	writeFixture(filepath.Join(root, "factory"), candidateBinary, 0700)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("docs_root: docs\ncitation_prefix: DISC_\n"), 0600)
 	writeFixture(filepath.Join(root, "docs/DISC_SPEC.md"), []byte("current canonical line\n"), 0600)
 	Expect(loopProcess(root, "git", []string{"init", "--quiet"}, nil).status).To(BeZero())

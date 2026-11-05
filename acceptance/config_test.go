@@ -77,19 +77,27 @@ func configurationFixture(yaml, legacy *string) string {
 func observeConfiguration(root, source, key string, caller *string, scope string) configurationSnapshot {
 	GinkgoHelper()
 	if source == "" {
-		var err error
-		source, err = filepath.Abs(filepath.Join("..", "scripts", "lib", "config.sh"))
-		Expect(err).NotTo(HaveOccurred())
+		// Each fixture reuses its current private owner, never the operator's
+		// source launcher or binary. Historical source operands remain frozen.
+		// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+		owner := filepath.Join(root, "current source owner")
+		if _, err := os.Stat(filepath.Join(owner, "factory")); os.IsNotExist(err) {
+			sourceConfigLibraryAssets(owner)
+			writeFixture(filepath.Join(owner, "factory"), candidateBinary, 0700)
+		} else {
+			Expect(err).NotTo(HaveOccurred())
+		}
+		source = filepath.Join(owner, "scripts/lib/config.sh")
 	}
 	environment := make([]string, 0, len(os.Environ()))
 	for _, entry := range os.Environ() {
 		name := strings.SplitN(entry, "=", 2)[0]
-		if member(name, configurationKeys...) || member(name, "FACTORY_CONFIG", "UNEXPECTED_FACTORY_SETTING", "BASH_ENV") {
+		if member(name, configurationKeys...) || member(name, "FACTORY_CONFIG", "UNEXPECTED_FACTORY_SETTING", "BASH_ENV", "GORACE") {
 			continue
 		}
 		environment = append(environment, entry)
 	}
-	environment = append(environment, "FACTORY_CONFIG="+filepath.Join(root, "factory.yaml"))
+	environment = append(environment, "FACTORY_CONFIG="+filepath.Join(root, "factory.yaml"), "GORACE=atexit_sleep_ms=0")
 	value := ""
 	if caller != nil {
 		value = *caller

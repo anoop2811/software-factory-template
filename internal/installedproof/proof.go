@@ -107,6 +107,12 @@ func run(ctx context.Context, root, executable string, out io.Writer) (returned 
 	if err = errors.Join(err, binary.Close()); err != nil {
 		return err
 	}
+	files := sharedFiles
+	if executable != "" {
+		// Current source libraries load canonical bridges; installed adapters
+		// remain self-contained. docs/adr/0136-go-source-configuration-entrypoints.md:72.
+		files = append(append([]string{}, sharedFiles...), "runtime/shell/readers.sh", "runtime/shell/config.sh", "runtime/shell/helpers.sh", "runtime/shell/source.sh")
+	}
 	for _, name := range gates {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -116,7 +122,7 @@ func run(ctx context.Context, root, executable string, out io.Writer) (returned 
 			return err
 		}
 		p := &proof{root: fixture, environment: environment(fixture)}
-		for _, path := range sharedFiles {
+		for _, path := range files {
 			file, err := source.OpenFile(ctx, path, 1<<20)
 			if err != nil {
 				return err

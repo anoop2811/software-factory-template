@@ -37,6 +37,11 @@ func transitionFixture() (string, string, string) {
 			writeFixture(filepath.Join(scripts, "lib", entry.Name()), data, 0600)
 		}
 	}
+	// Keep current transition controllers with their immutable reader dependency.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:79
+	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh"} {
+		writeFixture(filepath.Join(scripts, "lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
+	}
 	for _, role := range []string{"implementer", "reviewer"} {
 		writeFixture(filepath.Join(checkout, ".opencode/agent", role+".md"), []byte("---\nname: role\n---\nCanonical role instructions\n"), 0600)
 		writeFixture(filepath.Join(checkout, ".claude/agents", role+".md"), []byte("Native instructions\n"), 0600)

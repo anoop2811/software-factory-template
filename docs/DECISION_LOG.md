@@ -6832,3 +6832,211 @@ Independent security and test reviewers inspected these artifacts and closed
 the minor findings. An independent Bash 3.2/5.3 probe also passed all 92
 PATH/direct/Bash/source/alias/refusal controls, refuting the claimed no-slash
 owner-resolution defect. No runtime change or new criterion was introduced.
+
+Decision 150 merge observation: `gh pr view 166 --json state,mergedAt,mergeCommit,headRefOid,statusCheckRollup`
+on 2026-11-05 UTC returned `MERGED`, merge
+`5fabe9c701c75c5e37c95277da036c1f6673ed14`, head
+`74cb382f47d266406a07c051d31606d4eef0e498` and all 32 checks `SUCCESS`.
+The unchanged macOS local-upgrade rerun passed; its first attempt hit two
+process watchdogs and the suite deadline. The cause remains unproven and no
+timeout correction is claimed. The latest advisory review completed 21 files,
+48 fragments and both batches in 126 seconds; every finding received a reply.
+Copilot was unable to review because of quota. R3 is now 16/32 merged paths.
+
+## Decision 151 (2026-11-05 UTC): native source configuration and role boundaries
+
+The user requested the next grouped R3 delivery after merging PR #166. Adopt
+[ADR 0136](adr/0136-go-source-configuration-entrypoints.md) before implementation.
+Convert the direct migration command and config, roles and budget-config
+libraries together, reusing the existing Go owners and canonical shell plan
+adapters. A shared source-only transport selects the physical Bash checkout;
+inert readers do not invoke a runtime while sourced. POSIX role callers use an
+explicit absolute runtime or resolve the caller Git repository lazily. Existing
+budget source-time exports remain intentional and guarded.
+
+Current gate/proof fixtures receive the actual bridge asset closure and private
+native owner; historical controller fixtures receive their immutable matching
+reader/migration dependencies. This keeps live policy current without compiling
+the operator's primary checkout or retaining a runtime fallback. Preserve
+installed generation and historical recipe identities. Independent source
+acceptance is written and observed failing before production changes. Scope is
+four inventory paths, plus necessary fixture and source-proof dependencies;
+other helper/controller groups, release activation and paused PR #162 are out
+of scope. Implementation and checks are pending, not completion evidence.
+
+Decision 151 fixture custody refinement, before edits: the broad development
+selftest will assemble a private copy of current gate/library bytes with one
+privately built native owner, separate from its immutable historical command
+tree. This avoids rebuilding the source launcher for every configuration read
+while retaining the actual current gates. Individual live migration/local-hook
+fixtures receive the same canonical source bridge closure. Optional-pack tests
+retain local Git object custody so the runner can materialize its own frozen
+tree; their absent-pack and deliberately broken-gate assertions stay unchanged.
+Budget/loop subset constructors and transition fixtures explicitly freeze only
+the matching reader dependencies while preserving their intended controller
+and transition subjects. No existing assertion or timeout is removed.
+
+Decision 151 initial RED: the independent test author ran
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=4m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source runtime entrypoints configuration adapters '
+-ginkgo.fail-on-empty -ginkgo.json-report=../config-initial-red.json -v`
+in private `r3-config/spec-source` against unchanged production. It reported
+`0 Passed | 1 Failed` in 2.333 seconds: the old migration interpreted an empty
+operand and returned 2 instead of forwarding it to the selected native owner
+and preserving its status 63. This observed boundary failure permits production
+implementation; the complete new and affected suites remain pending.
+
+Decision 151 source validation closure, before edits: include the new source
+transport in Make's source-file admission and Bash syntax checks and Template
+CI's explicit syntax/Shellcheck lists. Existing runner settings, versions and
+timeouts remain unchanged. The initializer copy inventory is a different
+contract and does not copy generic runtime/shell files; do not change that
+inventory or immutable recipes. The small `.github/workflows/ci.yml` validation
+addition is protected and requires human review before merge.
+
+Decision 151 evaluator isolation correction, before edits: the first current
+source run passed seven of eight new criteria. Its actual compiler case used
+the adopter as HOME, so Go telemetry changed the otherwise unchanged dry-run
+snapshot. Move compiler HOME to a private sibling, retaining exact owner/caller
+snapshots. Structural gate probes now legitimately invoke their native owner
+for configuration as well as evaluation: keep the exact evaluation argument
+receipt and separately require the real configuration calls, rather than
+mistaking those additional calls for argument corruption.
+
+Decision 151 source boundary review corrections, before edits: an independent
+probe showed a caller `cd` function intercepting library loading and returning
+77; a caller `pwd` function similarly returned 78. Qualify Bash loader/transport
+path operations as builtins so ordinary interactive wrappers cannot add effects
+or corrupt captured roots. A separate true-Dash probe with inherited fake
+BASH_VERSION/BASH_SOURCE values selected Bash syntax and failed with `Bad substitution`.
+Require actual Bash builtin capability without launching a child merely to
+source the inert role library. Add bounded negative controls for these exact
+cases; retain the POSIX selection and no-fallback contract.
+
+Decision 151 capability refinement, before edits: a leading empty PATH component
+can make `command -v builtin` report a cwd executable as the bare name. Extend
+the inert-source criterion with that decoy and use actual builtin-type
+classification rather than name equality. This is the same capability boundary,
+not a new behavior or criterion count.
+
+Decision 151 proof-fixture race exit correction, before edits: source gate
+fixtures now execute native configuration subprocesses but their exact child
+environment lacks the `GORACE=atexit_sleep_ms=0` setting already used by other
+native fixtures. The official [race detector options](https://go.dev/doc/articles/race_detector#Options),
+fetched 2026-11-05 UTC, document a default 1000 ms exit sleep. An observed
+subprocess probe against the same private race-built candidate's `--help`
+returned status 0, 1905 stdout bytes and no stderr in 1.360 seconds by default
+and 0.015 seconds with that setting. Add it only to this exact test environment;
+retain race instrumentation, assertions, child ownership and timeout values.
+The currently running old-fixture group is diagnostic, not final qualification.
+
+Decision 151 extends that same test-only exit setting to the current
+configuration observer and hook-existence fixture: both formerly called only
+Bash and now launch the private race-built configuration owner. Their exact
+environments also lack the setting. Preserve every assertion and execution
+deadline; this removes repeated detector exit sleeps from newly native fixture
+calls, not race checking or synchronization from product code.
+
+Decision 151 actual structural caller closure, before correction: the expanded
+current-fixture run passed 133 of 134 criteria, including all eight new config
+criteria and EX001. Its real-source structural criterion copied the new reader
+closure into the caller but omitted that caller's native owner; the real denial
+gate exited 127. Supply a private caller wrapper delegating to the exact
+`factory-go` produced by that criterion's real source compilation before gate
+execution. Preserve its actual compile and all three harness gate assertions;
+do not replace the positive source case with a precompiled setup shortcut.
+
+Decision 151 inert-state evaluator correction, before edits: independent test
+review demonstrated that an intermediate false predicate in the new shell
+state-check `&&` chain was followed by a successful printf under `set -e`.
+Make any failed predicate explicitly exit nonzero and observe a private sourced
+IFS mutation fail before requalifying unchanged production. Preserve every
+existing state comparison and the eight-criterion census.
+
+Decision 151 bounded qualification evidence: private historical/current
+development commands ran with the qualified Go/Python paths and explicit
+`FACTORY_AGENT_ROLE=spec-writer`: `bash scripts/selftest/run.sh` reported
+`selftest: 218 passed, 0 failed, 0 skipped`; `bash scripts/selftest/optional-packs.sh`
+reported `optional-packs: 3 passed, 0 failed`; `bash scripts/selftest/budget.sh`
+reported `budget: 32 passed, 0 failed`; `bash scripts/selftest/loop.sh` reported
+`loop: 40 passed, 0 failed`; `bash scripts/selftest/java-build-tool.sh` reported
+`java-build-tool: 6 passed, 0 failed`. Each exited zero. The first general run
+refused to overwrite its disposable copied shell launcher with Go output; the
+fixture removes only that owned temporary target before building, then passed.
+Historical config/roles/budget readers and migration bytes compared equal
+between the two declared immutable fixture revisions via `git diff` (no output).
+
+The independent expanded current configuration/structural race run used
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=7m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance (Go source runtime entrypoints (configuration adapters|structural evaluation adapter)|EX001 )'
+-ginkgo.fail-on-empty -ginkgo.json-report=../config-final-fixtures-green.json -v`.
+It reported `134 Passed | 0 Failed | 0 Pending | 3149 Skipped` in 123.719 seconds.
+After strengthening the inert-state predicate, the same command restricted to
+the configuration-adapter family, timeout 3m and report
+`../config-final-eight-green.json`, reported `8 Passed | 0 Failed` in 10.797
+seconds. The exact final source-test SHA256 is
+`db26f4e91140ce301af28dfc0c14342dafe2d9b7fb84ee22119a1e1d6e8b3d3f`.
+Negative controls observed the original source bodies fail seven of eight
+criteria, the caller-wrapper/spoofed-shell cases fail two criteria, the cwd
+builtin decoy fail one, and the sourced IFS mutation fail with status 96.
+
+Separate private commands used `FACTORY_AGENT_ROLE=spec-writer
+FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local go test -race ./acceptance
+-run '^TestAcceptance$' -count=1 -timeout=15m -ginkgo.no-color
+-ginkgo.fail-on-empty -v` with explicit focused reports. Focus
+`(Go source gate proof|Recovery discovery exclusion|Runtime transition|Installed hook-existence library)`
+reported `88 Passed | 0 Failed` in 120.236 seconds; the first alternative matched
+no source-proof names, so that claim is limited to the other three families.
+Focus `(Native source selftest gate proofs|Recovery discovery (active|citation|physical|literal))`
+with report `../source-proofs-corrected.json` reported `71 Passed | 0 Failed` in
+274.139 seconds. Its earlier diagnostic run was deliberately interrupted after
+23 passes while the default race exit sleeps accumulated; that interrupted run
+is not qualification evidence. All deadlines remain unchanged.
+
+Independent correctness/security/tests review retained no findings after the
+two shell-boundary fixes and state-evaluator correction. A separate transport
+probe passed 27/27 controls across Bash 3.2, Bash 5 and Dash. Source/installed
+ownership and current/historical fixture separation were reviewed separately.
+Configured lint in the test author's private clone reported `0 issues.`;
+final enclosing source/semantic qualification and hosted checks remain pending.
+
+Decision 151 enclosing-source fixture correction, before edits: the final source
+run passed 78 of 79 criteria. The actual local initialization journey constructs
+an immutable predecessor tree and overlays current Go code but omitted the
+current configuration-library closure. Its source selftest therefore could not
+open the newly required source transport. Reuse the existing current-library
+fixture copier for all three readers and four canonical bridge files; preserve
+the actual initialization, source proof, installed proof and upgrade assertions.
+Do not change the initializer copy inventory or installed recipe dependencies.
+The separate native configuration/helper/scheduling run passed all 355 criteria
+in 666.739 seconds with race instrumentation and unchanged deadlines.
+
+Decision 151 final local qualification: in the private checkout,
+`FACTORY_AGENT_ROLE=refactorer FACTORY_CLI_TEST_RACE=1 GOTOOLCHAIN=local make
+go-runtime-source-check GO_RUNTIME_TEST_TIMEOUT=25m
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=2
+GO_RUNTIME_REPORT_DIR=../source-corrected` reported
+`79 Passed | 0 Failed | 0 Pending | 3204 Skipped` in 179.800 seconds and exited
+zero. The report directory was supplied as its absolute local path. The same
+target completed formatting, dialect enforcement, vet, a private build,
+`golangci-lint` (`0 issues.`), `gosec` (`Issues : 0`) and `govulncheck`
+(`No vulnerabilities found.` for reachable code; module-only advisories remain).
+The exact real-init journey independently passed 1/1 in 57.178 seconds before
+that enclosing run, with all initialization, source/installed proof and upgrade
+assertions retained.
+
+The separate 355-case command used the same private checkout, explicit
+spec-writer role and race settings: `go test -race ./acceptance -run
+'^TestAcceptance$' -count=1 -timeout=15m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance (Native Go config migration|Native orchestration helpers|G1 (private read-only reader bridge|reader protocol and filesystem boundaries|sourceable candidate reader shim|configuration export plans|sourceable configuration export|candidate configuration writes)|Go source qualification (scheduling|workflow partition)|Installed hook-existence library and invocation modes) '
+-ginkgo.fail-on-empty -ginkgo.json-report=../native-semantic-final.json -v`.
+Output: `355 Passed | 0 Failed | 0 Pending | 2928 Skipped`, exit zero.
+
+All script Shellcheck and citation/shared-script/hook-existence/copy-manifest/
+gate-instrumentation/wiki/workflow checks exited zero in that private checkout.
+`git diff --check` produced no output. The primary `factory-go`, operator
+`.opencode/package.json` and `.tool-versions` retained their recorded hashes.
+Hosted CI, hosted review and human review of protected paths remain pending;
+local completion does not count this group as merged or release-ready.

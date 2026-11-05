@@ -59,6 +59,11 @@ func installationHookFixture(local bool) string {
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, filepath.FromSlash(source.path)), body, source.mode)
 	}
+	// The current reader's owner is real; gate invocation placeholders remain inert.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+	sourceConfigLibraryAssets(root)
+	Expect(os.Chmod(filepath.Join(root, "scripts/lib/config.sh"), 0755)).To(Succeed())
+	writeFixture(filepath.Join(root, "factory"), candidateBinary, 0700)
 	configuration := "local_hooks: \"\"\n"
 	if local {
 		configuration = "local_hooks: \"scripts/hooks/project-gate.sh --strict\"\n"
@@ -73,6 +78,7 @@ func installationHookFixture(local bool) string {
 func installationHookGate(root string) cliResult {
 	GinkgoHelper()
 	return imageProcess(root, map[string]string{
+		"GORACE":            "atexit_sleep_ms=0",
 		"FACTORY_CONFIG":    filepath.Join(root, "factory.yaml"),
 		"FACTORY_EVENT_LOG": filepath.Join(root, "fixture-events.log"),
 	}, "bash", filepath.Join(root, "scripts/hooks/hook-existence-check.sh"))

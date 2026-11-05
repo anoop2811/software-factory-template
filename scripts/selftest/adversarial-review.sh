@@ -12,6 +12,21 @@ for source in scripts/adversarial-review.sh scripts/lib/config.sh; do
   git -C "$ROOT" show "f3a0b6520917e104883cc89b123d7244fa0c46a7:$source" > "$FIXTURE/template/$source"
 done
 
+# Current repository settings use current readers with an isolated native owner.
+# The filtered observer environment must not compile the operator's checkout.
+# docs/adr/0136-go-source-configuration-entrypoints.md:72.
+CURRENT_READER="$ROOT/scripts/lib/config.sh"
+if [ "$(sed -n '2p' "$CURRENT_READER")" = '# Factory native configuration reader: source-v1' ]; then
+  mkdir -p "$FIXTURE/current/scripts/lib" "$FIXTURE/current/runtime/shell"
+  cp "$CURRENT_READER" "$FIXTURE/current/scripts/lib/config.sh"
+  for bridge in readers.sh config.sh source.sh; do
+    cp "$ROOT/runtime/shell/$bridge" "$FIXTURE/current/runtime/shell/$bridge"
+  done
+  ( cd "$ROOT" && /usr/bin/env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOWORK=off \
+    go build -mod=readonly -o "$FIXTURE/current/factory" ./cmd/factory )
+  CURRENT_READER="$FIXTURE/current/scripts/lib/config.sh"
+fi
+
 cat > "$FIXTURE/bin/curl" <<'CURL'
 #!/bin/bash
 set -euo pipefail
@@ -181,7 +196,7 @@ repository_default_provider() {
   ! grep -q '^model_provider:' "$FIXTURE/factory.yaml" || return 1
   lane_settings="$(env -i PATH="$PATH" FACTORY_CONFIG="$FIXTURE/factory.yaml" \
     bash -c '. "$1"; factory_config_get review_lane; printf "\n"; factory_config_get review_api_key_secret; printf "\n"; factory_config_get review_reasoning_effort; printf "\n"; factory_config_get review_openrouter_provider; printf "\n"; factory_config_get review_max_tokens' \
-    config-reader "$ROOT/scripts/lib/config.sh")" || return 1
+    config-reader "$CURRENT_READER")" || return 1
   [ "$lane_settings" = $'on\nOPENROUTER_API_KEY\nlow\ndeepinfra\n32768' ] || return 1
   run_review
   [ "$STATUS" -eq 0 ] && one_request || return 1

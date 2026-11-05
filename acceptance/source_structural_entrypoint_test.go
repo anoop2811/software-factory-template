@@ -91,6 +91,8 @@ func sourceStructuralProbes(environment map[string]string, calls int) {
 	if path := environment["SOURCE_STRUCTURAL_CONFIG_OWNER"]; path != "" {
 		body, err := os.ReadFile(path)
 		Expect(err).NotTo(HaveOccurred())
+		// Each harness invokes the real gate as implementer and spec-writer;
+		// each invocation reads test_file_patterns once through the native owner.
 		Expect(strings.Count(string(body), "config\x00get\x00test_file_patterns\x00")).To(Equal(calls * 2))
 	}
 	raw, err := os.ReadFile(environment["SOURCE_STRUCTURAL_PROBES"])

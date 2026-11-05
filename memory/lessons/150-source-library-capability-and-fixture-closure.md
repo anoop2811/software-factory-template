@@ -18,3 +18,10 @@ and the final eight-criterion race run (8 passed, 10.797 seconds). The retained
 criterion is `acceptance/source_config_entrypoint_test.go:218`; Decision 151
 records commands and outcomes. Its explicit failure branch also catches an IFS
 mutation that a bare `set -e` plus intermediate `&&` predicates could miss.
+
+An observer using `env -i` must enter its private compiled owner rather than
+accidentally compiling the source checkout without HOME or module-cache inputs.
+Observed 2026-11-05 in PR #167 job 127317644548: the repository-settings probe
+failed with `module cache not found`; its explicit current-reader setup is
+`scripts/selftest/adversarial-review.sh:15`. The corrected private command
+`bash scripts/selftest/adversarial-review.sh` reported `53 passed, 0 failed`.

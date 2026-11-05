@@ -7040,3 +7040,50 @@ gate-instrumentation/wiki/workflow checks exited zero in that private checkout.
 `.opencode/package.json` and `.tool-versions` retained their recorded hashes.
 Hosted CI, hosted review and human review of protected paths remain pending;
 local completion does not count this group as merged or release-ready.
+
+Decision 151 hosted fixture corrections, before edits: PR #167's Linux selftest
+passed 52 of 53 historical review criteria. Its repository-configuration check
+still sourced the primary current reader inside `env -i`, causing the native
+source launcher to compile without HOME/GOPATH/GOMODCACHE. Give that one current
+reader a complete private bridge tree and private compiled owner, built during
+fixture setup with the already provisioned offline module cache. Keep the
+historical HTTP script and every request assertion unchanged; never compile or
+replace the operator's primary runtime as a test side effect.
+
+The model review also correctly identified that two optional-pack dependency
+guards were removed despite the broad assertion-retention wording. Their old
+current-equals-historical comparison is no longer the required invariant: current
+native readers intentionally differ from the frozen controller inputs. Replace
+it explicitly with comparisons requiring the live config/color fixture bytes to
+match current source before every case, and observe a historical substitution
+fail that guard. Historical materialization remains owned by the runner's
+separate immutable tree. All three optional-pack outcome checks stay unchanged.
+
+Decision 151 macOS source-fixture correction, before edits: the runner-refusal
+criterion failed after 5.241 seconds with empty stdout, before the golden
+evaluator's banner. Hosted setup selected `/opt/homebrew/bin/git`, but that
+criterion constructed PATH from only its runner directory and `/usr/bin:/bin`,
+therefore selecting Apple's different Git. The artifact contains no diagnostic
+that establishes the underlying five-second failure's cause. Pin the evaluator's
+resolved Git in this fixture, record actual selection, and exercise a negative
+control for falling back to the old PATH. Keep every refusal/oracle assertion
+and the product's discovery deadline unchanged. This corrects a demonstrated
+tool-selection mismatch, not a proven operating-system delay.
+
+Decision 151 correction evidence: private `bash
+scripts/selftest/adversarial-review.sh` reported `53 passed, 0 failed` and
+`bash scripts/selftest/optional-packs.sh` reported `3 passed, 0 failed`, both
+exit zero. An injected historical config reader in the optional live fixture
+exited 1 with `preserve current policy dependency: scripts/lib/config.sh`.
+The independent old runner criterion passed while a transparent evaluator-Git
+witness recorded zero calls. The strengthened selection assertion then failed
+against the old PATH (0/1 in 0.910 seconds), reporting `/usr/bin/git` instead of
+the private qualified path. After correction, `FACTORY_AGENT_ROLE=spec-writer
+FACTORY_CLI_TEST_RACE=1 go test -race ./acceptance -run '^TestAcceptance$'
+-count=1 -timeout=3m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source runtime entrypoints evaluation runner adapters reports adapter refusals before bootstrap without running the golden oracle$'
+-ginkgo.fail-on-empty -ginkgo.json-report=../runner-qualified-git-green.json -v`
+reported `1 Passed | 0 Failed` in 35.328 seconds, including all 30 harness/mode
+combinations and their unchanged oracle assertions. Configured Go lint reported
+`0 issues.`; Shellcheck for both changed shell fixtures and `git diff --check`
+exited zero. These bounded corrections do not alter the 3283-criterion census.

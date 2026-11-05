@@ -71,6 +71,11 @@ with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
     (fixture / "packs").rename(packs)
 
     def run_case(name):
+        # These are live policy inputs, not the runner's isolated historical tree.
+        # docs/adr/0136-go-source-configuration-entrypoints.md:79.
+        for dependency in ("scripts/lib/config.sh", "scripts/lib/color.sh"):
+            require((fixture / dependency).read_bytes() == (source / dependency).read_bytes(),
+                    "preserve current policy dependency: " + dependency, "")
         print("optional-packs: " + name, flush=True)
         log = workspace / (name + ".log")
         with log.open("w") as output_file:

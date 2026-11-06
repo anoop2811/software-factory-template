@@ -54,8 +54,8 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Merged PR #166, Decision 150 / ADR 0135: opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; all 32 final hosted checks passed. |
 | [x] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody merged in PR #167; qualification below. |
 | [x] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Merged PR #169, Decision 153 / ADR 0138: native delegation, direct/copied ownership and Git pathname delimiters. Source/native focus passed 26 criteria; full source gate passed 93. All 32 hosted checks passed. |
-| [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Decision 154 / ADR 0139: native source delegation and shared hangup cleanup. Local source/public focus passed 36; full source acceptance passed 100. Budget B01-B32 historical custody is qualified; hosted checks and merge pending. |
-| [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
+| [x] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Merged PR #170, Decision 154 / ADR 0139: native source delegation and shared hangup cleanup. All 32 final hosted checks passed, including 100/100 macOS source criteria. Budget B01-B32 historical custody is qualified. |
+| [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Decision 155 / ADR 0140: native source delegation written; independent qualification and merge pending. Preserve checkpoints, budgets, opt-in execution and cancellation. |
 | [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Proof-runner boundary: native public routing plus independent custody/coverage for the broader historical regressions; see the proof-retirement ledger. |
 
 The five evaluation-runner rows merged in
@@ -95,9 +95,9 @@ failures on the first attempt. Their cause remains unproven. The final model
 review completed all 21 files and 48 fragments in 126 seconds and received
 per-finding responses. These are recorded results, not a new qualification run.
 
-Across the fixed baseline and completed rows, 18 of 21 direct source
+Across the fixed baseline and completed rows, 19 of 21 direct source
 entrypoints and all seven sourceable libraries are merged. Including the
-four Python modules, that is 25 of 32 inventory paths (78.125%), with seven remaining.
+four Python modules, that is 26 of 32 inventory paths (81.25%), with six remaining.
 These are path counts, not effort-weighted implementation or release percentages.
 
 Group 2 merged in PR #167 under Decision 151 / ADR 0136 as
@@ -134,10 +134,18 @@ not review because of quota. These are recorded prior qualification results.
 The pre-existing copied installed-adapter gap remains an R4 obligation;
 source copied-hook evidence does not qualify that separate installed boundary.
 
-Group 5 begins under Decision 154 / [ADR 0139](../adr/0139-go-source-budget-entrypoint.md).
-Its budget source path remains unchecked until qualification and merge.
-Completion would bring R3 to 26/32 (81.25%), leaving six paths in two groups:
-loop/Python retirement and public selftest.
+Group 5 merged in PR #170 as `9b194645c34ed116863d8f245916e19eddfa7d0b`
+on 2026-11-06 UTC under Decision 154 / [ADR 0139](../adr/0139-go-source-budget-entrypoint.md).
+Final head `ec21909` passed all 32 hosted checks, including 100/100 macOS source
+criteria. The final advisory review covered 21 files and 34 fragments in under
+two minutes, with every finding answered; Copilot could not review because of
+quota. These are recorded prior results. The original intermittent macOS outer
+ownership-refusal cause remains unconfirmed; bounded diagnostics preserve its
+phase if it recurs. No production ownership policy or deadline was relaxed.
+
+Group 6 begins under Decision 155 / [ADR 0140](../adr/0140-go-source-loop-and-python-retirement.md).
+Loop routing and four Python module retirements remain unchecked until qualified
+and merged. Completion would bring R3 to 31/32 (96.875%), leaving public selftest.
 
 ## Grouped delivery order
 
@@ -189,10 +197,10 @@ Existing installation ownership, backup and customized-file rules still apply.
 
 | Done | Path | Replacement and dependency to close |
 |---|---|---|
-| [ ] | `scripts/lib/budget.py` | Native budget engine; remove direct shell dispatch and explicitly freeze remaining historical budget fixtures. |
-| [ ] | `scripts/lib/budget_adapters.py` | Native invocation/usage machinery; retain independent immutable parser and process oracles where still required. |
-| [ ] | `scripts/lib/loop.py` | Native loop engine; remove direct shell dispatch and explicitly freeze remaining historical loop fixtures. |
-| [ ] | `scripts/lib/runtime_transition.py` | Native transition guard; preserve mixed-runtime legacy evidence without keeping an active current Python controller. |
+| [ ] | `scripts/lib/budget.py` | Decision 155 / ADR 0140: active source removed; complete immutable historical closure retained. Qualification and merge pending. |
+| [ ] | `scripts/lib/budget_adapters.py` | Decision 155 / ADR 0140: active source removed; existing immutable parser/process oracles retained. Qualification and merge pending. |
+| [ ] | `scripts/lib/loop.py` | Decision 155 / ADR 0140: active source removed; L01-L40 historical custody retained. Qualification and merge pending. |
+| [ ] | `scripts/lib/runtime_transition.py` | Decision 155 / ADR 0140: active source removed; immutable mixed-runtime transition fixtures retained. Qualification and merge pending. |
 
 ## Consumer and proof obligations
 

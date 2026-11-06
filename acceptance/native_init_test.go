@@ -57,13 +57,10 @@ func nativeInitFixture() (string, string, []string) {
 		Expect(readErr).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(source, header.Name), data, os.FileMode(header.Mode&0777)) // #nosec G305 -- trusted local Git archive, no external archive or traversal names.
 	}
+	// The historical component retains the originally added shim dependency.
 	// per docs/adr/0093-runtime-transition-guard.md:146
-	// The candidate's declared source inventory adds this dependency; the archived
-	// initializer and its existing assets remain the immutable compatibility oracle.
-	repo, err := filepath.Abs("..")
-	Expect(err).NotTo(HaveOccurred())
-	shim, err := os.ReadFile(filepath.Join(repo, "scripts/lib/runtime_transition.py"))
-	Expect(err).NotTo(HaveOccurred())
+	// per docs/adr/0140-go-source-loop-and-python-retirement.md:45
+	shim := sourceLegacyEntrypointBytes("scripts/lib/runtime_transition.py")
 	writeFixture(filepath.Join(source, "scripts/lib/runtime_transition.py"), shim, 0600)
 	writeFixture(filepath.Join(source, "factory-go"), candidateBinary, 0700)
 	// Historical component process; actual factory-go remains the shipping CLI for other commands.

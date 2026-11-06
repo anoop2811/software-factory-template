@@ -17,9 +17,8 @@ func transitionInstallationSource() (string, string, []string) {
 	for _, name := range []string{"factory-budget.sh", "factory-loop.sh", "factory-upgrade.sh", "factory-init.sh"} {
 		var data []byte
 		switch name {
-		case "factory-budget.sh":
-			// Preserve historical budget delivery; loop remains a live subject.
-			// per docs/adr/0139-go-source-budget-entrypoint.md:57
+		case "factory-budget.sh", "factory-loop.sh":
+			// per docs/adr/0140-go-source-loop-and-python-retirement.md:41
 			data = sourceLegacyEntrypointBytes("scripts/" + name)
 		case "factory-init.sh", "factory-upgrade.sh":
 			// Historical source delivery keeps its actual pre-adapter engine.
@@ -44,13 +43,13 @@ func transitionInstallationSource() (string, string, []string) {
 			writeFixture(filepath.Join(source, "scripts/lib", entry.Name()), data, 0600)
 		}
 	}
-	// Current transition shim/controllers retain coherent historical dependencies.
+	// Historical transition shim/controllers retain coherent dependencies.
 	// per docs/adr/0137-go-source-shared-helpers.md:84
 	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh", "events.sh", "timing.sh", "color.sh", "hookspath.sh"} {
 		writeFixture(filepath.Join(source, "scripts/lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
-	// per docs/adr/0139-go-source-budget-entrypoint.md:48
-	for _, name := range []string{"budget.py", "budget_adapters.py", "runtime_transition.py"} {
+	// per docs/adr/0140-go-source-loop-and-python-retirement.md:45
+	for _, name := range []string{"budget.py", "budget_adapters.py", "runtime_transition.py", "loop.py"} {
 		writeFixture(filepath.Join(source, "scripts/lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
 	return source, target, environment

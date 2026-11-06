@@ -75,20 +75,25 @@ listed behavior has already passed a differential test. Baseline references name
 the identified revision; replace disappearing source citations with stable
 acceptance references before cleanup.
 
-| Surface | Contract to characterize | Baseline reference |
+| Surface | Contract to characterize | Baseline reference or surviving behavioral evidence |
 |---|---|---|
 | Top-level CLI | No-argument/help aliases; complete command set; literal argv; unknown-command stderr and exit 2; missing/nonexecutable command refusal; `exec` status/signal behavior | `factory:40`, `factory:56`, `factory:61` |
 | Direct executable paths | Existing command, hook, eval and pack entrypoints; subdirectory invocation; environment, stdin/TTY handling, stdout/stderr and exit semantics | Every manifest entry classified as a public or language-pack adapter |
 | Sourced libraries | Supported function names, caller-shell exports/effects, failure semantics and POSIX/Bash requirements; no unsafe evaluation of Go output | `scripts/lib/config.sh:125`, `scripts/lib/config.sh:174`, `scripts/lib/budget-config.sh:19` |
 | Configuration and role routing | Flat-format parsing, first-key behavior, quotes/hashes, absent/empty/get/has distinctions, allowlisted legacy data, model tiers, explicit role injection | `scripts/lib/config.sh:27`, `scripts/lib/config.sh:94`, `scripts/lib/config.sh:181`; EX-001 correction approved in Decision 50; acceptance is separate |
 | Local hook registration | Whitespace/comma syntax, attached flags, literal arguments and preserved hook output/status | `scripts/lib/config.sh:130`, `scripts/pre-push-check.sh:126` |
-| Native adapters | Codex/Claude/OpenCode argv and stdin, role permissions, hook trust, typed probe ownership, stream normalization and unknown cost | `scripts/lib/budget_adapters.py:26`, `scripts/lib/budget_adapters.py:194`, `scripts/lib/budget_adapters.py:260`; `.claude/`, `.codex/`, `.opencode/`, `opencode.json`, `.mcp.json` |
-| Budget and loop state | Schema/numeric/null semantics, exact fingerprint bytes, private atomic writes, interoperable lock paths/inodes, reservations and recovery inspection before unrelated config validation | `scripts/lib/budget.py:194`, `scripts/lib/budget.py:563`, `scripts/lib/loop.py:24`, `scripts/lib/loop.py:271`, `scripts/lib/loop.py:606` |
-| Process execution | Deadlines after lock contention, process-group cleanup, unknown exit/usage, output limits, no automatic paid retry, ordinary preflight rejection versus uncertain ownership | `scripts/lib/budget.py:484`, `scripts/lib/budget.py:493`, `scripts/lib/budget_adapters.py:110`, `scripts/lib/loop.py:329` |
-| Reporting and presentation | Machine-output framing and types, answer visibility, TSV/event retention, optional timing/color/browser behavior, best-effort failures | `scripts/lib/budget.py:289`, `scripts/lib/events.sh:3`, `scripts/lib/color.sh:9`, `acceptance/native_metrics_safety_test.go:50` |
+| Native adapters | Codex/Claude/OpenCode argv and stdin, role permissions, hook trust, typed probe ownership, stream normalization and unknown cost | `acceptance/native_test.go:146`, `acceptance/native_test.go:172`, `acceptance/native_test.go:398`, `internal/native/ownership_test.go:37`, `acceptance/stream_test.go:75`, `acceptance/usage_test.go:121`; `.claude/`, `.codex/`, `.opencode/`, `opencode.json`, `.mcp.json` |
+| Budget and loop state | Schema/numeric/null semantics, exact fingerprint bytes, private atomic writes, interoperable lock paths/inodes, reservations and recovery inspection before unrelated config validation | `acceptance/budget_ledger_test.go:254`, `acceptance/budget_ledger_test.go:626`, `acceptance/loop_test.go:91`, `internal/loop/checkpoint_test.go:161`, `internal/loop/checkpoint_test.go:43`, `acceptance/budget_command_test.go:148`, `acceptance/bounded_loop_test.go:43` |
+| Process execution | Deadlines after lock contention, process-group cleanup, unknown exit/usage, output limits, no automatic paid retry, ordinary preflight rejection versus uncertain ownership | `internal/budget/runner_test.go:189`, `acceptance/budget_controller_test.go:134`, `acceptance/budget_controller_test.go:194`, `acceptance/native_test.go:246`, `acceptance/native_test.go:262`, `acceptance/native_test.go:273`, `acceptance/bounded_loop_test.go:323`, `internal/native/ownership_test.go:37` |
+| Reporting and presentation | Machine-output framing and types, answer visibility, TSV/event retention, optional timing/color/browser behavior, best-effort failures | `acceptance/budget_command_test.go:239`, `acceptance/source_helper_entrypoints_test.go:285`, `scripts/lib/events.sh:3`, `scripts/lib/color.sh:9`, `acceptance/native_metrics_safety_test.go:51` |
 | Install/upgrade/bootstrap | Explicit fetch/init/upgrade consent, ref/source selection, preserved identity/configuration, bounded upgrade handoff and nestedness, actual asset completeness | `install.sh:95`, `install.sh:170`, `scripts/factory-upgrade.sh:34`, `scripts/factory-upgrade.sh:175`, `scripts/factory-upgrade.sh:289` |
 | Product packs | Go, TypeScript, Java/Gradle/Maven and polyglot behavior; pack test regexes, local hooks and unchanged product build selection | `packs/*/pack.yaml`, pack hook/build/workflow entries; `scripts/selftest/java-build-tool.sh`, `scripts/selftest/maven-quality.sh`, `scripts/selftest/optional-packs.sh` |
 | Tests and CI | Behavioral negative controls, registered-hook proofs and explicit asset completeness rather than shell-text grep success; separate optional/paid gating | `scripts/hooks/copy-manifest-check.sh:4`, `scripts/selftest/`, `.github/workflows/`, `eval/` |
+
+Decision 155 replaces disappearing Python implementation citations with surviving
+behavioral criteria. Component-level ownership/locking/publication evidence is
+identified explicitly; these references do not assert a new execution of the
+checks or change the immutable baseline asset manifest.
 
 ## EX-002: source runner rejection semantics
 

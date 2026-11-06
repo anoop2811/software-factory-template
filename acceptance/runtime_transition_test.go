@@ -23,18 +23,9 @@ func transitionFixture() (string, string, string) {
 	repo, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
 	scripts := filepath.Join(root, "current-legacy", "scripts")
+	// per docs/adr/0140-go-source-loop-and-python-retirement.md:41
 	for _, name := range []string{"factory-budget.sh", "factory-loop.sh"} {
-		var data []byte
-		if name == "factory-budget.sh" {
-			// The current loop wrapper remains a live group-6 subject.
-			// per docs/adr/0139-go-source-budget-entrypoint.md:57
-			data = sourceLegacyEntrypointBytes("scripts/" + name)
-		} else {
-			var err error
-			data, err = os.ReadFile(filepath.Join(repo, "scripts", name))
-			Expect(err).NotTo(HaveOccurred())
-		}
-		writeFixture(filepath.Join(scripts, name), data, 0600)
+		writeFixture(filepath.Join(scripts, name), sourceLegacyEntrypointBytes("scripts/"+name), 0600)
 	}
 	entries, err := os.ReadDir(filepath.Join(repo, "scripts/lib"))
 	Expect(err).NotTo(HaveOccurred())
@@ -45,13 +36,13 @@ func transitionFixture() (string, string, string) {
 			writeFixture(filepath.Join(scripts, "lib", entry.Name()), data, 0600)
 		}
 	}
-	// Keep current transition controllers with their immutable reader dependency.
+	// Keep the historical transition controllers with their immutable reader dependency.
 	// per docs/adr/0136-go-source-configuration-entrypoints.md:79
 	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh"} {
 		writeFixture(filepath.Join(scripts, "lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
-	// per docs/adr/0139-go-source-budget-entrypoint.md:48
-	for _, name := range []string{"budget.py", "budget_adapters.py", "runtime_transition.py"} {
+	// per docs/adr/0140-go-source-loop-and-python-retirement.md:45
+	for _, name := range []string{"budget.py", "budget_adapters.py", "runtime_transition.py", "loop.py"} {
 		writeFixture(filepath.Join(scripts, "lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
 	for _, role := range []string{"implementer", "reviewer"} {

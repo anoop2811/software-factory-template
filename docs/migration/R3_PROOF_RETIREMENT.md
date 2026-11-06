@@ -247,8 +247,9 @@ post-adapter checkout, `bash scripts/selftest/budget.sh` reported
 Independent custody review found no surviving finding. This closes the budget
 retention disposition; enclosing source and hosted qualification remain separate.
 
-The active loop wrapper/module, other legacy transition/native-init fixture
-imports and final source public-selftest separation remain subsequent R3 work.
+The loop wrapper/module and legacy transition/native-init fixture imports are
+assigned to Decision 155 below. Final source public-selftest separation remains
+the subsequent R3 group.
 
 ## Loop controller obligations
 
@@ -296,6 +297,36 @@ Historical source: [scripts/selftest/loop/acceptance.py](https://github.com/anoo
 | L38 | checkout lock rejects concurrent sessions and signal cleans owned children (`:814`) | L-lock, L-signal | C | Persistent lock ownership and actual signal cleanup have separate criteria. |
 | L39 | unclean controller death keeps a stale active checkpoint and blocks new work (`:829`) | P-death, L-active | P | Abrupt-death transition barriers and active records exist; compare stale loop checkpoint plus a later refused public command. |
 | L40 | installer and upgrade deliver loop assets while preserving manual disabled defaults (`:851`) | I-init, I-activate | P | Compare post-install manual/disabled defaults after both init and supported legacy upgrade. |
+
+### Loop custody under Decision 155
+
+L01-L40 have **RETAINED-HISTORICAL** custody qualified locally under this
+group. Their private process fault injection, compound ownership/accounting
+failures and legacy installation assertions remain useful regression evidence;
+retention does not assert native replacement of each mechanism. Pin the loop
+wrapper and all four Python modules to immutable
+`1754de23de95a7e3c734bedd86894295e823c988` in full and subset fixture builders.
+They are byte-identical at that revision, the inventory revision `f3a0b65` and
+merged PR #170 (`9b194645`). Keep all forty registered bodies unchanged.
+
+The general, optional-pack, Java and budget delivery fixtures also need the
+complete historical loop inputs because their archived initializer copies those
+assets. Current policy gates remain separate live subjects. The transition
+fixtures freeze the same controller/module closure while continuing to exercise
+current Go exclusion. The historical initializer component retains only its old
+input inventory through a test-only build overlay; its current engine and full
+artifact assertions remain unchanged. The actual shipped candidate has no such
+overlay and separately qualifies current source input retirement. See
+[ADR 0140](../adr/0140-go-source-loop-and-python-retirement.md).
+
+These inputs are development-only oracles, not source/installed fallbacks. After
+active module deletion, private `bash scripts/selftest/loop.sh` reported
+`loop: 40 passed, 0 failed`; budget reported `32 passed, 0 failed`. General,
+optional-pack and Java regressions passed 218, 3 and 6 respectively. Independent
+registered-function AST comparison retained all 32 budget and 40 loop bodies.
+This closes the historical loop custody disposition locally. Current source
+routing, enclosing/hosted qualification and public selftest remain distinct;
+public selftest and the wider F-family disposition remain group 7.
 
 ## Review controller obligations
 
@@ -457,9 +488,9 @@ active source bodies can disappear:
 | General historical controller | `scripts/selftest/run.sh` materializes selected entrypoints from `1754de23de95a7e3c734bedd86894295e823c988`, with review/config inputs from `f3a0b6520917e104883cc89b123d7244fa0c46a7`. Decision 151 adds migration/role/budget readers and gives current gate fixtures a separate current tree, canonical bridge closure and privately compiled native owner. | Maintain explicit historical dependencies while keeping policy-gate subjects current. No historical controller may consume a newly native reader accidentally. Detailed qualification remains in Decision 151. |
 | Optional-pack wrapper | `scripts/selftest/optional-packs.sh` makes a local shared clone retaining immutable Git objects, overlays current source bytes, then invokes the runner's separate current/historical materialization. | Preserve no-packs/no-review-template diagnostics, deliberately broken current gate and later-assertion witnesses. No old reader is substituted for the current gate subject. |
 | Historical golden evaluator | General and optional-pack fixtures materialize `scripts/golden-task-eval.sh` from `1754de23de95a7e3c734bedd86894295e823c988`. `scripts/selftest/run.sh` supplies its own inert selection runners and deterministic pass/fail/cheat mock; it does not copy the shipped runner bodies into those evaluations. Native differential fixtures explicitly freeze the mock and real runner bodies at `4ecab79627d08d1e125391a5831eb995efd3fce4`. | Decision 151 isolates its config dependency in the historical tree. Preserve deliberate current policy/model/fingerprint inputs; do not imply that the entire fixture is an era-matched snapshot. |
-| Budget and loop controllers | `scripts/selftest/budget/acceptance.py` and `scripts/selftest/loop/acceptance.py` freeze selected entrypoints and their config/role/budget readers, including subset fixture constructors. Current Python modules remain their intended subjects until the controller cutover. | Freeze the old wrappers and all four Python module inputs as test-only oracles, or retire each assertion after its row closes. Never import removed current production files as a hidden fallback. |
+| Budget and loop controllers | `scripts/selftest/budget/acceptance.py` and `scripts/selftest/loop/acceptance.py` freeze selected entrypoints and their config/role/budget readers, including subset fixture constructors. Decision 155 pins the loop wrapper and all four Python modules to the same immutable source, including subset constructors. | Preserve B01-B32 and L01-L40 as test-only historical registrations. Qualify the complete retained closure after active runtime deletion; never import removed current production files as a hidden fallback. |
 | Native eval/check parity | `acceptance/orchestration_eval_test.go:23` and `acceptance/orchestration_check_test.go:20` already load `4ecab79627d08d1e125391a5831eb995efd3fce4` by explicit Git paths. | Preserve these independent immutable oracles. Production adapter replacement must not alter their meaning. |
-| Transition/native-init differential tests | Transition source fixtures now isolate the three reader dependencies at `1754de23de95a7e3c734bedd86894295e823c988`; their current transition controllers/Python shim remain the subject. Existing native-init and recovery differential identities are unchanged. | Replace current-tree Python module reads/import roots with an identified historical fixture source before production deletion; preserve mixed-runtime and recovery fault coverage. |
+| Transition/native-init differential tests | Decision 155 isolates legacy wrappers/readers and all four Python modules at `1754de23de95a7e3c734bedd86894295e823c988`. The historical initializer component overlays only that revision's input inventory, retaining current engine behavior. Existing archived initializer and recovery identities are unchanged. | Preserve mixed-runtime and recovery fault assertions; separately qualify current candidate initialization/copy without the historical overlay. |
 | Historical installation recipes | `internal/installation/roles_v1.go:126` and its adjacent historical module declarations. | Retain exact predecessor reconstruction declarations. They describe historical installed bytes and confer no permission to execute old controllers in a current installation. |
 | Policy gates and product build tools | Hook and pack sources. | Retain their chosen implementation languages as the approved boundary. Go test orchestration must execute the real relevant gates; it must not convert a missing test subject into a skip. |
 

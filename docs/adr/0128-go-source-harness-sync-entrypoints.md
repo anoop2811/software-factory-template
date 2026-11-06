@@ -81,7 +81,8 @@ materializers. Existing Go initializer/doctor/installation oracles already archi
 their original sync bodies and require no blanket fixture rewrite.
 
 Current generated-file drift belongs to `make check-drift` (Makefile:194), also
-dispatched by scripts/pre-push-check.sh:49 and the changed-adapter rule in
+dispatched by internal/checkcmd/command.go:75 through the source adapter under
+docs/adr/0138-go-source-check-orchestration.md:15 and the changed-adapter rule in
 scripts/hooks/diff-aware-check.sh:104. Run it in a private committed source copy;
 it executes all three current direct adapters before comparing generated files.
 The historical shell block has always rendered into its own sandbox. Current

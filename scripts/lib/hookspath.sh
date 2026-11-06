@@ -1,40 +1,67 @@
 #!/bin/sh
-# scripts/lib/hookspath.sh
-# hookspath_status <repo-root> — what Git will ACTUALLY run for pre-push.
-#
-# A populated .githooks/pre-push is not evidence that Git will execute it. When
-# core.hooksPath is set — commonly inherited from global or system config — Git
-# resolves hooks from that directory and ignores the repository's, leaving an
-# installed-looking push gate completely inert. So ask Git, don't assume.
-#
-# Echoes "<state>\t<resolved-path>", where state is one of:
-#   armed    — Git resolves pre-push to this repo's tracked .githooks, and the
-#              hook is executable, so it will actually run
-#   inert    — Git resolves pre-push to this repo's tracked .githooks, but the
-#              file is not executable. Git skips a non-executable hook without
-#              complaint, so the gate is configured and still never fires. This
-#              is the state a `chmod +x` fixes, and it is reported separately
-#              from `armed` precisely because the two look identical on disk.
-#   hijacked — core.hooksPath points elsewhere; the repo's gate never runs
-#   absent   — no core.hooksPath; the gate is simply not installed yet
-hookspath_status() {
-  _hp_root="$1"
-  _hp_resolved="$(git -C "$_hp_root" rev-parse --git-path hooks/pre-push 2>/dev/null || true)"
-  case "$_hp_resolved" in
-    /*) ;;
-    *) _hp_resolved="$_hp_root/$_hp_resolved" ;;
-  esac
-  _hp_cfg="$(git -C "$_hp_root" config --get core.hooksPath 2>/dev/null || true)"
-  # Git silently ignores a hook that is not executable, so a path match alone is
-  # not "armed" — factory doctor would report a live push gate that never fires.
-  # The executable bit is the difference between a configured gate and a real one.
-  if [ "$_hp_resolved" = "$_hp_root/.githooks/pre-push" ] && [ ! -x "$_hp_resolved" ]; then
-    printf 'inert\t%s' "$_hp_resolved"
-  elif [ "$_hp_resolved" = "$_hp_root/.githooks/pre-push" ]; then
-    printf 'armed\t%s' "$_hp_resolved"
-  elif [ -n "$_hp_cfg" ]; then
-    printf 'hijacked\t%s' "$_hp_resolved"
-  else
-    printf 'absent\t%s' "$_hp_resolved"
-  fi
-}
+# Factory native hookspath helper: source-v1
+# docs/adr/0137-go-source-shared-helpers.md:19.
+# Inherited Bash metadata alone cannot select Bash-only syntax.
+# shellcheck disable=SC3028
+if command test -n "${BASH_VERSION-}" &&
+   command test "$(command type -t builtin 2>/dev/null)" = builtin; then
+  # These features execute only in the Bash-capable branch.
+  # shellcheck disable=SC3043,SC3044,SC3045,SC3054,SC3003
+  _factory_source_hookspath_load() {
+    builtin unset -f _factory_source_hookspath_load
+    builtin local _factory_source_root _factory_source_declaration
+    # docs/adr/0137-go-source-shared-helpers.md:123.
+    _factory_source_declaration="$(builtin declare -p BASH_SOURCE 2>/dev/null)"
+    case "${_factory_source_declaration%% BASH_SOURCE=*}" in
+      'declare -'*a*) ;;
+      *)
+        builtin printf '%s\n' 'factory hookspath: native Bash source metadata is required' >&2
+        return 2
+        ;;
+    esac
+    builtin test ! -L "${BASH_SOURCE[0]}" || {
+      builtin printf '%s\n' 'factory hookspath: source the physical library instead of a file symlink' >&2
+      return 2
+    }
+    _factory_source_root=${BASH_SOURCE[0]%/*}
+    builtin test "$_factory_source_root" != "${BASH_SOURCE[0]}" || _factory_source_root=.
+    _factory_source_root="$(CDPATH='' builtin cd -P -- "$_factory_source_root/../.." && builtin pwd -P && builtin printf '.')" || return
+    _factory_source_root=${_factory_source_root%$'\n.'}
+    # shellcheck source=../../runtime/shell/helpers.sh
+    builtin . "$_factory_source_root/runtime/shell/helpers.sh" || return
+    # shellcheck source=../../runtime/shell/source.sh
+    builtin . "$_factory_source_root/runtime/shell/source.sh"
+  }
+  _factory_source_hookspath_load || return
+else
+  # POSIX sourcing is inert; ownership is selected only at invocation.
+  # docs/adr/0137-go-source-shared-helpers.md:36.
+  _factory_posix_hookspath_call() (
+    if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then
+      case "$FACTORY_RUNTIME_BINARY" in
+        /*) ;;
+        *) command printf '%s\n' 'factory bridge: FACTORY_RUNTIME_BINARY must name an executable absolute regular file' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=$FACTORY_RUNTIME_BINARY
+    else
+      _factory_posix_runtime="$(command git rev-parse --show-toplevel 2>/dev/null && command printf '.')" || {
+        command printf '%s\n' 'factory hookspath: supply an explicit runtime outside a Git repository' >&2
+        return 2
+      }
+      case "$_factory_posix_runtime" in
+        *'
+.') ;;
+        *) command printf '%s\n' 'factory hookspath: supply an explicit runtime outside a Git repository' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=${_factory_posix_runtime%??}/factory
+    fi
+    [ -f "$_factory_posix_runtime" ] && [ -x "$_factory_posix_runtime" ] || {
+      command printf '%s\n' 'factory hookspath: selected owner must be an executable regular file' >&2
+      return 2
+    }
+    exec /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" "NO_COLOR=${NO_COLOR-}" \
+      "FACTORY_EVENT_LOG=${FACTORY_EVENT_LOG-}" "FACTORY_EVENT_MAX_LINES=${FACTORY_EVENT_MAX_LINES-}" \
+      FACTORY_BRIDGE_PROTOCOL=1 "$_factory_posix_runtime" helper "$@"
+  )
+  hookspath_status() { _factory_posix_hookspath_call hookspath "$1"; }
+fi

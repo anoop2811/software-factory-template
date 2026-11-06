@@ -7087,3 +7087,159 @@ reported `1 Passed | 0 Failed` in 35.328 seconds, including all 30 harness/mode
 combinations and their unchanged oracle assertions. Configured Go lint reported
 `0 issues.`; Shellcheck for both changed shell fixtures and `git diff --check`
 exited zero. These bounded corrections do not alter the 3283-criterion census.
+
+
+Decision 151 merge observation: PR #167 merged on 2026-11-06 UTC as
+`9f40f28219d2ea73cf69d86da470d7e763447953`. Its final head `4df37aa` passed all
+32 hosted checks, including 79/79 macOS source criteria and 53/53 historical
+review fixtures. Both model-review rounds received per-finding responses; the
+final review covered all 30 files and 59 fragments in four minutes. Copilot
+could not review because of account quota. These are recorded hosted results,
+not a new test run. R3 now has 20/32 merged paths (62.5%).
+
+## Decision 152 (2026-11-06 UTC): route source shared helpers through Go
+
+Before implementation, adopt [ADR 0137](adr/0137-go-source-shared-helpers.md) for
+R3 group 3: events, timing, color and hooksPath. Reuse existing native helper
+semantics and canonical plan validation. Bash loaders keep physical source
+ownership; inert POSIX forwarders resolve an explicit runtime or caller Git
+owner at invocation. True POSIX color needs an explicit source root outside Git
+to load the canonical palette interpreter without inventing another parser.
+Ordinary Bash and installed users need no new configuration. Retain the
+installer's own pre-handoff elapsed-time fallback instead of sourcing selected
+source code while refreshing its cache. Update current fixture closures and
+explicit historical dependencies before counting the group complete. Independent
+outside-in RED/GREEN, review and hosted checks remain required.
+
+Decision 152 review correction, before edits: the first seven source criteria
+passed, but an independent Dash probe observed that sourcing color after timing
+changed duration ownership from the caller Git runtime to the explicit color
+source root. The canonical helper file defines all public helpers, so their
+transport must preserve each operation's existing owner contract regardless of
+source order. Limit the POSIX color source-root fallback to palette/action-box
+requests; other helper requests retain explicit-runtime/caller-Git selection.
+Extend the existing POSIX criterion with both source orders and the non-color
+families before changing production. The canonical interpreter and installed
+recipe bytes remain unchanged.
+
+Decision 152 independent qualification: the seven new criteria first reported
+`1 Passed | 6 Failed` against the old bodies; the inert-loading control already
+passed. The source-order extension then reported `0 Passed | 1 Failed`, and the
+file-alias negative control returned zero where refusal requires two. Final
+`FACTORY_AGENT_ROLE=spec-writer FACTORY_CLI_TEST_RACE=1 go test -race
+./acceptance -run '^TestAcceptance$' -count=1 -timeout=3m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance Go source runtime entrypoints shared helper adapters '
+-ginkgo.fail-on-empty -ginkgo.json-report=../helpers-final-green.json -v`
+reported `7 Passed | 0 Failed` in 10.232 seconds. A separate focus combining
+these helpers, structural evaluation and the actual source-init journey reported
+`15 Passed | 0 Failed` in 108.311 seconds. The actual disjoint-partition criterion
+passed in 59.030 seconds and counted 3290 total / 86 source criteria.
+
+In disposable qualification trees, `go test -race ./acceptance -run
+'^TestAcceptance$' -count=1 -timeout=6m -ginkgo.no-color
+-ginkgo.focus='^Go factory command acceptance (Native orchestration helpers|Runtime transition source delivery)( |$)'
+-ginkgo.fail-on-empty -ginkgo.json-report=../native-helpers-transition.json`
+passed 38 criteria. Historical/current scripts retained their assertions:
+`bash scripts/selftest/run.sh` reported `218 passed, 0 failed, 0 skipped`;
+`bash scripts/selftest/adversarial-review.sh` reported `53 passed, 0 failed`;
+`bash scripts/selftest/optional-packs.sh` reported `3 passed, 0 failed`;
+`bash scripts/selftest/java-build-tool.sh` reported `6 passed, 0 failed`;
+`bash scripts/selftest/budget.sh` reported `32 passed, 0 failed`; and
+`bash scripts/selftest/loop.sh` reported `40 passed, 0 failed`. Configured
+Go lint reported `0 issues.`; warning-level shellcheck exited zero.
+
+The first enclosing four-worker source race run passed 85/86. An unchanged
+evaluation-runner cancellation criterion hit its five-second readiness wait;
+its cleanup record showed the evaluator had already completed with a one-second
+task timeout before the fake CLI wrote a ready receipt. That fixture does not
+load these helper libraries. An unchanged isolated rerun reported
+`1 Passed | 0 Failed` in 4.128 seconds. The original startup delay's cause remains
+unproven; no product or test deadline was changed. Independent reviews confirmed
+the POSIX source-order correction and final alias coverage; no findings remain
+in those review lenses. Enclosing rerun and hosted results are recorded separately.
+
+The second enclosing four-worker run reproduced the same 85/86 readiness
+failure with the same completed one-second-cap result and no fake-CLI ready
+receipt. The isolated pass does not establish four-worker reliability. Evaluate
+the existing two-worker configuration separately; do not describe this as a
+resolved timeout or change product deadlines without evidence.
+
+Decision 152 two-worker enclosing evidence: in the private qualification checkout,
+`FACTORY_CLI_TEST_RACE=1 GORACE=atexit_sleep_ms=0 GOTOOLCHAIN=local make
+go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_TEST_TIMEOUT=25m` exited zero. It reported
+`86 Passed | 0 Failed` in 152.412 seconds, `0 issues.` from configured lint,
+`Issues : 0` from gosec, and zero reachable vulnerabilities from govulncheck.
+The vulnerability scan separately reported ten module-only advisories in code
+not called by this project; the command exited zero. This run does not establish
+four-worker reliability or replace the retained failure records.
+
+Decision 152 qualification-fixture correction, before edits: an independent
+private probe inserted a 1.5-second native-owner startup delay. A one-second task
+budget expired before readiness; the existing three-second startup allowance
+admitted the real child, then bounded its timeout, observed child absence and
+kept the oracle uncalled. The delayed wrapper precedes native acknowledgement,
+so its one-second result reported uncertainty rather than the local suite's
+completed-cap classification. It demonstrates the fixture's startup assumption,
+not the operating-system cause of the original delay. Extend the existing
+three-second startup allowance to native-owned runner timeout cases as well as
+cold source compilers. Retain the five-second readiness wait, eight-second
+completion bound, twenty-second outer context, parent-cancellation budget and
+every ownership/no-retry/no-oracle assertion. This changes a test-owned task
+input; no runtime deadline or cleanup behavior changes. Require the complete
+default four-worker source gate after this bounded correction.
+
+Decision 152 final local enclosing evidence: after the fixture correction,
+`FACTORY_CLI_TEST_RACE=1 GORACE=atexit_sleep_ms=0 GOTOOLCHAIN=local make
+go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_TIMEOUT=25m` selected the default four workers and exited zero:
+`86 Passed | 0 Failed` in 132.680 seconds. Configured lint reported `0 issues.`,
+gosec reported `Issues : 0`, and govulncheck reported zero reachable
+vulnerabilities (the same ten module-only advisories). Both focused nested
+cancellation criteria also passed in 10.247 seconds. Independent final readback
+confirmed the unchanged deadlines and ownership assertions; no review findings
+remain. Hosted qualification and human review remain required before merge.
+
+Decision 152 hosted-review clarification: the first advisory review completed
+all 21 files and 27 fragments in one batch (6 minutes 37 seconds of job time).
+Both hosted source-platform jobs passed. Review item m5 correctly highlights
+the bootstrap formatter's missing hour form, although it emits minutes/seconds,
+not raw seconds. Record the deliberate display difference in ADR 0137 and the
+cutover ledger. A private copy of the actual `elapsed_since` function with a
+fixed 3840-second clock printed `64m 0s`; no runtime changes are needed.
+
+During local custody readback, an explicit test-edit enforcement invocation from
+the primary checkout had rebuilt its ignored operator binary through a native
+configuration read before the spec-writer allowance. Restore only the exact
+pre-task hash and recorded executable mode from the existing operator backup;
+readback matched both. Lesson 152 records this process mistake and its provenance.
+Subsequent enforcement qualification also belongs in disposable source trees.
+
+Decision 152 source-loader review correction, before code: the reported
+zsh/mksh capability case is outside the tested Bash/system-sh/Dash dialects, and
+the supported non-Bash forged-metadata probes pass. Independent inspection did
+find that actual Bash can inherit `BASH_SOURCE` as an exported scalar, losing
+native source-array authority. Bash 3 then resolves an empty prefix; Bash 5
+retains the scalar's text. Require native indexed-array metadata before physical
+path selection in all seven source libraries, with explicit status-two refusal
+except quiet no-op event logging. Also remove temporary loader definitions on
+both success and failure. Keep runtime-required private functions. ADR 0137
+records the contract; independent malformed-metadata and loader-lifetime RED
+must precede implementation, followed by the source and configuration checks.
+
+Decision 152 review-correction evidence: the extended seven helper criteria
+first reported four passed and three failed against the previous implementation.
+After the metadata and loader-lifetime changes, the independent helper plus
+configuration focus passed 15/15 (21.062 seconds of spec time). Independent
+transport probes passed 42 scalar-metadata cases, 14 successful-load cleanup
+cases, 14 symlink-refusal cleanup cases, three POSIX refusal-cleanup cases and
+one later POSIX resolver invocation; no findings remained in that review scope.
+In the disposable qualification checkout,
+`FACTORY_CLI_TEST_RACE=1 GORACE=atexit_sleep_ms=0 GOTOOLCHAIN=local make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_TIMEOUT=25m`
+reported `86 Passed | 0 Failed` in 129.248 seconds with four workers and exited
+zero after quality checks. Lint and gosec reported zero issues; govulncheck
+reported zero reachable vulnerabilities and ten module-only advisories.
+Repeated `bash scripts/selftest/run.sh`, `bash scripts/selftest/adversarial-review.sh`
+and `bash scripts/selftest/optional-packs.sh` reported 218, 53 and three passed
+respectively, with zero failed. These local results do not replace hosted
+qualification of the correction commit or human review before merge.

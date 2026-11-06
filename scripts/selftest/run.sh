@@ -31,11 +31,13 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
     --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
     tar -xf - -C "$LEGACY_TEMPLATE_ROOT"
   # docs/adr/0129-go-source-doctor-entrypoint.md:47.
+  # Helper custody: docs/adr/0137-go-source-shared-helpers.md:84.
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
     scripts/factory-report.sh scripts/factory-metrics.sh \
     scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh \
     scripts/factory-doctor.sh scripts/prereq-check.sh scripts/golden-task-eval.sh \
-    scripts/factory-migrate-config.sh scripts/lib/roles.sh scripts/lib/budget-config.sh; do
+    scripts/factory-migrate-config.sh scripts/lib/roles.sh scripts/lib/budget-config.sh \
+    scripts/lib/events.sh scripts/lib/timing.sh scripts/lib/hookspath.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
@@ -1216,6 +1218,9 @@ mkdir -p "$MROOT/scripts/lib" "$MROOT/templates" "$MROOT/.factory"
   printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" )
 cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
 cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
+# Retain current event/retention checks beside the historical metrics controller.
+# docs/adr/0137-go-source-shared-helpers.md:86.
+current_config_runtime "$MROOT"
 cp "$TEMPLATE_ROOT/templates/metrics.html" "$MROOT/templates/"
 printf 'project_name: m\n' > "$MROOT/factory.yaml"
 MLOG="$MROOT/.factory/events.log"

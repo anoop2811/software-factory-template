@@ -5,12 +5,22 @@
 # Metadata can be inherited by another shell; lookup must identify a builtin,
 # without executing a same-named PATH program merely to select the branch.
 # shellcheck disable=SC3028 # Optional metadata is read safely before capability selection.
-if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
+if command test -n "${BASH_VERSION-}" &&
    command test "$(command type -t builtin 2>/dev/null)" = builtin; then
   # These features execute only in the Bash-capable branch.
-  # shellcheck disable=SC3043,SC3045,SC3054,SC3003
+  # shellcheck disable=SC3043,SC3044,SC3045,SC3054,SC3003
   _factory_source_roles_load() {
-    builtin local _factory_source_root
+    builtin unset -f _factory_source_roles_load
+    builtin local _factory_source_root _factory_source_declaration
+    # docs/adr/0137-go-source-shared-helpers.md:123.
+    _factory_source_declaration="$(builtin declare -p BASH_SOURCE 2>/dev/null)"
+    case "${_factory_source_declaration%% BASH_SOURCE=*}" in
+      'declare -'*a*) ;;
+      *)
+        builtin printf '%s\n' 'factory role: native Bash source metadata is required' >&2
+        return 2
+        ;;
+    esac
     builtin test ! -L "${BASH_SOURCE[0]}" || {
       builtin printf '%s\n' 'factory role: source the physical library instead of a file symlink' >&2
       return 2
@@ -25,8 +35,6 @@ if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
     builtin . "$_factory_source_root/runtime/shell/source.sh"
   }
   _factory_source_roles_load || return
-  # shellcheck disable=SC3045 # This cleanup is still inside the Bash branch.
-  builtin unset -f _factory_source_roles_load
 else
   _factory_posix_role_call() (
     if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then

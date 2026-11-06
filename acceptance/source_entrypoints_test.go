@@ -41,9 +41,9 @@ func newSourceEntrypointFixture() sourceEntrypointFixture {
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, path), data, 0755)
 	}
-	// Current source proof uses the current libraries and their native bridge closure.
-	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
-	sourceConfigLibraryAssets(root)
+	// Current source proof uses current readers/helpers and their native closure.
+	// per docs/adr/0137-go-source-shared-helpers.md:77
+	sourceHelperLibraryAssets(root)
 	for _, directory := range []string{"cmd", "internal"} {
 		origin := filepath.Join(repository, directory)
 		Expect(filepath.WalkDir(origin, func(path string, entry fs.DirEntry, walkErr error) error {

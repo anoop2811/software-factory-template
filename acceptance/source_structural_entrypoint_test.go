@@ -49,8 +49,8 @@ func sourceStructuralProject(root, base string) map[string]string {
 		writeFixture(filepath.Join(root, path), body, 0700)
 	}
 	// The current gate reads configuration through its complete native closure.
-	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
-	sourceConfigLibraryAssets(root)
+	// per docs/adr/0137-go-source-shared-helpers.md:77
+	sourceHelperLibraryAssets(root)
 	writeFixture(filepath.Join(root, "scripts/hooks/test-edit-denial.sh"), []byte("#!/bin/sh\n\"$SOURCE_STRUCTURAL_GATE\" \"$@\"\nstatus=$?\nprintf '%s\\000%s\\000%s\\000' \"$FACTORY_AGENT_ROLE\" \"$status\" \"$FACTORY_CONFIG\" >> \"$SOURCE_STRUCTURAL_PROBES\"\nexit \"$status\"\n"), 0700)
 	writeFixture(filepath.Join(root, "factory.yaml"), []byte("test_file_patterns: ''\n"), 0600)
 	jq, err := exec.LookPath("jq")
@@ -76,8 +76,9 @@ func sourceStructuralNativeFixture() (string, map[string]string) {
 	environment["SOURCE_STRUCTURAL_NATIVE"] = filepath.Join(base, "native evaluator")
 	environment["SOURCE_STRUCTURAL_OWNER"] = filepath.Join(base, "owner calls")
 	environment["SOURCE_STRUCTURAL_CONFIG_OWNER"] = filepath.Join(base, "configuration calls")
+	environment["SOURCE_STRUCTURAL_HELPER_OWNER"] = filepath.Join(base, "helper calls")
 	writeFixture(environment["SOURCE_STRUCTURAL_NATIVE"], candidateBinary, 0700)
-	writeFixture(filepath.Join(root, "factory"), []byte("#!/bin/sh\ncase \"${1-}\" in config) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_CONFIG_OWNER\" ;; *) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_OWNER\" ;; esac\nexec \"$SOURCE_STRUCTURAL_NATIVE\" \"$@\"\n"), 0700)
+	writeFixture(filepath.Join(root, "factory"), []byte("#!/bin/sh\ncase \"${1-}\" in config) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_CONFIG_OWNER\" ;; helper) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_HELPER_OWNER\" ;; *) printf '%s\\000' \"$@\" >> \"$SOURCE_STRUCTURAL_OWNER\" ;; esac\nexec \"$SOURCE_STRUCTURAL_NATIVE\" \"$@\"\n"), 0700)
 	return root, environment
 }
 
@@ -95,6 +96,16 @@ func sourceStructuralProbes(environment map[string]string, calls int) {
 		// each invocation reads test_file_patterns once through the native owner.
 		Expect(strings.Count(string(body), "config\x00get\x00test_file_patterns\x00")).To(Equal(calls * 2))
 	}
+	// Denial telemetry is a separate real native effect, never extra eval argv.
+	// per docs/adr/0137-go-source-shared-helpers.md:79
+	if path := environment["SOURCE_STRUCTURAL_HELPER_OWNER"]; path != "" {
+		body, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(body)).To(Equal(strings.Repeat("helper\x00event\x00test-edit-denial\x00implementer edited a test file\x00", calls)))
+	}
+	events, err := os.ReadFile(environment["FACTORY_EVENT_LOG"])
+	Expect(err).NotTo(HaveOccurred())
+	Expect(strings.Count(string(events), "\ttest-edit-denial\timplementer edited a test file\n")).To(Equal(calls))
 	raw, err := os.ReadFile(environment["SOURCE_STRUCTURAL_PROBES"])
 	Expect(err).NotTo(HaveOccurred())
 	fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
@@ -326,6 +337,8 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 			sourceStructuralProbes(environment, 3)
 			Expect(os.Remove(environment["SOURCE_STRUCTURAL_OWNER"])).To(Succeed())
 			Expect(os.Remove(environment["SOURCE_STRUCTURAL_CONFIG_OWNER"])).To(Succeed())
+			Expect(os.Remove(environment["SOURCE_STRUCTURAL_HELPER_OWNER"])).To(Succeed())
+			Expect(os.Remove(environment["FACTORY_EVENT_LOG"])).To(Succeed())
 			Expect(os.Remove(environment["SOURCE_STRUCTURAL_PROBES"])).To(Succeed())
 		}
 	})

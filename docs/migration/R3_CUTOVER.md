@@ -52,7 +52,7 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `scripts/harness-structural-eval.sh` | `eval structural` / `evalcmd` | Merged [PR #165](https://github.com/anoop2811/software-factory-template/pull/165), Decision 149 / [ADR 0134](../adr/0134-go-source-structural-evaluation.md): source routing, real three-harness role controls, Make and four pack consumers; qualification below. |
 | [x] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Merged PR #166, Decision 150 / [ADR 0135](../adr/0135-go-source-review-entrypoints.md): source/HTTP routing and shipped workflow with fresh module-cache preparation; full source 71/3275 passed. All 32 final hosted checks passed. |
 | [x] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Merged PR #166, Decision 150 / ADR 0135: opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; all 32 final hosted checks passed. |
-| [ ] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody implemented; local qualification below, hosted checks and merge pending. |
+| [x] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody merged in PR #167; qualification below. |
 | [ ] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Check orchestration: eight-stage ordering, real stdin, caller role, Git ranges and local-hook operand compatibility. |
 | [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Controller boundary: preserve configuration, models, state and process ownership while removing Python dispatch. |
 | [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
@@ -95,20 +95,34 @@ failures on the first attempt. Their cause remains unproven. The final model
 review completed all 21 files and 48 fragments in 126 seconds and received
 per-finding responses. These are recorded results, not a new qualification run.
 
-Across the fixed baseline and earlier completed rows, 16 of 21 direct source
-entrypoints are merged. Including the seven sourceable libraries and four Python
-modules, that is 16 of 32 inventory paths (50%), with 16 remaining. These are
-path counts, not effort-weighted implementation or release percentages.
+Across the fixed baseline and completed rows, 17 of 21 direct source
+entrypoints and three of seven sourceable libraries are merged. Including the
+four Python modules, that is 20 of 32 inventory paths (62.5%), with 12 remaining.
+These are path counts, not effort-weighted implementation or release percentages.
 
-Group 2 is implemented under Decision 151 / ADR 0136 but is not included in the
-merged count. Independent configuration/structural checks passed 134 criteria;
+Group 2 merged in PR #167 under Decision 151 / ADR 0136 as
+`9f40f28219d2ea73cf69d86da470d7e763447953` on 2026-11-06 UTC. The final head
+`4df37aa` passed all 32 hosted checks, including 79/79 macOS source criteria.
+Both model-review rounds received per-finding responses; Copilot could not
+review because of account quota. These are recorded results, not a new run.
+Independent configuration/structural checks passed 134 criteria;
 the final eight new source criteria passed after review corrections. Separate
 native configuration/helper/scheduling, source-proof/recovery and transition
 runs passed 355, 71 and 88 criteria respectively. Historical development checks
 retain their assertions and passed 218 general, 3 optional-pack, 6 Java, 32 budget
 and 40 loop cases. Enclosing source qualification and hosted review are recorded
-separately in Decision 151. The four rows remain unchecked until merge; that
-will bring this inventory to 20/32 (62.5%), leaving 12 paths in five groups.
+separately in Decision 151. The four rows are now included in the merged count.
+Group 3 begins under Decision 152 / [ADR 0137](../adr/0137-go-source-shared-helpers.md); its four
+helper rows remain unchecked until enclosing qualification and merge. Seven new
+source criteria passed after independent RED and review corrections; separate
+helper/structural/source-init and native-helper/transition runs passed 15 and 38.
+The measured census is 3290 total / 86 source criteria. Historical fixture suites
+retained their assertions. Decision 152 distinguishes those completed checks
+from earlier enclosing source-suite failures and hosted results. The final
+default four-worker source gate passed all 86 criteria and its quality stages
+after the documented cancellation-fixture startup correction. Hosted checks
+and merge remain pending. Merging this group would
+bring the inventory to 24/32 (75%), leaving eight paths in four R3 groups.
 
 ## Grouped delivery order
 
@@ -142,13 +156,13 @@ and budget exports are intentional effects and require independent checks.
 
 | Done | Path | Existing owner / bridge | Remaining compatibility evidence |
 |---|---|---|---|
-| [ ] | `scripts/lib/config.sh` | `config`; `runtime/shell/readers.sh`, `runtime/shell/config.sh` | Decision 151 / ADR 0136: canonical native reads/plans through physical source transport; inert loading, caller attributes and real policy consumers locally qualified; hosted checks and merge pending. |
-| [ ] | `scripts/lib/roles.sh` | `roles`; `runtime/shell/readers.sh` | Decision 151 / ADR 0136: shared native role/tier reader, inert Bash/POSIX selection and explicit POSIX-owner refusal locally qualified; hosted checks and merge pending. |
-| [ ] | `scripts/lib/events.sh` | `eventlog`, `helpers`; `runtime/shell/helpers.sh` | Best-effort append/retention and gate consumers; logging failure must not change gate decisions. |
-| [ ] | `scripts/lib/timing.sh` | `helpers`; `runtime/shell/helpers.sh` | Duration formatting, zero/unknown fallback and sourceable POSIX caller behavior. |
-| [ ] | `scripts/lib/color.sh` | `presentation`, `helpers`; `runtime/shell/helpers.sh` | Source-time TTY/NO_COLOR palette, literal action-box output and caller overrides. |
-| [ ] | `scripts/lib/hookspath.sh` | `githooks`, `helpers`; `runtime/shell/helpers.sh` | Git's actual configured/executable hook classification and literal returned path. |
-| [ ] | `scripts/lib/budget-config.sh` | `config`, `roles`, `helpers`; `runtime/shell/helpers.sh` | Decision 151 / ADR 0136: shared native complete settings plan, model routes and source-time exports locally qualified; hosted checks and merge pending. |
+| [x] | `scripts/lib/config.sh` | `config`; `runtime/shell/readers.sh`, `runtime/shell/config.sh` | Decision 151 / ADR 0136: canonical native reads/plans through physical source transport; inert loading, caller attributes and real policy consumers qualified and merged in PR #167; all 32 final hosted checks passed. |
+| [x] | `scripts/lib/roles.sh` | `roles`; `runtime/shell/readers.sh` | Decision 151 / ADR 0136: shared native role/tier reader, inert Bash/POSIX selection and explicit POSIX-owner refusal qualified and merged in PR #167; all 32 final hosted checks passed. |
+| [ ] | `scripts/lib/events.sh` | `eventlog`, `helpers`; `runtime/shell/helpers.sh` | Decision 152 / [ADR 0137](../adr/0137-go-source-shared-helpers.md): native append/retention and real gate consumers; quiet missing-owner/bridge behavior. Implemented and independently qualified; hosted checks and merge pending. |
+| [ ] | `scripts/lib/timing.sh` | `helpers`; `runtime/shell/helpers.sh` | Decision 152 / ADR 0137: native duration formatting, zero/unknown fallback and inert Bash/POSIX loading. Implemented and independently qualified; hosted checks and merge pending. |
+| [ ] | `scripts/lib/color.sh` | `presentation`, `helpers`; `runtime/shell/helpers.sh` | Decision 152 / ADR 0137: canonical native palette/box, actual TTY and NO_COLOR, literal overrides and source-order ownership. Implemented and independently qualified; hosted checks and merge pending. |
+| [ ] | `scripts/lib/hookspath.sh` | `githooks`, `helpers`; `runtime/shell/helpers.sh` | Decision 152 / ADR 0137: native actual-Git classification and literal paths; all four hook states observed through the source adapter. Implemented and independently qualified; hosted checks and merge pending. |
+| [x] | `scripts/lib/budget-config.sh` | `config`, `roles`, `helpers`; `runtime/shell/helpers.sh` | Decision 151 / ADR 0136: shared native complete settings plan, model routes and source-time exports qualified and merged in PR #167; all 32 final hosted checks passed. |
 
 ## Legacy Python runtime retirement
 

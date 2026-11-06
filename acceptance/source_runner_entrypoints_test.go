@@ -144,10 +144,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		environment["SOURCE_RUNNER_DELAYED_POLLS"] = delayedPolls
 	}
 	timeoutSeconds := 1
-	if sourceCompiler {
-		// Leave startup headroom for the cold source controller.
+	if sourceCompiler || external == "" {
+		// Leave startup headroom for native-owned runners and cold source controllers.
 		// The nested supervisor's cleanup grace remains unchanged.
 		// per docs/adr/0133-go-source-evaluation-runners.md:166
+		// per docs/DECISION_LOG.md:7177
 		timeoutSeconds = 3
 	}
 	args := []string{"--harness", "claude", "--runs", "1", "--timeout", strconv.Itoa(timeoutSeconds)}

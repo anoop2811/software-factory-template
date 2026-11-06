@@ -1,39 +1,66 @@
 #!/bin/sh
-# scripts/lib/timing.sh
-# How long things took, reported the same way everywhere.
-#
-# Two commands here run long enough that an adopter wonders whether they have
-# stalled — the upgrade, and the doctor's break/fix proof. A duration at the end
-# turns "did that hang?" into a number, and a number you can compare next time.
-#
-# POSIX sh: `date +%s` rather than bash's SECONDS, because install.sh is /bin/sh.
-# Seconds resolution is deliberate — these are minute-scale operations, and a
-# stopwatch precise to the millisecond would imply a measurement it is not.
-
-# factory_now: epoch seconds, or 0 where date cannot produce them. Timing must
-# never be the reason a command fails, so every path here degrades to a zero
-# rather than an error.
-factory_now() {
-  date +%s 2>/dev/null || printf '0'
-}
-
-# factory_duration <start-epoch> [end-epoch] -> "4s" | "1m 12s" | "1h 3m"
-# Rounded to what a reader acts on: sub-minute in seconds, minutes with seconds,
-# hours with minutes. Nobody needs "3847s".
-factory_duration() {
-  _fd_start="${1:-0}"
-  _fd_end="${2:-$(factory_now)}"
-  case "$_fd_start" in ''|*[!0-9]*) printf 'unknown'; return 0 ;; esac
-  case "$_fd_end" in ''|*[!0-9]*) printf 'unknown'; return 0 ;; esac
-  _fd_secs=$((_fd_end - _fd_start))
-  # A clock that moved backwards (NTP, a suspend) is not a negative duration.
-  [ "$_fd_secs" -lt 0 ] && _fd_secs=0
-
-  if [ "$_fd_secs" -lt 60 ]; then
-    printf '%ss' "$_fd_secs"
-  elif [ "$_fd_secs" -lt 3600 ]; then
-    printf '%dm %ds' "$((_fd_secs / 60))" "$((_fd_secs % 60))"
-  else
-    printf '%dh %dm' "$((_fd_secs / 3600))" "$(((_fd_secs % 3600) / 60))"
-  fi
-}
+# Factory native timing helper: source-v1
+# docs/adr/0137-go-source-shared-helpers.md:19.
+# Inherited Bash metadata alone cannot select Bash-only syntax.
+# shellcheck disable=SC3028
+if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
+   command test "$(command type -t builtin 2>/dev/null)" = builtin; then
+  # These features execute only in the Bash-capable branch.
+  # shellcheck disable=SC3043,SC3045,SC3054,SC3003
+  _factory_source_timing_load() {
+    builtin local _factory_source_root
+    builtin test ! -L "${BASH_SOURCE[0]}" || {
+      builtin printf '%s\n' 'factory timing: source the physical library instead of a file symlink' >&2
+      return 2
+    }
+    _factory_source_root=${BASH_SOURCE[0]%/*}
+    builtin test "$_factory_source_root" != "${BASH_SOURCE[0]}" || _factory_source_root=.
+    _factory_source_root="$(CDPATH='' builtin cd -P -- "$_factory_source_root/../.." && builtin pwd -P && builtin printf '.')" || return
+    _factory_source_root=${_factory_source_root%$'\n.'}
+    # shellcheck source=../../runtime/shell/helpers.sh
+    builtin . "$_factory_source_root/runtime/shell/helpers.sh" || return
+    # shellcheck source=../../runtime/shell/source.sh
+    builtin . "$_factory_source_root/runtime/shell/source.sh"
+  }
+  _factory_source_timing_load || return
+  # shellcheck disable=SC3045
+  builtin unset -f _factory_source_timing_load
+else
+  # POSIX sourcing is inert; ownership is selected only at invocation.
+  # docs/adr/0137-go-source-shared-helpers.md:36.
+  _factory_posix_timing_call() (
+    if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then
+      case "$FACTORY_RUNTIME_BINARY" in
+        /*) ;;
+        *) command printf '%s\n' 'factory bridge: FACTORY_RUNTIME_BINARY must name an executable absolute regular file' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=$FACTORY_RUNTIME_BINARY
+    else
+      _factory_posix_runtime="$(command git rev-parse --show-toplevel 2>/dev/null && command printf '.')" || {
+        command printf '%s\n' 'factory timing: supply an explicit runtime outside a Git repository' >&2
+        return 2
+      }
+      case "$_factory_posix_runtime" in
+        *'
+.') ;;
+        *) command printf '%s\n' 'factory timing: supply an explicit runtime outside a Git repository' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=${_factory_posix_runtime%??}/factory
+    fi
+    [ -f "$_factory_posix_runtime" ] && [ -x "$_factory_posix_runtime" ] || {
+      command printf '%s\n' 'factory timing: selected owner must be an executable regular file' >&2
+      return 2
+    }
+    exec /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" "NO_COLOR=${NO_COLOR-}" \
+      "FACTORY_EVENT_LOG=${FACTORY_EVENT_LOG-}" "FACTORY_EVENT_MAX_LINES=${FACTORY_EVENT_MAX_LINES-}" \
+      FACTORY_BRIDGE_PROTOCOL=1 "$_factory_posix_runtime" helper "$@"
+  )
+  factory_now() { _factory_posix_timing_call now 2>/dev/null || command printf '0'; }
+  factory_duration() {
+    if [ -n "${2-}" ]; then
+      _factory_posix_timing_call duration "${1:-0}" "$2" 2>/dev/null || command printf 'unknown'
+    else
+      _factory_posix_timing_call duration "${1:-0}" 2>/dev/null || command printf 'unknown'
+    fi
+  }
+fi

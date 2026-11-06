@@ -1,44 +1,68 @@
 #!/bin/sh
-# scripts/lib/events.sh
-# factory_log_event <gate> <reason>: best-effort record of a gate firing (a
-# block that a deterministic hook made), for `factory report`. Writes one
-# tab-separated line to the event log — $FACTORY_EVENT_LOG if set, else
-# .factory/events.log at the repo root.
-#
-# It must never fail a hook: a hook's job is enforcement, not bookkeeping, so
-# every error here is swallowed and the function always returns 0. If the repo
-# root can't be resolved (not a git checkout), it quietly does nothing.
-factory_log_event() {
-  _log="${FACTORY_EVENT_LOG:-}"
-  if [ -z "$_log" ]; then
-    _root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
-    _log="$_root/.factory/events.log"
-  fi
-  mkdir -p "$(dirname "$_log")" 2>/dev/null || return 0
-  _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '?')
-  printf '%s\t%s\t%s\n' "$_ts" "${1:-gate}" "${2:-blocked}" >> "$_log" 2>/dev/null || true
-  # Bounded, cheaply. A gate block is one short line and blocks are rare, so this
-  # trims only after thousands of them — no database, no rotation scheme. Older
-  # raw events are dropped, so `factory metrics` reports blocks RETAINED rather
-  # than claiming an all-time total it can no longer stand behind.
-  _max="${FACTORY_EVENT_MAX_LINES:-5000}"
-  case "$_max" in ''|*[!0-9]*|0) _max=5000 ;; esac
-  # Keep at least one line. A tiny cap must mean "keep very little", never
-  # "silently empty the log the moment it fills".
-  _keep=$((_max / 2)); [ "$_keep" -lt 1 ] && _keep=1
-  if [ "$(wc -l < "$_log" 2>/dev/null || echo 0)" -gt "$_max" ]; then
-    # A private directory, not a bare mktemp file. `mktemp` does create the file
-    # safely, but the shell redirection that follows reopens it *by name* — and in
-    # a directory other processes can write, the name can be swapped for a symlink
-    # in between, sending the trimmed log to the symlink's target. mktemp -d makes
-    # a 0700 directory, so no other user can put anything inside it, and the name
-    # we then open cannot have been replaced.
-    _tmpd="$(mktemp -d "$(dirname "$_log")/.events.XXXXXX" 2>/dev/null)" || return 0
-    _tmp="$_tmpd/trim"
-    if tail -n "$_keep" "$_log" > "$_tmp" 2>/dev/null; then
-      mv -f "$_tmp" "$_log" 2>/dev/null || true
+# Factory native events helper: source-v1
+# docs/adr/0137-go-source-shared-helpers.md:19.
+# Inherited Bash metadata alone cannot select Bash-only syntax.
+# shellcheck disable=SC3028
+if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
+   command test "$(command type -t builtin 2>/dev/null)" = builtin; then
+  # These features execute only in the Bash-capable branch.
+  # shellcheck disable=SC3043,SC3045,SC3054,SC3003
+  _factory_source_events_load() {
+    builtin local _factory_source_root
+    builtin test ! -L "${BASH_SOURCE[0]}" || {
+      builtin printf '%s\n' 'factory events: source the physical library instead of a file symlink' >&2
+      return 2
+    }
+    _factory_source_root=${BASH_SOURCE[0]%/*}
+    builtin test "$_factory_source_root" != "${BASH_SOURCE[0]}" || _factory_source_root=.
+    _factory_source_root="$(CDPATH='' builtin cd -P -- "$_factory_source_root/../.." && builtin pwd -P && builtin printf '.')" || return
+    _factory_source_root=${_factory_source_root%$'\n.'}
+    # Telemetry must not change a gate decision in an incomplete checkout.
+    # docs/adr/0137-go-source-shared-helpers.md:61.
+    if ! builtin test -f "$_factory_source_root/runtime/shell/helpers.sh" ||
+       ! builtin test -r "$_factory_source_root/runtime/shell/helpers.sh" ||
+       ! builtin test -f "$_factory_source_root/runtime/shell/source.sh" ||
+       ! builtin test -r "$_factory_source_root/runtime/shell/source.sh"; then
+      factory_log_event() { :; }
+      return 0
     fi
-    rm -rf "$_tmpd" 2>/dev/null || true
-  fi
-  return 0
-}
+    # shellcheck source=../../runtime/shell/helpers.sh
+    builtin . "$_factory_source_root/runtime/shell/helpers.sh" || return
+    # shellcheck source=../../runtime/shell/source.sh
+    builtin . "$_factory_source_root/runtime/shell/source.sh"
+  }
+  _factory_source_events_load || return
+  # shellcheck disable=SC3045
+  builtin unset -f _factory_source_events_load
+else
+  # POSIX sourcing is inert; ownership is selected only at invocation.
+  # docs/adr/0137-go-source-shared-helpers.md:36.
+  _factory_posix_events_call() (
+    if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then
+      case "$FACTORY_RUNTIME_BINARY" in
+        /*) ;;
+        *) command printf '%s\n' 'factory bridge: FACTORY_RUNTIME_BINARY must name an executable absolute regular file' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=$FACTORY_RUNTIME_BINARY
+    else
+      _factory_posix_runtime="$(command git rev-parse --show-toplevel 2>/dev/null && command printf '.')" || {
+        command printf '%s\n' 'factory events: supply an explicit runtime outside a Git repository' >&2
+        return 2
+      }
+      case "$_factory_posix_runtime" in
+        *'
+.') ;;
+        *) command printf '%s\n' 'factory events: supply an explicit runtime outside a Git repository' >&2; return 2 ;;
+      esac
+      _factory_posix_runtime=${_factory_posix_runtime%??}/factory
+    fi
+    [ -f "$_factory_posix_runtime" ] && [ -x "$_factory_posix_runtime" ] || {
+      command printf '%s\n' 'factory events: selected owner must be an executable regular file' >&2
+      return 2
+    }
+    exec /usr/bin/env "FACTORY_CONFIG=${FACTORY_CONFIG-}" "NO_COLOR=${NO_COLOR-}" \
+      "FACTORY_EVENT_LOG=${FACTORY_EVENT_LOG-}" "FACTORY_EVENT_MAX_LINES=${FACTORY_EVENT_MAX_LINES-}" \
+      FACTORY_BRIDGE_PROTOCOL=1 "$_factory_posix_runtime" helper "$@"
+  )
+  factory_log_event() { _factory_posix_events_call event "${1:-gate}" "${2:-blocked}" >/dev/null 2>&1 || :; }
+fi

@@ -39,9 +39,9 @@ func transitionInstallationSource() (string, string, []string) {
 			writeFixture(filepath.Join(source, "scripts/lib", entry.Name()), data, 0600)
 		}
 	}
-	// Current transition shim/controllers retain coherent historical readers.
-	// per docs/adr/0136-go-source-configuration-entrypoints.md:79
-	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh"} {
+	// Current transition shim/controllers retain coherent historical dependencies.
+	// per docs/adr/0137-go-source-shared-helpers.md:84
+	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh", "events.sh", "timing.sh", "color.sh", "hookspath.sh"} {
 		writeFixture(filepath.Join(source, "scripts/lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
 	return source, target, environment

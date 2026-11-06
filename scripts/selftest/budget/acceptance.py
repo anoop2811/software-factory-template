@@ -35,10 +35,11 @@ LEGACY_ENTRYPOINTS = {
     # Review adapters must not call back into this historical dispatcher.
     # docs/adr/0135-go-source-review-entrypoints.md:46.
 # Helper custody: docs/adr/0137-go-source-shared-helpers.md:84.
+    # Check custody: docs/adr/0138-go-source-check-orchestration.md:55.
     for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
-                 "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh",
+                 "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh", "scripts/pre-push-check.sh",
                  "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/budget-config.sh",
                  "scripts/lib/events.sh", "scripts/lib/timing.sh", "scripts/lib/color.sh",
                  "scripts/lib/hookspath.sh")

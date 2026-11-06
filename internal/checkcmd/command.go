@@ -215,7 +215,7 @@ func repositoryRoot(ctx context.Context, environment map[string]string) (string,
 			return "", errors.Join(ctx.Err(), err, errors.New("repository discovery did not complete safely"))
 		}
 		if err == nil && succeeded(result.Execution) {
-			root = strings.TrimRight(string(result.Stdout), "\n")
+			root = strings.TrimSuffix(string(result.Stdout), "\n") // docs/adr/0138-go-source-check-orchestration.md:134.
 		}
 		if root == "" {
 			root = "."

@@ -159,6 +159,17 @@ later binary; its source, tag and assets remain unchanged.
 - [ ] Publish the Go replacement release only after the above gates pass and the
       final dependency/reference audit finds no unclassified active remnants.
 
+## Installed copied-hook setup obligation
+
+R3 group 4 inspection found that the existing generated `scripts/pre-push-check.sh`
+assumes its installed `scripts/` location. Copying it to `.git/hooks/pre-push`, as
+current initializer advice suggests, resolves `.git/factory` and fails. Before
+stable activation, R4 must provide and qualify a valid installed full-check hook
+setup and correct that advice while preserving frozen predecessor recipes.
+The source-only copied-hook correction in [ADR 0138](../adr/0138-go-source-check-orchestration.md)
+does not qualify installed copies. The tracked `.githooks/pre-push` remains the
+separate direct-main-only hook, not a replacement for a full-check hook.
+
 ## Observable release rehearsal
 
 An adopter starting from v0.1.6 can use the normal upgrade flow. The selected Go

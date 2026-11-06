@@ -7243,3 +7243,88 @@ Repeated `bash scripts/selftest/run.sh`, `bash scripts/selftest/adversarial-revi
 and `bash scripts/selftest/optional-packs.sh` reported 218, 53 and three passed
 respectively, with zero failed. These local results do not replace hosted
 qualification of the correction commit or human review before merge.
+
+## Decision 153 (2026-11-06 UTC): route source check orchestration through Go
+
+PR #168 merged as `b0b71509664c1952ddd090c2fdf282fa59c37879`. Its final
+head `4c11db4` passed all 32 hosted checks. The final adversarial review covered
+25 files and 34 fragments in 2m44s; both rounds received per-finding responses.
+Copilot could not review because of account quota. An unchanged targeted Linux
+base retry passed 2981 criteria after an initial bootstrap-refusal timeout;
+six focused refusal cases and 20 private Bash/Dash repetitions passed, but the
+original hosted timeout cause remains unproven. These are recorded prior results.
+
+Before code, adopt ADR 0138 for the next one-path group. Delegate direct source
+pre-push orchestration to the existing native check owner, preserving literal
+transport, actual Git stdin, project/role selection and stage semantics. Keep
+the documented copied source Git-hook form distinct from physical source-owner
+selection. Retain immutable native oracles and pin the four historical template
+materializers' pre-push dependency to their existing entrypoint revision.
+
+Keep generated installed recipe bytes unchanged. Record their pre-existing
+copied-hook root mismatch and stale initializer copy advice as an explicit R4
+release obligation, rather than folding a generation migration into this source
+cutover. Require independent RED/GREEN, bounded source/native and affected
+historical checks, source census, review and hosted qualification before merge.
+
+Decision 153 root-selection refinement before implementation: native check
+lexically joins relative REPO_ROOT but resolves an absolute value as supplied.
+A raw physical shell cd can therefore select the wrong runtime for relative
+`alias/..`. Independent path-only Go/Bash probes covered 64 cases on each of
+system and Homebrew Bash: 44 matched and 20 were shell refusals for selectors
+Go normalized to valid paths, with no admitted wrong target in either matrix.
+Use logical traversal for relative copied roots, physical for absolute roots,
+and retain conservative shell refusal for canceled missing/dangling/file
+components. Preserve raw caller environment. ADR 0138 states the distinction;
+independent source criteria must witness it rather than infer global parity.
+
+Decision 153 Bash identity refinement before implementation: private Bash 3/5
+probes showed that `bash script-name` can execute the first readable PATH file,
+even without its executable bit, while leaving `$0` bare; executable-only lookup
+can select a different file. Reuse the seven source libraries' qualified native
+indexed-array declaration guard before reading BASH_SOURCE[0], rather than
+implementing Bash's lookup algorithm. Inherited scalar metadata refuses before
+owner execution. ADR 0138 records this narrower authority and independent
+bare/PATH/refusal coverage; the earlier executable-identity wording is superseded.
+
+Decision 153 independent initial evidence: the seven new source criteria failed
+against the unchanged source controller (0/7 passed, 11.885 seconds). Actual dry
+discovery selected 93 of 3297 criteria. The unchanged native orchestration check
+focus separately passed 19/19 in 33.291 seconds in a disposable checkout.
+Implementation and actual source GREEN qualification remain pending.
+
+Decision 153 final-review correction before code: the seven source criteria first
+passed (18.193 seconds), then independent review reproduced a project-identity
+mismatch for a Git-discovered repository whose name ends in a newline. The
+copied adapter retains the path, while native check's TrimRight removes the
+pathname newline and can validate a sibling directory. Correct the Go owner's
+Git-root parser to remove only one output delimiter, preserving valid path bytes.
+Add an independent actual-native regression with a distinguishable sibling and
+observe RED before this single-boundary correction. Do not rewrite stages or
+installed recipes. ADR 0138 records the required owner/project agreement.
+
+Decision 153 independent correction evidence: the actual-native newline
+regression first selected the correct runtime but called the non-newline
+sibling's gate (wrong_runtime_called=false, wrong_gate_called=true), failing
+in 4.885 seconds. After the single-delimiter correction, the source-check plus
+native-check focus reported `26 Passed | 0 Failed` in 50.987 seconds, with both
+wrong-target witnesses false. Configured Go lint reported `0 issues.`. The
+partition criterion passed separately (1/1, 50.287 seconds); discovery remains
+93 source / 3297 total criteria. Full enclosing and hosted qualification remain
+pending. Independent test/custody review found no further actionable findings.
+
+Decision 153 enclosing local qualification: in a disposable complete checkout,
+`FACTORY_CLI_TEST_RACE=1 GORACE=atexit_sleep_ms=0 GOTOOLCHAIN=local make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_TIMEOUT=25m`
+reported `93 Passed | 0 Failed` in 162.503 seconds with four workers and exited
+zero after quality checks. Lint reported `0 issues.`, gosec reported `Issues : 0`,
+and govulncheck reported no called-code vulnerabilities, with ten module-only
+advisories. Independent production and fixture reviews have no remaining
+actionable findings. Hosted checks and human review remain separate requirements.
+
+Affected historical qualification in the same disposable checkout:
+`bash scripts/selftest/run.sh`, `bash scripts/selftest/optional-packs.sh`,
+`bash scripts/selftest/java-build-tool.sh`, `bash scripts/selftest/budget.sh`
+and `bash scripts/selftest/loop.sh` reported 218, 3, 6, 32 and 40 passed
+respectively, each with zero failed. No historical assertions or deadlines changed.
+The primary operator binary's hash and executable mode, and unrelated user files,
+matched the pre-task custody record after these checks.

@@ -18,7 +18,7 @@ Replace the direct script with an executable adapter to its physical checkout's
 qualified for source check orchestration. Preserve caller cwd, literal arguments,
 environment, stdin, stdout, stderr and command status. Support directory aliases,
 spaces and newline paths, and Bash's readable PATH-selected script invocation.
-Refuse inherited scalar source metadata and a final-file symlink before handoff.
+Refuse inherited scalar source metadata and a symlinked `factory-budget.sh` before handoff.
 
 The source launcher owns any required development compilation. Missing or failing
 owners and compilation failures must not select another checkout, PATH factory,
@@ -119,3 +119,29 @@ the general/Java historical templates and the two Go transition fixture builders
 Python fixture materializers preserve module mode 0644; Go private fixtures keep
 their existing restrictive modes. The loop wrapper and `loop.py` remain current
 subjects until group 6; current policy-gate inputs remain separate from oracles.
+
+## Qualification failure diagnostics
+
+The first hosted macOS source run retained golden work after a compiler timeout
+despite observing the actual compiler group gone and its source build cleaned.
+The evaluator currently discards the typed native ownership error, hiding the
+failed cleanup phase. Preserve that typed cause when retaining work and expose
+only its existing bounded `SafeDiagnostic` fields alongside the generic error.
+Do not print arbitrary error text, runner output, ownership tokens or environment.
+Keep status, retained inputs, cancellation, signal ordering, receipts and deadlines
+unchanged. Qualify an actual forced cooperative refusal and diagnostic privacy
+before implementation; this observability correction alone does not establish
+the cause of the intermittent hosted failure.
+
+## Source fixture startup and cancellation bounds
+
+Parallel qualification separately reproduced compiler readiness exceeding the
+fixture's three-second read deadline, before any signal was sent. After release,
+the actual compiler and launcher completed normally. Startup latency is not the
+cancellation contract. Derive the readiness bound from the existing ten-second
+fixture context, reserving the unchanged two-second post-signal completion window.
+Retain every process/group, inherited-descriptor and source-preservation assertion.
+Exercise a controlled four-second pre-readiness delay in the actual fixture and
+observe its failure before changing the readiness bound; the same held-open
+compiler must still exit within the original post-signal window. No production
+launcher, timeout, shutdown grace or global suite limit changes for this correction.

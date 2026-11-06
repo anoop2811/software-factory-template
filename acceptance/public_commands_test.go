@@ -241,7 +241,11 @@ var _ = Describe("G2 public native command failures", func() {
 		if kind == "loop" {
 			checkpoint, err := os.ReadFile(filepath.Join(checkout, ".factory/loops.json"))
 			Expect(err).NotTo(HaveOccurred())
-			runs := budgetDecode(checkpoint).(map[string]any)["runs"].([]any)
+			decodedCheckpoint := budgetDecode(checkpoint)
+			checkpointObject, ok := decodedCheckpoint.(map[string]any)
+			Expect(ok).To(BeTrue(), "loop checkpoint must be a JSON object, got %T", decodedCheckpoint)
+			runs, ok := checkpointObject["runs"].([]any)
+			Expect(ok).To(BeTrue(), "loop checkpoint runs must be a JSON array, got %T", checkpointObject["runs"])
 			Expect(runs).To(HaveLen(1))
 			Expect(runs[0]).To(HaveKeyWithValue("status", "stopped"))
 			Expect(runs[0]).To(HaveKeyWithValue("outcome", "interrupted"))

@@ -7418,3 +7418,69 @@ checks exited zero: zero gosec issues and no called-code vulnerabilities, with
 ten module-only advisories. Local source acceptance, affected follow-up and
 quality components are complete; hosted exact-commit checks and human review
 remain required before merge.
+
+Decision 154 hosted-review clarification before edits: the first advisory review
+completed all 16 files and 25 fragments in 2m23s. Clarify ADR 0139's existing
+final-component refusal as applying to the executable budget adapter itself;
+the selected checkout's factory remains its trusted owner. Improve the new loop
+checkpoint assertion's diagnostics with checked JSON object/array assertions,
+preserving all state expectations and deadlines. This is a test-only diagnostic
+change, not a runtime behavior change. Verify the other advisory claims against
+complete fixture inputs, citations and executable-command contracts before reply.
+
+Decision 154 review-diagnostic evidence: the unchanged five public cancellation
+cases with checked checkpoint shapes reported `5 Passed | 0 Failed` under race
+in 7.326 seconds. Configured lint reported `0 issues.`. The first hosted source
+macOS partition reported 99/100: the existing cold-compiler cancellation case
+observed both the admitted compiler PID and group absent before fixture cleanup,
+but the public evaluator returned status 1 with retained work. This differs from
+the earlier local readiness failure. Preserve the failing report and investigate
+the nested ownership decision before claiming a correction or rerunning CI.
+
+Decision 154 diagnostic refinement before code: ten instrumented private repeats
+of the unchanged cold criterion completed (twenty ordinary/delayed compiler runs)
+without reproducing the hosted ownership refusal. The complete parallel source
+run is still in progress. Preserve native ownership errors at the golden boundary
+and emit only their existing bounded safe diagnostic fields, with independent
+refusal/privacy coverage. Do not expose arbitrary error strings or runner output,
+and do not relax signal/ownership/deadline rules based on an unproven hypothesis.
+ADR 0139 records this diagnostic correction; the hosted cause remains open.
+
+Decision 154 independent startup correction before test changes: the instrumented
+parallel source run again observed two three-second compiler readiness failures
+before signaling; releasing the fixture then produced successful compiler and
+launcher completion. Use the existing ten-second fixture deadline for startup
+while reserving its unchanged two-second post-signal interval. First observe a
+controlled four-second startup-delay RED, then preserve the original cancellation
+and ownership assertions. This corrects a fixture startup assumption, not the
+separate hosted outer ownership refusal. ADR 0139 records both boundaries.
+
+Decision 154 instrumented parallel evidence: `make go-runtime-source-check
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=4` selected 100
+criteria and reported `98 Passed | 2 Failed` in 185.217 seconds. Both cold compiler
+modes passed, bringing the diagnostic attempts to twenty-two actual cancellations
+without reproducing the hosted ownership refusal. The two failures were startup
+readiness (TERM and healthy completion), with successful launcher exit after
+fixture release. No cooperative ownership-policy change is justified by these
+observations; retain the existing strict policy and add actionable diagnostics.
+
+Decision 154 correction evidence: the controlled four-second startup witness
+failed before signaling under the old three-second readiness bound (one failed
+criterion, 6.442 seconds), then the nine-criterion source focus reported
+`9 Passed | 0 Failed` in 39.439 seconds with the reserved fixture deadline.
+Delayed INT readiness took 5.466 seconds; the unchanged two-second post-signal
+window passed with status 130, compiler absence and unchanged source. The real
+forced-cooperation witness first failed because the public error omitted its
+recorded PID/cleanup facts. After preserving typed errors, both timeout and parent
+cancellation retained work and status 1 while reporting bounded cooperation
+evidence without private runner stderr or its generated token.
+
+Decision 154 final follow-up qualification: the complete four-worker source Make
+command exited zero with `100 Passed | 0 Failed` in 186.235 seconds, configured
+lint `0 issues.`, gosec zero issues and govulncheck no called-code vulnerabilities
+(ten module-only advisories). During that run, independent review moved the
+private stderr poison before readiness; the final ordering separately passed the
+nine-criterion race focus above, the formatter privacy criterion (1/1), and
+configured lint. The enclosing acceptance registrations remain 3305/source 100.
+Independent review found no surviving follow-up finding. Exact-head hosted
+qualification remains required; the original ownership-refusal cause is unproven.

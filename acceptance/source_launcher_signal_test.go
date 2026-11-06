@@ -227,7 +227,13 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		writeFixture(filepath.Join(root, "factory"), launcher, 0700)
 		writeFixture(filepath.Join(root, "factory-go"), []byte("#!/bin/sh\nexit 96\n"), 0700)
 		tools := filepath.Join(root, "compiler tools")
-		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nexec \"$SOURCE_COMPILER_HELPER\" "+sourceCompilerHandshake+" \"$@\"\n"), 0700)
+		startupDelay := ""
+		if received == syscall.SIGINT && !diagnostic {
+			// Exercise startup separately from the unchanged post-signal bound.
+			// per docs/adr/0139-go-source-budget-entrypoint.md:144
+			startupDelay = "/bin/sleep 4\n"
+		}
+		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\n"+startupDelay+"exec \"$SOURCE_COMPILER_HELPER\" "+sourceCompilerHandshake+" \"$@\"\n"), 0700)
 		published := filepath.Join(filepath.Dir(root), "actual compiled source result")
 		writeFixture(published, candidateBinary, 0700)
 		executable := sourceCompilerHelperImage
@@ -281,11 +287,17 @@ var _ = Describe("Go source launcher signal ownership", func() {
 			}
 		})
 		before := installationSnapshot(root)
+		started := time.Now()
 		Expect(command.Start()).To(Succeed())
 		go func() { finished <- command.Wait() }()
 		Expect(readyWriter.Close()).To(Succeed())
 		Expect(releaseReader.Close()).To(Succeed())
-		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
+		// Startup shares the existing fixture deadline, reserving the signal window.
+		// per docs/adr/0139-go-source-budget-entrypoint.md:141
+		deadline, bounded := ctx.Deadline()
+		Expect(bounded).To(BeTrue())
+		startupDeadline := deadline.Add(-2 * time.Second)
+		Expect(ready.SetReadDeadline(startupDeadline)).To(Succeed())
 		var compiler struct {
 			PID, Group  int
 			Descriptors map[string]string
@@ -334,6 +346,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(actualGroup).To(Equal(compiler.PID))
 		Expect(actualGroup).NotTo(Equal(launcherGroup))
 		Expect(compiler.Descriptors).To(Equal(expectedDescriptors), "occupied FD5 through FD20 must retain their exact bytes while FD3/4 carry the held-open handshake")
+		AddReportEntry("source-launcher.compiler-startup", map[string]any{"controlled_delay": startupDelay != "", "elapsed_seconds": time.Since(started).Seconds()})
+		Expect(time.Now().Before(startupDeadline)).To(BeTrue(), "startup must leave the unchanged two-second completion window before signaling")
 		if received == 0 {
 			releaseCompiler()
 		} else {

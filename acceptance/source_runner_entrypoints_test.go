@@ -122,6 +122,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		sourceBefore = installationSnapshot(sourceOwner)
 	case external != "":
 		body = "#!/bin/sh\ntrap '' TERM\nprintf 'FIXED\\n' > \"$1/answer.txt\"\nprintf '%s\\t%s\\n' \"$$\" \"$1\" >> \"$SOURCE_RUNNER_READY\"\nexec /bin/sleep 60\n"
+		if external == "ignores-term" {
+			// Runner stderr and its private receipt token are never public diagnostics.
+			// per docs/adr/0139-go-source-budget-entrypoint.md:130
+			body = strings.Replace(body, "trap '' TERM\n", "trap '' TERM\nprintf 'PRIVATE_RUNNER_STDERR token=%s\\n' \"$FACTORY_EVAL_OWNERSHIP_TOKEN\" >&2\n", 1)
+		}
 		if external == "unacknowledged" {
 			// Preserve the original non-trapping timeout fixture verbatim as a
 			// distinct ownership-refusal criterion. Its child receipt is one PID.
@@ -304,6 +309,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 				Expect(err).NotTo(HaveOccurred(), "uncertain nested ownership must retain its actual private work directory")
 				Expect(info.IsDir()).To(BeTrue())
 				Expect(stderr.String()).To(ContainSubstring(strconv.Quote(work)), "the refusal must safely quote retained work for recovery")
+				// Preserve the actual forced cooperative failure through the public boundary.
+				// per docs/adr/0139-go-source-budget-entrypoint.md:128
+				Expect(stderr.String()).To(MatchRegexp(fmt.Sprintf(`pid=%d phase=(signal|reap|pipe_drain|group|cooperation) signal_errno=(none|unknown|[0-9]+) reaped=(true|false) exit_confirmed=(true|false) drained=(true|false) group_state=(not_observed|absent|present|inspection_error) group_errno=(none|unknown|[0-9]+) reaped_before_signal=(true|false)`, pid)))
+				Expect(stderr.String()).NotTo(ContainSubstring("PRIVATE_RUNNER_STDERR"))
+				Expect(stderr.String()).NotTo(MatchRegexp(`[0-9a-f]{64}`), "the generated ownership token must stay private")
 			}
 		}
 	} else {

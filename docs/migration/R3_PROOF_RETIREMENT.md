@@ -313,7 +313,9 @@ The general, optional-pack, Java and budget delivery fixtures also need the
 complete historical loop inputs because their archived initializer copies those
 assets. Current policy gates remain separate live subjects. The transition
 fixtures freeze the same controller/module closure while continuing to exercise
-current Go exclusion. The historical initializer component retains only its old
+current Go exclusion. The interrupted-recovery admission probe likewise loads the
+immutable transition module in a separate private directory, preserving the
+observed adopter tree and both shared/exclusive barrier assertions. The historical initializer component retains only its old
 input inventory through a test-only build overlay; its current engine and full
 artifact assertions remain unchanged. The actual shipped candidate has no such
 overlay and separately qualifies current source input retirement. See

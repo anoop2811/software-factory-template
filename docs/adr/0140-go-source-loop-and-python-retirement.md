@@ -91,3 +91,14 @@ All initializer engine code and assertions remain current. The historical driver
 is never the shipped candidate CLI. Independently exercise current inventory
 retirement through the unmodified candidate/current source copy and initialization
 boundaries, so historical retention cannot hide a current packaging defect.
+
+## Interrupted-recovery oracle custody
+
+The interrupted-recovery acceptance probe imports `runtime_transition` by module
+name through a source-tree `sys.path`, so a filename-only dependency search misses
+it. Retain its actual Python shared/exclusive admission assertions by materializing
+the immutable transition module in a separate private test directory. Keep that
+oracle outside the adopter tree whose unchanged bytes the recovery criteria
+assert. Do not restore a production module or weaken pending-barrier assertions.
+Audit bare imports and dynamic module/path construction as well as literal
+filenames before declaring the retirement reference inventory complete.

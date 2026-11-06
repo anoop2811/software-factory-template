@@ -7594,3 +7594,23 @@ they checked the six production paths, immutable closure, inventory-only overlay
 unchanged historical assertions and independent current initialization proof.
 The enclosing source gate and affected historical-init/transition qualification
 are still running and must be recorded separately before completion.
+
+Decision 155 hosted recovery correction before edits: Linux base qualification
+reported `2979 Passed | 3 Failed`; all three failures are the existing interrupted
+recovery Python admission probe importing bare `runtime_transition` through the
+current source `scripts/lib` directory. That import was missed by the earlier
+filename-focused audit. Retain its shared/exclusive pending-barrier checks using
+the same immutable transition module in a separate private oracle directory,
+without changing the observed adopter tree. Extend the audit to bare and dynamic
+imports. Reproduce the three failures, then run the affected recovery/publication
+criteria and review the correction; production retirement remains unchanged.
+
+Decision 155 recovery-import evidence: the exact three killed-owner criteria
+first failed with `ModuleNotFoundError: No module named 'runtime_transition'`
+in 4.724 seconds. After the private pinned-module correction, the interrupted
+recovery/live-publication/Python-transition focus reported `63 Passed | 0 Failed`
+in 36.722 seconds. Independent review confirmed the embedded Python program and
+all registered recovery bodies are unchanged. A full tracked bare-import and
+dynamic-loader audit found no other current-tree retired-module consumer; the
+remaining loaders resolve through identified immutable fixtures. Exact-head
+hosted qualification remains required.

@@ -19,3 +19,11 @@ artifact assertions through the inventory-only build overlay in
 journey removes the retired files before initialization in
 `acceptance/source_entrypoints_test.go:630`. The decision and limits are canonical
 in `docs/adr/0140-go-source-loop-and-python-retirement.md:85`.
+
+Audit both filenames and module names plus import-path construction. An embedded
+`import runtime_transition` received a separate live `scripts/lib` argument and
+escaped the initial filename search. Observed 2026-11-06 in the three failing
+interrupted-recovery criteria of [hosted run 42238772848](https://github.com/anoop2811/software-factory-template/actions/runs/42238772848);
+`docs/adr/0140-go-source-loop-and-python-retirement.md:95` records its explicit
+private-oracle disposition. Passing source-entrypoint checks do not cover this
+separate base-family recovery consumer.

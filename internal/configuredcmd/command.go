@@ -22,7 +22,7 @@ func Run(parent context.Context, kind string, args []string, environment map[str
 	if kind != "budget" && kind != "loop" {
 		return 2, errors.New("unsupported configured command")
 	}
-	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP) // docs/adr/0139-go-source-budget-entrypoint.md:100.
 	defer stop()
 	var err error
 	if kind == "budget" {

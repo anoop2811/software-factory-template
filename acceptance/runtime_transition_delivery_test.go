@@ -16,11 +16,16 @@ func transitionInstallationSource() (string, string, []string) {
 	Expect(err).NotTo(HaveOccurred())
 	for _, name := range []string{"factory-budget.sh", "factory-loop.sh", "factory-upgrade.sh", "factory-init.sh"} {
 		var data []byte
-		if name == "factory-init.sh" || name == "factory-upgrade.sh" {
+		switch name {
+		case "factory-budget.sh":
+			// Preserve historical budget delivery; loop remains a live subject.
+			// per docs/adr/0139-go-source-budget-entrypoint.md:57
+			data = sourceLegacyEntrypointBytes("scripts/" + name)
+		case "factory-init.sh", "factory-upgrade.sh":
 			// Historical source delivery keeps its actual pre-adapter engine.
 			// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136
 			data = sourceLegacyEntrypointBytes("scripts/" + name)
-		} else {
+		default:
 			var err error
 			data, err = os.ReadFile(filepath.Join(repo, "scripts", name))
 			Expect(err).NotTo(HaveOccurred())
@@ -42,6 +47,10 @@ func transitionInstallationSource() (string, string, []string) {
 	// Current transition shim/controllers retain coherent historical dependencies.
 	// per docs/adr/0137-go-source-shared-helpers.md:84
 	for _, name := range []string{"config.sh", "roles.sh", "budget-config.sh", "events.sh", "timing.sh", "color.sh", "hookspath.sh"} {
+		writeFixture(filepath.Join(source, "scripts/lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
+	}
+	// per docs/adr/0139-go-source-budget-entrypoint.md:48
+	for _, name := range []string{"budget.py", "budget_adapters.py", "runtime_transition.py"} {
 		writeFixture(filepath.Join(source, "scripts/lib", name), sourceLegacyEntrypointBytes("scripts/lib/"+name), 0600)
 	}
 	return source, target, environment

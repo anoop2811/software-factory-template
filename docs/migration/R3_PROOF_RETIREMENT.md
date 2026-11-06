@@ -30,7 +30,8 @@ its expanded count; a lexical count must not be presented as executed coverage.
 The original map was created through source reading and deterministic text
 extraction, without running native or historical behavioral suites. Later
 qualification is recorded separately below, with its decision and evidence.
-Budget, loop and general-family dispositions remain **OPEN**. Review retention
+Budget retention under Decision 154 has local execution and review evidence below;
+loop and general-family dispositions remain **OPEN**. Review retention
 under Decision 150 has local execution evidence and merged PR #166; its final
 head passed all 32 hosted checks and its advisory findings received responses.
 No percentage is inferred from matching names, table length or the size of the
@@ -215,6 +216,39 @@ Historical source: [scripts/selftest/budget/acceptance.py](https://github.com/an
 | B30 | active unknown-cost invocation blocks concurrent estimate-stop admission (`:689`) | B-plan | P | Require a live unfinished ordinary invocation under estimate-stop, not only a statically uncertain row. |
 | B31 | unclean supervisor death remains a charged fail-closed reservation (`:702`) | P-death, B-plan | P | Transition evidence after abrupt death is covered; compare charged budget reservation and later public refusal as one scenario. |
 | B32 | installer and upgrade deliver working local budget commands without enabling paid runs (`:724`) | I-init, I-activate | P | Native installation/activation exist; compare post-install budget plan and disabled paid execution for the supported predecessor. |
+
+### Budget retention under Decision 154
+
+The B01-B32 registrations have **RETAINED-HISTORICAL** custody qualified locally
+under Decision 154 / [ADR 0139](../adr/0139-go-source-budget-entrypoint.md).
+Their C/P mappings above remain prospective native-retirement guidance, not
+claims of complete native equivalence. The compatibility purpose is to retain
+the legacy controller's compound fault, admission, privacy, usage and delivery
+regressions while the direct public source path moves to Go.
+
+The test-owned materializers load `scripts/factory-budget.sh`,
+`scripts/lib/budget.py`, `scripts/lib/budget_adapters.py` and
+`scripts/lib/runtime_transition.py` from immutable revision
+`1754de23de95a7e3c734bedd86894295e823c988`. These inputs are byte-identical at
+the ledger inventory revision and merged pre-cutover source. Both subset fixtures
+and the full legacy installation/repair fixture receive that closure. Existing
+dispatcher/readers retain their recorded immutable identities; fake harnesses
+are test-owned and live policy subjects stay current. Python fixture materializers
+retain module mode 0644 rather than making these inputs executable.
+
+The development-only command is `bash scripts/selftest/budget.sh`; the
+source/native public `factory selftest` and installed fourteen-gate proof do not
+discover this historical runner. No saved input becomes a runtime fallback.
+The 32 registered assertion bodies, including legacy installation/upgrade in
+B32, remain unchanged. Deterministic AST comparison to the inventory revision
+found 32 registrations and no changed registered function bodies. In the private
+post-adapter checkout, `bash scripts/selftest/budget.sh` reported
+`budget: 32 passed, 0 failed` with the CI-pinned Python 3.12.14 interpreter.
+Independent custody review found no surviving finding. This closes the budget
+retention disposition; enclosing source and hosted qualification remain separate.
+
+The active loop wrapper/module, other legacy transition/native-init fixture
+imports and final source public-selftest separation remain subsequent R3 work.
 
 ## Loop controller obligations
 

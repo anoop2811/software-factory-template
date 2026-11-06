@@ -611,17 +611,21 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0135-go-source-review-entrypoints.md:63
 		// Seven check adapter criteria join the measured source partition.
 		// per docs/adr/0138-go-source-check-orchestration.md:76
-		Expect(negativeTotal).To(Equal(3297))
+		// Seven source budget criteria and one native loop hangup regression join discovery.
+		// per docs/adr/0139-go-source-budget-entrypoint.md:76
+		// per docs/adr/0139-go-source-budget-entrypoint.md:107
+		Expect(negativeTotal).To(Equal(3305))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3297))
+		Expect(allTotal).To(Equal(3305))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
 		// per docs/adr/0137-go-source-shared-helpers.md:99
 		// per docs/adr/0138-go-source-check-orchestration.md:76
-		expectedCounts := map[string]int{"base": 2996, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 93}
+		// per docs/adr/0139-go-source-budget-entrypoint.md:76
+		expectedCounts := map[string]int{"base": 2997, "installation": 98, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 100}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

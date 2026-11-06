@@ -236,9 +236,21 @@ var _ = Describe("G2 public native command failures", func() {
 		row := records[0].(map[string]any)
 		Expect(row["outcome"]).To(Equal("interrupted"))
 		Expect(row["status"]).To(Equal("completed"))
+		// The shared cancellation owner must finish the loop checkpoint as well.
+		// per docs/adr/0139-go-source-budget-entrypoint.md:107
+		if kind == "loop" {
+			checkpoint, err := os.ReadFile(filepath.Join(checkout, ".factory/loops.json"))
+			Expect(err).NotTo(HaveOccurred())
+			runs := budgetDecode(checkpoint).(map[string]any)["runs"].([]any)
+			Expect(runs).To(HaveLen(1))
+			Expect(runs[0]).To(HaveKeyWithValue("status", "stopped"))
+			Expect(runs[0]).To(HaveKeyWithValue("outcome", "interrupted"))
+		}
 		Eventually(func() bool {
 			state := loopProcess(cwd, "/bin/ps", []string{"-o", "stat=", "-p", strconv.Itoa(pid)}, nil)
 			return state.status != 0 || strings.HasPrefix(strings.TrimSpace(state.stdout), "Z")
 		}, time.Second).Should(BeTrue())
-	}, Entry("budget SIGINT", "budget", syscall.SIGINT), Entry("budget SIGTERM", "budget", syscall.SIGTERM), Entry("loop SIGINT", "loop", syscall.SIGINT), Entry("loop SIGTERM", "loop", syscall.SIGTERM))
+	}, Entry("budget SIGINT", "budget", syscall.SIGINT), Entry("budget SIGTERM", "budget", syscall.SIGTERM), Entry("loop SIGINT", "loop", syscall.SIGINT), Entry("loop SIGTERM", "loop", syscall.SIGTERM),
+		// per docs/adr/0139-go-source-budget-entrypoint.md:107
+		Entry("loop SIGHUP", "loop", syscall.SIGHUP))
 })

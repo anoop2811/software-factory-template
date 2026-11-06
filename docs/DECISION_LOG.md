@@ -7328,3 +7328,93 @@ and `bash scripts/selftest/loop.sh` reported 218, 3, 6, 32 and 40 passed
 respectively, each with zero failed. No historical assertions or deadlines changed.
 The primary operator binary's hash and executable mode, and unrelated user files,
 matched the pre-task custody record after these checks.
+
+## Decision 154 (2026-11-06 UTC): route the source budget command through Go
+
+PR #169 merged as `b9dfdba5979ba120843eb10689e90debe6245dc4`. Its final head
+`b90171f` passed all 32 hosted checks. Linux and macOS source jobs each passed
+93 criteria. The advisory review completed 14 files and 17 fragments in 1m50s;
+all five findings were independently checked and answered, with no actionable
+finding remaining. Copilot could not review because of quota. These are recorded
+prior results, not checks rerun by this documentation change.
+
+Before code, adopt ADR 0139 for R3 group 5. Delegate the direct source budget
+path to the existing native configured command, retaining physical source-owner
+selection and literal caller transport. Preserve admission, model routing,
+private accounting and process ownership through their existing Go owners.
+Retain the 32 historical budget registrations with explicit immutable fixture
+custody rather than deleting them or inferring parity from test counts. Keep
+installed recipes unchanged and defer shared Python removal to the loop group.
+Require independent source RED/GREEN, affected historical/native checks, actual
+source census, enclosing qualification and review before merge.
+
+Decision 154 custody refinement before fixture changes: independent Git object
+comparison found both budget/loop wrappers and all four Python modules identical
+at existing fixture revision `1754de2`, inventory revision `f3a0b65` and merged
+`b9dfdba`. Reuse the existing full immutable revision rather than introduce a new
+oracle identity. Pin these dependencies in affected full/subset materializers;
+delivery assertions compare against explicit historical input bytes, retaining
+the same installation and repair obligations. Keep current policy subjects current.
+
+Decision 154 signal correction before code: independent probes used an actual
+privately compiled factory and fake Claude child after stdin/PID readiness.
+SIGHUP terminated the native parent with status -1 while the child remained
+running and its reservation stayed active. The SIGTERM control exited 130,
+reaped the child and recorded interruption. The legacy budget controller handles
+SIGHUP. Extend the existing configured-command cancellation context to include
+hangup, reusing its cleanup/accounting path. Require independent RED/GREEN and
+retain the existing interrupt/termination checks; ADR 0139 records this bounded
+parity correction before the direct source path changes owner.
+
+Decision 154 shared-signal scope: the legacy loop invokes the same budget
+execution helpers for models and checks, so hangup handling also belongs in the
+shared native configured-command context. Add one existing public-loop matrix
+entry for SIGHUP with checkpoint/accounting/child-exit assertions; the direct
+loop source conversion remains group 6. Independent actual-native budget HUP
+RED observed parent status -1, a live acknowledged child and active/running
+accounting (one failed criterion, 2.038 seconds) before the Go correction.
+
+Decision 154 independent source/native evidence: the initial seven-criterion
+run produced six intended source-dispatch failures and one invalid task-name
+fixture failure. The author corrected that input before observing the separate
+native budget HUP failure above. The added public loop HUP entry also failed
+after child readiness (parent -1 instead of 2, 2.527 seconds). After the adapter
+and shared notification correction, the race focus for the seven source budget
+criteria and 29 public native criteria reported `36 Passed | 0 Failed` in
+74.595 seconds. Budget INT/TERM/HUP returned 130 with the acknowledged child
+gone and completed/interrupted accounting; loop HUP returned 2 with its stopped,
+interrupted checkpoint. The independently executed disjoint-partition criterion
+reported `1 Passed | 0 Failed` in 60.607 seconds. Actual discovery found 3305
+total criteria, 100 source and 2997 base, with other partitions unchanged.
+Enclosing local and hosted qualification remain separate requirements.
+
+Decision 154 broader local evidence: the budget/configuration/transition race
+focus reported `345 Passed | 0 Failed` in 314.592 seconds using the CI-pinned
+Python 3.12.14 interpreter. An earlier 274-criterion baseline used local Python
+3.12.0 and reported four existing attached-help parser mismatches; no parser
+expectations or production behavior changed to accommodate that interpreter.
+Post-adapter `bash scripts/selftest/run.sh`, `optional-packs.sh`,
+`java-build-tool.sh`, `budget.sh` and `loop.sh` under `scripts/selftest/`
+reported 218, 3, 6, 32 and 40 passed respectively, each with zero failed.
+Independent review found no surviving production or fixture finding. Budget
+B01-B32 custody is now locally qualified as retained historical evidence.
+
+The first enclosing four-worker source run reported 98 passed and two failed
+in 216.789 seconds. Unchanged compiler INT readiness and cold evaluation-runner
+readiness cases exceeded their existing 3/5-second observation bounds. Neither
+case invokes the configured budget/loop cancellation owner. Both passed unchanged
+in an isolated race focus (2/2, 10.930 seconds). The original cause remains
+unproven; no deadline/assertion changes or timing correction are claimed. An
+unchanged full source rerun is required before publishing this candidate.
+
+Decision 154 final local qualification: the unchanged four-worker source rerun
+reported `100 Passed | 0 Failed` in 198.292 seconds. The enclosing Make target
+then stopped on two test-only switch-style lint findings. After equivalent tagged
+switch rewrites, configured `golangci-lint run --config packs/go/.golangci.yml ./...`
+reported `0 issues.` and the affected source-budget/transition-delivery race
+focus reported `10 Passed | 0 Failed` in 24.692 seconds. Assertions and deadlines
+are unchanged. The remaining configured `gosec ./...` and `govulncheck ./...`
+checks exited zero: zero gosec issues and no called-code vulnerabilities, with
+ten module-only advisories. Local source acceptance, affected follow-up and
+quality components are complete; hosted exact-commit checks and human review
+remain required before merge.

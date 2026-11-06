@@ -124,14 +124,27 @@ var _ = Describe("Go source runtime entrypoints shared helper adapters", func() 
 				Expect(os.IsNotExist(err)).To(BeTrue())
 			}
 		}
+		// Temporary loaders disappear after successful imports of all seven libraries.
+		// per docs/adr/0137-go-source-shared-helpers.md:131
+		for _, library := range []string{"config", "roles", "budget-config", "events", "timing", "color", "hookspath"} {
+			root, caller, environment := sourceHelperNativeFixture()
+			imageGit(caller, "init", "-q")
+			loader := "_factory_source_" + strings.TrimSuffix(library, "-config") + "_load"
+			probe := `. "$1" || exit "$?"; if builtin declare -F "$2" >/dev/null; then printf loader-remains; fi`
+			out := handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", probe, "helper-loader-success", filepath.Join(root, "scripts/lib", library+".sh"), loader)
+			Expect(out).To(Equal(cliResult{"", "", 0}), "%s", library)
+		}
 		// A file alias cannot establish a different source owner.
 		// per docs/adr/0137-go-source-shared-helpers.md:23
-		for _, library := range []string{"events", "timing", "color", "hookspath"} {
+		// per docs/adr/0137-go-source-shared-helpers.md:132
+		for _, library := range []string{"config", "roles", "budget-config", "events", "timing", "color", "hookspath"} {
 			root, caller, environment := sourceHelperNativeFixture()
 			alias := filepath.Join(caller, library+" alias")
 			Expect(os.Symlink(filepath.Join(root, "scripts/lib", library+".sh"), alias)).To(Succeed())
 			beforeOwner, beforeCaller := installationSnapshot(root), installationSnapshot(caller)
-			out := handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", `. "$1"`, "helper-file-alias", alias)
+			loader := "_factory_source_" + strings.TrimSuffix(library, "-config") + "_load"
+			probe := `. "$1"; status=$?; if builtin declare -F "$2" >/dev/null; then printf loader-remains; fi; exit "$status"`
+			out := handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", probe, "helper-file-alias", alias, loader)
 			Expect(out.status).To(Equal(2), "%s: %+v", library, out)
 			Expect(out.stdout).To(BeEmpty())
 			Expect(out.stderr).To(ContainSubstring("file symlink"))
@@ -169,6 +182,35 @@ var _ = Describe("Go source runtime entrypoints shared helper adapters", func() 
 	// per docs/adr/0137-go-source-shared-helpers.md:38
 	// per docs/adr/0137-go-source-shared-helpers.md:56
 	It("selects POSIX owners lazily and retains helper-specific refusal behavior without fallback", func() {
+		// Actual Bash can inherit an exported scalar in place of source-array metadata.
+		// per docs/adr/0137-go-source-shared-helpers.md:123
+		// per docs/adr/0137-go-source-shared-helpers.md:132
+		shells := []string{"/bin/bash"}
+		if bash, err := exec.LookPath("bash"); err == nil && bash != shells[0] {
+			shells = append(shells, bash)
+		}
+		for _, shell := range shells {
+			for _, library := range []string{"config", "roles", "budget-config", "events", "timing", "color", "hookspath"} {
+				root, caller, environment := sourceHelperNativeFixture()
+				path := filepath.Join(root, "scripts/lib", library+".sh")
+				environment["FACTORY_RUNTIME_BINARY"], environment["FACTORY_SOURCE_ROOT"] = filepath.Join(root, "factory"), root
+				loader := "_factory_source_" + strings.TrimSuffix(library, "-config") + "_load"
+				for _, scalar := range []string{"", path, "declare -a BASH_SOURCE=([0]=forged)"} {
+					environment["BASH_SOURCE"] = scalar
+					probe := `before=$(builtin declare -p BASH_SOURCE); . "$1"; status=$?; builtin printf '%s\000' "$status"; [ "$before" = "$(builtin declare -p BASH_SOURCE)" ] || builtin printf metadata-changed; if builtin declare -F "$2" >/dev/null; then builtin printf loader-remains; fi; if [ "$3" = events ]; then factory_log_event gate reason; builtin printf '%s' "$?"; fi`
+					out := handoffNativeExactProcess(caller, environment, "", shell, "-c", probe, "helper-scalar-metadata", path, loader, library)
+					if library == "events" {
+						Expect(out).To(Equal(cliResult{"0\x000", "", 0}), "%s/%s scalar=%q", shell, library, scalar)
+					} else {
+						Expect(out.status).To(BeZero(), "%s/%s scalar=%q: %+v", shell, library, scalar, out)
+						Expect(out.stdout).To(Equal("2\x00"), "%s/%s scalar=%q: %+v", shell, library, scalar, out)
+						Expect(out.stderr).To(ContainSubstring("native Bash source metadata"))
+					}
+					_, err := os.Lstat(environment["CONFIG_CALLS"])
+					Expect(os.IsNotExist(err)).To(BeTrue(), "%s/%s scalar=%q must not execute an owner", shell, library, scalar)
+				}
+			}
+		}
 		posix := false
 		for _, shell := range sourceConfigRoleShells() {
 			root, caller, environment := sourceHelperNativeFixture()
@@ -310,12 +352,22 @@ var _ = Describe("Go source runtime entrypoints shared helper adapters", func() 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(calls)).To(Equal(strings.Join([]string{"helper", "palette", "0", "helper", "palette", "0", "helper", "palette", "1", "helper", "palette", "1", ""}, "\x00")))
 			if !isBash {
+				// A refused load also releases its temporary definition.
+				// per docs/adr/0137-go-source-shared-helpers.md:132
 				for _, invalid := range []string{"", "relative", filepath.Join(root, "absent")} {
 					environment["FACTORY_SOURCE_ROOT"] = invalid
 					environment["FACTORY_RUNTIME_BINARY"] = filepath.Join(root, "factory")
-					out := handoffNativeExactProcess(caller, environment, "", shell, "-c", probe, "invalid-color-root", library)
+					refusal := `. "$1"; status=$?; if command -v _factory_posix_color_load >/dev/null; then printf loader-remains; fi; exit "$status"`
+					out := handoffNativeExactProcess(caller, environment, "", shell, "-c", refusal, "invalid-color-root", library)
 					Expect(out.status).NotTo(BeZero(), "invalid source root %q: %+v", invalid, out)
+					Expect(out.stdout).To(BeEmpty())
 				}
+				// The root resolver remains available for a later action-box call.
+				// per docs/adr/0137-go-source-shared-helpers.md:134
+				environment["FACTORY_SOURCE_ROOT"] = root
+				delete(environment, "FACTORY_RUNTIME_BINARY")
+				later := `. "$1" || exit "$?"; if command -v _factory_posix_color_load >/dev/null; then exit 96; fi; cd "$2"; action_box title line`
+				Expect(handoffNativeExactProcess(root, environment, "", shell, "-c", later, "later-color-action", library, caller)).To(Equal(cliResult{"┌─ title \n│ line\n└─\n", "", 0}))
 				delete(environment, "FACTORY_SOURCE_ROOT")
 				imageGit(caller, "init", "-q")
 				sourceHelperLibraryAssets(caller)

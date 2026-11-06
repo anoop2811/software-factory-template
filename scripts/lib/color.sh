@@ -3,12 +3,22 @@
 # docs/adr/0137-go-source-shared-helpers.md:19.
 # Inherited Bash metadata alone cannot select Bash-only syntax.
 # shellcheck disable=SC3028
-if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
+if command test -n "${BASH_VERSION-}" &&
    command test "$(command type -t builtin 2>/dev/null)" = builtin; then
   # These features execute only in the Bash-capable branch.
-  # shellcheck disable=SC3043,SC3045,SC3054,SC3003
+  # shellcheck disable=SC3043,SC3044,SC3045,SC3054,SC3003
   _factory_source_color_load() {
-    builtin local _factory_source_root
+    builtin unset -f _factory_source_color_load
+    builtin local _factory_source_root _factory_source_declaration
+    # docs/adr/0137-go-source-shared-helpers.md:123.
+    _factory_source_declaration="$(builtin declare -p BASH_SOURCE 2>/dev/null)"
+    case "${_factory_source_declaration%% BASH_SOURCE=*}" in
+      'declare -'*a*) ;;
+      *)
+        builtin printf '%s\n' 'factory color: native Bash source metadata is required' >&2
+        return 2
+        ;;
+    esac
     builtin test ! -L "${BASH_SOURCE[0]}" || {
       builtin printf '%s\n' 'factory color: source the physical library instead of a file symlink' >&2
       return 2
@@ -23,8 +33,6 @@ if command test -n "${BASH_VERSION-}" && command test -n "${BASH_SOURCE-}" &&
     builtin . "$_factory_source_root/runtime/shell/source.sh"
   }
   _factory_source_color_load || return
-  # shellcheck disable=SC3045
-  builtin unset -f _factory_source_color_load
 else
   # The canonical plan interpreter must be sourced into this shell.
   # docs/adr/0137-go-source-shared-helpers.md:45.
@@ -49,6 +57,7 @@ else
     CDPATH='' command cd -P "$_factory_posix_root" && command pwd -P
   )
   _factory_posix_color_load() {
+    command unset -f _factory_posix_color_load
     # Supported POSIX source shells provide local, as the canonical bridge does.
     # shellcheck disable=SC3043
     command local _factory_posix_root
@@ -63,7 +72,6 @@ else
     command . "$_factory_posix_root/runtime/shell/helpers.sh"
   }
   _factory_posix_color_load || return
-  unset -f _factory_posix_color_load
   _factory_helper_call() (
     if [ "${FACTORY_RUNTIME_BINARY+x}" = x ]; then
       case "$FACTORY_RUNTIME_BINARY" in

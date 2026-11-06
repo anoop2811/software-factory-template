@@ -12,8 +12,8 @@ that implementation. Limiting color's source-root fallback to palette/action-box
 requests restored the non-color owner in both source orders; the final helper
 run reported `7 Passed | 0 Failed`.
 
-Provenance: `scripts/lib/color.sh:78`,
-`acceptance/source_helper_entrypoints_test.go:206`, and
+Provenance: `scripts/lib/color.sh:86`,
+`acceptance/source_helper_entrypoints_test.go:248`, and
 `docs/adr/0137-go-source-shared-helpers.md:36`.
 Local execution receipts: `.factory/qualification/r3-helpers/helpers-source-order-red.log`
 and `.factory/qualification/r3-helpers/helpers-final-green.log`.

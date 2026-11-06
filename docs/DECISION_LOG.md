@@ -7199,3 +7199,47 @@ vulnerabilities (the same ten module-only advisories). Both focused nested
 cancellation criteria also passed in 10.247 seconds. Independent final readback
 confirmed the unchanged deadlines and ownership assertions; no review findings
 remain. Hosted qualification and human review remain required before merge.
+
+Decision 152 hosted-review clarification: the first advisory review completed
+all 21 files and 27 fragments in one batch (6 minutes 37 seconds of job time).
+Both hosted source-platform jobs passed. Review item m5 correctly highlights
+the bootstrap formatter's missing hour form, although it emits minutes/seconds,
+not raw seconds. Record the deliberate display difference in ADR 0137 and the
+cutover ledger. A private copy of the actual `elapsed_since` function with a
+fixed 3840-second clock printed `64m 0s`; no runtime changes are needed.
+
+During local custody readback, an explicit test-edit enforcement invocation from
+the primary checkout had rebuilt its ignored operator binary through a native
+configuration read before the spec-writer allowance. Restore only the exact
+pre-task hash and recorded executable mode from the existing operator backup;
+readback matched both. Lesson 152 records this process mistake and its provenance.
+Subsequent enforcement qualification also belongs in disposable source trees.
+
+Decision 152 source-loader review correction, before code: the reported
+zsh/mksh capability case is outside the tested Bash/system-sh/Dash dialects, and
+the supported non-Bash forged-metadata probes pass. Independent inspection did
+find that actual Bash can inherit `BASH_SOURCE` as an exported scalar, losing
+native source-array authority. Bash 3 then resolves an empty prefix; Bash 5
+retains the scalar's text. Require native indexed-array metadata before physical
+path selection in all seven source libraries, with explicit status-two refusal
+except quiet no-op event logging. Also remove temporary loader definitions on
+both success and failure. Keep runtime-required private functions. ADR 0137
+records the contract; independent malformed-metadata and loader-lifetime RED
+must precede implementation, followed by the source and configuration checks.
+
+Decision 152 review-correction evidence: the extended seven helper criteria
+first reported four passed and three failed against the previous implementation.
+After the metadata and loader-lifetime changes, the independent helper plus
+configuration focus passed 15/15 (21.062 seconds of spec time). Independent
+transport probes passed 42 scalar-metadata cases, 14 successful-load cleanup
+cases, 14 symlink-refusal cleanup cases, three POSIX refusal-cleanup cases and
+one later POSIX resolver invocation; no findings remained in that review scope.
+In the disposable qualification checkout,
+`FACTORY_CLI_TEST_RACE=1 GORACE=atexit_sleep_ms=0 GOTOOLCHAIN=local make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_TIMEOUT=25m`
+reported `86 Passed | 0 Failed` in 129.248 seconds with four workers and exited
+zero after quality checks. Lint and gosec reported zero issues; govulncheck
+reported zero reachable vulnerabilities and ten module-only advisories.
+Repeated `bash scripts/selftest/run.sh`, `bash scripts/selftest/adversarial-review.sh`
+and `bash scripts/selftest/optional-packs.sh` reported 218, 53 and three passed
+respectively, with zero failed. These local results do not replace hosted
+qualification of the correction commit or human review before merge.

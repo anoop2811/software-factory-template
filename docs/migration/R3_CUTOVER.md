@@ -120,9 +120,15 @@ The measured census is 3290 total / 86 source criteria. Historical fixture suite
 retained their assertions. Decision 152 distinguishes those completed checks
 from earlier enclosing source-suite failures and hosted results. The final
 default four-worker source gate passed all 86 criteria and its quality stages
-after the documented cancellation-fixture startup correction. Hosted checks
-and merge remain pending. Merging this group would
+after the documented cancellation-fixture startup correction. The subsequent
+metadata/loader review correction passed 15 focused helper/configuration criteria
+and the complete 86-criterion source gate in 129.248 seconds. Hosted qualification
+of the correction commit and merge remain pending. Merging this group would
 bring the inventory to 24/32 (75%), leaving eight paths in four R3 groups.
+Installer cache-refresh timing retains its local bootstrap formatter: durations
+over an hour remain minutes/seconds, for example `64m 0s`. Native factory timing
+continues to use the hour form. This keeps elapsed reporting independent of
+downloaded source execution.
 
 ## Grouped delivery order
 

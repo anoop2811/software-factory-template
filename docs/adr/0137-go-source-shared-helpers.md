@@ -110,3 +110,27 @@ No timeout or criterion is removed to make a check pass. R3 is now 20/32 merged
 paths (62.5%); this four-path group moves it to 24/32 (75%) only after qualification
 and merge. The remaining check, budget, loop/Python and selftest groups and R4-R7
 release gates remain separate work.
+
+## Bootstrap duration display
+
+The installer keeps seconds below one minute and minutes/seconds thereafter.
+A 64-minute cache refresh therefore prints `64m 0s`; the native helper would
+print `1h 4m`. This limited bootstrap display difference is deliberate: elapsed
+reporting must not execute fetched source before handoff is authorized.
+
+## Source metadata and temporary loader lifetime
+
+Actual Bash may import `BASH_SOURCE` as an ordinary exported scalar. Require
+its native indexed-array metadata before using it as authority for a physical
+owner. An inherited scalar must not select a fallback owner: configuration,
+roles, budget settings, timing, color and hooksPath refuse with status two and
+an explicit diagnostic. Events retain a quiet no-op logger and source success
+because telemetry must not change an enforcement decision. Do not rewrite the
+caller's Bash metadata to recover it.
+
+Apply this ownership precondition to all seven sourceable libraries, including
+the three previously converted readers. Temporary loaders remove their own
+definitions on success and refusal; persistent functions needed for later
+invocations, including the POSIX color-root resolver, remain available. Keep
+canonical bridge definitions and Go/installed recipe bytes unchanged. Extend
+the independent source criteria without changing their census or deadlines.

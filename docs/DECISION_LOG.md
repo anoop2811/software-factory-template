@@ -7484,3 +7484,29 @@ nine-criterion race focus above, the formatter privacy criterion (1/1), and
 configured lint. The enclosing acceptance registrations remain 3305/source 100.
 Independent review found no surviving follow-up finding. Exact-head hosted
 qualification remains required; the original ownership-refusal cause is unproven.
+
+Decision 154 second advisory review before correction: exact-head coverage
+completed all 21 files/34 fragments. Independent review confirmed a test cleanup
+gap: early assertion failure before child identity parsing bypasses child cleanup,
+and a cleanup assertion can abort parent joining. ADR 0139 now requires bounded
+cooperative parent termination, validated fixture identity recovery, child/group
+absence and retained uncertain fixtures on this failure path. Qualify an actual
+early-exit witness before correcting the helper. Other sourcing/privacy/schema/
+mode-restoration claims are being checked against complete source and evidence.
+
+Decision 154 cleanup RED: the early-return control acknowledged the real harness
+while leaving normal-body child/group fields zero. Existing cleanup reaped the
+parent with status -1 but left the independently observed child/group alive; the
+criterion failed its ESRCH assertion in 4.002 seconds. The control's separate
+witness cleanup then terminated and observed absence of that exact owned group.
+This establishes the reviewed test failure-path defect before helper correction.
+
+Decision 154 cleanup GREEN: final-source budget race qualification reported
+`7 Passed | 0 Failed` in 13.627 seconds and configured lint reported `0 issues.`.
+The early-return parent exited 130 and its independently observed child/group
+were absent; all original native/source INT/TERM/HUP checks remained intact.
+Independent review found no surviving finding; only the source-budget fixture
+changed. Four private Bash 3/5 sourcing probes also refuted wrong-owner dispatch:
+each selected the physical owner, returned its status 63 and never called the
+foreign owner. Both hosted source partitions passed on a393b78 before this final
+fixture correction; exact final-head checks remain required.

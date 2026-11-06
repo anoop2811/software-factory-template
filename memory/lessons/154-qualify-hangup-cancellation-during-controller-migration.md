@@ -13,7 +13,7 @@ The subsequent 36-criterion race focus passed: budget returned 130 with child
 exit and interrupted accounting; loop returned 2 with an interrupted checkpoint.
 
 Provenance: `internal/configuredcmd/command.go:25`,
-`acceptance/source_budget_entrypoint_test.go:373`,
+`acceptance/source_budget_entrypoint_test.go:497`,
 `acceptance/public_commands_test.go:176`, and
 `docs/adr/0139-go-source-budget-entrypoint.md:91`.
 Local RED receipts are `budget-hup-red` and `loop-hup-red`; GREEN is

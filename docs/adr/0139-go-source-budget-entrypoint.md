@@ -145,3 +145,16 @@ Exercise a controlled four-second pre-readiness delay in the actual fixture and
 observe its failure before changing the readiness bound; the same held-open
 compiler must still exit within the original post-signal window. No production
 launcher, timeout, shutdown grace or global suite limit changes for this correction.
+
+## Cancellation fixture failure cleanup
+
+Cleanup must also own the path where readiness or parsing fails before the test
+body stores its child identity. Request cooperative termination of the known
+parent and join it within a bounded interval before falling back to parent kill.
+Recover child authority only from validated fixture evidence; never infer an
+unobserved child group from the launcher group. Use recorded ownership for any
+remaining group termination, observe absence, and preserve the fixture when
+identity, exit or group cleanup cannot be established. A failed child cleanup
+assertion must not skip parent termination and joining. Exercise an early exit
+after actual child readiness but before normal-body PID parsing, and prove both
+parent reap and child/group absence before private directories are removed.

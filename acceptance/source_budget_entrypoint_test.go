@@ -84,6 +84,130 @@ func sourceBudgetRecord(project string) map[string]any {
 	return rows[0].(map[string]any)
 }
 
+// Recover authority before terminating the still-known parent. A receipt alone
+// cannot authorize a group: bind it to the ledger and observe the actual group.
+// per docs/adr/0139-go-source-budget-entrypoint.md:154
+func sourceBudgetCleanupIdentity(project string, parent int) (int, int, error) {
+	data, err := os.ReadFile(filepath.Join(project, "native-calls.jsonl"))
+	if err != nil {
+		return 0, 0, err
+	}
+	if !bytes.HasSuffix(data, []byte("\n")) {
+		return 0, 0, errors.New("incomplete native fixture receipt")
+	}
+	pid, runs := 0, 0
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		var call struct {
+			PID       int
+			Cwd       string
+			Help      bool
+			Published bool `json:"pid_published_before_input"`
+		}
+		if err := json.Unmarshal(line, &call); err != nil {
+			return 0, 0, err
+		}
+		if call.Help {
+			continue
+		}
+		if call.PID <= 1 || call.Cwd != project || !call.Published {
+			return 0, 0, errors.New("native fixture receipt lacks admitted child identity")
+		}
+		pid, runs = call.PID, runs+1
+	}
+	if runs != 1 {
+		return 0, 0, errors.New("native fixture receipt must identify exactly one execution")
+	}
+	data, err = os.ReadFile(filepath.Join(project, ".factory/budget.json"))
+	if err != nil {
+		return 0, 0, err
+	}
+	var ledger struct {
+		Runs []struct {
+			Owner                 int `json:"owner_pid"`
+			Process               int `json:"process_pid"`
+			Status, Session, Task string
+		}
+	}
+	if err := json.Unmarshal(data, &ledger); err != nil {
+		return 0, 0, err
+	}
+	if len(ledger.Runs) != 1 || ledger.Runs[0].Owner != parent || ledger.Runs[0].Process != pid ||
+		ledger.Runs[0].Status != "active" || ledger.Runs[0].Session != "source-session" || ledger.Runs[0].Task != "source-task" {
+		return 0, 0, errors.New("native fixture ledger does not bind the ready child to its parent")
+	}
+	group, err := syscall.Getpgid(pid)
+	if err != nil {
+		return 0, 0, err
+	}
+	if group != pid || group == syscall.Getpgrp() || group == parent {
+		return 0, 0, errors.New("native fixture child group was not safely observed")
+	}
+	return pid, group, nil
+}
+
+// Complete every bounded cleanup step before reporting errors. In particular,
+// an identity failure must never bypass termination and joining of the parent.
+// per docs/adr/0139-go-source-budget-entrypoint.md:151
+func sourceBudgetCleanup(command *exec.Cmd, done <-chan error, cancel context.CancelFunc, project string, child, group int) error {
+	var cleanupErr error
+	if child <= 1 || group <= 1 {
+		child, group, cleanupErr = sourceBudgetCleanupIdentity(project, command.Process.Pid)
+	}
+	join := func(allowance time.Duration) bool {
+		timer := time.NewTimer(allowance)
+		defer timer.Stop()
+		select {
+		case <-done:
+			return true
+		case <-timer.C:
+			return false
+		}
+	}
+	joined := false
+	select {
+	case <-done:
+		joined = true
+	default:
+	}
+	if !joined {
+		if err := command.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			cleanupErr = errors.Join(cleanupErr, err)
+		}
+		joined = join(3 * time.Second)
+		if !joined {
+			if err := command.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				cleanupErr = errors.Join(cleanupErr, err)
+			}
+			joined = join(3 * time.Second)
+		}
+	}
+	cancel()
+	if !joined {
+		cleanupErr = errors.Join(cleanupErr, errors.New("native fixture parent reap was not confirmed"))
+	}
+	absent := false
+	if child > 1 && group > 1 {
+		_, err := sourceRunnerStopObservedGroup(child, group)
+		cleanupErr = errors.Join(cleanupErr, err)
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			absent = errors.Is(syscall.Kill(child, 0), syscall.ESRCH) && errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
+			if absent || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if !absent {
+		cleanupErr = errors.Join(cleanupErr, errors.New("native fixture child/group absence was not confirmed"))
+	}
+	if cleanupErr != nil {
+		holdFixtureCleanup(filepath.Dir(project), cleanupErr.Error())
+	}
+	AddReportEntry("source-budget.fixture-cleanup", map[string]any{"parent_pid": command.Process.Pid, "parent_joined": joined, "child_pid": child, "child_group": group, "child_group_absent": absent, "fixture_retained": cleanupErr != nil}, ReportEntryVisibilityNever)
+	return cleanupErr
+}
+
 var _ = Describe("Go source runtime entrypoints budget adapter", func() {
 	// per docs/adr/0139-go-source-budget-entrypoint.md:16
 	// per docs/adr/0139-go-source-budget-entrypoint.md:27
@@ -372,9 +496,10 @@ var _ = Describe("Go source runtime entrypoints budget adapter", func() {
 	// per docs/adr/0139-go-source-budget-entrypoint.md:99
 	It("cancels acknowledged native work on INT TERM and HUP with durable accounting and owned cleanup", func() {
 		for _, item := range []struct {
-			native bool
-			signal syscall.Signal
-		}{{true, syscall.SIGHUP}, {false, syscall.SIGINT}, {false, syscall.SIGTERM}, {false, syscall.SIGHUP}} {
+			native    bool
+			signal    syscall.Signal
+			earlyExit bool
+		}{{false, syscall.SIGTERM, true}, {true, syscall.SIGHUP, false}, {false, syscall.SIGINT, false}, {false, syscall.SIGTERM, false}, {false, syscall.SIGHUP, false}} {
 			project, owner, program, environment := sourceBudgetNativeFixture()
 			environment["CONTROLLER_FIXTURE_MODE"] = "stall"
 			args := sourceBudgetRunArgs(project, "claude")
@@ -395,48 +520,92 @@ var _ = Describe("Go source runtime entrypoints budget adapter", func() {
 			go func() { defer close(done); done <- command.Wait() }()
 			child, childGroup := 0, 0
 			callerGroup := syscall.Getpgrp()
-			DeferCleanup(func() {
-				if child > 0 && childGroup > 0 {
-					_, err := sourceRunnerStopObservedGroup(child, childGroup)
-					if err != nil {
-						holdFixtureCleanup(filepath.Dir(project), err.Error())
+			cleanup := func() {
+				Expect(sourceBudgetCleanup(command, done, cancel, project, child, childGroup)).To(Succeed())
+			}
+			witnessPID, witnessGroup := 0, 0
+			witnessSettled := false
+			// This independent witness also cleans the intentional RED orphan.
+			// per docs/adr/0139-go-source-budget-entrypoint.md:158
+			if item.earlyExit {
+				DeferCleanup(func() {
+					if !witnessSettled && witnessPID > 1 && witnessGroup > 1 {
+						_, err := sourceRunnerStopObservedGroup(witnessPID, witnessGroup)
+						if err != nil {
+							holdFixtureCleanup(filepath.Dir(project), "early-exit witness cleanup could not confirm ownership")
+						}
+						Expect(err).NotTo(HaveOccurred())
+						deadline := time.Now().Add(3 * time.Second)
+						for time.Now().Before(deadline) {
+							witnessSettled = errors.Is(syscall.Kill(witnessPID, 0), syscall.ESRCH) && errors.Is(syscall.Kill(-witnessGroup, 0), syscall.ESRCH)
+							if witnessSettled {
+								break
+							}
+							time.Sleep(10 * time.Millisecond)
+						}
+						if !witnessSettled {
+							holdFixtureCleanup(filepath.Dir(project), "early-exit witness child/group absence was not confirmed")
+						}
+						Expect(witnessSettled).To(BeTrue())
 					}
+				})
+			}
+			func() {
+				defer cleanup()
+				Eventually(func() bool {
+					data, err := os.ReadFile(environment["CONTROLLER_FIXTURE_LOG"])
+					return err == nil && strings.HasSuffix(string(data), "\n") && strings.Contains(string(data), `"pid_published_before_input":true`)
+				}, 5*time.Second).Should(BeTrue(), "fake harness acknowledges stdin after durable PID publication")
+				if item.earlyExit {
+					calls := controllerCalls(project)
+					Expect(calls).To(HaveLen(2))
+					var err error
+					witnessPID, err = strconv.Atoi(string(calls[1]["pid"].(json.Number)))
 					Expect(err).NotTo(HaveOccurred())
+					witnessGroup, err = syscall.Getpgid(witnessPID)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(witnessGroup).To(Equal(witnessPID))
+					Expect(witnessGroup).NotTo(Equal(callerGroup))
+					return // Leave before the normal body can store its child identity.
 				}
-				cancel()
-				Eventually(done, 3*time.Second).Should(BeClosed())
-			})
-			Eventually(func() bool {
-				data, err := os.ReadFile(environment["CONTROLLER_FIXTURE_LOG"])
-				return err == nil && strings.HasSuffix(string(data), "\n") && strings.Contains(string(data), `"pid_published_before_input":true`)
-			}, 5*time.Second).Should(BeTrue(), "fake harness acknowledges stdin after durable PID publication")
-			calls := controllerCalls(project)
-			Expect(calls).To(HaveLen(2))
-			var err error
-			child, err = strconv.Atoi(string(calls[1]["pid"].(json.Number)))
-			Expect(err).NotTo(HaveOccurred())
-			childGroup, err = syscall.Getpgid(child)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(childGroup).To(Equal(child))
-			Expect(childGroup).NotTo(Equal(callerGroup))
-			Expect(command.Process.Signal(item.signal)).To(Succeed())
-			var waitErr error
-			Eventually(done, 8*time.Second).Should(Receive(&waitErr))
-			Expect(ctx.Err()).NotTo(HaveOccurred())
-			var exited *exec.ExitError
-			Expect(errors.As(waitErr, &exited)).To(BeTrue())
-			record := sourceBudgetRecord(project)
-			AddReportEntry("source-budget.cancellation", map[string]any{"native": item.native, "signal": item.signal.String(), "status": exited.ExitCode(), "child_pid": child, "child_group": childGroup, "child_alive": syscall.Kill(child, 0) == nil, "ledger": record}, ReportEntryVisibilityAlways)
-			Expect(exited.ExitCode()).To(Equal(130), "native=%t signal=%s stdout=%s stderr=%s", item.native, item.signal, stdout.String(), stderr.String())
-			Expect(stderr.String()).To(BeEmpty())
-			Expect(stdout.String()).NotTo(ContainSubstring("PRIVATE_"))
-			Expect(record).To(HaveKeyWithValue("status", "completed"))
-			Expect(record).To(HaveKeyWithValue("outcome", "interrupted"))
-			Expect(record).To(HaveKeyWithValue("complete", false))
-			Expect(controllerCalls(project)).To(HaveLen(2))
-			Eventually(func() bool { return errors.Is(syscall.Kill(-childGroup, 0), syscall.ESRCH) }, time.Second).Should(BeTrue())
-			Expect(syscall.Getpgrp()).To(Equal(callerGroup))
-			Expect(syscall.Kill(-callerGroup, 0)).To(Succeed())
+				calls := controllerCalls(project)
+				Expect(calls).To(HaveLen(2))
+				var err error
+				child, err = strconv.Atoi(string(calls[1]["pid"].(json.Number)))
+				Expect(err).NotTo(HaveOccurred())
+				childGroup, err = syscall.Getpgid(child)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(childGroup).To(Equal(child))
+				Expect(childGroup).NotTo(Equal(callerGroup))
+				Expect(command.Process.Signal(item.signal)).To(Succeed())
+				var waitErr error
+				Eventually(done, 8*time.Second).Should(Receive(&waitErr))
+				Expect(ctx.Err()).NotTo(HaveOccurred())
+				var exited *exec.ExitError
+				Expect(errors.As(waitErr, &exited)).To(BeTrue())
+				record := sourceBudgetRecord(project)
+				AddReportEntry("source-budget.cancellation", map[string]any{"native": item.native, "signal": item.signal.String(), "status": exited.ExitCode(), "child_pid": child, "child_group": childGroup, "child_alive": syscall.Kill(child, 0) == nil, "ledger": record}, ReportEntryVisibilityAlways)
+				Expect(exited.ExitCode()).To(Equal(130), "native=%t signal=%s stdout=%s stderr=%s", item.native, item.signal, stdout.String(), stderr.String())
+				Expect(stderr.String()).To(BeEmpty())
+				Expect(stdout.String()).NotTo(ContainSubstring("PRIVATE_"))
+				Expect(record).To(HaveKeyWithValue("status", "completed"))
+				Expect(record).To(HaveKeyWithValue("outcome", "interrupted"))
+				Expect(record).To(HaveKeyWithValue("complete", false))
+				Expect(controllerCalls(project)).To(HaveLen(2))
+				Eventually(func() bool { return errors.Is(syscall.Kill(-childGroup, 0), syscall.ESRCH) }, time.Second).Should(BeTrue())
+				Expect(syscall.Getpgrp()).To(Equal(callerGroup))
+				Expect(syscall.Kill(-callerGroup, 0)).To(Succeed())
+			}()
+			if item.earlyExit {
+				Expect(child).To(BeZero())
+				Expect(childGroup).To(BeZero())
+				Expect(command.ProcessState).NotTo(BeNil(), "early-exit cleanup must join the known parent")
+				pidErr, groupErr := syscall.Kill(witnessPID, 0), syscall.Kill(-witnessGroup, 0)
+				witnessSettled = errors.Is(pidErr, syscall.ESRCH) && errors.Is(groupErr, syscall.ESRCH)
+				AddReportEntry("source-budget.early-exit-cleanup", map[string]any{"parent_pid": command.Process.Pid, "parent_status": command.ProcessState.ExitCode(), "child_pid": witnessPID, "child_group": witnessGroup, "child_absent": errors.Is(pidErr, syscall.ESRCH), "group_absent": errors.Is(groupErr, syscall.ESRCH)})
+				Expect(pidErr).To(Equal(syscall.ESRCH), "cleanup must settle the ready child even when normal-body PID parsing never ran")
+				Expect(groupErr).To(Equal(syscall.ESRCH))
+			}
 		}
 	})
 })

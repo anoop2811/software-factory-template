@@ -54,52 +54,28 @@ def require(condition, message, output):
 with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
     workspace = Path(temporary)
     fixture = workspace / "fixture"
+    # Keep local immutable objects available to run.sh's historical tree while
+    # copying current gate/library bytes, including this uncommitted candidate.
+    # docs/adr/0136-go-source-configuration-entrypoints.md:79.
+    subprocess.run(["git", "clone", "--shared", "--no-checkout", "--quiet",
+                    str(source), str(fixture)], env=environment, check=True, timeout=30)
     shutil.copytree(
         source, fixture,
+        dirs_exist_ok=True,
         ignore=shutil.ignore_patterns(
             ".git", ".factory", "factory-go", "node_modules", ".venv", "__pycache__",
             "optional-packs.sh",
         ),
     )
-    # Carry exact historical entrypoint bytes before dropping source Git custody.
-    # The copied runner keeps current policy gates and optional-pack assertions.
-    # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:136.
-    # docs/adr/0129-go-source-doctor-entrypoint.md:47.
-    # docs/adr/0130-go-source-prerequisite-entrypoint.md:45.
-    # docs/adr/0132-go-source-golden-evaluation.md:45.
-    for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
-                 "scripts/factory-report.sh", "scripts/factory-metrics.sh",
-                 "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
-                 "scripts/factory-doctor.sh", "scripts/prereq-check.sh",
-                 "scripts/golden-task-eval.sh"):
-        data = subprocess.run([
-            "git", "-C", str(source), "show",
-            "1754de23de95a7e3c734bedd86894295e823c988:" + name,
-        ], env=environment, capture_output=True, check=True, timeout=10).stdout
-        (fixture / name).write_bytes(data)
-        (fixture / name).chmod(0o755)
-    # Complete historical review command/library inputs before Git custody ends.
-    # docs/adr/0135-go-source-review-entrypoints.md:46.
-    for name in ("scripts/factory-review-lane.sh", "scripts/adversarial-review.sh"):
-        data = subprocess.run([
-            "git", "-C", str(source), "show",
-            "f3a0b6520917e104883cc89b123d7244fa0c46a7:" + name,
-        ], env=environment, capture_output=True, check=True, timeout=10).stdout
-        (fixture / name).write_bytes(data)
-    # Keep current policy dependencies current. Their historical consumers need
-    # explicit isolation once a later reader/helper cutover changes these bytes.
-    for name in ("scripts/lib/config.sh", "scripts/lib/color.sh"):
-        historical = subprocess.run([
-            "git", "-C", str(source), "show",
-            "f3a0b6520917e104883cc89b123d7244fa0c46a7:" + name,
-        ], env=environment, capture_output=True, check=True, timeout=10).stdout
-        require((fixture / name).read_bytes() == historical,
-                "isolate changed historical review dependency: " + name, "")
-    subprocess.run(["git", "init", "-q", str(fixture)], env=environment, check=True)
     packs = workspace / "packs"
     (fixture / "packs").rename(packs)
 
     def run_case(name):
+        # These are live policy inputs, not the runner's isolated historical tree.
+        # docs/adr/0136-go-source-configuration-entrypoints.md:79.
+        for dependency in ("scripts/lib/config.sh", "scripts/lib/color.sh"):
+            require((fixture / dependency).read_bytes() == (source / dependency).read_bytes(),
+                    "preserve current policy dependency: " + dependency, "")
         print("optional-packs: " + name, flush=True)
         log = workspace / (name + ".log")
         with log.open("w") as output_file:

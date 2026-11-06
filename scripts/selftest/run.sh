@@ -34,7 +34,8 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
   for entrypoint in factory scripts/factory-init.sh scripts/factory-upgrade.sh \
     scripts/factory-report.sh scripts/factory-metrics.sh \
     scripts/sync-opencode.sh scripts/sync-claude.sh scripts/sync-codex.sh \
-    scripts/factory-doctor.sh scripts/prereq-check.sh scripts/golden-task-eval.sh; do
+    scripts/factory-doctor.sh scripts/prereq-check.sh scripts/golden-task-eval.sh \
+    scripts/factory-migrate-config.sh scripts/lib/roles.sh scripts/lib/budget-config.sh; do
     git -C "$TEMPLATE_ROOT" show "1754de23de95a7e3c734bedd86894295e823c988:$entrypoint" > "$LEGACY_TEMPLATE_ROOT/$entrypoint"
     chmod +x "$LEGACY_TEMPLATE_ROOT/$entrypoint"
   done
@@ -45,6 +46,33 @@ if [ -f "$TEMPLATE_ROOT/scripts/factory-init.sh" ] &&
     git -C "$TEMPLATE_ROOT" show "f3a0b6520917e104883cc89b123d7244fa0c46a7:$asset" > "$LEGACY_TEMPLATE_ROOT/$asset"
   done
 fi
+
+# Live gates use current source adapters and a private compiled owner. Historical
+# controllers above retain their own dependency tree; neither is a fallback.
+# docs/adr/0136-go-source-configuration-entrypoints.md:72.
+if [ "$(sed -n '2p' "$TEMPLATE_ROOT/scripts/lib/config.sh")" = '# Factory native configuration reader: source-v1' ]; then
+  CURRENT_TEMPLATE_ROOT="$SANDBOX/current-template"
+  mkdir -p "$CURRENT_TEMPLATE_ROOT"
+  tar -cf - --exclude=.git --exclude=.factory --exclude=factory-go \
+    --exclude=node_modules --exclude=__pycache__ -C "$TEMPLATE_ROOT" . |
+    tar -xf - -C "$CURRENT_TEMPLATE_ROOT"
+  # This is the disposable copy's shell launcher, not the operator's owner.
+  rm -f "$CURRENT_TEMPLATE_ROOT/factory"
+  ( cd "$TEMPLATE_ROOT" && /usr/bin/env GOTOOLCHAIN=local GOPROXY=off \
+    GOSUMDB=off GOWORK=off go build -mod=readonly -o "$CURRENT_TEMPLATE_ROOT/factory" ./cmd/factory )
+  TEMPLATE_ROOT="$CURRENT_TEMPLATE_ROOT"
+  HOOKS="$TEMPLATE_ROOT/scripts/hooks"
+fi
+
+# Preserve the actual source-library closure in smaller live-policy fixtures.
+current_config_runtime() {
+  [ -f "$TEMPLATE_ROOT/runtime/shell/source.sh" ] || return 0
+  mkdir -p "$1/runtime/shell"
+  for bridge in readers.sh config.sh helpers.sh source.sh; do
+    cp "$TEMPLATE_ROOT/runtime/shell/$bridge" "$1/runtime/shell/$bridge"
+  done
+  cp "$TEMPLATE_ROOT/factory" "$1/factory"
+}
 
 # Gate firings during the self-test log to a sandbox event log, not the real
 # repo's .factory/events.log — so running the self-test never pollutes a
@@ -503,7 +531,7 @@ SYNCROOT="$SANDBOX/syncroot"
 mkdir -p "$SYNCROOT/scripts/lib" "$SYNCROOT/.opencode/agent"
 cp "$LEGACY_TEMPLATE_ROOT/scripts/sync-opencode.sh" "$LEGACY_TEMPLATE_ROOT/scripts/sync-codex.sh" \
    "$LEGACY_TEMPLATE_ROOT/scripts/sync-claude.sh" "$SYNCROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/roles.sh" "$TEMPLATE_ROOT/scripts/lib/config.sh" "$SYNCROOT/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/roles.sh" "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$SYNCROOT/scripts/lib/"
 cat > "$SYNCROOT/opencode.json" <<'JSON'
 { "model": "__DEFAULT_MODEL__", "small_model": "__ECONOMY_MODEL__", "agent": {
   "reviewer": { "description": "r", "model": "__FRONTIER_MODEL__", "permission": { "edit": "deny" } },
@@ -613,7 +641,7 @@ UPGROOT="$SANDBOX/upgroot"
 mkdir -p "$UPGROOT/scripts/lib"
 ( cd "$UPGROOT" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$UPGROOT/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh absent
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$UPGROOT/scripts/lib/"   # roles.sh absent
 # Marked as nested so the upgrade skips its doctor proof. Without this the
 # cycle is doctor -> selftest -> upgrade -> doctor, which never terminates:
 # the guard inside upgrade only helps when the OUTER process is an upgrade.
@@ -629,6 +657,7 @@ mkdir -p "$CFGROOT/scripts/lib"
 ( cd "$CFGROOT" && git init -q )
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$CFGROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/scripts/factory-migrate-config.sh" "$CFGROOT/scripts/"
+current_config_runtime "$CFGROOT"
 
 # Configuration is data. A value that looks like a command must arrive as text.
 printf 'project_name: t\ncost_profile: "$(touch %s/CONFIG_EXECUTED)"\n' "$CFGROOT" > "$CFGROOT/factory.yaml"
@@ -679,7 +708,7 @@ HOROOT="$SANDBOX/handoff"
 mkdir -p "$HOROOT/scripts/lib" "$HOROOT/scripts/hooks"
 ( cd "$HOROOT" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$HOROOT/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOROOT/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$HOROOT/scripts/lib/"
 # A script that differs from the template only in a trailing comment: enough for
 # the copy to replace it, which is exactly the condition that triggers the
 # hand-off, without pinning the fixture to any particular old release.
@@ -714,7 +743,7 @@ HOREF="$SANDBOX/handoff-ref"
 mkdir -p "$HOREF/scripts/lib"
 ( cd "$HOREF" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$HOREF/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOREF/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$HOREF/scripts/lib/"
 { cat "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh"; printf '# stale marker\n'; } > "$HOREF/scripts/factory-upgrade.sh"
 chmod +x "$HOREF/scripts/factory-upgrade.sh"
 ( cd "$HOREF" && FACTORY_UPGRADE_ACTIVE=1 ./scripts/factory-upgrade.sh --ref pinned-label --source "$LEGACY_TEMPLATE_ROOT" ) </dev/null >"$SANDBOX/handoff-ref.log" 2>&1 || true
@@ -751,7 +780,7 @@ HOSTALE="$SANDBOX/handoff-stale"
 mkdir -p "$HOSTALE/scripts/lib"
 ( cd "$HOSTALE" && git init -q )
 printf 'project_name: t\nlanguage_packs: ""\n' > "$HOSTALE/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$HOSTALE/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$HOSTALE/scripts/lib/"
 HOSTALE_LOG="$SANDBOX/handoff-stale.log"
 ( cd "$HOSTALE" \
   && FACTORY_UPGRADE_ACTIVE=1 FACTORY_UPGRADE_REEXEC=1 \
@@ -771,7 +800,7 @@ mkdir -p "$EVROOT/scripts/lib"
 ( cd "$EVROOT" && git init -q && git config user.email e@e && git config user.name e
   printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" ) >/dev/null 2>&1
 printf 'project_name: t\n' > "$EVROOT/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$EVROOT/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$EVROOT/scripts/lib/"
 cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh" "$EVROOT/scripts/"
 ev_advice() { ( cd "$EVROOT" && ./scripts/factory-metrics.sh 2>/dev/null | sed -n '/^Agents/,/^$/p' | tail -2 ); }
 check "no scaffold points at the upgrade that installs it" "1" \
@@ -932,7 +961,7 @@ PKGROOT="$SANDBOX/packupg"
 mkdir -p "$PKGROOT/scripts/hooks" "$PKGROOT/scripts/lib"
 ( cd "$PKGROOT" && git init -q )
 printf 'project_name: t\nlanguage_packs: "typescript"\n' > "$PKGROOT/factory.yaml"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$PKGROOT/scripts/lib/"
 # A stale copy of the gate, standing in for one installed by an older release.
 printf '#!/bin/bash\n# stale pack gate\nexit 0\n' > "$PKGROOT/scripts/hooks/vitest-only-check.sh"
 ( cd "$PKGROOT" && FACTORY_UPGRADE_ACTIVE=1 bash "$LEGACY_TEMPLATE_ROOT/scripts/factory-upgrade.sh" --source "$LEGACY_TEMPLATE_ROOT" ) >/dev/null 2>&1 || true
@@ -1048,6 +1077,7 @@ NOEV="$SANDBOX/no-events/scripts"
 mkdir -p "$NOEV/hooks" "$NOEV/lib"
 cp "$HOOKS/direct-main-push-block.sh" "$NOEV/hooks/"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$NOEV/lib/"   # deliberately no events.sh
+current_config_runtime "${NOEV%/scripts}"
 # Break/fix: a repo-local hook is registered in factory.yaml, not by editing
 # hook-existence-check.sh — that is a framework file upgrade overwrites, so a
 # hand-added entry would vanish. Registered-but-missing must fail; present passes.
@@ -1056,6 +1086,7 @@ mkdir -p "$LHROOT/scripts/hooks" "$LHROOT/scripts/lib"
 ( cd "$LHROOT" && git init -q )
 cp "$HOOKS/hook-existence-check.sh" "$LHROOT/scripts/hooks/"
 cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$LHROOT/scripts/lib/"
+current_config_runtime "$LHROOT"
 printf 'project_name: t\nlocal_hooks: "scripts/hooks/my-gate.sh"\n' > "$LHROOT/factory.yaml"
 check "local_hooks flags a registered hook that is missing" "1" \
   "$( ( cd "$LHROOT" && ./scripts/hooks/hook-existence-check.sh 2>&1 || true ) | grep -c 'my-gate.sh.*missing\|missing.*my-gate.sh' || true )"
@@ -1184,7 +1215,7 @@ mkdir -p "$MROOT/scripts/lib" "$MROOT/templates" "$MROOT/.factory"
 ( cd "$MROOT" && git init -q && git config user.email m@e && git config user.name m
   printf 'x\n' > f.txt && git add -A && git commit -qm "feat: seed" )
 cp "$LEGACY_TEMPLATE_ROOT/scripts/factory-metrics.sh" "$MROOT/scripts/"
-cp "$TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
+cp "$LEGACY_TEMPLATE_ROOT/scripts/lib/config.sh" "$TEMPLATE_ROOT/scripts/lib/color.sh" "$TEMPLATE_ROOT/scripts/lib/events.sh" "$MROOT/scripts/lib/"
 cp "$TEMPLATE_ROOT/templates/metrics.html" "$MROOT/templates/"
 printf 'project_name: m\n' > "$MROOT/factory.yaml"
 MLOG="$MROOT/.factory/events.log"

@@ -44,7 +44,10 @@ func sourceSelftestCopyAssets(destination string) {
 	GinkgoHelper()
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
-	for _, tree := range []string{"scripts", "eval/runners", ".githooks"} {
+	// Source libraries need their canonical transport/plan assets; installed
+	// fixtures remain independently generated. ADR 0136 records this closure.
+	// per docs/adr/0136-go-source-configuration-entrypoints.md:72
+	for _, tree := range []string{"scripts", "eval/runners", ".githooks", "runtime/shell"} {
 		origin := filepath.Join(repository, filepath.FromSlash(tree))
 		Expect(filepath.WalkDir(origin, func(path string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -116,6 +119,7 @@ func newSourceSelftestFixture() sourceSelftestFixture {
 	writeFixture(filepath.Join(caller, "scripts/hooks/test-edit-denial.sh"), poison, 0755)
 	f.environment = map[string]string{
 		"PATH":                      f.tools + string(os.PathListSeparator) + "/bin:/usr/bin",
+		"GORACE":                    "atexit_sleep_ms=0",
 		"TMPDIR":                    f.scratch,
 		"SOURCE_SELFTEST_FORBIDDEN": f.forbidden,
 		"SOURCE_SELFTEST_REAL_GIT":  realGit,

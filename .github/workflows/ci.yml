@@ -61,6 +61,7 @@ jobs:
           sh -n runtime/shell/readers.sh
           bash -n runtime/shell/config.sh
           sh -n runtime/shell/helpers.sh
+          bash -n runtime/shell/source.sh
 
       - name: shellcheck
         run: |
@@ -70,6 +71,7 @@ jobs:
           shellcheck -s sh -S warning runtime/shell/readers.sh
           shellcheck -s bash -S warning runtime/shell/config.sh
           shellcheck -s bash -S warning runtime/shell/helpers.sh
+          shellcheck -s bash -S warning runtime/shell/source.sh
 
       - name: actionlint
         # GitHub's new job cache-mode is not yet in the latest tagged parser.

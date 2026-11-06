@@ -719,6 +719,12 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 	// per docs/adr/0133-go-source-evaluation-runners.md:197
 	// per docs/adr/0133-go-source-evaluation-runners.md:204
 	It("reports adapter refusals before bootstrap without running the golden oracle", func() {
+		qualifiedGit, err := exec.LookPath("git")
+		Expect(err).NotTo(HaveOccurred())
+		qualifiedGit, err = filepath.Abs(qualifiedGit)
+		Expect(err).NotTo(HaveOccurred())
+		qualifiedGit, err = filepath.EvalSymlinks(qualifiedGit)
+		Expect(err).NotTo(HaveOccurred())
 		for _, harness := range []string{"mock", "claude", "codex", "opencode", "example-harness"} {
 			for _, mode := range []string{"missing-owner", "non-executable-owner", "broken-interpreter", "file-alias", "bare-path", "unacknowledged-handoff"} {
 				owner, foreign := fixtureDirectories()
@@ -753,12 +759,19 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 				if mode == "bare-path" {
 					program = filepath.Base(program)
 				}
+				hostTools := filepath.Join(base, "qualified host tools")
+				Expect(os.Mkdir(hostTools, 0700)).To(Succeed())
+				fixtureGit := filepath.Join(hostTools, "git")
+				Expect(os.Symlink(qualifiedGit, fixtureGit)).To(Succeed())
 				environment := map[string]string{
-					"PATH": filepath.Join(owner, "eval/runners") + ":/usr/bin:/bin", "HOME": caller, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
+					"PATH": filepath.Join(owner, "eval/runners") + ":" + hostTools + ":/usr/bin:/bin", "HOME": caller, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
 					"FACTORY_CONFIG": filepath.Join(caller, "factory.yaml"), "SOURCE_ADAPTER_PROGRAM": program, "SOURCE_ADAPTER_OWNER": ownerPath, "SOURCE_ADAPTER_HARNESS": harness,
 					"SOURCE_ADAPTER_OWNER_CALLED": ownerCalled, "SOURCE_ADAPTER_FALLBACK": fallbackCalled, "SOURCE_ADAPTER_ORACLE": oracleCalled,
 					"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 				}
+				selectedGit := handoffNativeExactProcess(caller, environment, "", "/bin/sh", "-c", "command -v git")
+				AddReportEntry("source-runner.qualified-git", map[string]any{"harness": harness, "mode": mode, "qualified_git": qualifiedGit, "fixture_git": fixtureGit, "selected_git": selectedGit.stdout, "status": selectedGit.status}, ReportEntryVisibilityNever)
+				Expect(selectedGit).To(Equal(cliResult{fixtureGit + "\n", "", 0}), "the fixture must retain the evaluator's qualified Git instead of selecting a different system Git")
 				reference := filepath.Join(base, "plain shell exec reference")
 				writeFixture(reference, []byte("#!/bin/sh\nset -e\nexec \"$SOURCE_ADAPTER_OWNER\" eval run \"$SOURCE_ADAPTER_HARNESS\" \"$1\"\n"), 0700)
 				expectedStatus := 2

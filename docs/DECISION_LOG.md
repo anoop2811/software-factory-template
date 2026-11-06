@@ -7328,3 +7328,185 @@ and `bash scripts/selftest/loop.sh` reported 218, 3, 6, 32 and 40 passed
 respectively, each with zero failed. No historical assertions or deadlines changed.
 The primary operator binary's hash and executable mode, and unrelated user files,
 matched the pre-task custody record after these checks.
+
+## Decision 154 (2026-11-06 UTC): route the source budget command through Go
+
+PR #169 merged as `b9dfdba5979ba120843eb10689e90debe6245dc4`. Its final head
+`b90171f` passed all 32 hosted checks. Linux and macOS source jobs each passed
+93 criteria. The advisory review completed 14 files and 17 fragments in 1m50s;
+all five findings were independently checked and answered, with no actionable
+finding remaining. Copilot could not review because of quota. These are recorded
+prior results, not checks rerun by this documentation change.
+
+Before code, adopt ADR 0139 for R3 group 5. Delegate the direct source budget
+path to the existing native configured command, retaining physical source-owner
+selection and literal caller transport. Preserve admission, model routing,
+private accounting and process ownership through their existing Go owners.
+Retain the 32 historical budget registrations with explicit immutable fixture
+custody rather than deleting them or inferring parity from test counts. Keep
+installed recipes unchanged and defer shared Python removal to the loop group.
+Require independent source RED/GREEN, affected historical/native checks, actual
+source census, enclosing qualification and review before merge.
+
+Decision 154 custody refinement before fixture changes: independent Git object
+comparison found both budget/loop wrappers and all four Python modules identical
+at existing fixture revision `1754de2`, inventory revision `f3a0b65` and merged
+`b9dfdba`. Reuse the existing full immutable revision rather than introduce a new
+oracle identity. Pin these dependencies in affected full/subset materializers;
+delivery assertions compare against explicit historical input bytes, retaining
+the same installation and repair obligations. Keep current policy subjects current.
+
+Decision 154 signal correction before code: independent probes used an actual
+privately compiled factory and fake Claude child after stdin/PID readiness.
+SIGHUP terminated the native parent with status -1 while the child remained
+running and its reservation stayed active. The SIGTERM control exited 130,
+reaped the child and recorded interruption. The legacy budget controller handles
+SIGHUP. Extend the existing configured-command cancellation context to include
+hangup, reusing its cleanup/accounting path. Require independent RED/GREEN and
+retain the existing interrupt/termination checks; ADR 0139 records this bounded
+parity correction before the direct source path changes owner.
+
+Decision 154 shared-signal scope: the legacy loop invokes the same budget
+execution helpers for models and checks, so hangup handling also belongs in the
+shared native configured-command context. Add one existing public-loop matrix
+entry for SIGHUP with checkpoint/accounting/child-exit assertions; the direct
+loop source conversion remains group 6. Independent actual-native budget HUP
+RED observed parent status -1, a live acknowledged child and active/running
+accounting (one failed criterion, 2.038 seconds) before the Go correction.
+
+Decision 154 independent source/native evidence: the initial seven-criterion
+run produced six intended source-dispatch failures and one invalid task-name
+fixture failure. The author corrected that input before observing the separate
+native budget HUP failure above. The added public loop HUP entry also failed
+after child readiness (parent -1 instead of 2, 2.527 seconds). After the adapter
+and shared notification correction, the race focus for the seven source budget
+criteria and 29 public native criteria reported `36 Passed | 0 Failed` in
+74.595 seconds. Budget INT/TERM/HUP returned 130 with the acknowledged child
+gone and completed/interrupted accounting; loop HUP returned 2 with its stopped,
+interrupted checkpoint. The independently executed disjoint-partition criterion
+reported `1 Passed | 0 Failed` in 60.607 seconds. Actual discovery found 3305
+total criteria, 100 source and 2997 base, with other partitions unchanged.
+Enclosing local and hosted qualification remain separate requirements.
+
+Decision 154 broader local evidence: the budget/configuration/transition race
+focus reported `345 Passed | 0 Failed` in 314.592 seconds using the CI-pinned
+Python 3.12.14 interpreter. An earlier 274-criterion baseline used local Python
+3.12.0 and reported four existing attached-help parser mismatches; no parser
+expectations or production behavior changed to accommodate that interpreter.
+Post-adapter `bash scripts/selftest/run.sh`, `optional-packs.sh`,
+`java-build-tool.sh`, `budget.sh` and `loop.sh` under `scripts/selftest/`
+reported 218, 3, 6, 32 and 40 passed respectively, each with zero failed.
+Independent review found no surviving production or fixture finding. Budget
+B01-B32 custody is now locally qualified as retained historical evidence.
+
+The first enclosing four-worker source run reported 98 passed and two failed
+in 216.789 seconds. Unchanged compiler INT readiness and cold evaluation-runner
+readiness cases exceeded their existing 3/5-second observation bounds. Neither
+case invokes the configured budget/loop cancellation owner. Both passed unchanged
+in an isolated race focus (2/2, 10.930 seconds). The original cause remains
+unproven; no deadline/assertion changes or timing correction are claimed. An
+unchanged full source rerun is required before publishing this candidate.
+
+Decision 154 final local qualification: the unchanged four-worker source rerun
+reported `100 Passed | 0 Failed` in 198.292 seconds. The enclosing Make target
+then stopped on two test-only switch-style lint findings. After equivalent tagged
+switch rewrites, configured `golangci-lint run --config packs/go/.golangci.yml ./...`
+reported `0 issues.` and the affected source-budget/transition-delivery race
+focus reported `10 Passed | 0 Failed` in 24.692 seconds. Assertions and deadlines
+are unchanged. The remaining configured `gosec ./...` and `govulncheck ./...`
+checks exited zero: zero gosec issues and no called-code vulnerabilities, with
+ten module-only advisories. Local source acceptance, affected follow-up and
+quality components are complete; hosted exact-commit checks and human review
+remain required before merge.
+
+Decision 154 hosted-review clarification before edits: the first advisory review
+completed all 16 files and 25 fragments in 2m23s. Clarify ADR 0139's existing
+final-component refusal as applying to the executable budget adapter itself;
+the selected checkout's factory remains its trusted owner. Improve the new loop
+checkpoint assertion's diagnostics with checked JSON object/array assertions,
+preserving all state expectations and deadlines. This is a test-only diagnostic
+change, not a runtime behavior change. Verify the other advisory claims against
+complete fixture inputs, citations and executable-command contracts before reply.
+
+Decision 154 review-diagnostic evidence: the unchanged five public cancellation
+cases with checked checkpoint shapes reported `5 Passed | 0 Failed` under race
+in 7.326 seconds. Configured lint reported `0 issues.`. The first hosted source
+macOS partition reported 99/100: the existing cold-compiler cancellation case
+observed both the admitted compiler PID and group absent before fixture cleanup,
+but the public evaluator returned status 1 with retained work. This differs from
+the earlier local readiness failure. Preserve the failing report and investigate
+the nested ownership decision before claiming a correction or rerunning CI.
+
+Decision 154 diagnostic refinement before code: ten instrumented private repeats
+of the unchanged cold criterion completed (twenty ordinary/delayed compiler runs)
+without reproducing the hosted ownership refusal. The complete parallel source
+run is still in progress. Preserve native ownership errors at the golden boundary
+and emit only their existing bounded safe diagnostic fields, with independent
+refusal/privacy coverage. Do not expose arbitrary error strings or runner output,
+and do not relax signal/ownership/deadline rules based on an unproven hypothesis.
+ADR 0139 records this diagnostic correction; the hosted cause remains open.
+
+Decision 154 independent startup correction before test changes: the instrumented
+parallel source run again observed two three-second compiler readiness failures
+before signaling; releasing the fixture then produced successful compiler and
+launcher completion. Use the existing ten-second fixture deadline for startup
+while reserving its unchanged two-second post-signal interval. First observe a
+controlled four-second startup-delay RED, then preserve the original cancellation
+and ownership assertions. This corrects a fixture startup assumption, not the
+separate hosted outer ownership refusal. ADR 0139 records both boundaries.
+
+Decision 154 instrumented parallel evidence: `make go-runtime-source-check
+GO_RUNTIME_TEST_GROUP=source-entrypoints GO_RUNTIME_TEST_PROCS=4` selected 100
+criteria and reported `98 Passed | 2 Failed` in 185.217 seconds. Both cold compiler
+modes passed, bringing the diagnostic attempts to twenty-two actual cancellations
+without reproducing the hosted ownership refusal. The two failures were startup
+readiness (TERM and healthy completion), with successful launcher exit after
+fixture release. No cooperative ownership-policy change is justified by these
+observations; retain the existing strict policy and add actionable diagnostics.
+
+Decision 154 correction evidence: the controlled four-second startup witness
+failed before signaling under the old three-second readiness bound (one failed
+criterion, 6.442 seconds), then the nine-criterion source focus reported
+`9 Passed | 0 Failed` in 39.439 seconds with the reserved fixture deadline.
+Delayed INT readiness took 5.466 seconds; the unchanged two-second post-signal
+window passed with status 130, compiler absence and unchanged source. The real
+forced-cooperation witness first failed because the public error omitted its
+recorded PID/cleanup facts. After preserving typed errors, both timeout and parent
+cancellation retained work and status 1 while reporting bounded cooperation
+evidence without private runner stderr or its generated token.
+
+Decision 154 final follow-up qualification: the complete four-worker source Make
+command exited zero with `100 Passed | 0 Failed` in 186.235 seconds, configured
+lint `0 issues.`, gosec zero issues and govulncheck no called-code vulnerabilities
+(ten module-only advisories). During that run, independent review moved the
+private stderr poison before readiness; the final ordering separately passed the
+nine-criterion race focus above, the formatter privacy criterion (1/1), and
+configured lint. The enclosing acceptance registrations remain 3305/source 100.
+Independent review found no surviving follow-up finding. Exact-head hosted
+qualification remains required; the original ownership-refusal cause is unproven.
+
+Decision 154 second advisory review before correction: exact-head coverage
+completed all 21 files/34 fragments. Independent review confirmed a test cleanup
+gap: early assertion failure before child identity parsing bypasses child cleanup,
+and a cleanup assertion can abort parent joining. ADR 0139 now requires bounded
+cooperative parent termination, validated fixture identity recovery, child/group
+absence and retained uncertain fixtures on this failure path. Qualify an actual
+early-exit witness before correcting the helper. Other sourcing/privacy/schema/
+mode-restoration claims are being checked against complete source and evidence.
+
+Decision 154 cleanup RED: the early-return control acknowledged the real harness
+while leaving normal-body child/group fields zero. Existing cleanup reaped the
+parent with status -1 but left the independently observed child/group alive; the
+criterion failed its ESRCH assertion in 4.002 seconds. The control's separate
+witness cleanup then terminated and observed absence of that exact owned group.
+This establishes the reviewed test failure-path defect before helper correction.
+
+Decision 154 cleanup GREEN: final-source budget race qualification reported
+`7 Passed | 0 Failed` in 13.627 seconds and configured lint reported `0 issues.`.
+The early-return parent exited 130 and its independently observed child/group
+were absent; all original native/source INT/TERM/HUP checks remained intact.
+Independent review found no surviving finding; only the source-budget fixture
+changed. Four private Bash 3/5 sourcing probes also refuted wrong-owner dispatch:
+each selected the physical owner, returned its status 63 and never called the
+foreign owner. Both hosted source partitions passed on a393b78 before this final
+fixture correction; exact final-head checks remain required.

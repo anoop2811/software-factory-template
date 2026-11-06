@@ -278,6 +278,11 @@ func goldenError(stderr io.Writer, err error) int {
 	if errors.As(err, &retained) {
 		fmt.Fprintf(stderr, "golden-task-eval: retained work directory %q\n", retained.path)
 	}
+	// docs/adr/0139-go-source-budget-entrypoint.md:128.
+	var ownership *native.OwnershipError
+	if errors.As(err, &ownership) {
+		fmt.Fprintln(stderr, "golden-task-eval: native ownership unconfirmed:", ownership.SafeDiagnostic())
+	}
 	return 1
 }
 
@@ -372,10 +377,10 @@ func goldenRun(ctx context.Context, o goldenOptions, root, source, runnerPath st
 	timedOut = errors.Is(runCtx.Err(), context.DeadlineExceeded) || result.Outcome == "timeout"
 	cancel()
 	if ctx.Err() != nil {
-		return false, timedOut, ctx.Err()
+		return false, timedOut, errors.Join(ctx.Err(), err)
 	}
 	if retainWork {
-		return false, timedOut, errors.New("runner ownership unconfirmed")
+		return false, timedOut, errors.Join(errors.New("runner ownership unconfirmed"), err)
 	}
 	if receipt == "failed" || err != nil || !result.ExitConfirmed || (result.Outcome != "completed" && result.Outcome != "failed") {
 		return false, timedOut, nil

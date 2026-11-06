@@ -36,13 +36,16 @@ LEGACY_ENTRYPOINTS = {
     # docs/adr/0135-go-source-review-entrypoints.md:46.
 # Helper custody: docs/adr/0137-go-source-shared-helpers.md:84.
     # Check custody: docs/adr/0138-go-source-check-orchestration.md:55.
+    # Budget custody: docs/adr/0139-go-source-budget-entrypoint.md:44.
     for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
                  "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh", "scripts/pre-push-check.sh",
                  "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/budget-config.sh",
                  "scripts/lib/events.sh", "scripts/lib/timing.sh", "scripts/lib/color.sh",
-                 "scripts/lib/hookspath.sh")
+                 "scripts/lib/hookspath.sh", "scripts/factory-budget.sh",
+                 "scripts/lib/budget.py", "scripts/lib/budget_adapters.py",
+                 "scripts/lib/runtime_transition.py")
 }
 
 
@@ -50,7 +53,7 @@ def historical_entrypoints(target, paths=LEGACY_ENTRYPOINTS):
     for path in paths:
         destination = target / path
         destination.write_bytes(LEGACY_ENTRYPOINTS[path])
-        destination.chmod(0o755)
+        destination.chmod(0o644 if path.endswith(".py") else 0o755)
 
 
 def test(name):
@@ -93,7 +96,9 @@ class Fixture:
         # Complete the historical controller's readers even for subset fixtures.
         # docs/adr/0136-go-source-configuration-entrypoints.md:79.
         historical_entrypoints(self.root, ("factory", "scripts/lib/config.sh",
-                                          "scripts/lib/roles.sh", "scripts/lib/budget-config.sh"))
+                                          "scripts/lib/roles.sh", "scripts/lib/budget-config.sh",
+                                          "scripts/factory-budget.sh", "scripts/lib/budget.py",
+                                          "scripts/lib/budget_adapters.py", "scripts/lib/runtime_transition.py"))
         self.bin.mkdir()
         for name in ("codex", "claude", "opencode"):
             shutil.copy2(SOURCE / "scripts/selftest/budget/fake_cli.py", self.bin / name)

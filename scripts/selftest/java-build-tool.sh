@@ -69,19 +69,22 @@ with tempfile.TemporaryDirectory(prefix="factory-java-build-tool-") as temporary
     # docs/adr/0135-go-source-review-entrypoints.md:46.
     # Helper custody: docs/adr/0137-go-source-shared-helpers.md:84.
     # Check custody: docs/adr/0138-go-source-check-orchestration.md:55.
+    # Budget custody: docs/adr/0139-go-source-budget-entrypoint.md:44.
     for name in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
                  "scripts/adversarial-review.sh", "scripts/factory-migrate-config.sh", "scripts/pre-push-check.sh",
                  "scripts/lib/config.sh", "scripts/lib/roles.sh", "scripts/lib/budget-config.sh",
                  "scripts/lib/events.sh", "scripts/lib/timing.sh", "scripts/lib/color.sh",
-                 "scripts/lib/hookspath.sh"):
+                 "scripts/lib/hookspath.sh", "scripts/factory-budget.sh",
+                 "scripts/lib/budget.py", "scripts/lib/budget_adapters.py",
+                 "scripts/lib/runtime_transition.py"):
         data = subprocess.run([
             "git", "-C", str(source), "show",
             "1754de23de95a7e3c734bedd86894295e823c988:" + name,
         ], env=environment, capture_output=True, check=True, timeout=10).stdout
         (template / name).write_bytes(data)
-        (template / name).chmod(0o755)
+        (template / name).chmod(0o644 if name.endswith(".py") else 0o755)
     for name in ("scripts/selftest/run.sh", "scripts/prereq-check.sh"):
         stub = template / name
         stub.write_text("#!/bin/bash\nexit 0\n")

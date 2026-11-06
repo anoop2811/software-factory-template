@@ -53,8 +53,8 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `scripts/adversarial-review.sh` | `review` / `adversarialreviewcmd` | Merged PR #166, Decision 150 / [ADR 0135](../adr/0135-go-source-review-entrypoints.md): source/HTTP routing and shipped workflow with fresh module-cache preparation; full source 71/3275 passed. All 32 final hosted checks passed. |
 | [x] | `scripts/factory-review-lane.sh` | `review-lane` / `reviewlanecmd` | Merged PR #166, Decision 150 / ADR 0135: opt-in lifecycle, workflow ownership, caller roots and historical fixtures. Shared focused review/payload/workflow run passed 23 criteria; all 32 final hosted checks passed. |
 | [x] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody merged in PR #167; qualification below. |
-| [ ] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Decision 153 / ADR 0138: native delegation, direct/copied ownership and Git pathname delimiters. Local source/native focus passed 26 criteria; full source gate passed 93. Hosted qualification and merge pending. |
-| [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Controller boundary: preserve configuration, models, state and process ownership while removing Python dispatch. |
+| [x] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Merged PR #169, Decision 153 / ADR 0138: native delegation, direct/copied ownership and Git pathname delimiters. Source/native focus passed 26 criteria; full source gate passed 93. All 32 hosted checks passed. |
+| [ ] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Decision 154 / ADR 0139: native source delegation and shared hangup cleanup. Local source/public focus passed 36; full source acceptance passed 100. Budget B01-B32 historical custody is qualified; hosted checks and merge pending. |
 | [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Controller boundary: preserve checkpoints, budgets, opt-in execution and cancellation while removing Python dispatch. |
 | [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Proof-runner boundary: native public routing plus independent custody/coverage for the broader historical regressions; see the proof-retirement ledger. |
 
@@ -95,9 +95,9 @@ failures on the first attempt. Their cause remains unproven. The final model
 review completed all 21 files and 48 fragments in 126 seconds and received
 per-finding responses. These are recorded results, not a new qualification run.
 
-Across the fixed baseline and completed rows, 17 of 21 direct source
+Across the fixed baseline and completed rows, 18 of 21 direct source
 entrypoints and all seven sourceable libraries are merged. Including the
-four Python modules, that is 24 of 32 inventory paths (75%), with eight remaining.
+four Python modules, that is 25 of 32 inventory paths (78.125%), with seven remaining.
 These are path counts, not effort-weighted implementation or release percentages.
 
 Group 2 merged in PR #167 under Decision 151 / ADR 0136 as
@@ -124,11 +124,20 @@ Local review corrections passed 15 helper/configuration criteria and the full
 Installer bootstrap timing deliberately retains minutes/seconds over an hour;
 native timing retains its hour form, without executing downloaded bootstrap code.
 
-Group 4 begins under Decision 153 / [ADR 0138](../adr/0138-go-source-check-orchestration.md).
-Its one pre-push path remains unchecked until independent qualification and
-merge. Completion would bring R3 to 25/32 (78.125%), leaving seven paths in
-three groups. The pre-existing copied installed-adapter gap is tracked under
-R4; source copied-hook evidence must not be presented as installed qualification.
+Group 4 merged in PR #169 as `b9dfdba5979ba120843eb10689e90debe6245dc4`
+on 2026-11-06 UTC under Decision 153 / [ADR 0138](../adr/0138-go-source-check-orchestration.md).
+Its final head `b90171f` passed all 32 hosted checks. Linux and macOS source
+jobs each passed 93 criteria (110.240 and 187.826 seconds respectively). The
+advisory review completed 14 files and 17 fragments in 1m50s; all five findings
+were checked and answered, with no actionable finding remaining. Copilot could
+not review because of quota. These are recorded prior qualification results.
+The pre-existing copied installed-adapter gap remains an R4 obligation;
+source copied-hook evidence does not qualify that separate installed boundary.
+
+Group 5 begins under Decision 154 / [ADR 0139](../adr/0139-go-source-budget-entrypoint.md).
+Its budget source path remains unchecked until qualification and merge.
+Completion would bring R3 to 26/32 (81.25%), leaving six paths in two groups:
+loop/Python retirement and public selftest.
 
 ## Grouped delivery order
 

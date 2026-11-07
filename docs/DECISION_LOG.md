@@ -7765,3 +7765,27 @@ push criterion passed (`ok github.com/anoop2811/software-factory-template/accept
 fixtures and installed asset contracts. Final-head hosted qualification remains
 required. The superseded local enclosing attempt was deliberately interrupted
 after 57 passes; it is not a completed installation-gate result.
+
+Decision 157 installation follow-up: hosted Linux qualification at `8966a59`
+reported 100 passed / one failed. The failure was an old retained-original
+control using `.githooks/pre-push`, whose comment bytes now legitimately require
+replacement. Both actual recovery and completed replay succeeded before the
+control's identity assertion failed. Adopt ADR 0142's retained-control refinement
+before editing the test: use the unchanged required `templates/metrics.html`
+copy, assert equal before/after images and fresh forward-recovery retention, and
+preserve all custody and stale-replay checks. The original proposal classifies a
+recognized copy as `replace`; retention is a recovery decision. Qualification
+must use the current committed image rather than an older
+snapshot with partial overlays. No runtime behavior or deadline changes.
+
+Decision 157 recovery-control evidence: in a complete private checkout at
+`8966a59` with the test correction overlaid, `go test -race ./acceptance -run
+TestAcceptance -count=1 -timeout=15m -ginkgo.focus='^Go factory command acceptance
+Whole installation upgrade semantic consumer retains one pending installation
+after native interruption and recovers with fresh consent' -ginkgo.fail-on-empty`
+reported `ok github.com/anoop2811/software-factory-template/acceptance 213.617s`.
+The JSON receipt records both forward and reverse SIGKILL criteria passing in
+212.378s. Independent review retained no actionable findings and confirmed that
+the original physical-custody, old-receipt and stale-replay assertions remain.
+`golangci-lint run --config packs/go/.golangci.yml ./...` printed `0 issues.`
+Final-head hosted qualification remains separate.

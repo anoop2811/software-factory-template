@@ -1592,12 +1592,23 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			})
 		}
 		installed := fixture("bash-baseline")
-		retainedPath := filepath.Join(installed.root, ".githooks/pre-push")
+		// This unchanged literal-copy asset can retain its untouched original during recovery.
+		// per docs/adr/0142-installed-full-check-hook-setup.md:151
+		relative := "templates/metrics.html"
+		retainedPath := filepath.Join(installed.root, filepath.FromSlash(relative))
 		retainedOriginal, err := os.Lstat(retainedPath)
 		Expect(err).NotTo(HaveOccurred())
 		retainedOriginalBytes, err := os.ReadFile(retainedPath)
 		Expect(err).NotTo(HaveOccurred())
 		proposal := installationProposal(installed)
+		control := installationRows(proposal)[relative]
+		Expect(control["action"]).To(Equal("replace"))
+		Expect(control["before"]).To(BeAssignableToTypeOf(map[string]any{}))
+		Expect(control["after"]).To(BeAssignableToTypeOf(map[string]any{}))
+		for _, field := range []string{"sha256", "bytes", "mode"} {
+			Expect(control["before"].(map[string]any)).To(HaveKey(field))
+			Expect(control["after"].(map[string]any)).To(HaveKeyWithValue(field, control["before"].(map[string]any)[field]))
+		}
 		migration := "interrupted-" + direction
 		args := append([]string{"upgrade"}, installationForwardArguments(installed, migration, proposal["proposal_digest"].(string))...)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1669,6 +1680,9 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 		_, err = os.Lstat(pendingPath)
 		Expect(err).NotTo(HaveOccurred(), "crash cleared unresolved pending evidence")
 		recovery := installationProposal(installed, "--recover", migration, "--direction", direction)
+		if direction == "forward" {
+			Expect(installationRows(recovery)[relative]["action"]).To(Equal("retain"), "the control must retain its independently observed untouched original")
+		}
 		Expect(recovery).To(HaveKey("recovery_command"))
 		Expect(recovery).To(HaveKey("recovery_arguments"))
 		recovery = installationReplayEmittedRecovery(installed, recovery)
@@ -1705,7 +1719,6 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			// producer now records receipts for retained rows; emulate only that
 			// older absent receipt, without claiming an old release performed it.
 			// per docs/DECISION_LOG.md:4892
-			relative := ".githooks/pre-push"
 			body, err := os.ReadFile(journalPath)
 			Expect(err).NotTo(HaveOccurred())
 			var record map[string]any
@@ -1743,7 +1756,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			Expect(err).NotTo(HaveOccurred())
 			info, err := os.Stat(path)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(os.Rename(path, filepath.Join(installed.driver, "retained-pre-push-original"))).To(Succeed())
+			Expect(os.Rename(path, filepath.Join(installed.driver, "retained-metrics-original"))).To(Succeed())
 			writeFixture(path, body, info.Mode().Perm())
 			Expect(os.Chmod(path, info.Mode().Perm())).To(Succeed())
 			foreign, err := os.Lstat(path)

@@ -19,3 +19,16 @@ is [ADR 0142](../../docs/adr/0142-installed-full-check-hook-setup.md); this less
 does not replace that decision. The incomplete linked fixture was observed in
 `focused-first.json` on the same date; the descriptor's mode and complete asset
 checks are in `internal/installedlayout/layout.go:148`.
+
+An unchanged-file custody control must assert matching proposed images and
+that recovery retains its subject. Comment-only source changes can still
+replace a copied asset. Also run image-based qualification from the current
+commit: a helper that overlays only selected dirty source paths can miss a
+changed installed asset when its checkout's HEAD is older.
+
+Provenance: observed 2026-11-07 in PR #173's Linux installation job
+[128511542958](https://github.com/anoop2811/software-factory-template/actions/runs/42408543676/job/128511542958):
+100 criteria passed; the retained `.githooks/pre-push` identity assumption failed
+after successful recovery. `acceptance/installation_upgrade_test.go:242` builds
+its target from HEAD and a restricted production overlay. ADR 0142 records the
+replacement control and qualification boundary.

@@ -141,3 +141,27 @@ system/global configuration lookup. Pass the existing isolated environment to
 the remote probe too, so a host policy cannot change the verification result.
 This is a test-fixture correction, not a change to user Git configuration or
 factory runtime behavior.
+
+## Retained recovery control refinement
+
+The enclosing hosted installation suite exposed an old recovery criterion that
+assumed `.githooks/pre-push` still matched the immutable Bash baseline. This
+decision corrects that file's comments, so replacement is legitimate. Use the
+required literal-copy asset `templates/metrics.html` for the retained-original
+control: its bytes and mode match both the pinned baseline and current target.
+Assert equal before/after content, size and mode in the original proposal, then
+`retain` for that asset in the fresh forward-recovery proposal. The initial
+proposal still calls a recognized copy `replace`; recovery decides retention
+from the current image and its physical custody.
+Keep the untouched historical input and every physical identity, mode, timestamp,
+byte, completed-replay and foreign-inode refusal assertion. Do not seed current
+target bytes into the historical hook or relax recovery custody requirements.
+Qualify both native interruption directions from a complete checkout at the
+current commit; an older committed image with source overlays misses this asset
+change and cannot establish the relevant result.
+
+The corrected forward and reverse native SIGKILL criteria passed under race in
+a complete private checkout at `8966a59` with the test overlay: two passed,
+zero failed in 212.378 seconds; `go test` printed `ok` in 213.617 seconds.
+Independent review confirmed the retained custody and refusal assertions.
+This focused result does not replace final-head hosted installation qualification.

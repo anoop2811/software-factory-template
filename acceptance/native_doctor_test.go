@@ -848,12 +848,13 @@ var _ = Describe("Native Go doctor classifications", func() {
 		Expect(out.stdout).NotTo(ContainSubstring("git config core.hooksPath .githooks"))
 		Expect(out.stdout).NotTo(ContainSubstring("push gate not installed"))
 		Expect(out.stdout).NotTo(ContainSubstring("push gate INERT"))
-		if state == "hijacked" || state == "absent" {
+		switch state {
+		case "hijacked", "absent":
 			Expect(out.stdout).To(ContainSubstring(filepath.ToSlash(hook)))
 			Expect(out.stdout).To(ContainSubstring("not validated"))
-		} else if state == "inert" {
+		case "inert":
 			Expect(out.stdout).To(ContainSubstring("not executable"))
-		} else {
+		default:
 			Expect(out.stdout).To(ContainSubstring("full-check"))
 		}
 	}, Entry("armed", "armed"), Entry("inert", "inert"), Entry("hijacked", "hijacked"), Entry("absent", "absent"))

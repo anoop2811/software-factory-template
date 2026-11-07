@@ -7745,3 +7745,12 @@ separate exhaustive/disjoint partition qualification passed and measured 3323
 criteria, including 101 installation and unchanged 115 source / 2997 base.
 Independent review and refutation retained no actionable findings. Enclosing
 and exact-head hosted checks remain open; these local results do not close R4.
+
+Decision 157 hosted follow-up: the first Linux local-init and default-init jobs
+each passed their ten criteria, then staticcheck QF1003 rejected the new doctor's
+test-only conditional chain. Use an equivalent tagged switch; no behavior or
+deadline changes. In the private checkout, `golangci-lint run --config
+packs/go/.golangci.yml ./...` printed `0 issues.`; the four hook-state criteria
+passed under race (`ok github.com/anoop2811/software-factory-template/acceptance
+6.281s`). All five initial advisory findings were independently checked and
+answered with their fixture/contract context; no actionable finding survived.

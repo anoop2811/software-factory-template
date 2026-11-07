@@ -133,3 +133,11 @@ Independent correctness/security and test reviews, followed by refutation of the
 fixture corrections, retained no actionable findings. These are local results;
 the enclosing installation gate and exact-head hosted results are recorded
 separately before this PR can be considered ready for merge. R4-R7 remain open.
+
+The final-head review identified a fixture-isolation omission: the remote ref
+probe used `imageProcess` without the push fixture's Git configuration overrides.
+That helper removes inherited `GIT_*` variables but otherwise still permits
+system/global configuration lookup. Pass the existing isolated environment to
+the remote probe too, so a host policy cannot change the verification result.
+This is a test-fixture correction, not a change to user Git configuration or
+factory runtime behavior.

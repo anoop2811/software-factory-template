@@ -136,7 +136,7 @@ var _ = Describe("Whole installation upgrade full-check hook setup", Ordered, Co
 				AddReportEntry("installed-check."+label+"."+mode, out, ReportEntryVisibilityNever)
 				trace, err := os.ReadFile(env["ORCHESTRATION_MAKE_ARGUMENTS"])
 				Expect(err).NotTo(HaveOccurred())
-				ref := imageProcess(remote, nil, "git", "rev-parse", "--verify", "refs/heads/"+branch)
+				ref := imageProcess(remote, env, "git", "rev-parse", "--verify", "refs/heads/"+branch)
 				if mode == "healthy" {
 					Expect(out.status).To(BeZero(), "%+v", out)
 					Expect(ref.status).To(BeZero())

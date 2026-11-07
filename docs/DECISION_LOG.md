@@ -7754,3 +7754,14 @@ packs/go/.golangci.yml ./...` printed `0 issues.`; the four hook-state criteria
 passed under race (`ok github.com/anoop2811/software-factory-template/acceptance
 6.281s`). All five initial advisory findings were independently checked and
 answered with their fixture/contract context; no actionable finding survived.
+
+Decision 157 second review: the remote-ref probe did omit the push fixture's
+Git-config isolation. A disposable bare repository with a private global
+`safe.bareRepository=explicit` setting reproduced status 128 without isolation
+and status 0 with it. Pass the existing environment to that probe as specified
+in ADR 0142. Configured lint printed `0 issues.`; the real installed default/custom
+push criterion passed (`ok github.com/anoop2811/software-factory-template/acceptance
+100.482s`). The other five comments were resolved by inspecting their complete
+fixtures and installed asset contracts. Final-head hosted qualification remains
+required. The superseded local enclosing attempt was deliberately interrupted
+after 57 passes; it is not a completed installation-gate result.

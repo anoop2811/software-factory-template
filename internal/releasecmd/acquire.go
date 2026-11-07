@@ -85,16 +85,19 @@ func acquire(ctx context.Context, tag string, environment map[string]string) (re
 // Ordinary refs require stable publisher metadata at every authenticated hop.
 // Explicit candidate and historical acquisition keep their existing policy.
 // docs/adr/0118-default-packaged-go-initialization.md:30.
-func acquireWithPolicy(ctx context.Context, tag string, environment map[string]string, requireStable bool) (result *acquired, returned error) {
+func acquireWithPolicy(ctx context.Context, tag string, environment map[string]string, requireStable bool) (*acquired, error) {
+	return acquireForTarget(ctx, tag, runtime.GOOS+"/"+runtime.GOARCH, environment, requireStable)
+}
+
+// Foreign CI origins are authenticated inert images, never executable handoffs.
+// docs/adr/0143-ci-checkout-preparation.md:43.
+func acquireForTarget(ctx context.Context, tag, target string, environment map[string]string, requireStable bool) (result *acquired, returned error) {
 	// Installed predecessor versions are untrusted hints too.
 	// docs/adr/0101-go-release-handoff.md:485.
 	if !validTag(tag) {
 		return nil, errors.New("invalid candidate tag")
 	}
-	target := runtime.GOOS + "/" + runtime.GOARCH
-	switch target {
-	case "linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64":
-	default:
+	if !supportedTarget(target) {
 		return nil, errors.New("unsupported candidate platform")
 	}
 	a, err := newAcquired()
@@ -303,4 +306,13 @@ func currentDigest(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return digestFile(ctx, path, 256<<20)
+}
+
+func supportedTarget(target string) bool {
+	switch target {
+	case "linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64":
+		return true
+	default:
+		return false
+	}
 }

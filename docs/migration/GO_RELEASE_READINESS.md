@@ -177,6 +177,21 @@ preserves existing hooks and configuration; init links to it and doctor scopes
 its report to tracked-path selection. Qualification and merge status are recorded
 in that ADR. This obligation is separate from the integrated rehearsal below.
 
+## Fresh-checkout CI delivery obligation
+
+PR #173 merged the installed full-check hook setup correction. A fresh clone
+still omits ignored runtime custody, and its public adapters bind the original
+platform's executable digest. Decision 158 / [ADR 0143](../adr/0143-ci-checkout-preparation.md)
+adds an explicit native preparation boundary for a disposable job checkout.
+See [CI preparation](CI_PREPARATION.md) for its scope and requirements.
+
+Runtime preparation, installer/bootstrap integration, adopter-specific workflow
+generation and preservation-aware existing-workflow integration are distinct
+obligations. The factory's source-development CI includes checks that are not
+shipped to adopters; copying it is not a complete installed CI solution. The
+integrated fresh-project and migrated-adopter rehearsal remains open until the
+actual job paths pass from clean checkouts without Go or Python for the factory.
+
 ## Observable release rehearsal
 
 An adopter starting from v0.1.6 can use the normal upgrade flow. The selected Go

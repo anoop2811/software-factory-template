@@ -7789,3 +7789,50 @@ The JSON receipt records both forward and reverse SIGKILL criteria passing in
 the original physical-custody, old-receipt and stale-replay assertions remain.
 `golangci-lint run --config packs/go/.golangci.yml ./...` printed `0 issues.`
 Final-head hosted qualification remains separate.
+
+## Decision 158 (2026-11-07 UTC): authenticate disposable CI checkout preparation
+
+PR #173 merged at `2026-11-07T23:09:10Z` as
+`d05d99d67d496caaf5f3c2310eefd1b503315cdf`. Final head `0c813fb` passed all
+32 checks; adversarial review covered 20 files and 32 fragments in 85 seconds,
+and all findings received responses. Copilot had insufficient quota. One macOS
+local-upgrade job first exceeded an existing helper watchdog after installation;
+the unchanged failed-job rerun passed 11/11 criteria. No permanent timing fix or
+root cause is claimed. These are prior observed results, not new execution.
+R3 remains complete at 32/32; R4-R7 remain open.
+
+Before implementation, adopt [ADR 0143](adr/0143-ci-checkout-preparation.md).
+An explicit native `ci prepare` command will authenticate exact origin and host
+release images, recognize clean tracked public assets, and reconstruct complete
+private host custody in a declared disposable checkout. Reuse native acquisition,
+projection, root exclusion and confined publication; preserve installed admission
+and normal upgrade/backup behavior. Avoid adjacent backup cruft for authenticated
+clean originals already retained in Git. Leave installer/workflow integration
+and migration rehearsal for separate bounded R4 changes. Qualification is pending.
+
+Decision 158 initial qualification: in a complete private checkout at `d05d99d`,
+the independent public-command criterion failed with `factory: unknown command
+'ci' (try: factory help)`: zero passed, one failed in 2.144 seconds. This is the
+required RED result, not a completed implementation result. Contract review also
+identified that representative ignore probes cannot prove every selected private
+asset is ignored; ADR 0143 now requires an exhaustive selection-derived check
+and an independent selective-ignore negative control before completion.
+
+Decision 158 implementation qualification: the actual packaged-init/commit/clone
+RED run failed all four initial criteria at the absent CI command. The first
+implemented run passed three and exposed an unsupported combination of Git's
+literal-pathspec option with `check-ignore`; an actual Git probe reproduced
+status 128. Use NUL stdin without that option for this inherently literal command.
+The complete focused run then passed seven of nine criteria in 209.738 seconds,
+including installed selftest/check, submodule controls, selected-owner handoff
+and acknowledged cancellation. Two fixture preconditions required correction:
+reopen the ignored `.factory/` ancestor before testing a selective exception, and
+include the required Decision reference in the foreign-origin projection commit.
+Keep both failed receipts. Final focused and enclosing qualification remain open.
+
+Independent review additionally reproduced executable Git helpers during read-only
+inspection. CI now hardens each separately inspected submodule and uses the same
+policy during finalization, preserving frozen recipes. Shared initializer and
+installation package race tests reported `ok` in 6.325s and 2.902s respectively;
+the release command package has no unit tests. Its behavior is qualified through
+the compiled public acceptance boundary. No deadline or quality gate was relaxed.

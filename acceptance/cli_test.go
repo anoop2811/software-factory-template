@@ -30,12 +30,14 @@ var commandRoutes = []struct{ command, script string }{
 // per docs/adr/0099-native-factory-orchestration.md:22
 // per docs/adr/0100-batched-review.md:23
 // per docs/adr/0120-native-source-gate-proof.md:10
+// per docs/adr/0143-ci-checkout-preparation.md:14
 const nativeCLIUsage = `factory — software factory control surface
 
 Usage: factory <command> [args]
 
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
               Explicit local Go install: init [TARGET] --local [--source DIR]
+  ci          Prepare an authenticated runtime in a disposable CI checkout
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
   upgrade     Preview authenticated Go framework updates; apply with fresh consent

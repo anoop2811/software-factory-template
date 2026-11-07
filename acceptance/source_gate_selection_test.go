@@ -619,11 +619,13 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0141-go-source-public-selftest.md:66
 		// Three installed manual-hook criteria join the independently discovered installation partition.
 		// per docs/adr/0142-installed-full-check-hook-setup.md:66
-		Expect(negativeTotal).To(Equal(3323))
+		// Nine native CI checkout criteria join the authenticated release-handoff family.
+		// per docs/adr/0143-ci-checkout-preparation.md:126
+		Expect(negativeTotal).To(Equal(3332))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3323))
+		Expect(allTotal).To(Equal(3332))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -631,7 +633,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0138-go-source-check-orchestration.md:76
 		// per docs/adr/0139-go-source-budget-entrypoint.md:76
 		// per docs/adr/0140-go-source-loop-and-python-retirement.md:70
-		expectedCounts := map[string]int{"base": 2997, "installation": 101, "release-handoff": 44, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 2997, "installation": 101, "release-handoff": 53, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

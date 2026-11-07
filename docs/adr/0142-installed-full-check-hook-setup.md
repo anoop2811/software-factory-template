@@ -1,6 +1,6 @@
 # ADR 0142: installed-safe full-check Git hook setup
 
-Status: targeted local qualification complete; enclosing/hosted checks and merge pending.
+Status: merged in PR #173; final-head hosted checks passed.
 Decision: 157. Starts R4 after merged PR #172 completes R3.
 
 ## Context
@@ -165,3 +165,13 @@ a complete private checkout at `8966a59` with the test overlay: two passed,
 zero failed in 212.378 seconds; `go test` printed `ok` in 213.617 seconds.
 Independent review confirmed the retained custody and refusal assertions.
 This focused result does not replace final-head hosted installation qualification.
+
+## Merge evidence
+
+PR #173 merged at `2026-11-07T23:09:10Z` as
+`d05d99d67d496caaf5f3c2310eefd1b503315cdf`. Final head `0c813fb` completed all
+32 checks. Adversarial review completed in 85 seconds with responses to all
+findings; Copilot had insufficient quota. One macOS local-upgrade helper timed
+out on its first attempt after reporting completed installation. Its unchanged
+failed-job rerun passed all 11 criteria; no persistent fix or root cause is
+claimed. This closes the hook-setup obligation, not the remaining R4-R7 gates.

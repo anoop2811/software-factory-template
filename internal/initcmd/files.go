@@ -212,7 +212,13 @@ type asset struct {
 	runtimeBytes     int64
 }
 
-func (t *tree) publish(ctx context.Context, a asset) (returned error) {
+func (t *tree) publish(ctx context.Context, a asset) error {
+	return t.publishWithBackup(ctx, a, true)
+}
+
+// Only an authenticated disposable CI plan may omit adjacent original copies.
+// docs/adr/0143-ci-checkout-preparation.md:115.
+func (t *tree) publishWithBackup(ctx context.Context, a asset, preservePrevious bool) (returned error) {
 	if a.runtime != "" {
 		return t.publishRuntime(ctx, a)
 	}
@@ -234,7 +240,7 @@ func (t *tree) publish(ctx context.Context, a asset) (returned error) {
 	if exists && string(data) == string(a.data) && mode == a.mode {
 		return nil
 	}
-	if exists {
+	if exists && preservePrevious {
 		backup := name + ".factory-backup." + time.Now().Format("20060102150405")
 		preserved := false
 		for n := 0; n < 128; n++ {

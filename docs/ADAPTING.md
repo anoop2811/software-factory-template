@@ -20,7 +20,7 @@ If the self-test fails, the installation is not successful, and factory-init say
 
 ## factory doctor
 
-`./factory doctor` reports the health of an installed factory at any time — not just at install. It classifies every gate as **armed** (configured and live), **inert** (present but not yet configured — e.g. no `citation_prefix`), or **stale** (a verification claim has expired); checks that every hook and generated adapter is intact and that `protected_paths` are covered by CODEOWNERS; then runs the same break/fix self-test so you watch each armed gate fire. It exits non-zero on real breakage (a missing hook, adapter drift, a failing proof); inert gates are a choice, not a fault. The `factory` command is a plain-shell dispatcher — `factory init | doctor | check | selftest` — nothing compiled, nothing to install.
+`./factory doctor` reports the health of an installed factory at any time — not just at install. It classifies every gate as **armed** (configured and live), **inert** (present but not yet configured — e.g. no `citation_prefix`), or **stale** (a verification claim has expired); checks that every hook and generated adapter is intact and that `protected_paths` are covered by CODEOWNERS; then runs the same break/fix self-test so you watch each armed gate fire. It exits non-zero on real breakage (a missing hook, adapter drift, a failing proof); inert gates are a choice, not a fault. Current source builds and enters the Go CLI through `./factory`; an installed Go factory uses its packaged binary without requiring a Go compiler. See the [command guide](CLI.md) for `init`, `doctor`, `check` and `selftest`.
 
 ## factory.yaml reference
 
@@ -175,7 +175,7 @@ A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the w
 
 1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then `factory_config_get <key>` — the same way every shipped hook reads `factory.yaml`, so your gate stays byte-identical across adopters too.
 2. **Register it** in `factory.yaml` — `local_hooks: "scripts/hooks/my-gate.sh"` (space-separated; use commas instead when an entry carries arguments, e.g. `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"`, and pre-push will run it with them) — so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net). Register it there, *not* in `scripts/hooks/hook-existence-check.sh`: that is a framework file, and `factory upgrade` overwrites it byte-for-byte, so a hand-added entry would disappear on your next upgrade.
-3. **Add a break/fix case** to `scripts/selftest/run.sh`: introduce the exact violation, assert the gate fires, revert, assert it passes. A gate you have only watched pass proves nothing.
+3. **Add a break/fix case** to your project's test suite: introduce the exact violation, assert the gate fires, revert, assert it passes. Factory contributors add these broader regressions to `scripts/selftest/development.sh`; public `scripts/selftest/run.sh` is a transport adapter for the fixed native core proof, not an extension file. A gate you have only watched pass proves nothing.
 4. **Wire it into CI** so the gate runs on every pull request, not just locally.
 
 For a spec to write your gates against, `specs/TEMPLATE.md` is a spec template to copy. For how the template measures agent quality end to end, see [eval/README.md](../eval/README.md).
@@ -197,12 +197,13 @@ reinstall the optional review lane. Removing it does not disable an already
 installed workflow; use `./factory review-lane disable` for that. An upgrade
 may restore the shipped review-lane template.
 
-Selftest prints a named skip for each fixture group whose optional source is
+The factory's development runner prints a named skip for each fixture group whose optional source is
 missing, then continues through the remaining checks and reports the number
 of skipped groups. A skip means reduced coverage, never a proven gate. Core
 `scripts/`, shared libraries, and `templates/metrics.html` are still required.
 Template CI exercises these omissions with
-`./scripts/selftest/optional-packs.sh`; adopters run the normal selftest.
+`./scripts/selftest/optional-packs.sh`; adopters run `./factory selftest`, whose
+fourteen core gate pairs do not require the template's optional pack sources.
 
 ## Maven projects
 

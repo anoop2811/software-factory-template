@@ -923,10 +923,10 @@ edit test files.</span>
         </div>
         <div class="callout">
           <h3>Or just watch it fire — <span class="mono">no install</span></h3>
-          <div class="yaml" style="margin-top:12px"><span class="c"># clone and run the break/fix suite; nothing touches your machine</span>
+          <div class="yaml" style="margin-top:12px"><span class="c"># requires Go; builds the CLI and proves gates in private fixtures</span>
 <span class="k">$</span> <span class="v">git clone https://github.com/anoop2811/software-factory-template</span>
 <span class="k">$</span> <span class="v">cd software-factory-template &amp;&amp; ./scripts/selftest/run.sh</span>
-<span class="c"># break/fix scenarios exercise the installed gates</span></div>
+<span class="c"># fourteen core gates; no model calls</span></div>
         </div>
       </div>
 
@@ -1025,7 +1025,7 @@ edit test files.</span>
     ["no",     "DENIED: implementer role cannot edit test files (pattern: _test\\.go). Generator/evaluator separation."],
     ["dim",    "exit code: 2"],
     ["",       ""],
-    ["prompt", "$ ./scripts/selftest/run.sh"],
+    ["prompt", "$ ./scripts/selftest/development.sh"],
     ["warn",   "[excerpt] test-edit-denial"],
     ["ok",     "  ok: deny implementer on _test.go"],
     ["ok",     "  ok: deny implementer on .spec.ts (second pattern)"],

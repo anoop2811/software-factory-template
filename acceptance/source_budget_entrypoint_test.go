@@ -25,11 +25,16 @@ func sourceBudgetAdapter(root string) string {
 }
 
 // per docs/adr/0140-go-source-loop-and-python-retirement.md:16
+// per docs/adr/0141-go-source-public-selftest.md:17
 func sourceControllerAdapter(root, kind string) string {
 	GinkgoHelper()
-	body, err := os.ReadFile("../scripts/factory-" + kind + ".sh")
+	relative := "scripts/factory-" + kind + ".sh"
+	if kind == "selftest" {
+		relative = "scripts/selftest/run.sh"
+	}
+	body, err := os.ReadFile(filepath.Join("..", relative))
 	Expect(err).NotTo(HaveOccurred())
-	path := filepath.Join(root, "scripts/factory-"+kind+".sh")
+	path := filepath.Join(root, relative)
 	writeFixture(path, body, 0755)
 	return path
 }
@@ -228,10 +233,11 @@ func sourceControllerTransport(kind string) {
 			owner := filepath.Join(filepath.Dir(root), "budget owner ' $(literal)\n")
 			Expect(os.Rename(root, owner)).To(Succeed())
 			program := sourceControllerAdapter(owner, kind)
+			basename := filepath.Base(program)
 			base := filepath.Dir(owner)
 			tools, marker := filepath.Join(base, "decoys"), filepath.Join(base, "WRONG_OWNER")
 			poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
-			for _, path := range []string{filepath.Join(caller, "factory"), filepath.Join(tools, "factory"), filepath.Join(tools, "factory-"+kind+".sh"), filepath.Join(tools, "git"), filepath.Join(tools, "python3"), filepath.Join(owner, "scripts/lib/config.sh"), filepath.Join(owner, "scripts/lib/roles.sh"), filepath.Join(owner, "scripts/lib/budget-config.sh"), filepath.Join(owner, "scripts/lib/budget.py")} {
+			for _, path := range []string{filepath.Join(caller, "factory"), filepath.Join(tools, "factory"), filepath.Join(tools, basename), filepath.Join(tools, "git"), filepath.Join(tools, "python3"), filepath.Join(owner, "scripts/lib/config.sh"), filepath.Join(owner, "scripts/lib/roles.sh"), filepath.Join(owner, "scripts/lib/budget-config.sh"), filepath.Join(owner, "scripts/lib/budget.py")} {
 				writeFixture(path, poison, 0700)
 			}
 			writeFixture(filepath.Join(owner, "factory"), []byte(sourceBudgetRecorder), 0700)
@@ -239,8 +245,8 @@ func sourceControllerTransport(kind string) {
 			environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "REPO_ROOT": caller, "FACTORY_HOME": caller, "FACTORY_RUNTIME_BINARY": filepath.Join(caller, "factory"), "FACTORY_CONFIG": "literal $(touch BUDGET_INJECTION)\nconfig", "FACTORY_BUDGET_MODEL": "caller model\n", "FACTORY_AGENT_ROLE": "spec-writer", "BUDGET_ARGV": record, "BUDGET_INPUT": input, "BUDGET_DECOY": marker}
 			if mode == "directory-alias" {
 				alias := filepath.Join(base, "parent alias")
-				Expect(os.Symlink(filepath.Join(owner, "scripts"), alias)).To(Succeed())
-				program = filepath.Join(alias, "factory-"+kind+".sh")
+				Expect(os.Symlink(filepath.Dir(program), alias)).To(Succeed())
+				program = filepath.Join(alias, basename)
 			}
 			args := []string{"run", "--harness=claude", "--role", "reviewer", "", "--role=literal $(touch BUDGET_INJECTION)", "--", "line\noperand"}
 			executable, operands := shell, append([]string{program}, args...)
@@ -256,7 +262,7 @@ func sourceControllerTransport(kind string) {
 					Expect(err).NotTo(HaveOccurred())
 				}
 				environment["PATH"] = lookup + ":" + environment["PATH"]
-				operands = append([]string{"factory-" + kind + ".sh"}, args...)
+				operands = append([]string{basename}, args...)
 			}
 			beforeOwner, beforeCaller := installationSnapshot(owner), installationSnapshot(caller)
 			stdin := "borrowed budget input\x00tail\n"
@@ -302,7 +308,7 @@ func sourceControllerRefusal(kind string) {
 				writeFixture(owner, []byte("#!/bin/sh\nprintf 'owner stdout\\n'\nprintf 'owner failed\\n' >&2\nexit 47\n"), 0700)
 			}
 			if mode == "file-alias" {
-				alias := filepath.Join(caller, "factory-"+kind+".sh")
+				alias := filepath.Join(caller, filepath.Base(program))
 				Expect(os.Symlink(program, alias)).To(Succeed())
 				program = alias
 			}

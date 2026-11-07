@@ -392,8 +392,8 @@ Historical source: [scripts/selftest/adversarial-review.sh](https://github.com/a
 
 ### Review custody under Decision 150
 
-R01-R15 and R17-R53 are selected for **RETAINED-HISTORICAL**, subject to final
-review and merge of the source-review boundary. Their purpose is to preserve the former
+R01-R15 and R17-R53 are **RETAINED-HISTORICAL**, qualified and merged with
+PR #166. Their purpose is to preserve the former
 curl/jq request, timeout, payload and selected-client regression evidence.
 `scripts/selftest/adversarial-review.sh` now materializes the provider engine
 and matching config reader from immutable
@@ -426,8 +426,8 @@ Before updating the predicate, the changed template produced
 the same historical command reported `adversarial-review: 53 passed, 0 failed`.
 The new source preparation criterion and actual fresh-cache workflow criterion
 passed in the 23-case focused run and the 71-case full source run. Independent
-review retained no findings. Hosted checks and merge remain pending; no
-registration is silently removed.
+review retained no findings. All 32 final hosted checks passed before PR #166
+merged; these are prior recorded results, not a new run. No registration was removed.
 
 ## General selftest families
 
@@ -473,23 +473,50 @@ assertion in that family.
 | F33 | Event cap and tiny-cap retention, line 1268 | H-retention | C; the native criterion explicitly retains at least one newest row. |
 | F34 | Landing page placeholder hygiene, line 1281 | `index.html` source check | OPEN; this is repository website validation, not a runtime self-check. Move its real validation to an explicit development check before removing it from historical run.sh. |
 
+### General-suite disposition under Decision 156
+
+Preserve the complete controller as `scripts/selftest/development.sh`, separate
+from the public native adapter. The table above remains the original comparison
+map, not an assertion that every historical case has a native equivalent. The
+chosen dispositions cover all 34 families without removing assertions:
+
+| Families | Disposition | Retained subject |
+|---|---|---|
+| F01-F12, F16, F18, F23-F24, F27-F29, F33-F34 (21 families) | Retained current development | Actual current readers, policy gates, pack hooks, copy/instrumentation checks, duration/events, installer diagnostics, workflow/credential declarations and website validation. These remain development coverage rather than historical runtime or public native proof. |
+| F13-F15, F17, F19-F22, F25-F26, F30-F32 (13 families) | RETAINED-HISTORICAL | Explicitly frozen sync, upgrade, metrics, evaluation and review controllers. F14 retains the current real event gate; F25 current pack bytes; F30 the current review workflow; F32 current event/color/HTML inputs and a private native owner. |
+
+F21's embedded-Python scanner still inspects pinned metrics implementation and
+retains its negative control. F31 still inspects pinned upgrade text; its nesting
+assertion follows the relocated controller. Historical upgrades are explicitly
+nested and skip doctor, so their copied public runner is unexecuted data.
+Budget, loop, Java and native-init fixtures retain their intentional public-path
+attestation stubs. No extra historical runner pin is introduced.
+
+The previously observed 218 general checks and 34 families are different counts;
+neither equals fourteen native gate pairs. Full local relocation qualification
+reported 218/218 general, 3/3 optional-pack and 6/6 Java checks. Independent review
+retained no findings; hosted qualification and merge remain pending under
+[ADR 0141](../adr/0141-go-source-public-selftest.md).
+
 ## Fixture custody and deliberate retained boundaries
 
 The public native selftest and development regressions have different contracts.
 `internal/installedproof/proof.go:20` declares fourteen core gates; its exact
 inventory and constant-pass/constant-fail controls are G-core and G-controls.
 It does not implement the full set of F families, optional pack dialect checks,
-or the budget/loop/review controllers above. Simply replacing `make selftest`
-with the fourteen-gate command would not preserve this development coverage.
+or the budget/loop/review controllers above. Public `make selftest` selects native
+proof; template CI separately runs the complete development runner. This repo's
+configured check selects that runner, preserving it in `make check` and standalone
+diff-aware checks without requiring development fixtures in adopted projects.
 
 The following historical fixture dependencies must be isolated before their
 active source bodies can disappear:
 
 | Consumer | Current custody | Required disposition |
 |---|---|---|
-| General historical controller | `scripts/selftest/run.sh` materializes selected entrypoints from `1754de23de95a7e3c734bedd86894295e823c988`, with review/config inputs from `f3a0b6520917e104883cc89b123d7244fa0c46a7`. Decision 151 adds migration/role/budget readers and gives current gate fixtures a separate current tree, canonical bridge closure and privately compiled native owner. | Maintain explicit historical dependencies while keeping policy-gate subjects current. No historical controller may consume a newly native reader accidentally. Detailed qualification remains in Decision 151. |
+| General development controller | `scripts/selftest/development.sh` materializes selected entrypoints from `1754de23de95a7e3c734bedd86894295e823c988`, with review/config inputs from `f3a0b6520917e104883cc89b123d7244fa0c46a7`. Decision 151 adds migration/role/budget readers and gives current gate fixtures a separate current tree, canonical bridge closure and privately compiled native owner. | Decision 156 preserves all current and historical family subjects through relocation. Detailed prior qualification remains in Decision 151; relocation qualification is separate. |
 | Optional-pack wrapper | `scripts/selftest/optional-packs.sh` makes a local shared clone retaining immutable Git objects, overlays current source bytes, then invokes the runner's separate current/historical materialization. | Preserve no-packs/no-review-template diagnostics, deliberately broken current gate and later-assertion witnesses. No old reader is substituted for the current gate subject. |
-| Historical golden evaluator | General and optional-pack fixtures materialize `scripts/golden-task-eval.sh` from `1754de23de95a7e3c734bedd86894295e823c988`. `scripts/selftest/run.sh` supplies its own inert selection runners and deterministic pass/fail/cheat mock; it does not copy the shipped runner bodies into those evaluations. Native differential fixtures explicitly freeze the mock and real runner bodies at `4ecab79627d08d1e125391a5831eb995efd3fce4`. | Decision 151 isolates its config dependency in the historical tree. Preserve deliberate current policy/model/fingerprint inputs; do not imply that the entire fixture is an era-matched snapshot. |
+| Historical golden evaluator | General and optional-pack fixtures materialize `scripts/golden-task-eval.sh` from `1754de23de95a7e3c734bedd86894295e823c988`. The development runner supplies its own inert selection runners and deterministic pass/fail/cheat mock; it does not copy the shipped runner bodies into those evaluations. Native differential fixtures explicitly freeze the mock and real runner bodies at `4ecab79627d08d1e125391a5831eb995efd3fce4`. | Decision 151 isolates its config dependency in the historical tree. Preserve deliberate current policy/model/fingerprint inputs; do not imply that the entire fixture is an era-matched snapshot. |
 | Budget and loop controllers | `scripts/selftest/budget/acceptance.py` and `scripts/selftest/loop/acceptance.py` freeze selected entrypoints and their config/role/budget readers, including subset fixture constructors. Decision 155 pins the loop wrapper and all four Python modules to the same immutable source, including subset constructors. | Preserve B01-B32 and L01-L40 as test-only historical registrations. Qualify the complete retained closure after active runtime deletion; never import removed current production files as a hidden fallback. |
 | Native eval/check parity | `acceptance/orchestration_eval_test.go:23` and `acceptance/orchestration_check_test.go:20` already load `4ecab79627d08d1e125391a5831eb995efd3fce4` by explicit Git paths. | Preserve these independent immutable oracles. Production adapter replacement must not alter their meaning. |
 | Transition/native-init differential tests | Decision 155 isolates legacy wrappers/readers and all four Python modules at `1754de23de95a7e3c734bedd86894295e823c988`. The historical initializer component overlays only that revision's input inventory, retaining current engine behavior. Existing archived initializer and recovery identities are unchanged. | Preserve mixed-runtime and recovery fault assertions; separately qualify current candidate initialization/copy without the historical overlay. |
@@ -506,14 +533,14 @@ an old assertion because a large unrelated native suite is green.
 
 | Work item | Completion evidence | Status |
 |---|---|---|
-| P1: Close direct-command boundaries | Source adapters reach their existing native owners; literal arguments, caller roots, status, signals and missing-owner refusal have independent real-entrypoint coverage. Update only their affected historical fixture loaders. | OPEN; see R3 cutover asset rows. |
-| P2: Close sourceable-library boundaries | Inert source-time loading, exported/unexported and readonly caller state, literal values, no unsafe eval, and actual native owner selection through the retained function names. | OPEN. Existing helper/reader suites are candidate evidence, not proof of the new source wrappers. |
-| P3: Complete the B/L compound fault and admission comparisons | For tests selected for retirement, resolve P rows using exact existing coverage or the smallest missing scenario. Otherwise assign RETAINED-HISTORICAL with explicit custody; keep ownership, accounting and no-retry obligations. | OPEN. |
-| P4: Complete fixed-HTTP review control/transport comparisons | For tests selected for retirement, resolve R rows without crediting SSE coverage to fixed HTTP. Otherwise retain the immutable historical oracle. Preserve provider differences, no implicit fallback and private diagnostics. | OPEN. |
-| P5: Preserve the broader development selftest contract | Assign native replacement or explicit historical retention to F rows. Retain real pack/dialect and website checks; replace current implementation-text checks with behavior/inventory predicates. Keep optional-source absence visible. | OPEN. |
-| P6: Isolate historical test inputs and switch public selftest | Give historical-only fixtures explicit source identities and a development-only runner. Public/source/installed selftest reaches the native fourteen-gate proof with no Python/compiler requirement in the installed form. | OPEN. Do not drop historical coverage to make this switch pass. |
-| P7: Remove obsolete active controllers and close the reference inventory | All current references are classified; installation/source manifests and fixture materializers are coherent; no retired runtime module is executed by current commands. Historical recipe references remain explicit. | OPEN. |
-| P8: Run bounded affected suites and review the actual cutover | Record exact candidate hashes, commands, outputs, discovered criterion identities and review dispositions. Run native platform/packaged release qualification under the separate release gates. | OPEN. This mapping is not execution evidence. |
+| P1: Close direct-command boundaries | Source adapters reach their existing native owners with independent entrypoint coverage. | 20/21 merged through PR #171; public selftest remains under Decision 156. |
+| P2: Close sourceable-library boundaries | Caller state, literal values, source effects and actual native owner selection through retained function names. | Complete: seven paths qualified and merged in PRs #167-168, Decisions 151-152. |
+| P3: Preserve B/L compound fault and admission evidence | Keep ownership, accounting and no-retry assertions under explicit custody. | Complete by RETAINED-HISTORICAL: B01-B32 and L01-L40; Decisions 154-155, merged PRs #170-171. No blanket native-equivalence claim. |
+| P4: Preserve fixed-HTTP review evidence | Retain the immutable historical oracle and provider/diagnostic assertions; separately replace R16's obsolete setup-go predicate. | Complete: Decision 150, merged PR #166; dispositions and qualification above. |
+| P5: Preserve the broader development selftest contract | Retain current pack/dialect/website checks and historical implementation assertions with explicit subjects. | All F families assigned and locally qualified under Decision 156; hosted qualification and merge pending. |
+| P6: Switch public selftest | Public/source/installed selftest reaches native proof, with no compiler or Python required in installed form. | Decision 156: six independent RED cases, enclosing source 115/115 and native proof family passed locally; hosted qualification and merge pending. |
+| P7: Remove obsolete active controllers and close references | Current references, inventories and materializers are coherent; historical reconstruction remains explicit. | Four Python modules retired in merged PR #171; final public-runner reference closure pending. |
+| P8: Qualify and review the actual cutover | Record exact candidate, commands, outputs, discovery and review dispositions. | Prior groups qualified and merged; final group locally qualified and independently reviewed, hosted qualification and merge pending. Platform/packaged release qualification remains R4-R7. |
 
 Start with existing named native criteria, not a wholesale rewrite of all 125
 controller registrations. New tests are justified by the unresolved behavior in

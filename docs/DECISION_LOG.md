@@ -7654,3 +7654,62 @@ subcase; its retained fixture and failure report remain separate evidence, not
 a successful run or an established shutdown diagnosis. The complete source gate
 subsequently passed that case with unchanged assertions. Exact-head hosted CI
 and review remain required.
+
+## Decision 156 (2026-11-07 UTC): separate native public selftest from development regressions
+
+PR #171 merged as `ebdaa1071f1bf301993c5dd9619abb2d436fd925` after all 32
+final hosted checks passed on `118f0b5be6488d8d09a88c0dad74da0a64151a4d`.
+Those are recorded prior results, not new qualification of this group. R3 now
+has 31/32 merged paths (96.875%); public source selftest remains.
+
+Before implementation, adopt [ADR 0141](adr/0141-go-source-public-selftest.md).
+Route public `scripts/selftest/run.sh` through the existing source launcher and
+native fourteen-gate proof. Move its complete broader controller to
+`scripts/selftest/development.sh`, preserving assertions and immutable historical
+dependencies. Retain 21 current-development and 13 historical F families with
+explicit custody; no family is declared replaced merely by native gate counts.
+Keep `make selftest` public. This repository's configured check selects the
+development runner, so existing `make check` and diff-aware checks retain it;
+adopter configuration and installed inventories remain separate. CI runs both
+contracts explicitly. Independent outside-in tests, full retained development
+qualification, reference audit and review precede completion. R4-R7 remain open.
+
+Decision 156 independent RED evidence: the five transport/refusal/gate/Make
+criteria reported `0 Passed | 5 Failed` against the previous public runner;
+the separate actual-source criterion reported `0 Passed | 1 Failed`. The old
+runner selected historical/configuration behavior instead of the requested
+native boundary, and Make recorded public/public instead of public/development.
+Both reports preserve their failures in private qualification artifacts.
+
+Decision 156 retained coverage: in a complete private checkout,
+`bash scripts/selftest/development.sh` reported
+`selftest: 218 passed, 0 failed, 0 skipped`;
+`bash scripts/selftest/optional-packs.sh` reported
+`optional-packs: 3 passed, 0 failed`; and
+`bash scripts/selftest/java-build-tool.sh` reported
+`java-build-tool: 6 passed, 0 failed`. These use the existing qualified Python
+3.12.14 only for isolated historical tools. Read-only custody comparison found
+the moved 1,344-line controller identical after its three self-path substitutions,
+including all 180 literal check sites. The optional-pack AST is unchanged apart
+from the selected runner path. Independent review and refutation retained no
+actionable findings after correcting stale source-compilation guidance.
+Native focused/enclosing qualification and exact-head hosted checks remain open.
+
+Decision 156 enclosing evidence: the private command
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_TEST_TIMEOUT=15m` exited zero and reported
+`115 Passed | 0 Failed` in 411.986 seconds. Configured lint reported `0 issues.`,
+gosec zero issues, and govulncheck zero called-code vulnerabilities. The separate
+`go test -race ./acceptance -count=1 -timeout=6m -ginkgo.focus='Native source
+selftest gate proofs' -ginkgo.fail-on-empty -ginkgo.no-color` reported `ok`
+in 318.254 seconds. Independent partition qualification passed its one criterion
+and confirmed 3320 total, 115 source and 2997 base criteria.
+
+An exploratory combined fourteen-criterion invocation exhausted its eight-minute
+outer Go timeout during final partition discovery, without an earlier assertion
+failure or a completed report. Preserve that failed run separately; it is not
+claimed green. The completed enclosing source gate, native family and separate
+partition run provide their respective evidence without extending production or
+per-case deadlines. All execution used private checkouts; the operator binary and
+unrelated local files retain their original hashes and modes. Exact-head hosted
+qualification and merge remain required before the final R3 path is complete.

@@ -55,8 +55,8 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `scripts/factory-migrate-config.sh` | `migrate-config` / `migrateconfigcmd` | Decision 151 / [ADR 0136](../adr/0136-go-source-configuration-entrypoints.md): native source routing, dry-run/apply and historical fixture custody merged in PR #167; qualification below. |
 | [x] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Merged PR #169, Decision 153 / ADR 0138: native delegation, direct/copied ownership and Git pathname delimiters. Source/native focus passed 26 criteria; full source gate passed 93. All 32 hosted checks passed. |
 | [x] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Merged PR #170, Decision 154 / ADR 0139: native source delegation and shared hangup cleanup. All 32 final hosted checks passed, including 100/100 macOS source criteria. Budget B01-B32 historical custody is qualified. |
-| [ ] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Decision 155 / ADR 0140: native source delegation written; independent qualification and merge pending. Preserve checkpoints, budgets, opt-in execution and cancellation. |
-| [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Proof-runner boundary: native public routing plus independent custody/coverage for the broader historical regressions; see the proof-retirement ledger. |
+| [x] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Merged PR #171, Decision 155 / ADR 0140: native source delegation, three-harness bounded execution and cancellation. All 32 final hosted checks passed; source suites passed 109/109 on Linux and macOS. |
+| [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md): native public routing and separate development runner. Local source gate passed 115/115; retained development checks passed 218/218, optional packs 3/3 and Java 6/6. Hosted qualification and merge pending. |
 
 The five evaluation-runner rows merged in
 [PR #164](https://github.com/anoop2811/software-factory-template/pull/164) on
@@ -95,9 +95,9 @@ failures on the first attempt. Their cause remains unproven. The final model
 review completed all 21 files and 48 fragments in 126 seconds and received
 per-finding responses. These are recorded results, not a new qualification run.
 
-Across the fixed baseline and completed rows, 19 of 21 direct source
+Across the fixed baseline and completed rows, 20 of 21 direct source
 entrypoints and all seven sourceable libraries are merged. Including the
-four Python modules, that is 26 of 32 inventory paths (81.25%), with six remaining.
+four retired Python modules, that is 31 of 32 inventory paths (96.875%), with one remaining.
 These are path counts, not effort-weighted implementation or release percentages.
 
 Group 2 merged in PR #167 under Decision 151 / ADR 0136 as
@@ -143,9 +143,16 @@ quota. These are recorded prior results. The original intermittent macOS outer
 ownership-refusal cause remains unconfirmed; bounded diagnostics preserve its
 phase if it recurs. No production ownership policy or deadline was relaxed.
 
-Group 6 begins under Decision 155 / [ADR 0140](../adr/0140-go-source-loop-and-python-retirement.md).
-Loop routing and four Python module retirements remain unchecked until qualified
-and merged. Completion would bring R3 to 31/32 (96.875%), leaving public selftest.
+Group 6 merged in PR #171 as `ebdaa1071f1bf301993c5dd9619abb2d436fd925`
+on 2026-11-07 UTC under Decision 155 / [ADR 0140](../adr/0140-go-source-loop-and-python-retirement.md).
+Final head `118f0b5` passed all 32 hosted checks. Linux and macOS source jobs each
+passed 109 criteria (102.605 and 199.995 seconds). The final advisory review
+covered 35 files and 61 fragments in 71 seconds; all findings received responses.
+A macOS ARM artifact upload failed DNS resolution after tests/build passed; its
+targeted unchanged retry passed. These are recorded prior results, not new runs.
+Loop routing and four active Python module retirements bring R3 to 31/32.
+Group 7 begins under Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md).
+The public selftest path remains unchecked until qualification and merge.
 
 ## Grouped delivery order
 
@@ -197,10 +204,10 @@ Existing installation ownership, backup and customized-file rules still apply.
 
 | Done | Path | Replacement and dependency to close |
 |---|---|---|
-| [ ] | `scripts/lib/budget.py` | Decision 155 / ADR 0140: active source removed; complete immutable historical closure retained. Qualification and merge pending. |
-| [ ] | `scripts/lib/budget_adapters.py` | Decision 155 / ADR 0140: active source removed; existing immutable parser/process oracles retained. Qualification and merge pending. |
-| [ ] | `scripts/lib/loop.py` | Decision 155 / ADR 0140: active source removed; L01-L40 historical custody retained. Qualification and merge pending. |
-| [ ] | `scripts/lib/runtime_transition.py` | Decision 155 / ADR 0140: active source removed; immutable mixed-runtime transition fixtures retained. Qualification and merge pending. |
+| [x] | `scripts/lib/budget.py` | PR #171 / Decision 155 / ADR 0140: active source removed; complete immutable historical closure retained; all 32 hosted checks passed. |
+| [x] | `scripts/lib/budget_adapters.py` | PR #171 / Decision 155 / ADR 0140: active source removed; immutable parser/process oracles retained; all 32 hosted checks passed. |
+| [x] | `scripts/lib/loop.py` | PR #171 / Decision 155 / ADR 0140: active source removed; L01-L40 historical custody retained; all 32 hosted checks passed. |
+| [x] | `scripts/lib/runtime_transition.py` | PR #171 / Decision 155 / ADR 0140: active source removed; immutable transition/recovery oracles retained; all 32 hosted checks passed. |
 
 ## Consumer and proof obligations
 

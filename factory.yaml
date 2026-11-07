@@ -11,7 +11,8 @@ citation_prefix: ""
 protected_paths: "scripts/hooks scripts/lib cmd internal runtime .github/workflows AGENTS.md"
 test_file_patterns: "scripts/selftest/ _test[.]go([^[:alnum:]_]|$)"
 language_packs: ""
-check_command: "./scripts/selftest/run.sh"
+# Self-host development coverage: docs/adr/0141-go-source-public-selftest.md:47.
+check_command: "./scripts/selftest/development.sh"
 local_hooks: ""
 wiki_root: wiki
 wiki_staleness: false

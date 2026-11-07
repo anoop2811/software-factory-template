@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Template-only integration coverage for Decision 44 (docs/DECISION_LOG.md:1653).
-# Run the adopted selftest in isolated working-tree copies; never install this
-# wrapper into adopter selftests or recursively invoke it from run.sh.
+# Run development regressions in isolated working-tree copies; never install this
+# wrapper into adopter selftests or recursively invoke it from development.sh.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -19,7 +19,7 @@ import tempfile
 
 source = Path(sys.argv[1])
 required = [
-    "scripts/selftest/run.sh",
+    "scripts/selftest/development.sh",
     "packs/go/pack.yaml",
     "packs/java/pack.yaml",
     "packs/typescript/pack.yaml",
@@ -54,7 +54,7 @@ def require(condition, message, output):
 with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
     workspace = Path(temporary)
     fixture = workspace / "fixture"
-    # Keep local immutable objects available to run.sh's historical tree while
+    # Keep local immutable objects available to development.sh's historical tree while
     # copying current gate/library bytes, including this uncommitted candidate.
     # docs/adr/0136-go-source-configuration-entrypoints.md:79.
     subprocess.run(["git", "clone", "--shared", "--no-checkout", "--quiet",
@@ -80,7 +80,7 @@ with tempfile.TemporaryDirectory(prefix="factory-optional-packs-") as temporary:
         log = workspace / (name + ".log")
         with log.open("w") as output_file:
             process = subprocess.Popen(
-                ["bash", "scripts/selftest/run.sh"], cwd=fixture,
+                ["bash", "scripts/selftest/development.sh"], cwd=fixture,
                 env=environment, stdout=output_file, stderr=subprocess.STDOUT,
                 start_new_session=True,
             )

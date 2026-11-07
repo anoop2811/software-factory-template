@@ -498,6 +498,56 @@ func sourceSelftestCleanupGroup(receipt sourceSelftestReceipt) {
 	}
 }
 
+// Reuse the independent fourteen-gate oracle through either public boundary.
+// per docs/adr/0120-native-source-gate-proof.md:84
+// per docs/adr/0141-go-source-public-selftest.md:62
+func sourceSelftestGateFaults(f sourceSelftestFixture, executable string, args ...string) {
+	GinkgoHelper()
+	sourceBefore, callerBefore := installationSnapshot(f.root), installationSnapshot(f.caller)
+	started := time.Now()
+	for _, gate := range sourceSelftestGateNames {
+		path := sourceSelftestGatePath(f.root, gate)
+		original, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		refusal := 1
+		if gate == "test-edit-denial" {
+			refusal = 2
+		}
+		for _, status := range []int{0, refusal} {
+			receipt := filepath.Join(filepath.Dir(f.root), fmt.Sprintf("%s-outcome-%d", gate, status))
+			f.environment["SOURCE_SELFTEST_GATE_RECEIPT"] = receipt
+			writeFixture(path, []byte(fmt.Sprintf("#!/bin/bash\nprintf '%%s\\t%%s\\n' '%s' \"$PWD\" >> \"$SOURCE_SELFTEST_GATE_RECEIPT\"\nexit %d\n", gate, status)), 0755)
+			result := f.run(executable, args...)
+			Expect(result.status).To(Equal(1), "constant outcome %d for %s must fail: %+v", status, gate, result)
+			Expect(result.stderr).To(ContainSubstring(gate), "the real defective gate must cause the refusal")
+			Expect(result.stdout).NotTo(ContainSubstring("proof: " + gate + " refused its violation"))
+			Expect(result.stdout).NotTo(ContainSubstring("selftest: 14 shipped gates proved, 0 failed"))
+			body, err := os.ReadFile(receipt)
+			Expect(err).NotTo(HaveOccurred(), "the defective %s gate must actually execute", gate)
+			invocations := strings.Split(strings.TrimSuffix(string(body), "\n"), "\n")
+			expectedInvocations := 1
+			if status != 0 {
+				expectedInvocations = 2
+			}
+			Expect(invocations).To(HaveLen(expectedInvocations), "prove the real violation/healthy-control status boundary for %s", gate)
+			for _, invocation := range invocations {
+				fields := strings.Split(invocation, "\t")
+				Expect(fields).To(HaveLen(2))
+				Expect(fields[0]).To(Equal(gate))
+				Expect(filepath.Base(fields[1])).To(Equal(gate))
+				Expect(filepath.Dir(filepath.Dir(fields[1]))).To(Equal(f.scratch), "each real hook must execute inside its private proof scratch")
+			}
+			f.expectClean()
+		}
+		writeFixture(path, original, 0755)
+	}
+	sourceSelftestExpectHealthy(f.run(executable, args...))
+	AddReportEntry("source-selftest.gate-fault-duration", time.Since(started).String(), ReportEntryVisibilityNever)
+	Expect(installationSnapshot(f.root)).To(Equal(sourceBefore))
+	Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
+	f.expectClean()
+}
+
 var _ = Describe("Native source selftest gate proofs", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:10
 	// per docs/adr/0120-native-source-gate-proof.md:55
@@ -586,49 +636,7 @@ var _ = Describe("Native source selftest gate proofs", func() {
 	// per docs/adr/0120-native-source-gate-proof.md:84
 	It("rejects both constant outcomes for every required gate and recovers after restoring all real gates", func() {
 		f := newSourceSelftestFixture()
-		sourceBefore, callerBefore := installationSnapshot(f.root), installationSnapshot(f.caller)
-		started := time.Now()
-		for _, gate := range sourceSelftestGateNames {
-			path := sourceSelftestGatePath(f.root, gate)
-			original, err := os.ReadFile(path)
-			Expect(err).NotTo(HaveOccurred())
-			refusal := 1
-			if gate == "test-edit-denial" {
-				refusal = 2
-			}
-			for _, status := range []int{0, refusal} {
-				receipt := filepath.Join(filepath.Dir(f.root), fmt.Sprintf("%s-outcome-%d", gate, status))
-				f.environment["SOURCE_SELFTEST_GATE_RECEIPT"] = receipt
-				writeFixture(path, []byte(fmt.Sprintf("#!/bin/bash\nprintf '%%s\\t%%s\\n' '%s' \"$PWD\" >> \"$SOURCE_SELFTEST_GATE_RECEIPT\"\nexit %d\n", gate, status)), 0755)
-				result := f.run(filepath.Join(f.root, "factory"), "selftest")
-				Expect(result.status).To(Equal(1), "constant outcome %d for %s must fail: %+v", status, gate, result)
-				Expect(result.stderr).To(ContainSubstring(gate), "the real defective gate must cause the refusal")
-				Expect(result.stdout).NotTo(ContainSubstring("proof: " + gate + " refused its violation"))
-				Expect(result.stdout).NotTo(ContainSubstring("selftest: 14 shipped gates proved, 0 failed"))
-				body, err := os.ReadFile(receipt)
-				Expect(err).NotTo(HaveOccurred(), "the defective %s gate must actually execute", gate)
-				invocations := strings.Split(strings.TrimSuffix(string(body), "\n"), "\n")
-				expectedInvocations := 1
-				if status != 0 {
-					expectedInvocations = 2
-				}
-				Expect(invocations).To(HaveLen(expectedInvocations), "prove the real violation/healthy-control status boundary for %s", gate)
-				for _, invocation := range invocations {
-					fields := strings.Split(invocation, "\t")
-					Expect(fields).To(HaveLen(2))
-					Expect(fields[0]).To(Equal(gate))
-					Expect(filepath.Base(fields[1])).To(Equal(gate))
-					Expect(filepath.Dir(filepath.Dir(fields[1]))).To(Equal(f.scratch), "each real hook must execute inside its private proof scratch")
-				}
-				f.expectClean()
-			}
-			writeFixture(path, original, 0755)
-		}
-		sourceSelftestExpectHealthy(f.run(filepath.Join(f.root, "factory"), "selftest"))
-		AddReportEntry("source-selftest.gate-fault-duration", time.Since(started).String(), ReportEntryVisibilityNever)
-		Expect(installationSnapshot(f.root)).To(Equal(sourceBefore))
-		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
-		f.expectClean()
+		sourceSelftestGateFaults(f, filepath.Join(f.root, "factory"), "selftest")
 	})
 
 	// per docs/adr/0120-native-source-gate-proof.md:48

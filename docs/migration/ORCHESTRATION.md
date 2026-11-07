@@ -51,13 +51,16 @@ SIGINT/SIGTERM cancels owned proof children before scratch cleanup; uncertain
 ownership fails and retains the private workspace with bounded diagnostics.
 See [ADR 0120](../adr/0120-native-source-gate-proof.md) for the fixed gate inventory.
 
-The tracked source launcher now builds and enters the Go CLI. Direct
-`scripts/selftest/run.sh` and `make selftest` retain the broader historical shell
-regression suite until their separate activation. Its configuration, packs, sync, upgrade, evaluation,
-review-lane, metrics, event and implementation-text checks are distinct from
-the fourteen core gate pairs. Current public native proofs do not establish
-parity with that entire suite; retain each regression until independently
-replaced under the [conversion coverage rule](../../specs/001-go-runtime-conversion.md#decision-4-reuse-behavior-contracts-independently-prove-go-conformance).
+The tracked source launcher builds and enters the Go CLI. Direct
+`scripts/selftest/run.sh` and `make selftest` use the same native proof. Factory
+contributors run `scripts/selftest/development.sh` for the broader configuration,
+pack, sync, upgrade, evaluation, review-lane, metrics, event and historical
+implementation checks. Template CI runs both; this repository's configured check
+keeps the development suite in `make check` and protected-path checks. The
+development runner is not installed in adopter projects. These regressions remain
+distinct from the fourteen core gate pairs, with current and immutable historical
+custody recorded in the [proof-retirement ledger](R3_PROOF_RETIREMENT.md) and
+[ADR 0141](../adr/0141-go-source-public-selftest.md).
 
 Intentional retained shell boundaries are policy gates, sourceable assignment
 adapters, Bash operand expansion for local-hook compatibility, generated

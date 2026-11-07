@@ -1,6 +1,6 @@
 # ADR 0140: native source loop and Python runtime retirement
 
-Status: accepted implementation boundary; qualification and merge pending.
+Status: accepted; qualified and merged in PR #171 on 2026-11-07 UTC.
 Decision: 155. Implements R3 group 6 after merged PR #170.
 
 ## Context

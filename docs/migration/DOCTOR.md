@@ -27,8 +27,9 @@ inspection rather than claiming agreement. Its CODEOWNERS check reports literal
 path references, not remote branch-protection enforcement or full rule semantics.
 
 Synchronization and review-lane status use their shared Go owners. The caller's
-`scripts/selftest/run.sh` remains a supervised subprocess boundary for the existing
-break/fix proof. Doctor never requests a model review or installs dependencies.
+`scripts/selftest/run.sh` remains a supervised subprocess boundary for the native
+fourteen-gate break/fix proof. The factory's separate development regression
+runner is not selected by doctor. Doctor never requests a model review or installs dependencies.
 Custom repository tools remain trusted code; this is not
 a sandbox for arbitrary custom selftests. Signals cancel owned child work, and
 bounded reads, output capture and deadlines prevent indefinite diagnostic work.

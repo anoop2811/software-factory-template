@@ -627,6 +627,11 @@ var _ = Describe("Go source runtime entrypoints", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:171
 	It("initializes through the real local adapter then proves source installed and upgrade boundaries natively", func() {
 		f := newSourceEntrypointFixture()
+		// The real current source initializer must work without retired runtime data.
+		// per docs/adr/0140-go-source-loop-and-python-retirement.md:91
+		for _, name := range sourceRetiredPython {
+			Expect(os.Remove(filepath.Join(f.root, "scripts/lib", name))).To(Succeed())
+		}
 		imageGit(f.root, "add", "--all")
 		imageGit(f.root, "-c", "user.name=Source fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q", "-m", "actual selected source entrypoints")
 		revision := strings.TrimSpace(imageGit(f.root, "rev-parse", "HEAD"))
@@ -662,6 +667,10 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		Expect(initialized.status).To(Equal(0), "%+v", initialized)
 		Expect(shallow).To(Equal("false"), "native-selected source needs its complete pinned predecessor history")
 		localInitDescriptor(target, revision)
+		for _, name := range sourceRetiredPython {
+			_, err := os.Lstat(filepath.Join(target, "scripts/lib", name))
+			Expect(os.IsNotExist(err)).To(BeTrue(), "current public initialization must not restore %s", name)
+		}
 		Expect(os.ReadFile(filepath.Join(target, "README.md"))).To(Equal([]byte("application-owned README\n")))
 		installedLauncher, err := os.ReadFile(filepath.Join(target, "factory"))
 		Expect(err).NotTo(HaveOccurred())

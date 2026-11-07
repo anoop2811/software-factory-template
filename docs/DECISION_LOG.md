@@ -7510,3 +7510,147 @@ changed. Four private Bash 3/5 sourcing probes also refuted wrong-owner dispatch
 each selected the physical owner, returned its status 63 and never called the
 foreign owner. Both hosted source partitions passed on a393b78 before this final
 fixture correction; exact final-head checks remain required.
+
+
+## Decision 155 (2026-11-06 UTC): close source loop routing and retire Python runtime modules
+
+PR #170 merged as `9b194645c34ed116863d8f245916e19eddfa7d0b` on
+2026-11-06 UTC. Its final head `ec21909` passed all 32 hosted checks, including
+100/100 macOS source criteria. The final advisory review covered 21 files and
+34 fragments in under two minutes; all findings received evidence-based replies
+and no inline threads remained unresolved. Copilot could not review because of
+quota. These are recorded prior results, not new qualification for this group.
+The original intermittent outer ownership-refusal cause remains unconfirmed.
+
+Adopt [ADR 0140](adr/0140-go-source-loop-and-python-retirement.md) before code.
+Replace the remaining source loop Python dispatch with the existing native owner,
+then remove the four active Python runtime modules and their current initializer
+input entries. Preserve historical installation recipes and adopter ownership/
+backup rules. Give every remaining test consumer explicit immutable fixture
+custody, retain L01-L40 and all prior assertions, and update disappearing spec
+references to stable acceptance evidence. Require independent outside-in RED/GREEN,
+affected historical/native qualification, current reference audit, source gate,
+independent review and exact-head hosted checks before merge. R3 is 26/32 merged;
+this group counts as 31/32 only after qualification and merge. Public selftest
+remains group 7, followed by the separate R4-R7 release obligations.
+
+Decision 155 fixture refinement before edits: the existing historical initializer
+component compiles current initcmd against the shared current input inventory,
+while its complete artifact comparison and transition-delivery checks deliberately
+expect legacy Python assets. Retain its former inventory through a test-only
+Go build overlay of the identified immutable inventory at `1754de23`; keep engine
+code and all assertions current. The actual candidate remains unmodified and
+requires separate current inventory/copy/initialization retirement evidence.
+ADR 0140 records this bounded historical-driver exception before implementation.
+
+Decision 155 initial source RED: four independent criteria ran against unchanged
+merged production and reported `0 Passed | 4 Failed` in 2.412 seconds. The real
+loop wrapper reached poisoned legacy helpers (status 97) instead of the selected
+owner/explicit refusal/compiler status; retirement observed active Python files.
+This establishes the adapter boundary before replacement. Current copy-gate
+behavior with those files absent is qualified separately before inventory edits.
+
+Decision 155 current-inventory RED before deletion: the actual candidate
+`helper copies` returned 1 with `COPY-MANIFEST FAIL: required initializer input
+"scripts/lib/budget.py": file does not exist` after the four Python modules were
+removed from a private current source fixture. The independent criterion failed
+in 2.498 seconds; this establishes the current inventory dependency separately
+from source-file absence. Remove those four current required inputs while keeping
+the historical component overlay and frozen installation recipes separate.
+
+Decision 155 historical qualification after active module deletion: private
+`FACTORY_AGENT_ROLE=spec-writer bash scripts/selftest/run.sh`,
+`optional-packs.sh`, `java-build-tool.sh`, `budget.sh` and `loop.sh` (all under
+`scripts/selftest/`) reported respectively `218 passed, 0 failed, 0 skipped`,
+`3 passed, 0 failed`, `6 passed, 0 failed`, `32 passed, 0 failed` and
+`40 passed, 0 failed`. The registered budget/loop function ASTs are unchanged
+(32/32 and 40/40). Qualification used the existing CI-pinned Python 3.12.14
+for these isolated historical tools. L01-L40 custody is locally qualified;
+current source routing, enclosing gate and hosted checks remain separate.
+
+Private `go test -race ./internal/initcmd ./internal/initinventory
+./internal/copymanifest ./internal/installation -count=1 -timeout=5m
+-ginkgo.fail-on-empty` exited zero: initcmd `ok` (6.707s), installation `ok`
+(3.284s); initinventory/copymanifest have no package-local test files. Their
+actual source-input behavior is exercised by the independent copy/init criteria.
+
+Decision 155 source qualification: the combined budget/loop race focus reported
+`14 Passed | 0 Failed` in 38.522 seconds. The seven loop criteria cover physical
+transport/refusals, failed compilation/no fallback, current inventory retirement,
+real source compilation/read-only/manual resume, all three bounded harnesses with
+shared accounting/no paid retry, and acknowledged INT/TERM/HUP cleanup. Earlier
+functional attempts exposed fixture assumptions (untracked tool/prompt inputs,
+empty-status outcome, plan operands, Bash availability and flat-config quoting);
+only fixture inputs/expectations were corrected against existing contracts. No
+loop engine, production deadline or ownership rule changed. Enclosing source,
+historical initializer/transition and exact-head hosted qualification remain open.
+
+Decision 155 discovery and review: actual Ginkgo dry discovery found 3312 total
+criteria and 107 in the source partition; base remains 2997. Update the existing
+disjoint/exhaustive partition assertions to those measured values. Configured
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`.
+Independent production and test-custody reviews retained no actionable findings;
+they checked the six production paths, immutable closure, inventory-only overlay,
+unchanged historical assertions and independent current initialization proof.
+The enclosing source gate and affected historical-init/transition qualification
+are still running and must be recorded separately before completion.
+
+Decision 155 hosted recovery correction before edits: Linux base qualification
+reported `2979 Passed | 3 Failed`; all three failures are the existing interrupted
+recovery Python admission probe importing bare `runtime_transition` through the
+current source `scripts/lib` directory. That import was missed by the earlier
+filename-focused audit. Retain its shared/exclusive pending-barrier checks using
+the same immutable transition module in a separate private oracle directory,
+without changing the observed adopter tree. Extend the audit to bare and dynamic
+imports. Reproduce the three failures, then run the affected recovery/publication
+criteria and review the correction; production retirement remains unchanged.
+
+Decision 155 recovery-import evidence: the exact three killed-owner criteria
+first failed with `ModuleNotFoundError: No module named 'runtime_transition'`
+in 4.724 seconds. After the private pinned-module correction, the interrupted
+recovery/live-publication/Python-transition focus reported `63 Passed | 0 Failed`
+in 36.722 seconds. Independent review confirmed the embedded Python program and
+all registered recovery bodies are unchanged. A full tracked bare-import and
+dynamic-loader audit found no other current-tree retired-module consumer; the
+remaining loaders resolve through identified immutable fixtures. Exact-head
+hosted qualification remains required.
+
+Decision 155 compiler cancellation correction before edits: the final-head macOS
+source job ran 105/107 criteria successfully. The held unadmitted-child criterion
+reached TERM but returned only after release; the delayed cold-compiler criterion
+returned typed pipe-drain uncertainty while the compiler remained present. Both
+unchanged criteria and ten private diagnostic repetitions each passed locally;
+the exact hosted blocking instruction remains unknown. Do not infer an infinite
+wait or change child identity authority from those observations.
+
+Reduce the repeated process-start cost in the existing bounded cleanup: poll
+child terminal status five times at 100 ms instead of twenty-five at 20 ms,
+preserving the nominal half-second allowance and jobs-based terminal proof.
+Take a final terminal observation after the fifth sleep so late completion
+inside that allowance remains eligible for reap.
+For caller cancellation only, allow one 100 ms TERM/INT/HUP poll before force;
+ordinary completion/EXIT cleanup retains five polls. This gives compiler signal
+handlers a brief cleanup opportunity while reserving more of the unchanged outer
+two-second cooperative allowance for force, reap and capture drainage. Preserve
+the KILL phase, borrowed-group exclusion, mapped caller statuses, status-125
+uncertainty and retained evidence. Run independent delayed-scheduling regressions
+under the original caller deadlines against preserved pre-fix source before
+accepting GREEN on the correction, then qualify the
+entire source partition and exact-head CI. Controlled delays prove the narrower
+latency property; they do not retrospectively establish the hosted root cause.
+
+Decision 155 cancellation evidence: the delayed-scheduling focus against preserved
+`0f67caa` reported `1 Passed | 2 Failed`, reproducing late held-child return and
+pipe-drain uncertainty under controlled cost. The corrected focus reported
+`3 Passed | 0 Failed`. A separate mutation removing the final reap observation
+failed its actual-child handshake criterion. The enclosing command
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_TEST_TIMEOUT=15m` exited zero and reported
+`109 Passed | 0 Failed`; configured lint reported `0 issues.`, gosec zero issues,
+and govulncheck zero called-code vulnerabilities. Actual discovery is 3314 total,
+109 source and 2997 base; the partition census criterion passed independently.
+A combined local focus also encountered a pre-readiness timeout in the new cold
+subcase; its retained fixture and failure report remain separate evidence, not
+a successful run or an established shutdown diagnosis. The complete source gate
+subsequently passed that case with unchanged assertions. Exact-head hosted CI
+and review remain required.

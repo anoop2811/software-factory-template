@@ -1,6 +1,6 @@
 # ADR 0139: native source budget command
 
-Status: accepted implementation boundary; qualification and merge pending.
+Status: accepted; qualified source boundary merged in PR #170.
 Decision: 154. Implements R3 group 5 after merged PR #169.
 
 ## Context

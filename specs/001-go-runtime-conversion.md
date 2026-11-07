@@ -399,19 +399,21 @@ authority for compatibility. No new HTTP service, daemon or public Go SDK is req
 The inventory must characterize the following non-obvious baseline contracts,
 with fixtures rather than assumptions:
 
-| Boundary | Required characterization | Baseline source |
+| Boundary | Required characterization | Baseline source or surviving behavioral evidence |
 |---|---|---|
 | Flat configuration | First matching key, quoted hashes/comments, absent versus empty, get versus has, unrelated-line preservation, legacy allowlist; no general-YAML reinterpretation | scripts/lib/config.sh:5, scripts/lib/config.sh:36, scripts/lib/config.sh:81, scripts/lib/config.sh:241 |
 | Caller-shell state | Source-time exports and function effects; retain supported POSIX versus Bash entrypoints; never use unsafe eval on values returned by Go | scripts/lib/config.sh:125, scripts/lib/budget-config.sh:19, scripts/lib/timing.sh:9 |
 | Local hook grammar | Comma/whitespace entries, attached flags, literal argv, captured output retaining the hook's own exit code | scripts/lib/config.sh:130, scripts/pre-push-check.sh:126 |
-| Budget output | JSON Lines may contain multiple metadata records; normal successful output also displays the answer; no extra banner in machine output | scripts/lib/budget.py:289, scripts/lib/budget.py:590 |
-| Recovery inspection | Budget report / loop status precede unrelated current configuration validation | scripts/lib/budget.py:615, scripts/lib/loop.py:566 |
-| Checkpoint identity | Sorted-key JSON bytes, ASCII escaping, separators and numeric representation; exact content/mode/policy inputs | scripts/lib/loop.py:24, scripts/lib/loop.py:305 |
-| Lock/storage behavior | budget.lock blocking transaction lock, loops.lock nonblocking whole-controller lock, same native lock namespace/inodes, private atomic durable state | scripts/lib/budget.py:194, scripts/lib/loop.py:271 |
+| Budget output | JSON Lines may contain multiple metadata records; normal successful output also displays the answer; no extra banner in machine output | acceptance/budget_command_test.go:239, acceptance/budget_command_test.go:292 |
+| Recovery inspection | Budget report / loop status precede unrelated current configuration validation | acceptance/budget_command_test.go:148, acceptance/bounded_loop_test.go:43 |
+| Checkpoint identity | Sorted-key JSON bytes, ASCII escaping, separators and numeric representation; exact content/mode/policy inputs | acceptance/loop_test.go:91, acceptance/loop_test.go:130, acceptance/loop_test.go:149, acceptance/loop_test.go:159, acceptance/loop_checkpoint_test.go:158 |
+| Lock/storage behavior | budget.lock blocking transaction lock, loops.lock nonblocking whole-controller lock, same native lock namespace/inodes, private atomic durable state | acceptance/budget_ledger_test.go:626, acceptance/budget_ledger_test.go:537, internal/budget/storage_test.go:35, internal/loop/checkpoint_test.go:161, internal/loop/checkpoint_test.go:220, internal/loop/checkpoint_test.go:234, internal/loop/checkpoint_test.go:43 |
 | Optional presentation/events | Best-effort event/timing failures remain nonfatal; overridden log paths, TSV retention, NO_COLOR and TTY/CI/browser behavior remain compatible | scripts/lib/events.sh:3, scripts/lib/color.sh:9, acceptance/native_metrics_safety_test.go:50 |
 
-These source citations refer to the identified baseline; subsequent conversion
-must replace them with stable acceptance references before the files disappear.
+Source citations refer to the identified baseline. Decision 155 replaces retired
+Python-source citations with surviving Ginkgo/Gomega behavioral evidence, including
+component-level publication/locking criteria where acceptance alone is narrower.
+Later conversions must likewise replace citations before referenced files disappear.
 
 ### Recovery-folder lifecycle
 

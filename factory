@@ -196,9 +196,11 @@ source_child_active() {
 
 source_reap_child() {
   local attempt status
-  for ((attempt=0; attempt<25; attempt++)); do
+  # Observe once more after the final sleep. docs/adr/0133-go-source-evaluation-runners.md:247.
+  for ((attempt=0; attempt<=5; attempt++)); do
     if source_child_active; then
-      /bin/sleep 0.02
+      [ "$attempt" -lt 5 ] || return 1
+      /bin/sleep 0.1
     else
       status=$?
       [ "$status" -eq 1 ] || return 1
@@ -226,8 +228,8 @@ source_finish_absent_group() {
 
 source_stop_build() {
   [ -n "$SOURCE_CHILD" ] || return 0
-  # Keep nominal grace with fewer sleep processes. docs/adr/0133-go-source-evaluation-runners.md:172.
-  local source_signal source_attempt source_attempts=5 source_probe
+  # Caller cancellation reserves more time for reap. docs/adr/0133-go-source-evaluation-runners.md:240.
+  local source_signal source_attempt source_attempts=${2:-5} source_probe
   if source_group_present; then
     :
   else
@@ -291,7 +293,7 @@ source_cancel() {
       SOURCE_COMPILER_PID=$candidate
     fi
   fi
-  if ! source_stop_build "$2"; then
+  if ! source_stop_build "$2" 1; then
     SOURCE_RETAIN=1
     exit 125
   fi

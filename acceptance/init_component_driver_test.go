@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +40,15 @@ func main(){
 `), 0600)
 		output := filepath.Join(work, "factory-init-component")
 		args := []string{"build", "-trimpath", "-buildvcs=false", "-o", output, source}
+		// Preserve the archived component's asset contract without freezing its engine.
+		// per docs/adr/0140-go-source-loop-and-python-retirement.md:85
+		inventory := filepath.Join(work, "historical-inventory.go")
+		writeFixture(inventory, sourceLegacyEntrypointBytes("internal/initinventory/inventory.go"), 0600)
+		overlay, err := json.Marshal(map[string]any{"Replace": map[string]string{filepath.Join(root, "internal/initinventory/inventory.go"): inventory}})
+		Expect(err).NotTo(HaveOccurred())
+		overlayPath := filepath.Join(work, "historical-inventory-overlay.json")
+		writeFixture(overlayPath, overlay, 0600)
+		args = append([]string{"build", "-overlay", overlayPath}, args[1:]...)
 		if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
 			args = append([]string{"build", "-race"}, args[1:]...)
 		}

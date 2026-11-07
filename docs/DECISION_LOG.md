@@ -7614,3 +7614,43 @@ all registered recovery bodies are unchanged. A full tracked bare-import and
 dynamic-loader audit found no other current-tree retired-module consumer; the
 remaining loaders resolve through identified immutable fixtures. Exact-head
 hosted qualification remains required.
+
+Decision 155 compiler cancellation correction before edits: the final-head macOS
+source job ran 105/107 criteria successfully. The held unadmitted-child criterion
+reached TERM but returned only after release; the delayed cold-compiler criterion
+returned typed pipe-drain uncertainty while the compiler remained present. Both
+unchanged criteria and ten private diagnostic repetitions each passed locally;
+the exact hosted blocking instruction remains unknown. Do not infer an infinite
+wait or change child identity authority from those observations.
+
+Reduce the repeated process-start cost in the existing bounded cleanup: poll
+child terminal status five times at 100 ms instead of twenty-five at 20 ms,
+preserving the nominal half-second allowance and jobs-based terminal proof.
+Take a final terminal observation after the fifth sleep so late completion
+inside that allowance remains eligible for reap.
+For caller cancellation only, allow one 100 ms TERM/INT/HUP poll before force;
+ordinary completion/EXIT cleanup retains five polls. This gives compiler signal
+handlers a brief cleanup opportunity while reserving more of the unchanged outer
+two-second cooperative allowance for force, reap and capture drainage. Preserve
+the KILL phase, borrowed-group exclusion, mapped caller statuses, status-125
+uncertainty and retained evidence. Run independent delayed-scheduling regressions
+under the original caller deadlines against preserved pre-fix source before
+accepting GREEN on the correction, then qualify the
+entire source partition and exact-head CI. Controlled delays prove the narrower
+latency property; they do not retrospectively establish the hosted root cause.
+
+Decision 155 cancellation evidence: the delayed-scheduling focus against preserved
+`0f67caa` reported `1 Passed | 2 Failed`, reproducing late held-child return and
+pipe-drain uncertainty under controlled cost. The corrected focus reported
+`3 Passed | 0 Failed`. A separate mutation removing the final reap observation
+failed its actual-child handshake criterion. The enclosing command
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_TEST_TIMEOUT=15m` exited zero and reported
+`109 Passed | 0 Failed`; configured lint reported `0 issues.`, gosec zero issues,
+and govulncheck zero called-code vulnerabilities. Actual discovery is 3314 total,
+109 source and 2997 base; the partition census criterion passed independently.
+A combined local focus also encountered a pre-readiness timeout in the new cold
+subcase; its retained fixture and failure report remain separate evidence, not
+a successful run or an established shutdown diagnosis. The complete source gate
+subsequently passed that case with unchanged assertions. Exact-head hosted CI
+and review remain required.

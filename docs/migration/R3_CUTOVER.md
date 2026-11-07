@@ -56,7 +56,7 @@ The checklist records source qualification and review, not merely written files.
 | [x] | `scripts/pre-push-check.sh` | `check` / `checkcmd` | Merged PR #169, Decision 153 / ADR 0138: native delegation, direct/copied ownership and Git pathname delimiters. Source/native focus passed 26 criteria; full source gate passed 93. All 32 hosted checks passed. |
 | [x] | `scripts/factory-budget.sh` | `budget` / `configuredcmd` | Merged PR #170, Decision 154 / ADR 0139: native source delegation and shared hangup cleanup. All 32 final hosted checks passed, including 100/100 macOS source criteria. Budget B01-B32 historical custody is qualified. |
 | [x] | `scripts/factory-loop.sh` | `loop` / `configuredcmd` | Merged PR #171, Decision 155 / ADR 0140: native source delegation, three-harness bounded execution and cancellation. All 32 final hosted checks passed; source suites passed 109/109 on Linux and macOS. |
-| [ ] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md): native public routing and separate development runner. Local source gate passed 115/115; retained development checks passed 218/218, optional packs 3/3 and Java 6/6. Hosted qualification and merge pending. |
+| [x] | `scripts/selftest/run.sh` | `selftest` / `installedproof` | Merged PR #172, Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md): native public routing and separate development runner. Source gate passed 115/115 on Linux and macOS; all 32 final hosted checks passed. Retained development checks passed 218/218, optional packs 3/3 and Java 6/6. |
 
 The five evaluation-runner rows merged in
 [PR #164](https://github.com/anoop2811/software-factory-template/pull/164) on
@@ -95,9 +95,9 @@ failures on the first attempt. Their cause remains unproven. The final model
 review completed all 21 files and 48 fragments in 126 seconds and received
 per-finding responses. These are recorded results, not a new qualification run.
 
-Across the fixed baseline and completed rows, 20 of 21 direct source
+Across the fixed baseline and completed rows, all 21 direct source
 entrypoints and all seven sourceable libraries are merged. Including the
-four retired Python modules, that is 31 of 32 inventory paths (96.875%), with one remaining.
+four retired Python modules, that is 32 of 32 inventory paths (100%).
 These are path counts, not effort-weighted implementation or release percentages.
 
 Group 2 merged in PR #167 under Decision 151 / ADR 0136 as
@@ -151,8 +151,13 @@ covered 35 files and 61 fragments in 71 seconds; all findings received responses
 A macOS ARM artifact upload failed DNS resolution after tests/build passed; its
 targeted unchanged retry passed. These are recorded prior results, not new runs.
 Loop routing and four active Python module retirements bring R3 to 31/32.
-Group 7 begins under Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md).
-The public selftest path remains unchecked until qualification and merge.
+Group 7 merged in PR #172 as `44032eac08dc47eab67ffc13cdd1119254bd1366`
+on 2026-11-07 UTC under Decision 156 / [ADR 0141](../adr/0141-go-source-public-selftest.md).
+Final head `06908cf` passed all 32 hosted checks. Linux and macOS source jobs each
+passed 115 criteria (120.206 and 261.683 seconds). Adversarial review completed
+19 files and 38 fragments in 100 seconds; every finding received a response.
+Copilot could not review because of quota. These are recorded prior results,
+not new qualification runs. R3 is complete; R4-R7 release gates remain open.
 
 ## Grouped delivery order
 
@@ -241,17 +246,17 @@ independent RED/GREEN evidence, review disposition and hosted result.
 
 ## R3 exit conditions
 
-- [ ] Every path above has one classified disposition: qualified native routing,
+- [x] Every path above has one classified disposition: qualified native routing,
       a justified thin sourceable adapter, or evidence-backed runtime retirement.
-- [ ] No current public factory command or helper invokes an active Python
+- [x] No current public factory command or helper invokes an active Python
       factory implementation; unsupported/missing native owners fail explicitly.
-- [ ] Each historical regression is independently replaced or retained as
+- [x] Each historical regression is independently replaced or retained as
       explicitly isolated test-only evidence with a rationale. No coverage is
       silently dropped and no historical fixture supplies a runtime fallback.
-- [ ] Current CI, copy inventories, generated references and documentation agree
+- [x] Current CI, copy inventories, generated references and documentation agree
       with the retained paths and their owners; no active caller selects a removed
       implementation.
-- [ ] Relevant source and installed checks, independent reviews and hosted checks
+- [x] Relevant source and installed checks, independent reviews and hosted checks
       pass for the completed boundaries. Final release rehearsal, native candidate
       qualification, adopter pilot and public default activation remain separate.
 

@@ -740,7 +740,16 @@ var _ = Describe("Native Go doctor classifications", func() {
 		actual := doctorRun(root, environment, false)
 		Expect(actual.status).To(Equal(baseline.status), "%+v", actual)
 		Expect(actual.stderr).To(Equal(baseline.stderr))
-		Expect(doctorNormalize(actual.stdout)).To(Equal(doctorNormalize(baseline.stdout)))
+		// The frozen implementation stays untouched; only its exact obsolete hook
+		// advice has an explicitly approved current replacement.
+		// per docs/adr/0142-installed-full-check-hook-setup.md:95
+		oldAdvice := "  [warn]    push gate not installed — run: git config core.hooksPath .githooks\n"
+		Expect(strings.Count(baseline.stdout, oldAdvice)).To(Equal(1))
+		newAdvice := "  [warn]    the tracked .githooks/pre-push path is not selected; hook contents are not validated\n" +
+			"              keep existing hooks and configuration unless intentionally changing them\n" +
+			"              reported hook path: " + root + "/\n"
+		expected := strings.Replace(baseline.stdout, oldAdvice, newAdvice, 1)
+		Expect(doctorNormalize(actual.stdout)).To(Equal(doctorNormalize(expected)))
 	}, Entry("healthy", "healthy"), Entry("inert", "inert"), Entry("stale", "stale"), Entry("missing core hook", "missing"), Entry("nonexecutable hook", "nonexecutable"), Entry("failed proof", "proof"), Entry("optional adapter absent", "skip"))
 
 	// per docs/adr/0086-go-native-doctor.md:30
@@ -802,24 +811,52 @@ var _ = Describe("Native Go doctor classifications", func() {
 	})
 
 	// per docs/adr/0086-go-native-doctor.md:32
-	DescribeTable("reports effective Git hook state even without the old optional library", func(state, diagnostic string) {
+	// per docs/adr/0142-installed-full-check-hook-setup.md:51
+	// per docs/adr/0142-installed-full-check-hook-setup.md:75
+	DescribeTable("reports effective Git hook state even without the old optional library", func(state string) {
 		root, environment := doctorFixture()
 		doctorGit(root, environment, "init", "-q")
 		Expect(os.Remove(filepath.Join(root, "scripts/lib/hookspath.sh"))).To(Succeed())
+		hook := filepath.Join(root, ".githooks/pre-push")
 		switch state {
 		case "armed", "inert":
 			doctorGit(root, environment, "config", "core.hooksPath", ".githooks")
 		case "hijacked":
 			doctorGit(root, environment, "config", "core.hooksPath", "elsewhere")
-			writeFixture(filepath.Join(root, "elsewhere/pre-push"), []byte("#!/bin/bash\nexit 0\n"), 0700)
+			hook = filepath.Join(root, "elsewhere/pre-push")
+			writeFixture(hook+".owned", []byte("#!/bin/sh\nexit 29\n"), 0710)
+			Expect(os.Symlink("pre-push.owned", hook)).To(Succeed())
+		case "absent":
+			hook = filepath.Join(root, ".git/hooks/pre-push")
+			writeFixture(hook, []byte("#!/bin/sh\nexit 31\n"), 0750)
 		}
 		if state == "inert" {
-			Expect(os.Chmod(filepath.Join(root, ".githooks/pre-push"), 0600)).To(Succeed())
+			Expect(os.Chmod(hook, 0600)).To(Succeed())
 		}
+		gitBefore := nativeInitArtifacts(filepath.Join(root, ".git"))
+		hooksBefore := nativeInitArtifacts(filepath.Dir(hook))
+		identity, err := os.Lstat(hook)
+		Expect(err).NotTo(HaveOccurred())
 		out := doctorRun(root, environment, false)
 		Expect(out.status).To(BeZero(), "%+v", out)
-		Expect(out.stdout).To(ContainSubstring(diagnostic))
-	}, Entry("armed", "armed", "git resolves the pre-push hook"), Entry("inert", "inert", "pre-push hook is not executable"), Entry("hijacked", "hijacked", "core.hooksPath redirects git"), Entry("absent", "absent", "push gate not installed"))
+		Expect(nativeInitArtifacts(filepath.Join(root, ".git"))).To(Equal(gitBefore), "doctor must preserve Git settings")
+		Expect(nativeInitArtifacts(filepath.Dir(hook))).To(Equal(hooksBefore), "doctor must preserve hooks, symlinks and modes")
+		after, err := os.Lstat(hook)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(identity, after)).To(BeTrue())
+		Expect(out.stdout).To(ContainSubstring(".githooks"))
+		Expect(out.stdout).NotTo(ContainSubstring("git config core.hooksPath .githooks"))
+		Expect(out.stdout).NotTo(ContainSubstring("push gate not installed"))
+		Expect(out.stdout).NotTo(ContainSubstring("push gate INERT"))
+		if state == "hijacked" || state == "absent" {
+			Expect(out.stdout).To(ContainSubstring(filepath.ToSlash(hook)))
+			Expect(out.stdout).To(ContainSubstring("not validated"))
+		} else if state == "inert" {
+			Expect(out.stdout).To(ContainSubstring("not executable"))
+		} else {
+			Expect(out.stdout).To(ContainSubstring("full-check"))
+		}
+	}, Entry("armed", "armed"), Entry("inert", "inert"), Entry("hijacked", "hijacked"), Entry("absent", "absent"))
 
 	// per docs/adr/0089-go-native-review-lane.md:93
 	DescribeTable("never claims review credentials are present after a failed status lookup", func(body string, healthy bool) {

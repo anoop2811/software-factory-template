@@ -7713,3 +7713,35 @@ partition run provide their respective evidence without extending production or
 per-case deadlines. All execution used private checkouts; the operator binary and
 unrelated local files retain their original hashes and modes. Exact-head hosted
 qualification and merge remain required before the final R3 path is complete.
+
+## Decision 157 (2026-11-07 UTC): qualify installed full-check hook setup without changing frozen recipes
+
+PR #172 merged at `2026-11-07T19:08:39Z` as
+`44032eac08dc47eab67ffc13cdd1119254bd1366`. Final head `06908cf` passed all 32
+hosted checks, including 115/115 source criteria on Linux and macOS. Adversarial
+review completed 19 files and 38 fragments in 100 seconds; all findings received
+responses. Copilot had insufficient quota. These are recorded prior results,
+not new runs. R3's finite inventory is complete at 32/32; R4-R7 remain open.
+
+Before implementation, adopt [ADR 0142](adr/0142-installed-full-check-hook-setup.md).
+The installed adapter remains valid in place but is not a relocatable Git hook.
+Replace the initializer's copying advice with a documented, opt-in user-owned
+hook that executes the worktree's `./factory check` under Git's pre-push contract.
+Use Git-resolved paths, preserve existing hooks/settings and avoid automatic
+chaining or writes to shared hook directories. Correct doctor's guidance so
+tracked-hook selection is not confused with the presence or behavior of a
+custom/default hook. Keep native stage orchestration, generated adapters, frozen
+recipes and package CI unchanged. Independently reproduce the old copy failure,
+exercise real installed pushes and preserve existing-hook custody. This is the
+first bounded R4 obligation, not completion of the integrated release rehearsal.
+
+Decision 157 local evidence: independent advice RED reported 1 passed / 5 failed.
+A real installed-copy diagnostic observed `.git/factory` missing, Git status 1
+and no remote ref. The initial broad run had 58 passes / 8 failures: seven frozen
+doctor warnings and an incomplete linked-worktree fixture. ADR 0142 records the
+bounded oracle correction and actual linked-worktree installation before rerun.
+Final focused race qualification recorded 15 passed / zero failed criteria in 155.332s;
+separate exhaustive/disjoint partition qualification passed and measured 3323
+criteria, including 101 installation and unchanged 115 source / 2997 base.
+Independent review and refutation retained no actionable findings. Enclosing
+and exact-head hosted checks remain open; these local results do not close R4.

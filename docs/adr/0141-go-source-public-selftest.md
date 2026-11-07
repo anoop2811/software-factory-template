@@ -1,6 +1,6 @@
 # ADR 0141: native public selftest and explicit development regressions
 
-Status: accepted; locally qualified; hosted qualification and merge pending.
+Status: accepted; qualified and merged in PR #172 on 2026-11-07 UTC.
 Decision: 156. Implements R3 group 7 after merged PR #171.
 
 ## Context

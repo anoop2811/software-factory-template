@@ -376,12 +376,13 @@ func externalStages(ctx context.Context, target string, v map[string]string, o o
 	return reviewlanecmd.ExecuteNonInteractive(ctx, []string{"pending"}, target, target, environment, stdout, stderr)
 }
 
+// docs/adr/0142-installed-full-check-hook-setup.md:44.
 func setupMessage(ctx context.Context, stdout io.Writer, o options, v map[string]string) error {
 	message := "factory-init: gates proven. Install a language pack to arm the\ntest-edit hook and check command: re-run with --pack go,typescript,java.\n"
 	if len(o.packs) > 0 {
 		message = "factory-init: gates proven and armed for: " + strings.Join(o.packs, " ") + ". Commit when ready.\n"
 	}
-	if err := output.WriteEvent(ctx, stdout, []byte(message+"\n=== Setup complete ===\n\nNext steps:\n  1. Run prereq-check:    ./scripts/prereq-check.sh\n  2. Sync adapters:       make sync-harnesses\n  3. Start opencode:      opencode\n  4. Review AGENTS.md and edit the Project section for your project\n  5. Add your protected code to "+v["PROTECTED_PATH"]+"/\n  6. Install pre-push:    cp scripts/pre-push-check.sh .git/hooks/pre-push\n  7. Check health anytime: ./factory doctor\n\nfactory.yaml saved — one config file, parsed and never executed.\n")); err != nil {
+	if err := output.WriteEvent(ctx, stdout, []byte(message+"\n=== Setup complete ===\n\nNext steps:\n  1. Run prereq-check:    ./scripts/prereq-check.sh\n  2. Sync adapters:       make sync-harnesses\n  3. Start opencode:      opencode\n  4. Review AGENTS.md and edit the Project section for your project\n  5. Add your protected code to "+v["PROTECTED_PATH"]+"/\n  6. Optional full pre-push checks: https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md#full-pre-push-checks\n     The tracked .githooks option is direct-main-only; keep existing hook configuration unless intentionally changing it.\n  7. Check health anytime: ./factory doctor\n\nfactory.yaml saved — one config file, parsed and never executed.\n")); err != nil {
 		return err
 	}
 	return nil

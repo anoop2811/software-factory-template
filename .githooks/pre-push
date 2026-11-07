@@ -1,6 +1,7 @@
 #!/bin/bash
-# Tracked pre-push hook. Enable with: git config core.hooksPath .githooks
-# (factory-init sets this in adopter repositories.)
+# Tracked direct-main guard; activation is an explicit manual choice.
+# Native initialization preserves existing hook configuration.
+# docs/adr/0142-installed-full-check-hook-setup.md:44.
 # Note: client-side hooks are advisory — anyone can disable them. The server
 # side (branch protection, CI) is the real boundary; this is the fast local rail.
 set -euo pipefail

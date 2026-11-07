@@ -495,7 +495,7 @@ attestation stubs. No extra historical runner pin is introduced.
 The previously observed 218 general checks and 34 families are different counts;
 neither equals fourteen native gate pairs. Full local relocation qualification
 reported 218/218 general, 3/3 optional-pack and 6/6 Java checks. Independent review
-retained no findings; hosted qualification and merge remain pending under
+retained no findings; all 32 hosted checks passed and PR #172 merged under
 [ADR 0141](../adr/0141-go-source-public-selftest.md).
 
 ## Fixture custody and deliberate retained boundaries
@@ -533,14 +533,14 @@ an old assertion because a large unrelated native suite is green.
 
 | Work item | Completion evidence | Status |
 |---|---|---|
-| P1: Close direct-command boundaries | Source adapters reach their existing native owners with independent entrypoint coverage. | 20/21 merged through PR #171; public selftest remains under Decision 156. |
+| P1: Close direct-command boundaries | Source adapters reach their existing native owners with independent entrypoint coverage. | Complete: 21/21 merged through PR #172. |
 | P2: Close sourceable-library boundaries | Caller state, literal values, source effects and actual native owner selection through retained function names. | Complete: seven paths qualified and merged in PRs #167-168, Decisions 151-152. |
 | P3: Preserve B/L compound fault and admission evidence | Keep ownership, accounting and no-retry assertions under explicit custody. | Complete by RETAINED-HISTORICAL: B01-B32 and L01-L40; Decisions 154-155, merged PRs #170-171. No blanket native-equivalence claim. |
 | P4: Preserve fixed-HTTP review evidence | Retain the immutable historical oracle and provider/diagnostic assertions; separately replace R16's obsolete setup-go predicate. | Complete: Decision 150, merged PR #166; dispositions and qualification above. |
-| P5: Preserve the broader development selftest contract | Retain current pack/dialect/website checks and historical implementation assertions with explicit subjects. | All F families assigned and locally qualified under Decision 156; hosted qualification and merge pending. |
-| P6: Switch public selftest | Public/source/installed selftest reaches native proof, with no compiler or Python required in installed form. | Decision 156: six independent RED cases, enclosing source 115/115 and native proof family passed locally; hosted qualification and merge pending. |
-| P7: Remove obsolete active controllers and close references | Current references, inventories and materializers are coherent; historical reconstruction remains explicit. | Four Python modules retired in merged PR #171; final public-runner reference closure pending. |
-| P8: Qualify and review the actual cutover | Record exact candidate, commands, outputs, discovery and review dispositions. | Prior groups qualified and merged; final group locally qualified and independently reviewed, hosted qualification and merge pending. Platform/packaged release qualification remains R4-R7. |
+| P5: Preserve the broader development selftest contract | Retain current pack/dialect/website checks and historical implementation assertions with explicit subjects. | Complete: all F families assigned and qualified under Decision 156, merged PR #172. |
+| P6: Switch public selftest | Public/source/installed selftest reaches native proof, with no compiler or Python required in installed form. | Complete: Decision 156, six independent RED cases, enclosing source 115/115 on both platforms and native proof family qualified; merged PR #172. |
+| P7: Remove obsolete active controllers and close references | Current references, inventories and materializers are coherent; historical reconstruction remains explicit. | Complete: four Python modules retired in PR #171; final public-runner reference closure merged in PR #172. |
+| P8: Qualify and review the actual cutover | Record exact candidate, commands, outputs, discovery and review dispositions. | Complete through merged PR #172, with all 32 final hosted checks passing. Platform/packaged release qualification remains R4-R7. |
 
 Start with existing named native criteria, not a wholesale rewrite of all 125
 controller registrations. New tests are justified by the unresolved behavior in

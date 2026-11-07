@@ -163,12 +163,19 @@ later binary; its source, tag and assets remain unchanged.
 
 R3 group 4 inspection found that the existing generated `scripts/pre-push-check.sh`
 assumes its installed `scripts/` location. Copying it to `.git/hooks/pre-push`, as
-current initializer advice suggests, resolves `.git/factory` and fails. Before
+the initializer previously recommended, resolves `.git/factory` and fails. Before
 stable activation, R4 must provide and qualify a valid installed full-check hook
 setup and correct that advice while preserving frozen predecessor recipes.
 The source-only copied-hook correction in [ADR 0138](../adr/0138-go-source-check-orchestration.md)
 does not qualify installed copies. The tracked `.githooks/pre-push` remains the
 separate direct-main-only hook, not a replacement for a full-check hook.
+
+Decision 157 / [ADR 0142](../adr/0142-installed-full-check-hook-setup.md) records
+the bounded correction: an explicit user-owned hook calls `./factory check`
+from Git's worktree root. The [setup guide](../HOOKS.md#full-pre-push-checks)
+preserves existing hooks and configuration; init links to it and doctor scopes
+its report to tracked-path selection. Qualification and merge status are recorded
+in that ADR. This obligation is separate from the integrated rehearsal below.
 
 ## Observable release rehearsal
 

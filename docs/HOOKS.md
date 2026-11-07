@@ -11,6 +11,68 @@ On the fail-open: if a hook script is missing or unexecutable, edits proceed wit
 
 ---
 
+## Full pre-push checks
+
+Local Git hooks are **opt-in**. Initialization installs factory assets and proves
+gates in isolated fixtures; it does not automatically activate Git commit or
+push hooks. CI runs its configured checks independently of local hook setup.
+
+For an installed Go factory, use a user-owned `pre-push` hook that calls
+`./factory check`. Do not copy `scripts/pre-push-check.sh` into Git's hook
+directory: the installed adapter depends on its original location.
+
+From the project's worktree root, inspect the existing configuration and resolve
+the actual hook destination:
+
+```sh
+git config --show-origin --get-all core.hooksPath
+git rev-parse --git-path hooks/pre-push
+```
+
+The first command normally exits 1 with no output when `core.hooksPath` is unset.
+The second still resolves the default hook path. A relative result is relative
+to your current directory. Do not assume `.git` is a directory: linked worktrees
+can share a hooks directory outside the worktree. Each worktree that uses this
+hook needs its own factory installation; Git does not provision the ignored
+Go runtime and its local metadata when creating a worktree.
+
+Review the destination and its parent directories before writing anything.
+Preserve existing hook files, symlinks, permissions and `core.hooksPath` settings.
+If the destination is shared, global or outside your project, its owner must
+choose how to integrate the check. Only create a new hook when the destination
+is absent and you have chosen it for this purpose. Using your editor, give that
+new file this complete body, then make that file executable:
+
+<!-- factory-full-check-hook -->
+```sh
+#!/bin/sh
+exec ./factory check "$@"
+```
+
+Git enters the non-bare worktree root before invoking `pre-push`. This hook uses
+that worktree's launcher and preserves Git's remote arguments, ref-update stdin
+and the check's exit status. A failed check blocks the push. The full check also
+rejects direct updates to `main` before expensive checks. An installed Go runtime
+does not need Go or Python for factory behavior, although your application's
+configured checks can require its language tools. Source checkouts need Go to
+build their runtime.
+
+For an existing hook, integrate manually instead of replacing it or appending
+this body. `exec` ends the hook, and another check may consume the ref-update
+stream; ordering and input replay need an explicit design. Try an ordinary topic
+push against a disposable remote to observe the full check running before using
+the integration for development. `factory doctor` reports the selected tracked
+hook path; it does not validate arbitrary custom hook contents.
+
+The separate tracked `.githooks/pre-push` is **direct-main-only**. If that is the
+scope you want, review existing hook configuration before choosing
+`git config core.hooksPath .githooks`; it replaces the local setting and selects
+the tracked directory instead of the previous one. That hook does not run the
+full check. Neither local option replaces server-side branch protection or CI.
+
+These setup rules follow [Git's hook contract](https://git-scm.com/docs/githooks)
+and [Git path resolution](https://git-scm.com/docs/git-rev-parse).
+
 ## citation-lint.sh
 
 Resolves every `<citation_prefix>*.md:NN` reference in code and docs against your spec source, so a citation can't point at a file or line that doesn't exist.
@@ -30,7 +92,7 @@ Rejects malformed commit messages and any "verified"/"fixed"/"works" claim lacki
 **Exit codes:** 0 pass, 1 fail.
 
 ```
-$ git commit -m "fix: verified the retry logic works"
+$ printf '%s\n' 'fix: verified the retry logic works' | ./scripts/hooks/commit-message-lint.sh
 COMMIT-LINT FAIL: line claims verification but lacks command + output citation:
   fix: verified the retry logic works
   Every 'verified'/'fixed'/'works' claim must cite the exact command and paste its output.
@@ -82,7 +144,7 @@ It also writes staleness flags (`memory/.parity-stale`) that `pending-lessons-pu
 
 Rejects any push that updates `refs/heads/main`.
 
-**Fires when:** the tracked pre-push hook runs, before the expensive verification suite. Reads git's standard pre-push ref-update stream.
+**Fires when:** an activated tracked `.githooks/pre-push` runs, or as the first stage of `factory check`. The tracked hook runs this guard only; the [full-check setup](#full-pre-push-checks) also runs the remaining verification stages. Reads Git's standard pre-push ref-update stream.
 
 **Exit codes:** 0 no main update, 1 push denied.
 

@@ -21,6 +21,8 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/synccmd"
 )
 
+// Report tracked-path selection without claiming arbitrary hook contents.
+// docs/adr/0142-installed-full-check-hook-setup.md:51.
 func (r *report) hooksPath(ctx context.Context) error {
 	if !regular(r.path(".githooks/pre-push")) {
 		return nil
@@ -31,17 +33,19 @@ func (r *report) hooksPath(ctx context.Context) error {
 	}
 	switch state {
 	case "armed":
-		r.line("[ ok ]", "git resolves the pre-push hook to this repo's .githooks")
+		r.line("[ ok ]", "git selects this repo's tracked .githooks/pre-push; full-check behavior is not validated")
 	case "inert":
-		r.line("[warn]", "the pre-push hook is not executable — git ignores it, so the push gate is INERT")
-		r.line("", "  file:  "+resolved)
-		r.line("", "  fix:   chmod +x .githooks/pre-push")
+		r.line("[warn]", "the tracked .githooks/pre-push is not executable — this tracked hook is INERT")
+		r.line("", "  fix: chmod +x .githooks/pre-push")
 	case "hijacked":
-		r.line("[warn]", "core.hooksPath redirects git away from .githooks — the push gate is INERT")
-		r.line("", "  git runs: "+resolved)
-		r.line("", "  fix: git config core.hooksPath .githooks")
+		r.line("[warn]", "core.hooksPath selects a path outside the tracked .githooks directory; hook contents are not validated")
+		r.line("", "  keep existing hooks and configuration unless intentionally changing them")
 	default:
-		r.line("[warn]", "push gate not installed — run: git config core.hooksPath .githooks")
+		r.line("[warn]", "the tracked .githooks/pre-push path is not selected; hook contents are not validated")
+		r.line("", "  keep existing hooks and configuration unless intentionally changing them")
+	}
+	if resolved != "" {
+		r.line("", "  reported hook path: "+resolved)
 	}
 	return r.err
 }

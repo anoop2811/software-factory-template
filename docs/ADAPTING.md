@@ -138,12 +138,12 @@ rationale and the matrix.
 
 ## Adopting incrementally
 
-1. Run `factory-init.sh`; leave `citation_prefix` and `test_file_patterns` empty for now — the commit and push gates the self-test just proved are already doing work.
+1. Run `factory-init.sh`; leave `citation_prefix` and `test_file_patterns` empty for now. The self-test proves gates in isolated fixtures. Follow the [full pre-push setup](HOOKS.md#full-pre-push-checks) to activate local push checks while preserving existing hooks; CI runs its configured checks separately.
 2. Set `protected_paths` to the directories where a silent agent change would hurt most; start narrow.
 3. When you split agent roles (spec-writer vs implementer), set `test_file_patterns` to arm generator/evaluator separation.
 4. When your specs cite a docs tree, set `citation_prefix` and `docs_root` to arm citation linting.
 
-Run `./factory doctor` between each step: what it reports as **inert** is exactly your remaining checklist, and what it reports as **armed** is proven live.
+Run `./factory doctor` between each step to inspect configuration and isolated gate proofs. Its Git-hook report describes selection of the tracked `.githooks` path, whose shipped hook is direct-main-only. It does not validate arbitrary default/custom hooks or prove that a full check runs on your real pushes. Init also does not install a local `commit-msg` hook; commit lint runs through CI or `make lint-commits`.
 
 ## Upgrading
 

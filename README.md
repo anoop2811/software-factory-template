@@ -32,7 +32,7 @@ The installer only fetches: it clones the template into `~/.software-factory-tem
 curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh
 ```
 
-`factory-init.sh` detects your stack, writes `factory.yaml`, installs the hooks, then runs a break/fix self-test so you watch a gate fire before it declares success. Afterward, try pushing straight to `main`, or committing with the message `fix: verified the thing`. Both get blocked. That's the product.
+`factory-init.sh` detects your stack, writes `factory.yaml`, installs factory assets, then runs a break/fix self-test so you watch a gate fire before it declares success. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
 
 ## Upgrade from v0.1.6 to the Go factory
 

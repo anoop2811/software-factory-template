@@ -918,7 +918,7 @@ edit test files.</span>
             <li><span class="mono">./factory report</span> — what the gates caught, enforced at 0 model tokens, plus one labeled cost estimate (never a vanity "tokens saved" number)</li>
             <li>Open your harness (<span class="mono">opencode</span>, Claude Code, or Codex) — the roles are already wired</li>
             <li>Point the spec-writer at a change; it writes red tests, the implementer makes them pass, a different-model reviewer checks it</li>
-            <li>Install the push gate: <span class="mono">git config core.hooksPath .githooks</span></li>
+            <li>Activate local push checks explicitly: follow the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md#full-pre-push-checks">full pre-push setup</a> and preserve existing hooks. The separate tracked <span class="mono">.githooks/pre-push</span> blocks direct updates to main only.</li>
           </ol>
         </div>
         <div class="callout">

@@ -113,11 +113,26 @@ func nativeInitRun(source, target, input string, environment, args []string) cli
 
 var _ = Describe("Native Go init core", func() {
 	// per docs/adr/0085-go-native-init.md:17
+	// per docs/adr/0142-installed-full-check-hook-setup.md:44
+	// per docs/adr/0142-installed-full-check-hook-setup.md:75
 	It("initializes ordinary assets without invoking the poisoned legacy implementation", func() {
 		source, target, environment := nativeInitFixture()
+		Expect(os.MkdirAll(target, 0700)).To(Succeed())
+		orchestrationGit(target, "init", "-q")
+		orchestrationGit(target, "config", "core.hooksPath", "user hooks")
+		custom := filepath.Join(target, "user hooks/pre-push")
+		writeFixture(custom+".owned", []byte("#!/bin/sh\nexit 29\n"), 0710)
+		Expect(os.Symlink("pre-push.owned", custom)).To(Succeed())
+		before := nativeInitArtifacts(filepath.Join(target, ".git"))
+		hooksBefore := nativeInitArtifacts(filepath.Dir(custom))
 		out := nativeInitRun(source, target, nativeInitAnswers("y"), environment, []string{"--pack", "none"})
 		Expect(out.status).To(BeZero(), "%+v", out)
 		Expect(out.stderr).NotTo(ContainSubstring("LEGACY_INIT_CALLED"))
+		Expect(nativeInitArtifacts(filepath.Join(target, ".git"))).To(Equal(before), "init must preserve existing Git settings and hooks")
+		Expect(nativeInitArtifacts(filepath.Dir(custom))).To(Equal(hooksBefore))
+		Expect(out.stdout).NotTo(ContainSubstring("cp scripts/pre-push-check.sh"))
+		Expect(out.stdout).To(ContainSubstring("docs/HOOKS.md#full-pre-push-checks"))
+		Expect(out.stdout).To(MatchRegexp(`\.githooks[^\n]*(main only|direct-main)`))
 		config, err := os.ReadFile(filepath.Join(target, "factory.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(config)).To(ContainSubstring("project_name: native-project"))

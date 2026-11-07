@@ -226,3 +226,36 @@ copy the token to a shell temporary: a caller-exported variable with that name
 would retain its export attribute and leak the token through an alias to the
 real harness. Preserve that caller variable's original value and qualify this
 case in the existing native token-removal criterion.
+
+## Caller cancellation scheduling allowance
+
+The macOS qualification on PR #171 exposed two incomplete cleanup windows:
+a held unadmitted child outlived the caller's three-second wait, and a delayed
+cold compiler survived outer escalation with typed pipe-drain uncertainty.
+Focused unchanged executions and bounded diagnostic repetitions passed locally;
+the exact hosted blocking instruction is not established. Retain the job-table
+identity and all ownership proofs rather than substituting PID existence for
+child identity.
+
+Supersede the uniform TERM grace above only for explicit caller cancellation:
+send the requested signal, allow one 100 ms observation interval, then use the
+existing KILL/reap path. Ordinary completion and EXIT cleanup retain five TERM
+polls. A brief cooperative interval allows compiler signal handlers to clean up
+their own temporary files; cancellation must not reserve most of the outer
+controller's two-second allowance for repeated sleep/process startup.
+
+Use five 100 ms child-reap polls instead of twenty-five 20 ms polls. Preserve
+the nominal half-second allowance while reducing the maximum command-substitution
+and sleep startups per reap phase from fifty to eleven. Include a final terminal
+observation after the fifth sleep so a child exiting near the allowance boundary
+can still be reaped. Continue to wait only after terminal job evidence;
+group absence alone never proves child completion. Preserve direct-child-only
+fallback when its expected group is absent, borrowed-group protection, mapped
+signal exit status, status 125 and retained-build receipts on uncertainty.
+
+Qualify real held-child and cold-compiler boundaries with controlled scheduling
+cost in private launcher copies under the original caller deadlines. Keep the
+ordinary criteria and their capture, witness, no-retry and artifact assertions.
+Observe RED on the existing polling policy before accepting GREEN on the new
+policy. This is a bounded scheduling repair, not proof of which instruction
+stalled in the original hosted run; fresh source-lane CI remains required.

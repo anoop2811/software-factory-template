@@ -411,7 +411,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:241
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:328
-	It("refuses an absent compiler group without waiting on a live unadmitted child or killing its borrowed group", func() {
+	// per docs/adr/0133-go-source-evaluation-runners.md:256
+	DescribeTable("refuses an absent compiler group without waiting on a live unadmitted child or killing its borrowed group", func(reapDelay time.Duration) {
 		root, cwd := fixtureDirectories()
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
 		Expect(err).NotTo(HaveOccurred())
@@ -422,10 +423,16 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(bytes.Count(launcher, admission)).To(Equal(1))
 		hold := []byte("  printf '{\"PID\":%s}\\n' \"$compiler_pid\" >&3\n  IFS= read -r _source_test_release <&4 || :\n")
 		launcher = bytes.Replace(launcher, admission, append(hold, admission...), 1)
+		if reapDelay > 0 {
+			var sleeps int
+			launcher, sleeps = sourceDelayedCleanupSleeps(launcher, "source_reap_child", "SOURCE_REAP_DELAYED_POLLS", reapDelay)
+			Expect(sleeps).To(Equal(1))
+		}
 		launcher = sourceAbsentObservedLauncher(launcher)
 		writeFixture(filepath.Join(root, "factory"), launcher, 0700)
 		phaseTrace := filepath.Join(cwd, "private launcher phases.log")
 		writeFixture(phaseTrace, nil, 0600)
+		delayedPolls := filepath.Join(cwd, "delayed reap polls")
 		writeFixture(filepath.Join(root, "factory-go"), []byte("prior developer binary\n"), 0700)
 		witnessReady := filepath.Join(cwd, "borrowed-group-witness.json")
 		startup := filepath.Join(cwd, "borrowed-group-startup.sh")
@@ -452,7 +459,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		defer cancel()
 		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- owned copy with test-only admission handshake; production has no fault flag.
 		command.Dir = cwd
-		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "SOURCE_LAUNCHER_PHASE_TRACE="+phaseTrace, "GORACE=atexit_sleep_ms=0")
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "SOURCE_LAUNCHER_PHASE_TRACE="+phaseTrace, "SOURCE_REAP_DELAYED_POLLS="+delayedPolls, "GORACE=atexit_sleep_ms=0")
 		command.ExtraFiles = []*os.File{readyWriter, releaseReader, unrelatedReader}
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
@@ -529,6 +536,12 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		}
 		Expect(returned).To(HaveOccurred())
 		AddReportEntry("source-launcher.absent-group-refusal", map[string]any{"returned_before_release": returnedBeforeRelease, "launcher_absent_before_release": launcherAbsentBeforeRelease, "child_live_before_release": liveBeforeRelease, "borrowed_group_witness_alive": witnessAlive, "child_pid": child.PID, "child_group": childGroup, "launcher_group": launcherGroup, "status": command.ProcessState.ExitCode(), "stderr": stderr.String()})
+		if reapDelay > 0 {
+			polls, err := os.ReadFile(delayedPolls)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(polls)).To(ContainSubstring("delay\n"))
+			AddReportEntry("source-launcher.delayed-reap-polls", map[string]any{"delay_ms": reapDelay.Milliseconds(), "polls": bytes.Count(polls, []byte("delay\n"))})
+		}
 		Expect(returnedBeforeRelease).To(BeTrue(), "real caller Wait must return without releasing a live unadmitted child holding capture; stderr=%s", stderr.String())
 		Expect(witnessAlive).To(BeTrue(), "uncertain compiler cleanup must never signal the borrowed caller group")
 		Expect(command.ProcessState.ExitCode()).To(Equal(125))
@@ -547,7 +560,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(retained).To(Equal(1), "uncertain cleanup must retain the private build")
 		Expect(held).To(Equal(before), "preserve the prior developer binary and all other source")
 		publicNoPoison(marker)
-	})
+	}, Entry("ordinary scheduling", time.Duration(0)), Entry("delayed reap scheduling", 120*time.Millisecond))
 
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34

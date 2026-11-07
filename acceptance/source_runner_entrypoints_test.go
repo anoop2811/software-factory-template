@@ -82,7 +82,14 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\nexit 0\n"), 0700)
 	tools, ready := filepath.Join(base, "tools"), filepath.Join(base, "harness started")
 	sourceOwner, sourceBefore := "", map[string]string(nil)
-	sourceCompiler := external == "source-compiler" || external == "source-compiler-slow"
+	sourceCompiler := external == "source-compiler" || external == "source-compiler-slow" || external == "source-compiler-contention"
+	compilerDelay := time.Duration(0)
+	switch external {
+	case "source-compiler-slow":
+		compilerDelay = 80 * time.Millisecond
+	case "source-compiler-contention":
+		compilerDelay = 350 * time.Millisecond
+	}
 	delayedPolls := filepath.Join(base, "delayed source polls")
 	harnessCalled := filepath.Join(base, "HARNESS_CALLED")
 	body := "#!/bin/sh\nprintf 'FIXED\\n' > answer.txt\nprintf '%s\\t%s\\n' \"$$\" \"$PWD\" >> \"$SOURCE_RUNNER_READY\"\nexec /bin/sleep 60\n"
@@ -91,28 +98,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		sourceOwner = filepath.Join(base, "cold source owner")
 		launcher, err := os.ReadFile("../factory")
 		Expect(err).NotTo(HaveOccurred())
-		if external == "source-compiler-slow" {
-			// Inject scheduling overhead only in the private cleanup function.
-			// Bash versions expose different BASH_COMMAND values in signal traps.
-			// per docs/adr/0133-go-source-evaluation-runners.md:166
-			anchor := []byte("source_stop_build() {\n")
-			Expect(bytes.Count(launcher, anchor)).To(Equal(1))
-			start := bytes.Index(launcher, anchor)
-			end := bytes.Index(launcher[start:], []byte("\n}\n"))
-			Expect(end).To(BeNumerically(">", 0))
-			end += start
-			var delayed strings.Builder
-			polls := 0
-			for _, line := range strings.SplitAfter(string(launcher[start:end]), "\n") {
-				if strings.HasPrefix(strings.TrimSpace(line), "/bin/sleep ") {
-					Expect(strings.Fields(line)).To(HaveLen(2), "the fixture must identify a standalone cleanup sleep")
-					polls++
-					delayed.WriteString("        printf 'delay\\n' >> \"$SOURCE_RUNNER_DELAYED_POLLS\"\n        /bin/sleep 0.08\n")
-				}
-				delayed.WriteString(line)
-			}
+		if compilerDelay > 0 {
+			// per docs/adr/0133-go-source-evaluation-runners.md:256
+			var polls int
+			launcher, polls = sourceDelayedCleanupSleeps(launcher, "source_stop_build", "SOURCE_RUNNER_DELAYED_POLLS", compilerDelay)
 			Expect(polls).To(Equal(2), "both cleanup polling sites must receive the scheduling delay")
-			launcher = []byte(string(launcher[:start]) + delayed.String() + string(launcher[end:]))
 		}
 		writeFixture(filepath.Join(sourceOwner, "factory"), launcher, 0700)
 		writeFixture(filepath.Join(sourceOwner, "factory-go"), []byte("untouched previous developer output\n"), 0600)
@@ -145,7 +135,7 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 		"SOURCE_RUNNER_HARNESS_CALLED": harnessCalled,
 		"GIT_CONFIG_NOSYSTEM":          "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 	}
-	if external == "source-compiler-slow" {
+	if compilerDelay > 0 {
 		environment["SOURCE_RUNNER_DELAYED_POLLS"] = delayedPolls
 	}
 	timeoutSeconds := 1
@@ -263,11 +253,11 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	Eventually(finished, 8*time.Second).Should(Receive(&returned), "cancellation remains bounded, including a TERM-ignoring runner")
 	joined = true
 	Expect(ctx.Err()).NotTo(HaveOccurred())
-	if external == "source-compiler-slow" {
+	if compilerDelay > 0 {
 		polls, err := os.ReadFile(delayedPolls)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(polls)).To(ContainSubstring("delay\n"), "the controlled cleanup scheduling delay must actually execute")
-		AddReportEntry("source-runner.delayed-source-polls", map[string]any{"delay_ms": 80, "polls": bytes.Count(polls, []byte("delay\n"))}, ReportEntryVisibilityNever)
+		AddReportEntry("source-runner.delayed-source-polls", map[string]any{"delay_ms": compilerDelay.Milliseconds(), "polls": bytes.Count(polls, []byte("delay\n"))}, ReportEntryVisibilityNever)
 	}
 	pidAbsent := errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
 	groupAbsent := errors.Is(syscall.Kill(-group, 0), syscall.ESRCH)
@@ -1089,8 +1079,9 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 
 	// per docs/adr/0133-go-source-evaluation-runners.md:61
 	// per docs/adr/0133-go-source-evaluation-runners.md:83
+	// per docs/adr/0133-go-source-evaluation-runners.md:256
 	It("settles a cold source compiler group before the outer golden timeout returns", func() {
-		for _, mode := range []string{"source-compiler", "source-compiler-slow"} {
+		for _, mode := range []string{"source-compiler", "source-compiler-slow", "source-compiler-contention"} {
 			sourceRunnerCancellation("timeout", true, mode)
 		}
 	})

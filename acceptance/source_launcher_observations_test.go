@@ -14,6 +14,29 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// Add scheduling cost only to standalone sleeps in the named private cleanup function.
+// per docs/adr/0133-go-source-evaluation-runners.md:256
+func sourceDelayedCleanupSleeps(launcher []byte, function, receipt string, delay time.Duration) ([]byte, int) {
+	GinkgoHelper()
+	anchor := []byte(function + "() {\n")
+	Expect(bytes.Count(launcher, anchor)).To(Equal(1))
+	start := bytes.Index(launcher, anchor)
+	end := bytes.Index(launcher[start:], []byte("\n}\n"))
+	Expect(end).To(BeNumerically(">", 0))
+	end += start
+	var delayed strings.Builder
+	polls := 0
+	for _, line := range strings.SplitAfter(string(launcher[start:end]), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "/bin/sleep ") {
+			Expect(strings.Fields(line)).To(HaveLen(2), "the fixture must identify a standalone cleanup sleep")
+			polls++
+			fmt.Fprintf(&delayed, "        printf 'delay\\n' >> \"$%s\"\n        /bin/sleep %.3f\n", receipt, delay.Seconds())
+		}
+		delayed.WriteString(line)
+	}
+	return []byte(string(launcher[:start]) + delayed.String() + string(launcher[end:])), polls
+}
+
 // Observe only entered TERM/EXIT handlers in this evaluator's private launcher.
 // Spawn, admission, job, reap and wait statements remain uninstrumented.
 // per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:330

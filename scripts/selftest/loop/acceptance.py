@@ -33,6 +33,7 @@ LEGACY_ENTRYPOINTS = {
 # Helper custody: docs/adr/0137-go-source-shared-helpers.md:84.
     # Check custody: docs/adr/0138-go-source-check-orchestration.md:55.
     # Budget custody: docs/adr/0139-go-source-budget-entrypoint.md:44.
+    # Loop custody: docs/adr/0140-go-source-loop-and-python-retirement.md:41.
     for path in ("factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh",
                  "scripts/sync-opencode.sh", "scripts/sync-claude.sh", "scripts/sync-codex.sh",
                  "scripts/factory-doctor.sh", "scripts/factory-review-lane.sh",
@@ -41,7 +42,8 @@ LEGACY_ENTRYPOINTS = {
                  "scripts/lib/events.sh", "scripts/lib/timing.sh", "scripts/lib/color.sh",
                  "scripts/lib/hookspath.sh", "scripts/factory-budget.sh",
                  "scripts/lib/budget.py", "scripts/lib/budget_adapters.py",
-                 "scripts/lib/runtime_transition.py")
+                 "scripts/lib/runtime_transition.py", "scripts/factory-loop.sh",
+                 "scripts/lib/loop.py")
 }
 
 
@@ -94,7 +96,8 @@ class Fixture:
         historical_entrypoints(self.root, ("factory", "scripts/lib/config.sh",
                                           "scripts/lib/roles.sh", "scripts/lib/budget-config.sh",
                                           "scripts/factory-budget.sh", "scripts/lib/budget.py",
-                                          "scripts/lib/budget_adapters.py", "scripts/lib/runtime_transition.py"))
+                                          "scripts/lib/budget_adapters.py", "scripts/lib/runtime_transition.py",
+                                          "scripts/factory-loop.sh", "scripts/lib/loop.py"))
         self.bin.mkdir()
         for harness in ("codex", "claude", "opencode"):
             shutil.copy2(SOURCE / "scripts/selftest/loop/fake_cli.py", self.bin / harness)

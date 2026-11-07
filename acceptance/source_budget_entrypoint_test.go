@@ -21,10 +21,15 @@ import (
 // Materialize current source bytes without invoking the operator's checkout.
 // per docs/adr/0139-go-source-budget-entrypoint.md:78
 func sourceBudgetAdapter(root string) string {
+	return sourceControllerAdapter(root, "budget")
+}
+
+// per docs/adr/0140-go-source-loop-and-python-retirement.md:16
+func sourceControllerAdapter(root, kind string) string {
 	GinkgoHelper()
-	body, err := os.ReadFile("../scripts/factory-budget.sh")
+	body, err := os.ReadFile("../scripts/factory-" + kind + ".sh")
 	Expect(err).NotTo(HaveOccurred())
-	path := filepath.Join(root, "scripts/factory-budget.sh")
+	path := filepath.Join(root, "scripts/factory-"+kind+".sh")
 	writeFixture(path, body, 0755)
 	return path
 }
@@ -208,152 +213,176 @@ func sourceBudgetCleanup(command *exec.Cmd, done <-chan error, cancel context.Ca
 	return cleanupErr
 }
 
+// Shared boundary assertions retain the same budget coverage for both controllers.
+// per docs/adr/0139-go-source-budget-entrypoint.md:16
+// per docs/adr/0140-go-source-loop-and-python-retirement.md:16
+func sourceControllerTransport(kind string) {
+	GinkgoHelper()
+	shells := []string{"/bin/bash"}
+	if bash, err := exec.LookPath("bash"); err == nil && bash != shells[0] {
+		shells = append(shells, bash)
+	}
+	for _, shell := range shells {
+		for _, mode := range []string{"direct", "explicit", "directory-alias", "absolute-path", "relative-path"} {
+			root, caller := fixtureDirectories()
+			owner := filepath.Join(filepath.Dir(root), "budget owner ' $(literal)\n")
+			Expect(os.Rename(root, owner)).To(Succeed())
+			program := sourceControllerAdapter(owner, kind)
+			base := filepath.Dir(owner)
+			tools, marker := filepath.Join(base, "decoys"), filepath.Join(base, "WRONG_OWNER")
+			poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
+			for _, path := range []string{filepath.Join(caller, "factory"), filepath.Join(tools, "factory"), filepath.Join(tools, "factory-"+kind+".sh"), filepath.Join(tools, "git"), filepath.Join(tools, "python3"), filepath.Join(owner, "scripts/lib/config.sh"), filepath.Join(owner, "scripts/lib/roles.sh"), filepath.Join(owner, "scripts/lib/budget-config.sh"), filepath.Join(owner, "scripts/lib/budget.py")} {
+				writeFixture(path, poison, 0700)
+			}
+			writeFixture(filepath.Join(owner, "factory"), []byte(sourceBudgetRecorder), 0700)
+			record, input := filepath.Join(base, "argv"), filepath.Join(base, "stdin")
+			environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "REPO_ROOT": caller, "FACTORY_HOME": caller, "FACTORY_RUNTIME_BINARY": filepath.Join(caller, "factory"), "FACTORY_CONFIG": "literal $(touch BUDGET_INJECTION)\nconfig", "FACTORY_BUDGET_MODEL": "caller model\n", "FACTORY_AGENT_ROLE": "spec-writer", "BUDGET_ARGV": record, "BUDGET_INPUT": input, "BUDGET_DECOY": marker}
+			if mode == "directory-alias" {
+				alias := filepath.Join(base, "parent alias")
+				Expect(os.Symlink(filepath.Join(owner, "scripts"), alias)).To(Succeed())
+				program = filepath.Join(alias, "factory-"+kind+".sh")
+			}
+			args := []string{"run", "--harness=claude", "--role", "reviewer", "", "--role=literal $(touch BUDGET_INJECTION)", "--", "line\noperand"}
+			executable, operands := shell, append([]string{program}, args...)
+			if mode == "direct" {
+				executable, operands = program, args
+			}
+			if strings.HasSuffix(mode, "-path") {
+				Expect(os.Chmod(program, 0644)).To(Succeed())
+				lookup := filepath.Dir(program)
+				if mode == "relative-path" {
+					var err error
+					lookup, err = filepath.Rel(caller, lookup)
+					Expect(err).NotTo(HaveOccurred())
+				}
+				environment["PATH"] = lookup + ":" + environment["PATH"]
+				operands = append([]string{"factory-" + kind + ".sh"}, args...)
+			}
+			beforeOwner, beforeCaller := installationSnapshot(owner), installationSnapshot(caller)
+			stdin := "borrowed budget input\x00tail\n"
+			out := handoffNativeExactProcess(caller, environment, stdin, executable, operands...)
+			Expect(out).To(Equal(cliResult{"selected stdout\n", "selected stderr\n", 63}), "%s/%s", shell, mode)
+			expected := append([]string{caller, environment["FACTORY_CONFIG"], environment["FACTORY_BUDGET_MODEL"], "x", "spec-writer", kind}, args...)
+			Expect(os.ReadFile(record)).To(Equal([]byte(strings.Join(expected, "\x00") + "\x00")))
+			Expect(os.ReadFile(input)).To(Equal([]byte(stdin)))
+			Expect(installationSnapshot(owner)).To(Equal(beforeOwner))
+			Expect(installationSnapshot(caller)).To(Equal(beforeCaller))
+			_, err := os.Lstat(marker)
+			Expect(os.IsNotExist(err)).To(BeTrue(), "readers, Python and alternate owners must not participate in handoff")
+		}
+	}
+}
+
+// Shared boundary assertions retain the same budget coverage for both controllers.
+// per docs/adr/0139-go-source-budget-entrypoint.md:16
+// per docs/adr/0140-go-source-loop-and-python-retirement.md:16
+func sourceControllerRefusal(kind string) {
+	GinkgoHelper()
+	shells := []string{"/bin/bash"}
+	if bash, err := exec.LookPath("bash"); err == nil && bash != shells[0] {
+		shells = append(shells, bash)
+	}
+	for _, shell := range shells {
+		for _, mode := range []string{"scalar-empty", "scalar-path", "scalar-declaration", "file-alias", "missing", "nonexecutable", "failed"} {
+			root, caller := fixtureDirectories()
+			program := sourceControllerAdapter(root, kind)
+			marker, tools := filepath.Join(filepath.Dir(root), "FALLBACK"), filepath.Join(filepath.Dir(root), "tools")
+			poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
+			for _, path := range []string{filepath.Join(tools, "factory"), filepath.Join(tools, "python3"), filepath.Join(caller, "factory"), filepath.Join(root, "scripts/lib/config.sh"), filepath.Join(root, "scripts/lib/budget.py")} {
+				writeFixture(path, poison, 0700)
+			}
+			owner := filepath.Join(root, "factory")
+			if mode != "missing" {
+				writeFixture(owner, poison, 0700)
+			}
+			if mode == "nonexecutable" {
+				Expect(os.Chmod(owner, 0600)).To(Succeed())
+			}
+			if mode == "failed" {
+				writeFixture(owner, []byte("#!/bin/sh\nprintf 'owner stdout\\n'\nprintf 'owner failed\\n' >&2\nexit 47\n"), 0700)
+			}
+			if mode == "file-alias" {
+				alias := filepath.Join(caller, "factory-"+kind+".sh")
+				Expect(os.Symlink(program, alias)).To(Succeed())
+				program = alias
+			}
+			environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "BUDGET_DECOY": marker, "REPO_ROOT": caller, "FACTORY_RUNTIME_BINARY": filepath.Join(caller, "factory")}
+			if strings.HasPrefix(mode, "scalar-") {
+				environment["BASH_SOURCE"] = map[string]string{"scalar-empty": "", "scalar-path": "forged/path", "scalar-declaration": "declare -a BASH_SOURCE=([0]=forged)"}[mode]
+			}
+			out := handoffNativeExactProcess(caller, environment, "caller input\n", shell, program)
+			if mode == "failed" {
+				Expect(out).To(Equal(cliResult{"owner stdout\n", "owner failed\n", 47}))
+			} else {
+				Expect(out.status).To(Equal(2), "%s/%s: %+v", shell, mode, out)
+				Expect(out.stdout).To(BeEmpty())
+				Expect(out.stderr).NotTo(BeEmpty())
+				if strings.HasPrefix(mode, "scalar-") {
+					Expect(out.stderr).To(ContainSubstring("native Bash source metadata"))
+				}
+			}
+			_, err := os.Lstat(marker)
+			Expect(os.IsNotExist(err)).To(BeTrue())
+		}
+	}
+}
+
+// Shared boundary assertions retain the same budget coverage for both controllers.
+// per docs/adr/0139-go-source-budget-entrypoint.md:16
+// per docs/adr/0140-go-source-loop-and-python-retirement.md:16
+func sourceControllerCompilerRefusal(kind string) {
+	GinkgoHelper()
+	for _, missing := range []bool{false, true} {
+		root, caller := fixtureDirectories()
+		program := sourceControllerAdapter(root, kind)
+		launcher, err := os.ReadFile("../factory")
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(filepath.Join(root, "factory"), launcher, 0755)
+		tools, marker, record := filepath.Join(filepath.Dir(root), "tools"), filepath.Join(filepath.Dir(root), "FALLBACK"), filepath.Join(filepath.Dir(root), "compiler")
+		poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
+		for _, path := range []string{filepath.Join(root, "factory-go"), filepath.Join(tools, "factory"), filepath.Join(tools, "python3"), filepath.Join(root, "scripts/lib/config.sh"), filepath.Join(root, "scripts/lib/budget.py")} {
+			writeFixture(path, poison, 0700)
+		}
+		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nprintf called > \"$BUDGET_COMPILER\"\nprintf 'controlled compiler failure\\n' >&2\nexit 58\n"), 0700)
+		Expect(os.Symlink("/bin/bash", filepath.Join(tools, "bash"))).To(Succeed())
+		environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "BUDGET_COMPILER": record, "BUDGET_DECOY": marker}
+		if missing {
+			Expect(os.Remove(filepath.Join(tools, "go"))).To(Succeed())
+			environment["PATH"] = tools
+			Expect(handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", "command -v go")).To(Equal(cliResult{"", "", 1}))
+		}
+		before := installationSnapshot(root)
+		out := handoffNativeExactProcess(caller, environment, "", program, "report", "--json")
+		Expect(installationSnapshot(root)).To(Equal(before))
+		if missing {
+			Expect(out.status).To(Equal(1), "%+v", out)
+			Expect(out.stderr).To(ContainSubstring("qualified Go toolchain"))
+		} else {
+			Expect(out.status).To(Equal(58), "%+v", out)
+			Expect(out.stderr).To(ContainSubstring("controlled compiler failure"))
+			Expect(os.ReadFile(record)).To(Equal([]byte("called")))
+		}
+		_, err = os.Lstat(marker)
+		Expect(os.IsNotExist(err)).To(BeTrue())
+	}
+}
+
 var _ = Describe("Go source runtime entrypoints budget adapter", func() {
 	// per docs/adr/0139-go-source-budget-entrypoint.md:16
 	// per docs/adr/0139-go-source-budget-entrypoint.md:27
 	It("uses physical source identity and transports literal arguments streams cwd and environment", func() {
-		shells := []string{"/bin/bash"}
-		if bash, err := exec.LookPath("bash"); err == nil && bash != shells[0] {
-			shells = append(shells, bash)
-		}
-		for _, shell := range shells {
-			for _, mode := range []string{"direct", "explicit", "directory-alias", "absolute-path", "relative-path"} {
-				root, caller := fixtureDirectories()
-				owner := filepath.Join(filepath.Dir(root), "budget owner ' $(literal)\n")
-				Expect(os.Rename(root, owner)).To(Succeed())
-				program := sourceBudgetAdapter(owner)
-				base := filepath.Dir(owner)
-				tools, marker := filepath.Join(base, "decoys"), filepath.Join(base, "WRONG_OWNER")
-				poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
-				for _, path := range []string{filepath.Join(caller, "factory"), filepath.Join(tools, "factory"), filepath.Join(tools, "factory-budget.sh"), filepath.Join(tools, "git"), filepath.Join(tools, "python3"), filepath.Join(owner, "scripts/lib/config.sh"), filepath.Join(owner, "scripts/lib/roles.sh"), filepath.Join(owner, "scripts/lib/budget-config.sh"), filepath.Join(owner, "scripts/lib/budget.py")} {
-					writeFixture(path, poison, 0700)
-				}
-				writeFixture(filepath.Join(owner, "factory"), []byte(sourceBudgetRecorder), 0700)
-				record, input := filepath.Join(base, "argv"), filepath.Join(base, "stdin")
-				environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "REPO_ROOT": caller, "FACTORY_HOME": caller, "FACTORY_RUNTIME_BINARY": filepath.Join(caller, "factory"), "FACTORY_CONFIG": "literal $(touch BUDGET_INJECTION)\nconfig", "FACTORY_BUDGET_MODEL": "caller model\n", "FACTORY_AGENT_ROLE": "spec-writer", "BUDGET_ARGV": record, "BUDGET_INPUT": input, "BUDGET_DECOY": marker}
-				if mode == "directory-alias" {
-					alias := filepath.Join(base, "parent alias")
-					Expect(os.Symlink(filepath.Join(owner, "scripts"), alias)).To(Succeed())
-					program = filepath.Join(alias, "factory-budget.sh")
-				}
-				args := []string{"run", "--harness=claude", "--role", "reviewer", "", "--role=literal $(touch BUDGET_INJECTION)", "--", "line\noperand"}
-				executable, operands := shell, append([]string{program}, args...)
-				if mode == "direct" {
-					executable, operands = program, args
-				}
-				if strings.HasSuffix(mode, "-path") {
-					Expect(os.Chmod(program, 0644)).To(Succeed())
-					lookup := filepath.Dir(program)
-					if mode == "relative-path" {
-						var err error
-						lookup, err = filepath.Rel(caller, lookup)
-						Expect(err).NotTo(HaveOccurred())
-					}
-					environment["PATH"] = lookup + ":" + environment["PATH"]
-					operands = append([]string{"factory-budget.sh"}, args...)
-				}
-				beforeOwner, beforeCaller := installationSnapshot(owner), installationSnapshot(caller)
-				stdin := "borrowed budget input\x00tail\n"
-				out := handoffNativeExactProcess(caller, environment, stdin, executable, operands...)
-				Expect(out).To(Equal(cliResult{"selected stdout\n", "selected stderr\n", 63}), "%s/%s", shell, mode)
-				expected := append([]string{caller, environment["FACTORY_CONFIG"], environment["FACTORY_BUDGET_MODEL"], "x", "spec-writer", "budget"}, args...)
-				Expect(os.ReadFile(record)).To(Equal([]byte(strings.Join(expected, "\x00") + "\x00")))
-				Expect(os.ReadFile(input)).To(Equal([]byte(stdin)))
-				Expect(installationSnapshot(owner)).To(Equal(beforeOwner))
-				Expect(installationSnapshot(caller)).To(Equal(beforeCaller))
-				_, err := os.Lstat(marker)
-				Expect(os.IsNotExist(err)).To(BeTrue(), "readers, Python and alternate owners must not participate in handoff")
-			}
-		}
+		sourceControllerTransport("budget")
 	})
 
 	// per docs/adr/0139-go-source-budget-entrypoint.md:21
 	// per docs/adr/0139-go-source-budget-entrypoint.md:23
 	It("refuses invalid source metadata file symlinks and unavailable owners without fallback", func() {
-		shells := []string{"/bin/bash"}
-		if bash, err := exec.LookPath("bash"); err == nil && bash != shells[0] {
-			shells = append(shells, bash)
-		}
-		for _, shell := range shells {
-			for _, mode := range []string{"scalar-empty", "scalar-path", "scalar-declaration", "file-alias", "missing", "nonexecutable", "failed"} {
-				root, caller := fixtureDirectories()
-				program := sourceBudgetAdapter(root)
-				marker, tools := filepath.Join(filepath.Dir(root), "FALLBACK"), filepath.Join(filepath.Dir(root), "tools")
-				poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
-				for _, path := range []string{filepath.Join(tools, "factory"), filepath.Join(tools, "python3"), filepath.Join(caller, "factory"), filepath.Join(root, "scripts/lib/config.sh"), filepath.Join(root, "scripts/lib/budget.py")} {
-					writeFixture(path, poison, 0700)
-				}
-				owner := filepath.Join(root, "factory")
-				if mode != "missing" {
-					writeFixture(owner, poison, 0700)
-				}
-				if mode == "nonexecutable" {
-					Expect(os.Chmod(owner, 0600)).To(Succeed())
-				}
-				if mode == "failed" {
-					writeFixture(owner, []byte("#!/bin/sh\nprintf 'owner stdout\\n'\nprintf 'owner failed\\n' >&2\nexit 47\n"), 0700)
-				}
-				if mode == "file-alias" {
-					alias := filepath.Join(caller, "factory-budget.sh")
-					Expect(os.Symlink(program, alias)).To(Succeed())
-					program = alias
-				}
-				environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "BUDGET_DECOY": marker, "REPO_ROOT": caller, "FACTORY_RUNTIME_BINARY": filepath.Join(caller, "factory")}
-				if strings.HasPrefix(mode, "scalar-") {
-					environment["BASH_SOURCE"] = map[string]string{"scalar-empty": "", "scalar-path": "forged/path", "scalar-declaration": "declare -a BASH_SOURCE=([0]=forged)"}[mode]
-				}
-				out := handoffNativeExactProcess(caller, environment, "caller input\n", shell, program)
-				if mode == "failed" {
-					Expect(out).To(Equal(cliResult{"owner stdout\n", "owner failed\n", 47}))
-				} else {
-					Expect(out.status).To(Equal(2), "%s/%s: %+v", shell, mode, out)
-					Expect(out.stdout).To(BeEmpty())
-					Expect(out.stderr).NotTo(BeEmpty())
-					if strings.HasPrefix(mode, "scalar-") {
-						Expect(out.stderr).To(ContainSubstring("native Bash source metadata"))
-					}
-				}
-				_, err := os.Lstat(marker)
-				Expect(os.IsNotExist(err)).To(BeTrue())
-			}
-		}
+		sourceControllerRefusal("budget")
 	})
 
 	// per docs/adr/0139-go-source-budget-entrypoint.md:23
 	It("retains compiler refusal and never executes stale output or a Python fallback", func() {
-		for _, missing := range []bool{false, true} {
-			root, caller := fixtureDirectories()
-			program := sourceBudgetAdapter(root)
-			launcher, err := os.ReadFile("../factory")
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(filepath.Join(root, "factory"), launcher, 0755)
-			tools, marker, record := filepath.Join(filepath.Dir(root), "tools"), filepath.Join(filepath.Dir(root), "FALLBACK"), filepath.Join(filepath.Dir(root), "compiler")
-			poison := []byte("#!/bin/sh\nprintf called > \"$BUDGET_DECOY\"\nexit 97\n")
-			for _, path := range []string{filepath.Join(root, "factory-go"), filepath.Join(tools, "factory"), filepath.Join(tools, "python3"), filepath.Join(root, "scripts/lib/config.sh"), filepath.Join(root, "scripts/lib/budget.py")} {
-				writeFixture(path, poison, 0700)
-			}
-			writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\nprintf called > \"$BUDGET_COMPILER\"\nprintf 'controlled compiler failure\\n' >&2\nexit 58\n"), 0700)
-			Expect(os.Symlink("/bin/bash", filepath.Join(tools, "bash"))).To(Succeed())
-			environment := map[string]string{"PATH": tools + ":/usr/bin:/bin", "BASH_ENV": "", "ENV": "", "BUDGET_COMPILER": record, "BUDGET_DECOY": marker}
-			if missing {
-				Expect(os.Remove(filepath.Join(tools, "go"))).To(Succeed())
-				environment["PATH"] = tools
-				Expect(handoffNativeExactProcess(caller, environment, "", "/bin/bash", "-c", "command -v go")).To(Equal(cliResult{"", "", 1}))
-			}
-			before := installationSnapshot(root)
-			out := handoffNativeExactProcess(caller, environment, "", program, "report", "--json")
-			Expect(installationSnapshot(root)).To(Equal(before))
-			if missing {
-				Expect(out.status).To(Equal(1), "%+v", out)
-				Expect(out.stderr).To(ContainSubstring("qualified Go toolchain"))
-			} else {
-				Expect(out.status).To(Equal(58), "%+v", out)
-				Expect(out.stderr).To(ContainSubstring("controlled compiler failure"))
-				Expect(os.ReadFile(record)).To(Equal([]byte("called")))
-			}
-			_, err = os.Lstat(marker)
-			Expect(os.IsNotExist(err)).To(BeTrue())
-		}
+		sourceControllerCompilerRefusal("budget")
 	})
 
 	// per docs/adr/0139-go-source-budget-entrypoint.md:33

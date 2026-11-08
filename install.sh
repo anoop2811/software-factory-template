@@ -62,61 +62,160 @@ packaged_install() {
   esac
   candidate_dir=$(mktemp -d "${TMPDIR:-/tmp}/factory-release.XXXXXXXX")
   candidate_child='' candidate_watchdog=''
-  candidate_retain=0
-  candidate_watch() {
-    candidate_sleep=
-    candidate_stop_sleep() {
-      if [ -n "$candidate_sleep" ]; then
-        kill "$candidate_sleep" 2>/dev/null || :
-        wait "$candidate_sleep" 2>/dev/null || :
-        candidate_sleep=
-      fi
-    }
-    candidate_pause() {
-      # A stop between spawn and PID publication must wait for ownership.
-      # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:203.
-      candidate_stop_pending=0
-      trap 'candidate_stop_pending=1' TERM HUP INT
-      sleep "$1" &
-      candidate_sleep=$!
-      trap 'candidate_stop_sleep; exit 0' TERM HUP INT
-      if [ "$candidate_stop_pending" -ne 0 ]; then
-        candidate_stop_sleep
-        exit 0
-      fi
-      wait "$candidate_sleep" || exit 0
-      candidate_sleep=
-    }
-    trap candidate_stop_sleep 0
-    trap 'candidate_stop_sleep; exit 0' TERM HUP INT
-    candidate_pause "$1"
-    kill -"$3" "$2" 2>/dev/null || :
-    if [ "$3" = TERM ]; then
-      candidate_pause 5
-      kill -KILL "$2" 2>/dev/null || :
+  candidate_retain=0 candidate_guard=0 candidate_cancel_status=0
+  candidate_signal_epoch=0 candidate_control_open=0 candidate_watch_serial=0
+  candidate_cancel() {
+    candidate_cancel_status=$1
+    candidate_signal_epoch=$((candidate_signal_epoch + 1))
+    if [ "$candidate_guard" -eq 0 ]; then
+      candidate_cleanup
+      exit "$candidate_cancel_status"
     fi
   }
+  candidate_resume_cancel() {
+    if [ "$candidate_cancel_status" -ne 0 ]; then
+      # Bash 3 unwinds a function's redirections before running its EXIT trap.
+      candidate_cleanup
+      exit "$candidate_cancel_status"
+    fi
+  }
+  candidate_join() {
+    candidate_previous_wait=
+    while :; do
+      candidate_wait_epoch=$candidate_signal_epoch
+      candidate_join_status=0
+      wait "$1" 2>/dev/null || candidate_join_status=$?
+      if [ "$candidate_join_status" -eq 127 ] && [ -n "$candidate_previous_wait" ]; then
+        candidate_join_status=$candidate_previous_wait
+        break
+      fi
+      case "$candidate_join_status" in
+        129|130|143)
+          [ "$candidate_wait_epoch" -ne "$candidate_signal_epoch" ] || break
+          candidate_previous_wait=$candidate_join_status ;;
+        *) break ;;
+      esac
+    done
+    return "$candidate_join_status"
+  }
+  # A fresh channel carries stop authority without a reusable numeric PID.
+  # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:241.
+  candidate_prepare_watch() {
+    candidate_watch_serial=$((candidate_watch_serial + 1))
+    candidate_control=$candidate_dir/watch.$candidate_watch_serial
+    mkfifo "$candidate_control" || return 125
+    [ -p "$candidate_control" ] && [ ! -L "$candidate_control" ] || return 125
+  }
+  candidate_watch() {
+    (candidate_parent=$$
+      trap 'kill -TERM "$candidate_parent" 2>/dev/null || :' 0
+      unset BASH_ENV ENV
+      exec /bin/bash --noprofile --norc -c '
+      case "$5" in ""|*[!0-9]*) exit 125 ;; esac
+      [[ "$5" -gt 1 ]] || exit 125
+      parent=$5
+      failed() {
+        failure_status=$?
+        trap - EXIT
+        if [[ "$failure_status" != 0 ]]; then
+          kill -TERM "$parent" 2>/dev/null || :
+        fi
+        exit "$failure_status"
+      }
+      trap failed EXIT
+      trap "exit 125" INT TERM HUP
+      case "$1:$3" in 120:TERM|5:KILL) ;; *) exit 125 ;; esac
+      case "$2" in ""|*[!0-9]*) exit 125 ;; esac
+      [[ "$2" -gt 1 ]] || exit 125
+      [[ -p /dev/fd/9 ]] || exit 125
+      pause() {
+        status=0
+        if ! { IFS= read -r -t "$1" -u 9 stop || status=$?; } 2> "$4"; then
+          exit 125
+        fi
+        if [[ "$status" == 0 ]]; then
+          [[ "$stop" == stop ]] || exit 125
+          exit 0
+        fi
+        [[ -p /dev/fd/9 && ! -s "$4" ]] || exit 125
+        case "$status" in 1|142) ;; *) exit 125 ;; esac
+      }
+      pause "$@"
+      kill -"$3" "$2" 2>/dev/null || :
+      if [[ "$3" == TERM ]]; then
+        pause 5 "$2" KILL "$4"
+        kill -KILL "$2" 2>/dev/null || :
+      fi
+    ' factory-watch "$1" "$2" "$3" "$candidate_control.error" "$$") </dev/null >/dev/null 2>&1 &
+    candidate_watchdog=$!
+  }
+  candidate_stop_watch() {
+    candidate_saved_guard=$candidate_guard
+    candidate_guard=1
+    candidate_stop_status=0
+    if [ "$candidate_control_open" -ne 0 ]; then
+      printf '%s\n' stop >&9 || candidate_stop_status=125
+      exec 9>&-
+      candidate_control_open=0
+    fi
+    if [ -n "$candidate_watchdog" ]; then
+      candidate_join "$candidate_watchdog" || candidate_stop_status=125
+      candidate_watchdog=
+    fi
+    [ "$candidate_stop_status" -eq 0 ] || candidate_retain=1
+    candidate_guard=$candidate_saved_guard
+    [ "$candidate_guard" -ne 0 ] || candidate_resume_cancel
+    return "$candidate_stop_status"
+  }
+  candidate_cleanup_child() {
+    [ -p /dev/fd/9 ] || return 125
+    candidate_control_open=1
+    candidate_watch 5 "$candidate_child" KILL
+    candidate_cleanup_epoch=$candidate_signal_epoch
+    candidate_cleanup_status=0
+    wait "$candidate_child" 2>/dev/null || candidate_cleanup_status=$?
+    case "$candidate_cleanup_status" in
+      129|130|143)
+        if [ "$candidate_cleanup_epoch" -ne "$candidate_signal_epoch" ]; then
+          # A failed reaper wakes this guarded join; never wait unboundedly.
+          candidate_reaper_status=0
+          candidate_join "$candidate_watchdog" || candidate_reaper_status=$?
+          candidate_watchdog=
+          if [ "$candidate_reaper_status" -ne 0 ]; then
+            candidate_retain=1
+            candidate_stop_watch || :
+            return 125
+          fi
+          candidate_join "$candidate_child" || candidate_cleanup_status=$?
+        fi ;;
+    esac
+    [ "$candidate_cleanup_status" -ne 125 ] || candidate_retain=1
+    candidate_child=
+    candidate_stop_watch
+  }
   candidate_cleanup() {
+    trap - 0
+    candidate_guard=1
+    candidate_stop_watch || candidate_retain=1
     if [ -n "$candidate_child" ]; then
       kill "$candidate_child" 2>/dev/null || :
-      candidate_watch 5 "$candidate_child" KILL </dev/null >/dev/null 2>&1 &
-      candidate_reaper=$!
-      candidate_cleanup_status=0
-      wait "$candidate_child" 2>/dev/null || candidate_cleanup_status=$?
-      [ "$candidate_cleanup_status" -ne 125 ] || candidate_retain=1
-      kill "$candidate_reaper" 2>/dev/null || :
-      wait "$candidate_reaper" 2>/dev/null || :
+      if ! candidate_prepare_watch || ! candidate_cleanup_child 9<> "$candidate_control"; then
+        candidate_retain=1
+        candidate_stop_watch || :
+        printf 'install: unresolved child ownership; preserve private cache %s\n' "$candidate_dir" >&2
+        exit 125
+      fi
     fi
-    [ -z "$candidate_watchdog" ] || { kill "$candidate_watchdog" 2>/dev/null || :; wait "$candidate_watchdog" 2>/dev/null || :; }
     if [ "$candidate_retain" -eq 0 ]; then
       rm -rf -- "$candidate_dir"
     else
       printf 'install: unresolved verifier ownership; preserve private cache %s\n' "$candidate_dir" >&2
+      exit 125
     fi
   }
   trap candidate_cleanup 0
-  trap 'exit 130' INT
-  trap 'exit 143' TERM HUP
+  trap 'candidate_cancel 130' INT
+  trap 'candidate_cancel 143' TERM HUP
   # Finite acquisition commands, bounded files, and no downloaded executable
   # probes. The authenticated Go owner supplies strict per-input bounds again.
   candidate_gh() {
@@ -130,6 +229,30 @@ packaged_install() {
     # Fixed code only; every user operand remains an argv element. Bash is the
     # factory's existing adapter prerequisite and supplies portable job groups.
     # docs/adr/0101-go-release-handoff.md:401.
+    candidate_guard=1
+    if ! candidate_prepare_watch; then
+      candidate_retain=1
+      candidate_guard=0
+      candidate_resume_cancel
+      printf '%s\n' 'install: watchdog channel setup failed' >&2
+      return 125
+    fi
+    candidate_channel_entered=0
+    candidate_gh_status=0
+    candidate_gh_control "$@" 9<> "$candidate_control" || candidate_gh_status=$?
+    candidate_guard=0
+    if [ "$candidate_channel_entered" -eq 0 ]; then
+      candidate_retain=1
+      printf '%s\n' 'install: watchdog channel open failed' >&2
+      return 125
+    fi
+    candidate_resume_cancel
+    return "$candidate_gh_status"
+  }
+  candidate_gh_control() {
+    candidate_channel_entered=1
+    [ -p /dev/fd/9 ] || { candidate_retain=1; return 125; }
+    candidate_control_open=1
     (unset BASH_ENV ENV; ulimit -f 524288; exec /bin/bash --noprofile --norc -c '
       set -m
       child=
@@ -158,17 +281,20 @@ packaged_install() {
       wait "$child" 2>/dev/null || status=$?
       stop_group || exit 125
       exit "$status"
-    ' factory-bootstrap "$candidate_verifier" "$@") > "$candidate_dir/command.stdout" 2> "$candidate_dir/command.stderr" &
+    ' factory-bootstrap "$candidate_verifier" "$@") 9>&- > "$candidate_dir/command.stdout" 2> "$candidate_dir/command.stderr" &
     candidate_child=$!
-    candidate_watch 120 "$candidate_child" TERM </dev/null >/dev/null 2>&1 &
-    candidate_watchdog=$!
+    candidate_watch 120 "$candidate_child" TERM
+    candidate_guard=0
+    candidate_resume_cancel
     candidate_status=0
     wait "$candidate_child" || candidate_status=$?
     [ "$candidate_status" -ne 125 ] || candidate_retain=1
     candidate_child=
-    kill "$candidate_watchdog" 2>/dev/null || :
-    wait "$candidate_watchdog" 2>/dev/null || :
-    candidate_watchdog=
+    if ! candidate_stop_watch; then
+      candidate_retain=1
+      printf '%s\n' 'install: watchdog control did not close' >&2
+      return 125
+    fi
     head -c 65536 "$candidate_dir/command.stderr" >&2
     [ "$(wc -c < "$candidate_dir/command.stdout")" -le "$candidate_output_limit" ] || { printf '%s\n' 'install: oversized candidate metadata' >&2; return 1; }
     return "$candidate_status"

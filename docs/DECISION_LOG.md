@@ -7891,3 +7891,69 @@ passed their focused race run (3/3 in 117.230s; package `ok .../acceptance
 118.507s`). Configured lint reported `0 issues.` Independent review found no
 remaining issue in these changes. The CI census is still 9/53/3332; final-head
 hosted checks remain pending.
+
+## Decision 159 (2026-11-08 UTC): settle an owned bootstrap timer despite a lost TERM
+
+PR #174 head `613bc89` passed both hosted 53-case handoff suites, but its Linux
+base run timed out in the unchanged literal-argument bootstrap criterion after
+125.184 seconds. The unchanged focused criterion passed locally, as did ten
+isolated offline Linux ARM64 attempts. No incident cause was established by
+those passes; retain the failed receipt.
+
+Independent investigation then reproduced a distinct concrete stop defect in
+the actual extracted watchdog on Linux Dash: TERM returned success but the
+recorded timer survived and exited naturally after 1002 ms. Private KILL controls
+settled it promptly on Dash and Bash. Adopt the owned-timer correction and
+independent public-installer regression in [ADR 0124](adr/0124-ordinary-authenticated-go-installer-bootstrap.md)
+before code. Change only timer teardown, preserving all native-command signals,
+ownership checks and deadlines. This is a blocking CI correction in the current
+bounded delivery, not a new feature or an assertion that the exact hosted trigger
+has been proven. Qualification remains pending.
+
+Decision 159 refinement before the replacement implementation: the direct KILL
+candidate passed its regression but independent review demonstrated a late trap
+requesting that numeric signal after the timer had been reaped. Do not publish
+that candidate. Adopt ADR 0124's private FIFO control channel and existing Bash
+builtin timed read, eliminating external timer children and numeric watcher
+cancellation. Bash 3 and Bash 5 probes confirmed queued stop, ordinary timeout
+and cancellation during escalation; their timeout statuses differ. Preserve
+native-command signal policy and numeric deadlines. Superseded test receipts
+remain evidence of the investigation, not acceptance of the rejected design.
+
+Decision 159 replacement qualification: the public scheduling controls passed
+2/2 criteria across twelve shell/stage combinations, including queued stop,
+late joined cancellation, live HUP, closed watcher descriptor and cancellation
+during setup/publication. The safe invalid-numeric-signal control then failed its
+intended assertion; the observer suppressed delivery. Final `go test -race
+./acceptance -run TestAcceptance -count=1 -timeout=8m` with the ordinary-bootstrap,
+candidate-watchdog and partition focus reported `ok .../acceptance 214.199s`:
+12/12 criteria passed in 212.792s. Actual discovery is 3333 total, 2998 base,
+53 handoff and 115 source-entrypoint criteria. Configured `golangci-lint run
+--config packs/go/.golangci.yml ./...` reported `0 issues.`
+
+Independent final Bash 3 and Linux Dash/Bash 5 controls passed queued stop,
+read-diagnostic failure, closed descriptor, scoped-open failure and literal-argv
+preservation. Private shell syntax and warning-level ShellCheck passed. Independent
+review found no surviving correction defect. No acquisition or cleanup deadline
+was increased. New-head hosted qualification remains separate from these local
+receipts and from the earlier all-green `613bc89` retry.
+
+Decision 159 model-review follow-up: private Bash 3 and Dash probes confirmed
+that refusing a scoped control descriptor left its stop flag armed. Scope
+unwinding restored the caller's FD 9, and later cleanup wrote `stop` there.
+Adopt ADR 0124's validation-before-authority rule before the two assignment
+changes and public refusal regression. The separate function-entry flag remains
+before validation: redirection failure does not enter the function at all.
+The old claim that its wrapper guard is unreachable is refuted; the restored
+descriptor write is a reproduced defect. New qualification remains pending.
+
+Decision 159 refusal qualification: the public installer first failed the
+caller-FD9 preservation assertion on `a98d45d` (0/1 in 1.224s, status 125 but
+caller bytes overwritten). With authority assigned after validation, the focused
+watchdog and candidate-cancellation race run passed 2/2 in 8.199s (`go test -race
+./acceptance -run TestAcceptance -count=1 -timeout=8m`, package output
+`ok .../acceptance 9.418s`). This includes the new refusal control on both shells
+and the prior twelve scheduling cases. Configured lint again reported `0 issues.`
+Independent Bash 3/Dash helper controls also passed both acquisition and cleanup
+refusals, with the caller descriptor unchanged. The earlier twelve-criterion
+bootstrap/partition result remains separate; this change adds no criterion.

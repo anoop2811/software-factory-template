@@ -184,3 +184,17 @@ fixture ownership, alongside the original 44 criteria. Preserve the original
 four-group, eight-case real two-worker scheduling proof and its removed-priority
 negative control. The complete handoff partition contains 53 criteria; registering
 these groups must not split their existing fixture lifetimes or relax coverage.
+
+Argument refusal diagnostics include the parser's specific, fixed-text reason
+while retaining status two and the required-selection guidance. Public examples
+spell the separately trusted executable as `/path/to/trusted/factory`; an
+unprepared checkout's own launcher cannot bootstrap itself.
+
+Success qualification separately enumerates the complete private `.factory/`
+tree immediately after preparation, before health checks can create their own
+state. Its exact expected entries are the preexisting unknown private entries,
+the authenticated initialized project's selected private paths, the installation
+descriptor, and required parent directories. Include empty directories and do
+not follow links. Apply this witness to both same-host and foreign-origin
+preparation; the public-path witness alone cannot prove absence of private
+backup or staging debris.

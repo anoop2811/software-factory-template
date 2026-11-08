@@ -7870,3 +7870,24 @@ Decision 158 scheduler correction passed its focused race criterion in 27.796s
 eight-case proof and the deliberately failing removed-priority control. Independent
 review found no surviving defect in the exact three-group registration. The
 unchanged 53-case enclosing run and final-head hosted checks remain separate.
+
+Decision 158 model review of `0803ad2` completed 19/19 files and 29/29 fragments
+in 142 seconds ([report](https://github.com/anoop2811/software-factory-template/pull/174#issuecomment-6714879185)).
+Before the review follow-up, adopt ADR 0143's explicit trusted
+executable examples and specific fixed-text argument diagnostics. Status two,
+strict validation and zero acquisition on malformed arguments remain unchanged.
+Private-custody witness and other model findings remain under independent review.
+
+Decision 158 independent review retained a test-coverage gap: the public-path
+witness excludes `.factory/`, and installed validation checks declared assets,
+not unrelated extra private entries. Adopt ADR 0143's exact private-tree witness
+before strengthening the two existing success criteria. This closes the proof
+gap without changing publication policy or the nine-criterion census.
+
+Decision 158 review-refinement qualification: the public diagnostic criterion
+first failed with the generic reason (0/1 in 1.955s), before the one-line formatter
+change. The diagnostic and both complete private-tree success criteria then
+passed their focused race run (3/3 in 117.230s; package `ok .../acceptance
+118.507s`). Configured lint reported `0 issues.` Independent review found no
+remaining issue in these changes. The CI census is still 9/53/3332; final-head
+hosted checks remain pending.

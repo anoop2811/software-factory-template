@@ -43,23 +43,30 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		}
 		target := runtime.GOOS + "/" + runtime.GOARCH
 		valid := []string{"--go-candidate", handoffVersion, "--origin-target", target, "--ephemeral"}
-		cases := [][]string{
-			{}, {"--go-candidate", handoffVersion, "--origin-target", target},
-			{"--go-candidate", handoffVersion, "--ephemeral"},
-			{"--go-candidate", "main", "--origin-target", target, "--ephemeral"},
-			{"--go-candidate", "latest", "--origin-target", target, "--ephemeral"},
-			{"--go-candidate", handoffVersion, "--origin-target", "windows/amd64", "--ephemeral"},
-			append(append([]string{}, valid...), "--go-candidate", handoffVersion),
-			append(append([]string{}, valid...), "--origin-target", target),
-			append(append([]string{}, valid...), "--ephemeral"),
-			append(append([]string{}, valid...), "--source", cwd),
-			append(append([]string{}, valid...), "--unknown"),
-			{"--go-candidate=" + handoffVersion, "--origin-target=", "--ephemeral"},
+		// per docs/adr/0143-ci-checkout-preparation.md:188
+		cases := []struct {
+			args   []string
+			reason string
+		}{
+			{nil, "missing CI consent or selection"},
+			{[]string{"--go-candidate", handoffVersion, "--origin-target", target}, "missing CI consent or selection"},
+			{[]string{"--go-candidate", handoffVersion, "--ephemeral"}, "missing CI consent or selection"},
+			{[]string{"--go-candidate", "main", "--origin-target", target, "--ephemeral"}, "invalid CI release"},
+			{[]string{"--go-candidate", "latest", "--origin-target", target, "--ephemeral"}, "invalid CI release"},
+			{[]string{"--go-candidate", handoffVersion, "--origin-target", "windows/amd64", "--ephemeral"}, "invalid CI origin target"},
+			{append(append([]string{}, valid...), "--go-candidate", handoffVersion), "duplicate CI argument"},
+			{append(append([]string{}, valid...), "--origin-target", target), "duplicate CI argument"},
+			{append(append([]string{}, valid...), "--ephemeral"), "duplicate CI argument"},
+			{append(append([]string{}, valid...), "--source", cwd), "unknown CI argument"},
+			{append(append([]string{}, valid...), "--unknown"), "unknown CI argument"},
+			{[]string{"--go-candidate=" + handoffVersion, "--origin-target=", "--ephemeral"}, "invalid CI origin target"},
 		}
-		for _, args := range cases {
-			out := imageProcess(cwd, env, driver, append([]string{"ci", "prepare"}, args...)...)
-			Expect(out.status).To(Equal(2), "args %q: %+v", args, out)
+		for _, testcase := range cases {
+			out := imageProcess(cwd, env, driver, append([]string{"ci", "prepare"}, testcase.args...)...)
+			Expect(out.status).To(Equal(2), "args %q: %+v", testcase.args, out)
 			Expect(strings.ToLower(out.stderr)).To(ContainSubstring("ci"))
+			Expect(out.stderr).To(ContainSubstring(testcase.reason), "the refusal must identify the invalid selection without echoing caller inputs")
+			Expect(out.stderr).To(ContainSubstring("require an exact release, origin target and --ephemeral"))
 			Expect(nativeInitArtifacts(cwd)).To(Equal(before))
 			_, err := os.Lstat(marker)
 			Expect(os.IsNotExist(err)).To(BeTrue(), "invalid request must not acquire or execute a release")
@@ -200,6 +207,42 @@ func ciPreparePublicPaths(root string) []string {
 	return paths
 }
 
+// The expected private entries come from the authenticated initialized project,
+// plus preexisting unknown data and the descriptor excluded from its own digest.
+// Check before health commands can intentionally create separate runtime state.
+// per docs/adr/0143-ci-checkout-preparation.md:193
+func ciPreparePrivateWitness(root string, selected []string) func() {
+	GinkgoHelper()
+	entries := func() map[string]fs.FileMode {
+		GinkgoHelper()
+		found := map[string]fs.FileMode{}
+		Expect(filepath.WalkDir(filepath.Join(root, ".factory"), func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			relative, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			found[filepath.ToSlash(relative)] = entry.Type()
+			return nil
+		})).To(Succeed())
+		return found
+	}
+	expected := entries()
+	for _, path := range append(append([]string{}, selected...), ".factory/installation.current") {
+		Expect(path).To(HavePrefix(".factory/"))
+		expected[path] = 0
+		for parent := filepath.Dir(path); parent != "."; parent = filepath.Dir(parent) {
+			expected[filepath.ToSlash(parent)] = fs.ModeDir
+		}
+	}
+	return func() {
+		GinkgoHelper()
+		Expect(entries()).To(Equal(expected), "preparation may create only selected private files and required parents; private backups, staging debris and empty extra directories are forbidden")
+	}
+}
+
 // per docs/adr/0143-ci-checkout-preparation.md:178
 var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-ci-project"), func() {
 	var project ciPrepareProject
@@ -209,6 +252,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 	// per docs/adr/0143-ci-checkout-preparation.md:115
 	It("authenticates a cloned initialized project and runs installed checks without compiler or Python", func() {
 		f, driver, root := project.checkout()
+		privatePublished := ciPreparePrivateWitness(root, project.private)
 		beforePaths := ciPreparePublicPaths(root)
 		head, index, ignore := imageGit(root, "rev-parse", "HEAD"), imageGit(root, "ls-files", "--stage", "-z"), imageGit(root, "show", "HEAD:.gitignore")
 		preserved := map[string][]byte{}
@@ -222,6 +266,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
 		AddReportEntry("ci-prepare.actual-result", map[string]any{"status": out.status, "stdout": out.stdout, "stderr": out.stderr}, ReportEntryVisibilityNever)
 		Expect(out.status).To(BeZero(), "%+v", out)
+		privatePublished()
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
 		proof := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "selftest")
 		Expect(proof.status).To(BeZero(), "%+v", proof)
@@ -433,6 +478,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 	// per docs/adr/0143-ci-checkout-preparation.md:135
 	It("reprojects an authenticated inert foreign origin to the actual host owner without executing foreign bytes", func() {
 		f, driver, root := project.checkout()
+		privatePublished := ciPreparePrivateWitness(root, project.private)
 		foreignOS := "linux"
 		if runtime.GOOS == "linux" {
 			foreignOS = "darwin"
@@ -467,6 +513,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		Expect(err).NotTo(HaveOccurred())
 		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(foreignTarget)...)
 		Expect(out.status).To(BeZero(), "%+v", out)
+		privatePublished()
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
 		Expect(os.ReadFile(filepath.Join(root, "docs/DECISION_LOG.md"))).To(Equal(decision))
 		for path, data := range hostPublic {

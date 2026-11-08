@@ -28,7 +28,7 @@ type ciOptions struct {
 func RunCI(parent context.Context, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
 	option, help, err := parseCI(args)
 	if err != nil {
-		_ = writeDiagnostic(stderr, "factory ci: invalid prepare arguments; require an exact release, origin target and --ephemeral\n")
+		_ = writeDiagnostic(stderr, "factory ci: %s; require an exact release, origin target and --ephemeral\n", err)
 		return 2
 	}
 	if help {

@@ -7794,8 +7794,10 @@ Final-head hosted qualification remains separate.
 
 PR #173 merged at `2026-11-07T23:09:10Z` as
 `d05d99d67d496caaf5f3c2310eefd1b503315cdf`. Final head `0c813fb` passed all
-32 checks; adversarial review covered 20 files and 32 fragments in 85 seconds,
-and all findings received responses. Copilot had insufficient quota. One macOS
+32 [checks](https://github.com/anoop2811/software-factory-template/pull/173/checks);
+adversarial review covered 20 files and 32 fragments in 85 seconds, and
+[all findings received responses](https://github.com/anoop2811/software-factory-template/pull/173#issuecomment-6712558607).
+Copilot had insufficient quota. One macOS
 local-upgrade job first exceeded an existing helper watchdog after installation;
 the unchanged failed-job rerun passed 11/11 criteria. No permanent timing fix or
 root cause is claimed. These are prior observed results, not new execution.
@@ -7836,3 +7838,35 @@ policy during finalization, preserving frozen recipes. Shared initializer and
 installation package race tests reported `ok` in 6.325s and 2.902s respectively;
 the release command package has no unit tests. Its behavior is qualified through
 the compiled public acceptance boundary. No deadline or quality gate was relaxed.
+
+Decision 158 expanded focused run: nine of seventeen criteria passed in 278.725s.
+Eight CI criteria, including actionable interrupted-publication guidance, and the
+exhaustive partition criterion passed. Seven help comparisons placed the new CI
+line at a different position; the cross-platform full check correctly required
+the fixture's referenced decision log. Adopt ADR 0143's bounded fixture refinement
+before those corrections. Production code and deadlines are unchanged; the
+corrected focused criteria and enclosing/hosted qualification remain pending.
+
+Decision 158 corrected focused qualification: all eight previously failing
+criteria passed in 103.566 seconds (`go test -race ./acceptance -run
+TestAcceptance -count=1 -timeout=15m` with the cross-platform CI and help-alias
+focus; package output `ok .../acceptance 104.836s`). Together with the earlier
+eight CI passes and partition pass, this covers all nine new CI criteria and
+seven existing help aliases; it is not a new all-seventeen run. Configured
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+Hosted source-entrypoint failures also compared against that same misplaced
+help entry. Their separate focused regression and final-head CI remain open.
+
+Decision 158 hosted qualification exposed a second independent registry still
+expecting only the original four release-handoff groups and 44 criteria. Adopt
+the explicit three-group CI registration in ADR 0143 before correcting that
+test boundary; retain exact identity, ownership and priority checks, plus the
+existing real scheduler negative control. The four source-entrypoint regressions
+now passed their focused race run (report 18.543s, package `ok .../acceptance
+19.864s`). No production behavior or deadline changed.
+
+Decision 158 scheduler correction passed its focused race criterion in 27.796s
+(package `ok .../acceptance 29.035s`), including the original real two-worker
+eight-case proof and the deliberately failing removed-priority control. Independent
+review found no surviving defect in the exact three-group registration. The
+unchanged 53-case enclosing run and final-head hosted checks remain separate.

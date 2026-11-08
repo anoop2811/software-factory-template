@@ -163,3 +163,24 @@ documents stage records and assume-unchanged/skip-worktree flags. Actual private
 Git probes additionally reproduced the unsupported `-z` without stdin spelling,
 the staged-submodule override and execution of configured helpers. No Git or Go
 version pin is changed by this decision.
+
+## Qualification fixture refinement
+
+The new public help entry belongs after `check`, beside the CI operation it
+supports. Preserve every historical help byte and existing native addition;
+the frozen comparison translates only this one new line at that position.
+The cross-platform fixture's origin-projection commit intentionally changes
+factory governance assets. Give the adopter fixture its own referenced Decision
+158 log as well as the conventional commit reference, so the real full check
+can pass its existing policy. Do not bypass or normalize away that gate. These
+are fixture corrections; runtime admission and deadlines remain unchanged.
+
+The release-handoff scheduler's independent registry must include the new CI
+criteria as three explicit groups: one unordered surface criterion at priority
+zero, six project criteria sharing their existing ordered fixture at priority
+two, and two owner/cancellation criteria sharing their existing ordered fixture
+at priority two. Check all nine exact identities, group counts, priorities and
+fixture ownership, alongside the original 44 criteria. Preserve the original
+four-group, eight-case real two-worker scheduling proof and its removed-priority
+negative control. The complete handoff partition contains 53 criteria; registering
+these groups must not split their existing fixture lifetimes or relax coverage.

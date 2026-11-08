@@ -170,8 +170,10 @@ This focused result does not replace final-head hosted installation qualificatio
 
 PR #173 merged at `2026-11-07T23:09:10Z` as
 `d05d99d67d496caaf5f3c2310eefd1b503315cdf`. Final head `0c813fb` completed all
-32 checks. Adversarial review completed in 85 seconds with responses to all
-findings; Copilot had insufficient quota. One macOS local-upgrade helper timed
+32 [hosted checks](https://github.com/anoop2811/software-factory-template/pull/173/checks).
+Adversarial review completed in 85 seconds with
+[responses to all findings](https://github.com/anoop2811/software-factory-template/pull/173#issuecomment-6712558607);
+Copilot had insufficient quota. One macOS local-upgrade helper timed
 out on its first attempt after reporting completed installation. Its unchanged
 failed-job rerun passed all 11 criteria; no persistent fix or root cause is
 claimed. This closes the hook-setup obligation, not the remaining R4-R7 gates.

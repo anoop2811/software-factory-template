@@ -37,7 +37,6 @@ Usage: factory <command> [args]
 
   init        Set up the factory in the current repo (writes factory.yaml, installs hooks)
               Explicit local Go install: init [TARGET] --local [--source DIR]
-  ci          Prepare an authenticated runtime in a disposable CI checkout
   doctor      Report the health of an installed factory: armed/inert/stale gates,
               hook + adapter integrity, and a break/fix proof that every gate fires
   upgrade     Preview authenticated Go framework updates; apply with fresh consent
@@ -47,6 +46,7 @@ Usage: factory <command> [args]
   sync        Synchronize harness adapters (all, opencode, claude, codex)
   prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
+  ci          Prepare an authenticated runtime in a disposable CI checkout
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)

@@ -25,7 +25,8 @@ import (
 )
 
 // per docs/adr/0143-ci-checkout-preparation.md:29
-var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", func() {
+// per docs/adr/0143-ci-checkout-preparation.md:178
+var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", SpecPriority(0), Label("handoff-ci-surface"), func() {
 	// per docs/adr/0143-ci-checkout-preparation.md:29
 	// per docs/adr/0143-ci-checkout-preparation.md:37
 	It("owns help, exact selectors and explicit disposable-checkout consent before acquisition", func() {
@@ -199,7 +200,8 @@ func ciPreparePublicPaths(root string) []string {
 	return paths
 }
 
-var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", Ordered, ContinueOnFailure, func() {
+// per docs/adr/0143-ci-checkout-preparation.md:178
+var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-ci-project"), func() {
 	var project ciPrepareProject
 	BeforeAll(func() { project = ciPrepareProjectFixture() })
 
@@ -456,6 +458,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		ciPrepareMultiTargetTransport(f)
 		f.environment["CI_PREPARE_FOREIGN_MARKER"] = filepath.Join(f.records, "foreign-executed")
 		hostPublic := ciPrepareProjectDigest(root, project.selected, project.image.binary, foreign)
+		decision := []byte("# Decision Log\n\n## Decision 158: Project an inert foreign runtime\n\nAccepted only for this disposable qualification project.\n")
+		writeFixture(filepath.Join(root, "docs/DECISION_LOG.md"), decision, 0644)
 		imageGit(root, "add", "--all")
 		imageGit(root, "commit", "--quiet", "-m", "test: project foreign runtime for Decision 158")
 		head, index, paths := imageGit(root, "rev-parse", "HEAD"), imageGit(root, "ls-files", "--stage", "-z"), ciPreparePublicPaths(root)
@@ -464,6 +468,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(foreignTarget)...)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
+		Expect(os.ReadFile(filepath.Join(root, "docs/DECISION_LOG.md"))).To(Equal(decision))
 		for path, data := range hostPublic {
 			Expect(os.ReadFile(filepath.Join(root, path))).To(Equal(data), path)
 		}
@@ -585,7 +590,8 @@ func ciPrepareInstrumentedSource(source string) {
 	writeFixture(path, []byte(strings.Replace(string(data), old, body, 1)), 0644)
 }
 
-var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", Ordered, ContinueOnFailure, func() {
+// per docs/adr/0143-ci-checkout-preparation.md:178
+var _ = Describe("Whole installation upgrade release candidate handoff CI checkout preparation", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-ci-ownership"), func() {
 	var project ciPrepareProject
 	BeforeAll(func() { project = ciPrepareProjectFixture(ciPrepareInstrumentedSource) })
 

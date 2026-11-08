@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -204,158 +203,13 @@ var _ = Describe("Authenticated candidate shell bootstrap", func() {
 		Expect(operands).To(Equal([]string{"upgrade", "--dry-run", "--json", "--project-input", "PROJECT_NAME=literal $(not-code) project"}))
 	})
 
-	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:203
-	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:216
-	It("settles watchdog timers when cancellation arrives before PID publication", func() {
-		interpreters := []string{"/bin/sh"}
-		if _, err := os.Stat("/bin/dash"); err == nil {
-			interpreters = append(interpreters, "/bin/dash")
-		} else {
-			Expect(os.IsNotExist(err)).To(BeTrue())
-		}
-		for _, interpreter := range interpreters {
-			f := handoffBootstrap("Linux", "x86_64", "linux-amd64", "")
-			data, err := os.ReadFile(f.installer)
-			Expect(err).NotTo(HaveOccurred())
-			// Scheduling-only gates leave the real publication and cleanup logic intact.
-			gate := `
-    if [ ! -e "$HANDOFF_RECORD_DIR/timer-ready" ]; then
-      printf '%s\n' "$!" > "$HANDOFF_RECORD_DIR/timer-pid"
-      : > "$HANDOFF_RECORD_DIR/timer-ready"
-      timer_probe_attempt=0
-      while [ ! -e "$HANDOFF_RECORD_DIR/timer-release" ]; do
-        [ "$timer_probe_attempt" -lt 500 ] || exit 97
-        timer_probe_attempt=$((timer_probe_attempt + 1))
-        /bin/sleep 0.01
-      done
-    fi
-`
-			spawn := "sleep \"$1\" &\n"
-			Expect(strings.Count(string(data), spawn)).To(Equal(1))
-			data = []byte(strings.Replace(string(data), spawn, spawn+gate, 1))
-			publish := "candidate_watchdog=$!\n"
-			Expect(strings.Count(string(data), publish)).To(Equal(1))
-			data = []byte(strings.Replace(string(data), publish, publish+"    if [ ! -e \"$HANDOFF_RECORD_DIR/watchdog-pid\" ]; then printf '%s\\n' \"$candidate_watchdog\" > \"$HANDOFF_RECORD_DIR/watchdog-pid\"; fi\n", 1))
-			writeFixture(f.installer, data, 0600)
-			ghPath := filepath.Join(f.root, "host tools", "gh")
-			data, err = os.ReadFile(ghPath)
-			Expect(err).NotTo(HaveOccurred())
-			api := `  api) printf '%s\n' "$HANDOFF_REVISION" ;;`
-			Expect(strings.Count(string(data), api)).To(Equal(1))
-			apiGate := `  api)
-    timer_probe_attempt=0
-    while [ ! -e "$HANDOFF_RECORD_DIR/timer-release" ]; do
-      [ "$timer_probe_attempt" -lt 500 ] || exit 97
-      timer_probe_attempt=$((timer_probe_attempt + 1))
-      /bin/sleep 0.01
-    done
-    printf '%s\n' "$HANDOFF_REVISION" ;;`
-			writeFixture(ghPath, []byte(strings.Replace(string(data), api, apiGate, 1)), 0700)
-			outsider := exec.Command("/bin/sleep", "30")
-			outsider.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-			Expect(outsider.Start()).To(Succeed())
-			DeferCleanup(func() { _ = syscall.Kill(-outsider.Process.Pid, syscall.SIGKILL); _ = outsider.Wait() })
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			DeferCleanup(cancel)
-			args := []string{f.installer, "upgrade", "--go-candidate=" + handoffVersion, "--dry-run", "--json", "--project-input", "PROJECT_NAME=literal $(not-code) project"}
-			command := handoffCommand(ctx, f.cwd, f.environment, "", interpreter, args...)
-			command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-			command.WaitDelay = time.Second
-			var stdout, stderr bytes.Buffer
-			command.Stdout, command.Stderr = &stdout, &stderr
-			Expect(command.Start()).To(Succeed())
-			finished := make(chan error, 1)
-			go func() { finished <- command.Wait() }()
-			joined := false
-			settled := false
-			var processError error
-			readPID := func(name string) int {
-				raw, readErr := os.ReadFile(filepath.Join(f.records, name))
-				if readErr != nil {
-					return 0
-				}
-				pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
-				return pid
+	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:248
+	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
+	It("settles watchdog ownership when cancellation arrives during channel setup or before PID publication", func() {
+		for _, interpreter := range bootstrapWatchdogInterpreters() {
+			for _, stage := range []string{"setup", "publication"} {
+				bootstrapWatcherCase(interpreter, stage)
 			}
-			DeferCleanup(func() {
-				// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:224
-				if settled {
-					return
-				}
-				holdFixtureCleanup(f.root, "unsettled timer-publication probe has unconfirmed separate verifier-group custody")
-				_ = os.WriteFile(filepath.Join(f.records, "timer-release"), nil, 0600)
-				if !joined {
-					_ = command.Process.Signal(syscall.SIGCONT)
-					_ = command.Process.Signal(syscall.SIGTERM)
-					select {
-					case processError = <-finished:
-						joined = true
-					case <-time.After(3 * time.Second):
-					}
-				}
-				ownsGroup := false
-				if !joined && command.Process.Signal(syscall.Signal(0)) == nil {
-					group, groupErr := syscall.Getpgid(command.Process.Pid)
-					ownsGroup = groupErr == nil && group == command.Process.Pid
-				}
-				for _, name := range []string{"timer-pid", "watchdog-pid"} {
-					if pid := readPID(name); pid > 1 {
-						group, groupErr := syscall.Getpgid(pid)
-						ownsGroup = ownsGroup || groupErr == nil && group == command.Process.Pid
-					}
-				}
-				if ownsGroup {
-					_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-				}
-				if !joined {
-					select {
-					case processError = <-finished:
-						joined = true
-					case <-time.After(3 * time.Second):
-					}
-				}
-				closed := false
-				for attempt := 0; attempt < 100; attempt++ {
-					if errors.Is(syscall.Kill(-command.Process.Pid, 0), syscall.ESRCH) {
-						closed = true
-						break
-					}
-					time.Sleep(10 * time.Millisecond)
-				}
-				Expect(joined && closed).To(BeTrue(), "test cleanup must settle its owned group before deleting the scheduling fixture")
-			})
-			Eventually(func() bool { return readPID("watchdog-pid") > 1 && readPID("timer-pid") > 1 }, 3*time.Second, 10*time.Millisecond).Should(BeTrue())
-			watchdogPID, timerPID := readPID("watchdog-pid"), readPID("timer-pid")
-			for _, pid := range []int{watchdogPID, timerPID} {
-				group := imageProcess(f.cwd, nil, "/bin/ps", "-o", "pgid=", "-p", strconv.Itoa(pid))
-				Expect(group.status).To(Equal(0))
-				Expect(strings.TrimSpace(group.stdout)).To(Equal(strconv.Itoa(command.Process.Pid)), "only the established installer group may receive probe signals")
-			}
-			Expect(syscall.Kill(watchdogPID, syscall.SIGSTOP)).To(Succeed())
-			Eventually(func() string {
-				state := imageProcess(f.cwd, nil, "/bin/ps", "-o", "stat=", "-p", strconv.Itoa(watchdogPID))
-				return strings.TrimSpace(state.stdout)
-			}, time.Second, 10*time.Millisecond).Should(HavePrefix("T"))
-			Expect(syscall.Kill(watchdogPID, syscall.SIGTERM)).To(Succeed())
-			writeFixture(filepath.Join(f.records, "timer-release"), nil, 0600)
-			Expect(syscall.Kill(watchdogPID, syscall.SIGCONT)).To(Succeed())
-			select {
-			case processError = <-finished:
-				joined = true
-			case <-time.After(5 * time.Second):
-				Fail("the signalled watchdog did not finish its bounded publication handoff")
-			}
-			Expect(ctx.Err()).NotTo(HaveOccurred())
-			Expect(processError).NotTo(HaveOccurred(), "%s: %s", interpreter, stderr.String())
-			tag, operands := handoffCandidateOperands(handoffRecorded(f, "bootstrap-argv"))
-			Expect(tag).To(Equal(handoffVersion))
-			Expect(operands).To(Equal([]string{"upgrade", "--dry-run", "--json", "--project-input", "PROJECT_NAME=literal $(not-code) project"}))
-			outsiderError, timerError := syscall.Kill(outsider.Process.Pid, 0), syscall.Kill(timerPID, 0)
-			AddReportEntry("bootstrap.timer-publication", map[string]any{"interpreter": interpreter, "timer_pid": timerPID, "timer_absent_before_teardown": errors.Is(timerError, syscall.ESRCH), "outsider_pid": outsider.Process.Pid, "outsider_alive_before_teardown": outsiderError == nil, "argv": operands}, ReportEntryVisibilityNever)
-			Expect(outsiderError).To(Succeed(), "watchdog cleanup must preserve the unrelated group")
-			Expect(timerError).To(MatchError(syscall.ESRCH), "%s: the owned timer must be absent before test teardown", interpreter)
-			Eventually(func() error { return syscall.Kill(-command.Process.Pid, 0) }, time.Second).Should(MatchError(syscall.ESRCH), "no owned watchdog remains after normal completion")
-			settled = true
 		}
 	})
 

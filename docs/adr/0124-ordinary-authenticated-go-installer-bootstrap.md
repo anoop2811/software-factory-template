@@ -225,3 +225,66 @@ The scheduling test must not signal a recorded group again after the body has
 joined its caller and observed all owned processes absent. Failure teardown must
 retain the fixture when forced termination leaves separate verifier-group
 custody uncertain; disappearance of only the outer group does not prove it.
+
+## Cancel a watchdog through an owned control channel
+
+Decision 159 replaces external watchdog sleep children. A private Linux Dash
+probe using the actual watchdog observed a successfully sent TERM leave its
+timer alive until natural expiry. Dash retained captured output descriptors in
+the waiting watchdog shell. A stronger numeric timer signal passed the first
+regression but was rejected: a late trap can reference a PID already reaped.
+These observations prove defects, not the exact trigger of the hosted timeout,
+which lacked process and descriptor evidence.
+
+Use the existing Bash prerequisite and its builtin timed read on a fresh private
+FIFO for each watchdog. The parent temporarily owns the existing reserved FD 9,
+queues one stop message, and joins the watcher without signalling a numeric timer
+or watcher PID. Open FD 9 through an ordinary function's scoped redirection so
+open failures remain catchable and the caller's arguments remain intact on both
+Dash and Bash 3. Execute the watcher as a fixed Bash program so inherited shell
+redirection bookkeeping does not retain capture pipes. Validate the FIFO and
+descriptor before interpreting read outcomes; integer durations remain 120 and
+5 seconds. Bash 3 reports timeout as status 1 while Bash 5 reports 142, so status
+alone is not a portable discriminator. Setup or channel errors must fail closed.
+
+Guard cancellation through channel setup, watcher spawn and PID publication, and
+retire control authority only after closing the channel and joining. Preserve
+pending cancellation through this handoff without a second stop write. Stop the
+acquisition watcher before starting a cleanup reaper, use a fresh channel for
+each, and close the reserved descriptor in verifier and native children. Preserve
+stdin, literal arguments, native exit status, existing native-command/verifier
+signals and all deadlines. Do not add a runtime dependency beyond standard FIFO
+creation and the Bash prerequisite already required by the installer.
+Perform cancellation cleanup while the function's control descriptor remains in
+scope; Bash 3 can restore scoped descriptors before dispatching an EXIT trap.
+
+If a channel or cleanup reaper cannot be established while a verifier child is
+already live, send the existing native-child TERM request, retain the private
+cache, and report unresolved ownership with failure status 125. Do not wait
+without a bound, discard the cache, or pretend the child was joined. This is the
+existing preserved-refusal class, not successful preparation or permission to
+signal a retired timer. Establish channel resources before child admission
+where their lifetime permits it; failures after admission remain explicit.
+An admitted watcher failure must wake the installer into its bounded cleanup;
+exiting the watcher while leaving the parent blocked on a live verifier is not a
+failure response. Preserve failure status 125 even when that notification uses
+the installer's existing cancellation path.
+The watcher may notify its still-owning parent with TERM only on failure. The
+parent stays alive until it joins the watcher, including during cleanup. If this
+notification interrupts cleanup's native-child wait, first join the bounded
+reaper: its failure must retain the cache and return 125 without an unbounded
+native-child wait. A normal terminal wait result remains authoritative when a
+signal arrives after that wait has completed.
+
+Public-installer qualification retains cancellation during ownership publication
+and adds deterministic TERM-independent watcher shutdown and late-cleanup
+authority controls. Use private exact-source scheduling fixtures, preserve an
+unrelated process, and prove all owned work joined before fixture disposal. Keep
+prior failed and superseded-control receipts; measure registry counts from actual
+discovery and qualify the original bootstrap family without raising a watchdog.
+
+Arm control-channel stop authority only after validating the scoped descriptor.
+If validation refuses, ordinary-function unwinding restores the caller's prior
+FD 9; subsequent cleanup must not write a stop message through that descriptor.
+This applies to both acquisition and cleanup reaper scopes. Function entry and
+validated control authority are distinct state.

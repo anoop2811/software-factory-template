@@ -20,36 +20,9 @@ func InferCandidate(ctx context.Context, root string, source staging.Options, ov
 		return result, err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
-	_, data, err := observe(ctx, tree, "factory.yaml", 1<<20)
+	inputs, err := projectInputs(ctx, tree, overrides)
 	if err != nil {
 		return result, err
-	}
-	inputs := map[string]string{}
-	keys := map[string]string{"PROJECT_NAME": "project_display_name", "PROJECT_SLUG": "project_name", "GITHUB_OWNER": "github_owner", "OPENCODE_USERNAME": "opencode_username", "PROTECTED_PATH": "protected_paths", "DOCS_ROOT": "docs_root", "CITATION_PREFIX": "citation_prefix"}
-	for key, yaml := range keys {
-		count := 0
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, yaml+":") {
-				count++
-			}
-		}
-		if count > 1 {
-			return result, conflict("ambiguous project metadata; provide an unambiguous configuration")
-		}
-		if count == 1 {
-			inputs[key], err = config.GetBytes(ctx, data, yaml, "")
-			if err != nil {
-				return result, err
-			}
-		}
-	}
-	seen := map[string]bool{}
-	for _, input := range overrides {
-		key, value, found := strings.Cut(input, "=")
-		if !found || keys[key] == "" || seen[key] || len(value) > 64<<10 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
-			return result, conflict("invalid explicit project input")
-		}
-		seen[key], inputs[key] = true, value
 	}
 	if len(strings.Fields(inputs["PROTECTED_PATH"])) > 1 {
 		return result, conflict("multiple protected paths cannot identify a legacy initializer input")
@@ -92,4 +65,50 @@ func InferCandidate(ctx context.Context, root string, source staging.Options, ov
 		return result, conflict("installation does not uniquely match a supported predecessor; preserve files and supply missing project inputs")
 	}
 	return result, ctx.Err()
+}
+
+// ProjectInputs retains upgrade metadata validation without predecessor inference.
+// Metadata is only a projection input. docs/adr/0143-ci-checkout-preparation.md:61.
+func ProjectInputs(ctx context.Context, root string, overrides []string) (inputs map[string]string, returned error) {
+	tree, err := installationfs.Open(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { returned = errors.Join(returned, tree.Close()) }()
+	return projectInputs(ctx, tree, overrides)
+}
+
+func projectInputs(ctx context.Context, tree *installationfs.Tree, overrides []string) (map[string]string, error) {
+	_, data, err := observe(ctx, tree, "factory.yaml", 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	inputs := map[string]string{}
+	keys := map[string]string{"PROJECT_NAME": "project_display_name", "PROJECT_SLUG": "project_name", "GITHUB_OWNER": "github_owner", "OPENCODE_USERNAME": "opencode_username", "PROTECTED_PATH": "protected_paths", "DOCS_ROOT": "docs_root", "CITATION_PREFIX": "citation_prefix"}
+	for key, yaml := range keys {
+		count := 0
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(line, yaml+":") {
+				count++
+			}
+		}
+		if count > 1 {
+			return nil, conflict("ambiguous project metadata; provide an unambiguous configuration")
+		}
+		if count == 1 {
+			inputs[key], err = config.GetBytes(ctx, data, yaml, "")
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	seen := map[string]bool{}
+	for _, input := range overrides {
+		key, value, found := strings.Cut(input, "=")
+		if !found || keys[key] == "" || seen[key] || len(value) > 64<<10 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+			return nil, conflict("invalid explicit project input")
+		}
+		seen[key], inputs[key] = true, value
+	}
+	return inputs, ctx.Err()
 }

@@ -198,16 +198,42 @@ func sourceGateHandoffPriorityProof() {
 		count, priority int
 	}
 	buckets := []bucket{{"handoff-legacy-and-init", "HEAVY_A", 21, 2}, {"handoff-retention-safeguards", "HEAVY_B", 10, 2}, {"handoff-backup-retention", "MEDIUM", 8, 1}, {"handoff-go-recovery", "LIGHT", 5, 0}}
+	// Register new groups independently; the original four-group real scheduling
+	// replay below remains unchanged, including its removed-priority control.
+	// per docs/adr/0143-ci-checkout-preparation.md:178
+	type ciGroup struct {
+		ordered    bool
+		priority   int
+		identities []string
+	}
+	ciGroups := map[string]ciGroup{
+		"handoff-ci-surface": {false, 0, []string{
+			"owns help, exact selectors and explicit disposable-checkout consent before acquisition",
+		}},
+		"handoff-ci-project": {true, 2, []string{
+			"authenticates a cloned initialized project and runs installed checks without compiler or Python",
+			"refuses unauthenticated or mismatched release and tracked runtime bindings without project mutation",
+			"preserves customized, dirty, unsafe and already-owned checkout inputs on refusal",
+			"refuses a selected private asset exposed by selective ignores despite ignored representative probes",
+			"admits clean initialized gitlinks and refuses hidden staged or filtered child changes without executing helpers",
+			"reprojects an authenticated inert foreign origin to the actual host owner without executing foreign bytes",
+		}},
+		"handoff-ci-ownership": {true, 2, []string{
+			"hands a differing caller to the authenticated host owner and preserves checkout when that owner lacks CI",
+			"settles acquired children on cancellation and retains a real published barrier after acknowledged interruption",
+		}},
+	}
+	ciIdentities := map[string][]string{}
 	priorities, counts := map[string]int{}, map[string]int{}
 	identities := map[string]bool{}
 	for _, spec := range readMetadata() {
-		Expect(spec.Ordered).To(BeTrue(), "handoff fixture lifetime must stay Ordered: %s", spec.Text)
 		Expect(identities).NotTo(HaveKey(spec.Text))
 		identities[spec.Text] = true
 		matched := 0
 		for _, b := range buckets {
 			for _, label := range spec.Labels {
 				if label == b.label {
+					Expect(spec.Ordered).To(BeTrue(), "handoff fixture lifetime must stay Ordered: %s", spec.Text)
 					matched++
 					counts[b.name]++
 					if value, ok := priorities[b.name]; ok {
@@ -217,13 +243,28 @@ func sourceGateHandoffPriorityProof() {
 				}
 			}
 		}
+		for _, label := range spec.Labels {
+			if group, ok := ciGroups[label]; ok {
+				matched++
+				Expect(spec.Ordered).To(Equal(group.ordered), "CI fixture ownership: %s", spec.Text)
+				Expect(spec.Priority).To(Equal(group.priority), "CI coarse priority: %s", spec.Text)
+				ciIdentities[label] = append(ciIdentities[label], spec.Text)
+			}
+		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(44))
+	Expect(identities).To(HaveLen(53))
+	for label, group := range ciGroups {
+		expected := make([]string, 0, len(group.identities))
+		for _, identity := range group.identities {
+			expected = append(expected, "Whole installation upgrade release candidate handoff CI checkout preparation "+identity)
+		}
+		Expect(ciIdentities[label]).To(ConsistOf(expected), "exact CI group identities and count: %s", label)
+	}
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
 	}
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff ordered metadata: counts=%v priorities=%v exact44=%v\n", counts, priorities, identities)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact53=%v\n", counts, priorities, identities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))

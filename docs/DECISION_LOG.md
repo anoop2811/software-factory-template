@@ -7789,3 +7789,171 @@ The JSON receipt records both forward and reverse SIGKILL criteria passing in
 the original physical-custody, old-receipt and stale-replay assertions remain.
 `golangci-lint run --config packs/go/.golangci.yml ./...` printed `0 issues.`
 Final-head hosted qualification remains separate.
+
+## Decision 158 (2026-11-07 UTC): authenticate disposable CI checkout preparation
+
+PR #173 merged at `2026-11-07T23:09:10Z` as
+`d05d99d67d496caaf5f3c2310eefd1b503315cdf`. Final head `0c813fb` passed all
+32 [checks](https://github.com/anoop2811/software-factory-template/pull/173/checks);
+adversarial review covered 20 files and 32 fragments in 85 seconds, and
+[all findings received responses](https://github.com/anoop2811/software-factory-template/pull/173#issuecomment-6712558607).
+Copilot had insufficient quota. One macOS
+local-upgrade job first exceeded an existing helper watchdog after installation;
+the unchanged failed-job rerun passed 11/11 criteria. No permanent timing fix or
+root cause is claimed. These are prior observed results, not new execution.
+R3 remains complete at 32/32; R4-R7 remain open.
+
+Before implementation, adopt [ADR 0143](adr/0143-ci-checkout-preparation.md).
+An explicit native `ci prepare` command will authenticate exact origin and host
+release images, recognize clean tracked public assets, and reconstruct complete
+private host custody in a declared disposable checkout. Reuse native acquisition,
+projection, root exclusion and confined publication; preserve installed admission
+and normal upgrade/backup behavior. Avoid adjacent backup cruft for authenticated
+clean originals already retained in Git. Leave installer/workflow integration
+and migration rehearsal for separate bounded R4 changes. Qualification is pending.
+
+Decision 158 initial qualification: in a complete private checkout at `d05d99d`,
+the independent public-command criterion failed with `factory: unknown command
+'ci' (try: factory help)`: zero passed, one failed in 2.144 seconds. This is the
+required RED result, not a completed implementation result. Contract review also
+identified that representative ignore probes cannot prove every selected private
+asset is ignored; ADR 0143 now requires an exhaustive selection-derived check
+and an independent selective-ignore negative control before completion.
+
+Decision 158 implementation qualification: the actual packaged-init/commit/clone
+RED run failed all four initial criteria at the absent CI command. The first
+implemented run passed three and exposed an unsupported combination of Git's
+literal-pathspec option with `check-ignore`; an actual Git probe reproduced
+status 128. Use NUL stdin without that option for this inherently literal command.
+The complete focused run then passed seven of nine criteria in 209.738 seconds,
+including installed selftest/check, submodule controls, selected-owner handoff
+and acknowledged cancellation. Two fixture preconditions required correction:
+reopen the ignored `.factory/` ancestor before testing a selective exception, and
+include the required Decision reference in the foreign-origin projection commit.
+Keep both failed receipts. Final focused and enclosing qualification remain open.
+
+Independent review additionally reproduced executable Git helpers during read-only
+inspection. CI now hardens each separately inspected submodule and uses the same
+policy during finalization, preserving frozen recipes. Shared initializer and
+installation package race tests reported `ok` in 6.325s and 2.902s respectively;
+the release command package has no unit tests. Its behavior is qualified through
+the compiled public acceptance boundary. No deadline or quality gate was relaxed.
+
+Decision 158 expanded focused run: nine of seventeen criteria passed in 278.725s.
+Eight CI criteria, including actionable interrupted-publication guidance, and the
+exhaustive partition criterion passed. Seven help comparisons placed the new CI
+line at a different position; the cross-platform full check correctly required
+the fixture's referenced decision log. Adopt ADR 0143's bounded fixture refinement
+before those corrections. Production code and deadlines are unchanged; the
+corrected focused criteria and enclosing/hosted qualification remain pending.
+
+Decision 158 corrected focused qualification: all eight previously failing
+criteria passed in 103.566 seconds (`go test -race ./acceptance -run
+TestAcceptance -count=1 -timeout=15m` with the cross-platform CI and help-alias
+focus; package output `ok .../acceptance 104.836s`). Together with the earlier
+eight CI passes and partition pass, this covers all nine new CI criteria and
+seven existing help aliases; it is not a new all-seventeen run. Configured
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`
+Hosted source-entrypoint failures also compared against that same misplaced
+help entry. Their separate focused regression and final-head CI remain open.
+
+Decision 158 hosted qualification exposed a second independent registry still
+expecting only the original four release-handoff groups and 44 criteria. Adopt
+the explicit three-group CI registration in ADR 0143 before correcting that
+test boundary; retain exact identity, ownership and priority checks, plus the
+existing real scheduler negative control. The four source-entrypoint regressions
+now passed their focused race run (report 18.543s, package `ok .../acceptance
+19.864s`). No production behavior or deadline changed.
+
+Decision 158 scheduler correction passed its focused race criterion in 27.796s
+(package `ok .../acceptance 29.035s`), including the original real two-worker
+eight-case proof and the deliberately failing removed-priority control. Independent
+review found no surviving defect in the exact three-group registration. The
+unchanged 53-case enclosing run and final-head hosted checks remain separate.
+
+Decision 158 model review of `0803ad2` completed 19/19 files and 29/29 fragments
+in 142 seconds ([report](https://github.com/anoop2811/software-factory-template/pull/174#issuecomment-6714879185)).
+Before the review follow-up, adopt ADR 0143's explicit trusted
+executable examples and specific fixed-text argument diagnostics. Status two,
+strict validation and zero acquisition on malformed arguments remain unchanged.
+Private-custody witness and other model findings remain under independent review.
+
+Decision 158 independent review retained a test-coverage gap: the public-path
+witness excludes `.factory/`, and installed validation checks declared assets,
+not unrelated extra private entries. Adopt ADR 0143's exact private-tree witness
+before strengthening the two existing success criteria. This closes the proof
+gap without changing publication policy or the nine-criterion census.
+
+Decision 158 review-refinement qualification: the public diagnostic criterion
+first failed with the generic reason (0/1 in 1.955s), before the one-line formatter
+change. The diagnostic and both complete private-tree success criteria then
+passed their focused race run (3/3 in 117.230s; package `ok .../acceptance
+118.507s`). Configured lint reported `0 issues.` Independent review found no
+remaining issue in these changes. The CI census is still 9/53/3332; final-head
+hosted checks remain pending.
+
+## Decision 159 (2026-11-08 UTC): settle an owned bootstrap timer despite a lost TERM
+
+PR #174 head `613bc89` passed both hosted 53-case handoff suites, but its Linux
+base run timed out in the unchanged literal-argument bootstrap criterion after
+125.184 seconds. The unchanged focused criterion passed locally, as did ten
+isolated offline Linux ARM64 attempts. No incident cause was established by
+those passes; retain the failed receipt.
+
+Independent investigation then reproduced a distinct concrete stop defect in
+the actual extracted watchdog on Linux Dash: TERM returned success but the
+recorded timer survived and exited naturally after 1002 ms. Private KILL controls
+settled it promptly on Dash and Bash. Adopt the owned-timer correction and
+independent public-installer regression in [ADR 0124](adr/0124-ordinary-authenticated-go-installer-bootstrap.md)
+before code. Change only timer teardown, preserving all native-command signals,
+ownership checks and deadlines. This is a blocking CI correction in the current
+bounded delivery, not a new feature or an assertion that the exact hosted trigger
+has been proven. Qualification remains pending.
+
+Decision 159 refinement before the replacement implementation: the direct KILL
+candidate passed its regression but independent review demonstrated a late trap
+requesting that numeric signal after the timer had been reaped. Do not publish
+that candidate. Adopt ADR 0124's private FIFO control channel and existing Bash
+builtin timed read, eliminating external timer children and numeric watcher
+cancellation. Bash 3 and Bash 5 probes confirmed queued stop, ordinary timeout
+and cancellation during escalation; their timeout statuses differ. Preserve
+native-command signal policy and numeric deadlines. Superseded test receipts
+remain evidence of the investigation, not acceptance of the rejected design.
+
+Decision 159 replacement qualification: the public scheduling controls passed
+2/2 criteria across twelve shell/stage combinations, including queued stop,
+late joined cancellation, live HUP, closed watcher descriptor and cancellation
+during setup/publication. The safe invalid-numeric-signal control then failed its
+intended assertion; the observer suppressed delivery. Final `go test -race
+./acceptance -run TestAcceptance -count=1 -timeout=8m` with the ordinary-bootstrap,
+candidate-watchdog and partition focus reported `ok .../acceptance 214.199s`:
+12/12 criteria passed in 212.792s. Actual discovery is 3333 total, 2998 base,
+53 handoff and 115 source-entrypoint criteria. Configured `golangci-lint run
+--config packs/go/.golangci.yml ./...` reported `0 issues.`
+
+Independent final Bash 3 and Linux Dash/Bash 5 controls passed queued stop,
+read-diagnostic failure, closed descriptor, scoped-open failure and literal-argv
+preservation. Private shell syntax and warning-level ShellCheck passed. Independent
+review found no surviving correction defect. No acquisition or cleanup deadline
+was increased. New-head hosted qualification remains separate from these local
+receipts and from the earlier all-green `613bc89` retry.
+
+Decision 159 model-review follow-up: private Bash 3 and Dash probes confirmed
+that refusing a scoped control descriptor left its stop flag armed. Scope
+unwinding restored the caller's FD 9, and later cleanup wrote `stop` there.
+Adopt ADR 0124's validation-before-authority rule before the two assignment
+changes and public refusal regression. The separate function-entry flag remains
+before validation: redirection failure does not enter the function at all.
+The old claim that its wrapper guard is unreachable is refuted; the restored
+descriptor write is a reproduced defect. New qualification remains pending.
+
+Decision 159 refusal qualification: the public installer first failed the
+caller-FD9 preservation assertion on `a98d45d` (0/1 in 1.224s, status 125 but
+caller bytes overwritten). With authority assigned after validation, the focused
+watchdog and candidate-cancellation race run passed 2/2 in 8.199s (`go test -race
+./acceptance -run TestAcceptance -count=1 -timeout=8m`, package output
+`ok .../acceptance 9.418s`). This includes the new refusal control on both shells
+and the prior twelve scheduling cases. Configured lint again reported `0 issues.`
+Independent Bash 3/Dash helper controls also passed both acquisition and cleanup
+refusals, with the caller descriptor unchanged. The earlier twelve-criterion
+bootstrap/partition result remains separate; this change adds no criterion.

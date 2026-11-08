@@ -226,6 +226,13 @@ func withoutCache(environment map[string]string) map[string]string {
 }
 
 func handoff(ctx context.Context, verb string, option options, candidate *acquired, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	args := append([]string{verb, option.selector(), option.tag}, option.args...)
+	return authenticatedHandoff(ctx, candidate, args, environment, stdin, stdout, stderr)
+}
+
+// Release and CI entrypoints share exact host identity and cooperative ownership.
+// docs/adr/0143-ci-checkout-preparation.md:53.
+func authenticatedHandoff(ctx context.Context, candidate *acquired, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
 	// Only freshly authenticated bytes with the complete image's exact hash run.
 	// docs/adr/0101-go-release-handoff.md:102.
 	digest, err := digestFile(ctx, candidate.raw, 256<<20)
@@ -239,8 +246,7 @@ func handoff(ctx context.Context, verb string, option options, candidate *acquir
 	}
 	env := withoutCache(environment)
 	env["FACTORY_RELEASE_DIR"] = filepath.Dir(candidate.raw)
-	args := append([]string{candidate.raw, verb, option.selector(), option.tag}, option.args...)
-	return inheritedHandoff(ctx, candidate, args, env, stdin, stdout, stderr, "factory candidate")
+	return inheritedHandoff(ctx, candidate, append([]string{candidate.raw}, args...), env, stdin, stdout, stderr, "factory candidate")
 }
 
 // Local and authenticated images share process ownership and cleanup policy.

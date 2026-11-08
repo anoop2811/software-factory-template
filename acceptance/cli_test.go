@@ -30,6 +30,7 @@ var commandRoutes = []struct{ command, script string }{
 // per docs/adr/0099-native-factory-orchestration.md:22
 // per docs/adr/0100-batched-review.md:23
 // per docs/adr/0120-native-source-gate-proof.md:10
+// per docs/adr/0143-ci-checkout-preparation.md:14
 const nativeCLIUsage = `factory — software factory control surface
 
 Usage: factory <command> [args]
@@ -45,6 +46,7 @@ Usage: factory <command> [args]
   sync        Synchronize harness adapters (all, opencode, claude, codex)
   prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
+  ci          Prepare an authenticated runtime in a disposable CI checkout
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)

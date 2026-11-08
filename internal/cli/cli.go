@@ -52,6 +52,7 @@ Usage: factory <command> [args]
   sync        Synchronize harness adapters (all, opencode, claude, codex)
   prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
+  ci          Prepare an authenticated runtime in a disposable CI checkout
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)
@@ -74,6 +75,7 @@ var commands = map[string]struct{}{
 	"doctor":         {},
 	"upgrade":        {},
 	"check":          {},
+	"ci":             {},
 	"selftest":       {},
 	"report":         {},
 	"budget":         {},
@@ -154,6 +156,12 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				// A separately provisioned owner prepares missing checkout custody.
+				// docs/adr/0143-ci-checkout-preparation.md:20.
+				if name == "ci" {
+					status = releasecmd.RunCI(cmd.Context(), forwarded, configuredcmd.CaptureEnvironment(), os.Stdin, os.Stdout, os.Stderr)
+					return nil
+				}
 				// Candidate ownership precedes both installed and source dispatch.
 				// docs/adr/0101-go-release-handoff.md:40.
 				if (name == "init" && releasecmd.InitClaimed(forwarded)) || (name == "upgrade" && releasecmd.Claimed(forwarded)) {

@@ -1,6 +1,6 @@
 # ADR 0143: prepare an authenticated runtime in a disposable CI checkout
 
-Status: accepted for implementation; qualification pending.
+Status: implemented and merged in PR #174; subsequent integration remains open.
 Decision: 158. Continues R4 after merged PR #173.
 
 ## Context and bounded scope

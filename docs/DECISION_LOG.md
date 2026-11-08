@@ -7957,3 +7957,63 @@ and the prior twelve scheduling cases. Configured lint again reported `0 issues.
 Independent Bash 3/Dash helper controls also passed both acquisition and cleanup
 refusals, with the caller descriptor unchanged. The earlier twelve-criterion
 bootstrap/partition result remains separate; this change adds no criterion.
+
+## Decision 160 (2026-11-08 UTC): bootstrap native CI preparation through the installer
+
+The user merged PR #174 and authorized the next bounded R4 step. GitHub reports
+merge `b5d5d4ca6a25fa4f9bb860ec4e49584045c627f1` at 2026-11-08T15:44:37Z;
+its tree matches the reviewed head. Native `factory ci prepare` is now available
+in source, but a fresh job cannot execute its missing ignored runtime to prepare
+itself. Adopt [ADR 0144](adr/0144-ci-installer-bootstrap.md) before code.
+
+Add a literal leading `ci` installer route with strict pre-acquisition parsing,
+then reuse authenticated host acquisition and forward original argv to the
+selected native owner. Require explicit release, origin and disposable-checkout
+consent; preserve exact semver, stdout/stdin/status, and the existing watchdog
+ownership boundary. Clear inherited private bridge dispatch only for this new
+public route. Native reauthentication, admission and publication remain unchanged.
+
+Independent shell/native source review identified the stable parser's narrower
+grammar and the inherited bridge-protocol diversion before implementation. Keep
+this bootstrap distinct from generated and existing-workflow integration, which
+remain later bounded PRs. Independent public RED, real compiled journey,
+cancellation, review and final-head CI are pending; no release gate is declared
+complete by this decision alone.
+
+Decision 160 independent surface RED: the three new installer criteria failed
+against the unchanged merged installer in 2.677s (package 4.035s). CI help returned
+two, literal transport returned two instead of the selected owner's 37, and an
+authentication-failure request hit the old init/upgrade-only routing gate before
+acquisition. The private baseline is retained for the real-project RED. Production
+implementation is now permitted; real journey, cancellation and GREEN remain open.
+
+Decision 160 real-project RED: the actual packaged initializer, public-project
+commit and private-free Git clone succeeded, then the old installer rejected
+`ci prepare` at the init/upgrade-only gate. The composed cancellation criterion
+also failed its installer-help prerequisite before launching an ownership probe.
+Both criteria failed in 49.476s (package 50.813s); actual discovery is 3338 total.
+Together with the three surface failures this establishes all five independent
+RED criteria. Qualification of the implementation remains pending.
+
+Decision 160 first implementation run passed four criteria in 67.473s. The real
+installer preparation, installed selftest, successful check and application exit
+23 all succeeded; its trace assertion alone expected three verifications instead
+of the observed four. Independent source review identified staging's existing
+confined-snapshot authentication as the fourth. Adopt ADR 0144's exact trace
+refinement before correcting that test oracle. The composed cancellation passed;
+runtime authentication and deadlines remain unchanged. Final GREEN is pending.
+
+Decision 160 corrected qualification: the five installer criteria plus actual
+partition and worker-registry checks passed 7/7 in 141.339s. The private race run
+used `go test -race ./acceptance -run TestAcceptance -count=1 -timeout=8m` with
+those seven explicit criterion names; package output was
+`ok github.com/anoop2811/software-factory-template/acceptance 143.405s`.
+Configured `golangci-lint run --config packs/go/.golangci.yml ./...` reported
+`0 issues.` Discovery confirms 3338 total and 58 release-handoff criteria;
+the other partitions and original real scheduler negative control are preserved.
+
+Independent parser differential checked 506 cases on each of Bash 3, Dash and
+Bash 5 against the exact native parser: zero mismatches and empty stderr. Private
+syntax/ShellCheck and custody probes passed. Independent production/test reviews
+have no surviving findings. Shared bootstrap/cancellation regression and exact-head
+hosted CI remain separate pending checks; no release readiness claim is made.

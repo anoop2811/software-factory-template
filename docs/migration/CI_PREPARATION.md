@@ -6,13 +6,40 @@ the installed `./factory`. Public launchers also identify the runtime for the
 machine on which the project was initialized; another platform needs a complete
 matching selection, not just a copied executable.
 
-The native `ci prepare` command is being qualified for the replacement release.
-It is unavailable in v0.1.6 and in earlier candidates that lack the command.
-Automatic installer bootstrap and generated workflow integration remain separate
-[release-readiness work](GO_RELEASE_READINESS.md). This page documents the native
-preparation boundary, not a complete copy-and-paste workflow.
+The native `ci prepare` command and its installer entrypoint are being qualified
+for the replacement release. They are unavailable in v0.1.6 and in earlier
+candidates that lack the command. Generated workflows and integration with
+existing workflows remain separate [release-readiness work](GO_RELEASE_READINESS.md).
+These explicit commands do not automatically install or rewrite CI workflows.
 
-## Explicit preparation
+## Bootstrap without an existing native executable
+
+Supply the installer from a separately trusted, reviewed or pinned source, then
+run it from the root of the fresh disposable checkout:
+
+```sh
+sh /path/to/reviewed/install.sh ci prepare \
+  --go-candidate TAG \
+  --origin-target darwin/arm64 \
+  --ephemeral
+```
+
+The installer authenticates the host release executable before running it. That
+selected owner independently authenticates the complete release images and
+prepares the checkout. An installer supplied by an application's pull request
+is not independently trusted merely because it claims to verify release assets.
+
+The command requires an explicit exact tag and origin. `FACTORY_REF`,
+`FACTORY_HOME` and `FACTORY_REPO` do not select a different CI release, source
+cache or repository; this operation uses official releases only. It does not
+fall back to legacy scripts if the selected release cannot prepare CI. Use
+`sh /path/to/reviewed/install.sh ci --help` for help without acquisition.
+
+The installer needs the existing shell/Bash and GitHub CLI prerequisites;
+native preparation also needs Git. The factory does not need Go or Python in
+this job. Application checks still need their own language tools.
+
+## Preparation with an existing native executable
 
 In a fresh disposable job checkout, invoke a separately provisioned, trusted
 native factory executable that supports this command:
@@ -70,4 +97,5 @@ state from being used. Preserve the job's diagnostics and recreate its checkout.
 Do not delete the barrier or retry over partial custody. Use the normal upgrade,
 rollback and recovery procedures for persistent installations.
 
-The implementation and qualification contract is [ADR 0143](../adr/0143-ci-checkout-preparation.md).
+The native implementation contract is [ADR 0143](../adr/0143-ci-checkout-preparation.md);
+the installer boundary is [ADR 0144](../adr/0144-ci-installer-bootstrap.md).

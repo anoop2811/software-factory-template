@@ -222,6 +222,16 @@ func sourceGateHandoffPriorityProof() {
 			"hands a differing caller to the authenticated host owner and preserves checkout when that owner lacks CI",
 			"settles acquired children on cancellation and retains a real published barrier after acknowledged interruption",
 		}},
+		// per docs/adr/0144-ci-installer-bootstrap.md:112
+		"handoff-ci-bootstrap-surface": {false, 0, []string{
+			"owns installer CI help and strict native-compatible selectors before acquisition",
+			"forwards authenticated installer CI argv streams environment and selected-owner status literally",
+			"refuses installer CI acquisition and authentication failures before selected-owner execution",
+		}},
+		"handoff-ci-bootstrap-project": {true, 2, []string{
+			"prepares a real cloned project through the installer and runs installed checks without Go or Python",
+			"joins installer and native CI acquisition cancellation while preserving an unrelated process",
+		}},
 	}
 	ciIdentities := map[string][]string{}
 	priorities, counts := map[string]int{}, map[string]int{}
@@ -253,7 +263,7 @@ func sourceGateHandoffPriorityProof() {
 		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(53))
+	Expect(identities).To(HaveLen(58))
 	for label, group := range ciGroups {
 		expected := make([]string, 0, len(group.identities))
 		for _, identity := range group.identities {
@@ -264,7 +274,7 @@ func sourceGateHandoffPriorityProof() {
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
 	}
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact53=%v\n", counts, priorities, identities)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact58=%v\n", counts, priorities, identities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))

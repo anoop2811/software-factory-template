@@ -743,11 +743,13 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 // launcher PID. Cleanup attempts TERM/join before reporting any failed assertion.
 // per docs/adr/0143-ci-checkout-preparation.md:95
 // per docs/adr/0143-ci-checkout-preparation.md:143
-func ciPrepareCanceledProcess(f handoffBootstrapFixture, driver, root, ready, phase string) {
+// per docs/adr/0144-ci-installer-bootstrap.md:106
+func ciPrepareCanceledProcess(f handoffBootstrapFixture, driver, root, ready, phase string, prefix ...string) {
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := handoffCommand(ctx, root, f.environment, "", driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+	args := append(append([]string{}, prefix...), ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+	cmd := handoffCommand(ctx, root, f.environment, "", driver, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.WaitDelay = time.Second
 	var stdout, stderr bytes.Buffer

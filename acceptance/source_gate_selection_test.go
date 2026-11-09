@@ -621,11 +621,13 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0142-installed-full-check-hook-setup.md:66
 		// Nine native CI checkout criteria join the authenticated release-handoff family.
 		// per docs/adr/0143-ci-checkout-preparation.md:126
-		Expect(negativeTotal).To(Equal(3333))
+		// Five installer CI criteria reuse the native controller's release partition.
+		// per docs/adr/0144-ci-installer-bootstrap.md:112
+		Expect(negativeTotal).To(Equal(3338))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3333))
+		Expect(allTotal).To(Equal(3338))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -634,7 +636,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0139-go-source-budget-entrypoint.md:76
 		// per docs/adr/0140-go-source-loop-and-python-retirement.md:70
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
-		expectedCounts := map[string]int{"base": 2998, "installation": 101, "release-handoff": 53, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 2998, "installation": 101, "release-handoff": 58, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

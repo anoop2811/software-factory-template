@@ -43,6 +43,100 @@ candidate_install() {
   packaged_install candidate "$candidate_tag" "$@"
 }
 
+# Canonical semver is textual; numeric identifiers never enter shell arithmetic.
+# Validation's C locale does not change the selected owner's environment.
+# docs/adr/0144-ci-installer-bootstrap.md:43.
+ci_exact_release() (
+  LC_ALL=C
+  export LC_ALL
+  [ "${#1}" -le 128 ] || return 1
+  case "$1" in v[0-9]*) ;; *) return 1 ;; esac
+  ci_version=${1#v}
+  case "$ci_version" in
+    *+*)
+      ci_build=${ci_version#*+}
+      ci_version=${ci_version%%+*}
+      case "$ci_build" in ''|*[!a-zA-Z0-9.-]*|.*|*.|*..*) return 1 ;; esac ;;
+  esac
+  case "$ci_version" in
+    *-*)
+      ci_pre=${ci_version#*-}
+      ci_version=${ci_version%%-*}
+      case "$ci_pre" in ''|*[!a-zA-Z0-9.-]*|.*|*.|*..*) return 1 ;; esac
+      while :; do
+        ci_identifier=${ci_pre%%.*}
+        case "$ci_identifier" in *[!0-9]*) ;; 0?*) return 1 ;; esac
+        case "$ci_pre" in *.*) ci_pre=${ci_pre#*.} ;; *) break ;; esac
+      done ;;
+  esac
+  case "$ci_version" in ''|*[!0-9.]*|.*|*.|*..*) return 1 ;; esac
+  ci_major=${ci_version%%.*}
+  ci_tail=${ci_version#*.}
+  [ "$ci_tail" != "$ci_version" ] || return 1
+  ci_minor=${ci_tail%%.*}
+  ci_patch=${ci_tail#*.}
+  [ "$ci_patch" != "$ci_tail" ] || return 1
+  case "$ci_patch" in *.*) return 1 ;; esac
+  for ci_number in "$ci_major" "$ci_minor" "$ci_patch"; do
+    case "$ci_number" in ''|0?*) return 1 ;; esac
+  done
+)
+
+# Parse in a separate function so the handoff keeps the original quoted argv.
+# docs/adr/0144-ci-installer-bootstrap.md:33.
+ci_parse() {
+  ci_tag='' ci_origin='' ci_ephemeral=0 ci_help=0 ci_seen=' '
+  shift
+  if [ "$#" -eq 1 ]; then
+    case "$1" in --help|-h) ci_help=1; return 0 ;; esac
+  fi
+  [ "${1-}" = prepare ] || return 1
+  shift
+  while [ "$#" -gt 0 ]; do
+    ci_name=${1%%=*}
+    ci_value=${1#*=}
+    case "$1" in *=*) ci_supplied=1 ;; *) ci_supplied=0 ;; esac
+    case "$ci_name" in -h) ci_name=--help ;; esac
+    case "$ci_seen" in *" $ci_name "*) return 1 ;; esac
+    ci_seen="$ci_seen$ci_name "
+    case "$ci_name" in
+      --help|--ephemeral)
+        [ "$ci_supplied" -eq 0 ] || return 1
+        case "$ci_name" in --help) ci_help=1 ;; *) ci_ephemeral=1 ;; esac ;;
+      --go-candidate|--origin-target)
+        if [ "$ci_supplied" -eq 0 ]; then
+          shift
+          [ "$#" -gt 0 ] || return 1
+          ci_value=$1
+        fi
+        if [ "$ci_name" = --go-candidate ]; then
+          ci_exact_release "$ci_value" || return 1
+          ci_tag=$ci_value
+        else
+          case "$ci_value" in linux/amd64|linux/arm64|darwin/amd64|darwin/arm64) ;; *) return 1 ;; esac
+          ci_origin=$ci_value
+        fi ;;
+      *) return 1 ;;
+    esac
+    shift
+  done
+  [ "$ci_help" -eq 1 ] || { [ -n "$ci_tag" ] && [ -n "$ci_origin" ] && [ "$ci_ephemeral" -eq 1 ]; }
+}
+ci_install() {
+  if ! ci_parse "$@"; then
+    printf '%s\n' 'install ci: invalid prepare arguments; require an exact release, origin target and --ephemeral' >&2
+    exit 2
+  fi
+  if [ "$ci_help" -eq 1 ]; then
+    printf '%s\n' 'Usage: install.sh ci prepare --go-candidate TAG --origin-target OS/ARCH --ephemeral'
+    exit 0
+  fi
+  # Public CI cannot inherit the private sourceable bridge dispatch protocol.
+  # docs/adr/0144-ci-installer-bootstrap.md:55.
+  unset FACTORY_BRIDGE_PROTOCOL
+  packaged_install candidate "$ci_tag" "$@"
+}
+
 # Both selectors cross the same first-execution trust and ownership boundary.
 # Stable requests keep their stricter publisher policy across the Go handoff.
 # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:88.
@@ -799,6 +893,9 @@ stable_install() {
 # invocation unread script text must never become initializer answers.
 # docs/adr/0101-go-release-handoff.md:455.
 installer_main() {
+  # This complete public route never enters legacy or implicit-ref routing.
+  # docs/adr/0144-ci-installer-bootstrap.md:28.
+  if [ "${1-}" = ci ]; then ci_install "$@"; return; fi
   installer_ref=${FACTORY_REF:-$FACTORY_DEFAULT_REF}
   installer_ref_count=0 installer_pending='' installer_terminated=0
   installer_candidate=0 installer_help=0 installer_conflict=0 installer_first=0 installer_verb=''

@@ -185,6 +185,12 @@ platform's executable digest. Decision 158 / [ADR 0143](../adr/0143-ci-checkout-
 adds an explicit native preparation boundary for a disposable job checkout.
 See [CI preparation](CI_PREPARATION.md) for its scope and requirements.
 
+PR #174 merged native preparation and its watchdog correction. Decision 160 /
+[ADR 0144](../adr/0144-ci-installer-bootstrap.md) adds the next bounded installer
+entrypoint: a separately trusted installer authenticates the selected host owner
+before invoking native preparation. Qualification of that route is distinct from
+generated workflow delivery and preservation-aware existing-workflow integration.
+
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct
 obligations. The factory's source-development CI includes checks that are not

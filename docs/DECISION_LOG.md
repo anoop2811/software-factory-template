@@ -8017,3 +8017,65 @@ Bash 5 against the exact native parser: zero mismatches and empty stderr. Privat
 syntax/ShellCheck and custody probes passed. Independent production/test reviews
 have no surviving findings. Shared bootstrap/cancellation regression and exact-head
 hosted CI remain separate pending checks; no release readiness claim is made.
+
+## Decision 161 (2026-11-09 UTC): render explicit installed-factory CI workflows
+
+The user merged PR #175 and continued the R4 release plan. GitHub reports merge
+`9467b34d611bb62de7f8dfe8000404eb026f1dbe` at 2026-11-09T20:20:39Z; its
+tree matches reviewed head `9ca2fe06f225062cd96f6885a84b20644b7d687b`.
+Adopt [ADR 0145](adr/0145-installed-ci-workflow-rendering.md) before code.
+
+Add an explicit native stdout workflow renderer with independently supplied exact
+release, origin and trusted installer revision. The generated ordinary GitHub job
+uses a pinned checkout action, read-only permissions, authenticated preparation,
+explicit application-setup placement and installed checks for all three harnesses.
+Rendering itself performs no acquisition, model call or workflow publication.
+
+Independent contract discovery found that initializer workflow publication may
+back up and replace existing files, while ordinary upgrade preserves them. Also,
+generic source CI includes unshipped development tests and pack jobs each need
+their own runtime. Keep automatic creation/reconciliation separate; do not claim
+that adding a rendered workflow silently repairs those existing jobs. Preserve
+frozen recipes, current command contracts, test deadlines and user changes.
+Independent RED, actual generated-job qualification and final-head CI remain open.
+
+Decision 161 contract review clarified concurrency before implementation: GitHub
+can replace pending runs in a shared group even without active-run cancellation.
+Use PR-number groups only for PRs and unique run-ID groups for other events.
+Dynamic default-branch event filtering leaves existing `origin/main` range-gate
+semantics unchanged; document that boundary rather than implying broader support.
+
+Decision 161 independent surface RED against unchanged `9467b34`: the new public
+help criterion failed 0/1 in 2.034s (package 3.158s). `ci workflow --help` returned
+two with `unknown CI operation` instead of zero. Production implementation may
+now begin; the independent evaluator retains the baseline for remaining RED
+criteria. Full generated-job and final-head qualification remain pending.
+
+Decision 161 remaining independent RED: all five workflow criteria failed on the
+unchanged baseline's missing operation in 40.476s (package 41.658s), after the real
+packaged-init/commit/clone fixture succeeded. Actual discovery is 3343 criteria.
+The first implementation run passed four of five in 59.936s; the complete generated
+job reached real `make check-drift` and failed Claude adapter drift. Preserve this
+gate and diagnose the actual diff before changing fixture preparation or code.
+The earlier simplified drift target would not have detected this boundary.
+
+Decision 161 drift diagnosis: the one-case diagnostic failed in 57.301s and
+retained a diff showing only Claude allow-array ordering changes, with permission
+membership and deny rules unchanged. This follows OpenCode serialization and is
+not caused by the fixture's protected-path configuration. Follow the initializer's
+documented adapter-sync step before the fixture's initial Git commit and prove
+its second sync is byte-stable. Never repair the cloned checkout before checking.
+ADR 0145 records this prepared-project qualification boundary; first-init ordering
+reconciliation remains open for automatic R4 integration.
+
+Decision 161 prepared-project qualification passed all five criteria in 76.559s.
+In the private spec checkout, `go test -race ./acceptance -run TestAcceptance
+-count=1 -timeout=6m '-ginkgo.label-filter=handoff-ci-workflow-surface ||
+handoff-ci-workflow-project' -ginkgo.no-color -ginkgo.fail-on-empty` with a JSON
+report produced `ok github.com/anoop2811/software-factory-template/acceptance
+77.689s`. Existing child deadlines and qualified race settings were retained.
+The actual report's rendered YAML passed actionlint v1.7.12 (exit zero).
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`;
+`go vet ./...` exited zero. Independent review has no surviving findings.
+Existing preparation/help/scheduler regression and exact-head hosted CI remain
+pending; neither untouched initialization nor release readiness is claimed.

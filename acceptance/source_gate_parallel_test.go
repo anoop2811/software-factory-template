@@ -232,6 +232,16 @@ func sourceGateHandoffPriorityProof() {
 			"prepares a real cloned project through the installer and runs installed checks without Go or Python",
 			"joins installer and native CI acquisition cancellation while preserving an unrelated process",
 		}},
+		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
+		"handoff-ci-workflow-surface": {false, 0, []string{
+			"renders explicit workflow selectors and help without project or acquisition effects",
+			"renders one parsed least-privilege workflow with explicit setup and installed checks",
+			"reports workflow output and cancellation failures without reading stdin",
+		}},
+		"handoff-ci-workflow-project": {true, 2, []string{
+			"executes emitted preparation and real installed Makefile and harness checks without compiler or Python",
+			"refuses failed or empty emitted installer downloads without executing checkout or partial bytes",
+		}},
 	}
 	ciIdentities := map[string][]string{}
 	priorities, counts := map[string]int{}, map[string]int{}
@@ -263,7 +273,7 @@ func sourceGateHandoffPriorityProof() {
 		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(58))
+	Expect(identities).To(HaveLen(63))
 	for label, group := range ciGroups {
 		expected := make([]string, 0, len(group.identities))
 		for _, identity := range group.identities {
@@ -274,7 +284,7 @@ func sourceGateHandoffPriorityProof() {
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
 	}
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact58=%v\n", counts, priorities, identities)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact63=%v\n", counts, priorities, identities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))

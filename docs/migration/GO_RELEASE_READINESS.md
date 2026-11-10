@@ -199,10 +199,12 @@ that renderer. Decision 162 / [ADR 0146](../adr/0146-initialized-installed-ci.md
 implements automatic ordinary new-project CI with selected-pack setup and
 preserved application workflows. It also preserves semantic OpenCode permission
 ordering so initialization does not need an extra repair synchronization. The
-four independent init-to-CI criteria and three ordering/scheduler criteria pass
-locally. Exact-head hosted qualification is tracked in the PR; existing workflow
-reconciliation, privileged review-lane bootstrap and the integrated rehearsal
-remain open obligations.
+four independent init-to-CI criteria and three ordering/scheduler criteria passed
+locally, and PR #177 merged after all 34 final-head hosted checks passed.
+Decision 163 / [ADR 0147](../adr/0147-installed-ci-migration-preview.md) implements
+read-only ownership planning for existing workflows. Its informational report
+does not apply CI changes. Transactional workflow reconciliation, privileged
+review-lane bootstrap and the integrated rehearsal remain open obligations.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

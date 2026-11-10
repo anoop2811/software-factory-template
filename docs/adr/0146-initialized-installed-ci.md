@@ -252,3 +252,30 @@ resolution of inherited application tooling. In particular, the retained Stryker
 command and its version pins remain those of the TypeScript pack; this slice
 neither adds a dependency lockfile nor claims a new complete integrity catalog
 for that unchanged command.
+
+## Selected-runtime fixture anchor refinement
+
+Hosted default-init qualification at `c15daa6` completed initialization but failed
+five selected-runtime witness assertions. The fixture patched the first
+`message := "factory-init:` occurrence in the source; the new ineligible-source
+notice now precedes the successful setup message. The marker therefore landed
+in a branch that authenticated canonical initialization does not execute.
+Anchor the independent fixture to the successful `setupMessage` function and
+require a unique match before injecting the marker. Retain the invoking-binary
+absence assertion and every selected-runtime output assertion. This corrects
+test instrumentation without changing production messages or weakening owner
+selection evidence. Requalify the full default-init group after this correction;
+the earlier regression run preceded the eligibility refinement.
+
+The corrected fixture passed all ten default-init criteria with the qualified
+race environment using `go test -race ./acceptance -run TestAcceptance -count=1
+-timeout=15m '-ginkgo.focus=^Go factory command acceptance Go default packaged initialization( |$)'
+-ginkgo.no-color -ginkgo.fail-on-empty`. Package output was
+`ok github.com/anoop2811/software-factory-template/acceptance 400.229s`.
+The shared ordinary-installer initializer criterion also passed with the same
+command and focus replaced by
+`^Go factory command acceptance Authenticated ordinary Go installer bootstrap runs the authenticated selected initializer without executing a cached source initializer$`,
+with package output
+`ok github.com/anoop2811/software-factory-template/acceptance 138.730s`.
+All invoking/selected-owner marker assertions remain intact. These are fixture
+qualification receipts, not a claim about the separate hosted watchdog failure.

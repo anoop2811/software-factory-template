@@ -8170,3 +8170,29 @@ using the actual validators, guarded callers and unchanged pack contracts.
 Clarify ADR 0146's archive-checksum scope while retaining the existing application
 package-manager pins. No runtime change or additional dependency is warranted by
 those findings. Copilot reported insufficient quota; no Copilot approval is claimed.
+
+Decision 162 hosted default-init correction: job `129626683230` in run
+`42754790623` reports five missing selected-runtime marker assertions. Successful
+initialization output is present. The fixture's first-string replacement now
+targets the earlier local-only notice added by eligibility refinement. Adopt
+ADR 0146's unique success-function anchor, retaining all owner-selection assertions
+and production behavior. The prior 48-case regression receipt predates that
+refinement; rerun the affected default-init group on the final source.
+
+Decision 162 separate hosted observation: Linux base job `129626683277` also
+failed the unchanged bootstrap setup-cancellation control. Its JSON artifact
+`13735612314` identifies `bootstrap_timer_stop_test.go:261`: a late-discovered
+verifier PID still answered signal-zero after one second, while outer-group
+absence had passed. The receipt lacks that PID's process state; it does not
+establish the cause. Prior retained Linux runs passed this assertion, and the
+installer/control bytes match the base revision. Preserve this evidence and
+observe the next required hosted run without changing bootstrap deadlines or
+claiming the marker correction resolves this separate failure.
+
+Decision 162 fixture correction qualification: the exact anchored default-init
+group passed 10/10 under race instrumentation, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 400.229s`.
+The indirectly affected ordinary-installer initializer criterion also passed,
+package output `ok github.com/anoop2811/software-factory-template/acceptance 138.730s`.
+ADR 0146 records the command and scope. Independent review found the original
+selected-runtime proof unchanged; no production or deadline edits were needed.

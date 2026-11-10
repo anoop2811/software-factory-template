@@ -8332,3 +8332,19 @@ zero. Independent correctness/security verification and deterministic finding
 deduplication left no survivors. Transactional workflow migration is still a
 separate pending boundary; this informational report never enters consent or
 the installed-runtime descriptor. Hosted checks remain required on the PR head.
+
+Decision 163 hosted review at `631d706` completed 17/17 files, 25/25 fragments
+and 2/2 batches in 2m19s. Adopt ADR 0147's literal historical-renderer golden to
+strengthen the independent oracle. Verify other contextual/speculative findings
+against full source and actual qualification receipts before replying; review
+coverage alone is not approval. Copilot reported exhausted quota.
+
+Decision 163 review follow-up: add the actual immutable renderer's 6446-byte
+golden and a deliberate-byte negative control. Full-source verification also
+identified the missing historical flat-scalar roundtrip; its independent
+regression failed before the historical-only guard. Final internal qualification
+passed 42 criteria under race instrumentation (`13.049s`). ADR 0147 records
+capture provenance, exact commands and limits. Remaining contextual review
+claims were checked against full source; the public/scheduler behavior and its
+earlier passing receipts are unchanged. Reply on the PR after publishing this
+review correction; fresh hosted checks still belong to the new head.

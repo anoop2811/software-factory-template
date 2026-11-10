@@ -406,6 +406,11 @@ var _ = Describe("Installed CI migration preview", func() {
 			By(variant.name)
 			root, request := ciPreviewFixture("go-hybrid-v1", variant)
 			body := ciPreviewFrozenWorkflow(old, variant)
+			// per docs/adr/0147-installed-ci-migration-preview.md:209
+			if variant.name == "all-gradle" {
+				Expect(body).To(Equal([]byte(ciPreviewAllGradleHistoricalGolden)), "the composed oracle must equal bytes captured from the actual immutable historical renderer")
+				body = []byte(ciPreviewAllGradleHistoricalGolden)
+			}
 			ciPreviewWrite(root, ".github/workflows/factory.yml", body, 0644)
 			request.Before = staging.Options{Version: old.Tag, Target: old.OriginTarget, Revision: old.SourceRevision}
 			report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
@@ -566,6 +571,44 @@ var _ = Describe("Installed CI migration preview", func() {
 				Expect(report["conflicts"]).NotTo(BeEmpty())
 			}
 			Expect(os.ReadFile(filepath.Join(root, ".github/workflows/factory.yml"))).To(Equal(body))
+		}
+	})
+
+	// per docs/adr/0147-installed-ci-migration-preview.md:152
+	It("requires historical Go generic scalars to round-trip through the frozen flat configuration reader", func() {
+		const revision = "6b8f08c820c347a9c9d12c4afd00b3f7e6aca547"
+		old := ciworkflow.Release{Tag: "v0.2.9", OriginTarget: "linux/amd64", SourceRevision: revision, Repository: ciPreviewRelease.Repository}
+		before := ciPreviewOldImage(old)
+		source := string(immutableRecipeSource(revision, "packs/go/workflows/ci.yml"))
+		for _, key := range []string{"DOCS_ROOT", "PROJECT_SLUG"} {
+			for _, historicalValue := range []string{"old-value", "docs #tail"} {
+				By(key + "=" + historicalValue)
+				root, request := ciPreviewFixture("go-hybrid-v1", ciPreviewVariants[1])
+				marker := "__" + key + "__"
+				cfg := strings.Replace(ciPreviewConfig(ciPreviewVariants[1]), `go_version: "1.26"`, `go_version: "`+marker+`"`, 1)
+				cfg += "docs_root: docs\n"
+				ciPreviewWrite(root, "factory.yaml", []byte(cfg), 0644)
+				request.Before = staging.Options{Version: old.Tag, Target: old.OriginTarget, Revision: old.SourceRevision}
+				request.Inputs[key] = historicalValue
+				// The frozen copied Go initializer substitutes pack versions first,
+				// then performs its simultaneous generic replacement. The marker
+				// exposes a scalar that the old collector could never persist.
+				pack := strings.ReplaceAll(source, "__GO_VERSION__", marker)
+				body := []byte(strings.NewReplacer(marker, historicalValue, "__MUTATION_TARGET__", "./internal/...", "__PROTECTED_PATH__", "internal").Replace(pack))
+				Expect(string(body)).To(ContainSubstring(historicalValue))
+				path := ".github/workflows/go-pack.yml"
+				ciPreviewWrite(root, path, body, 0644)
+				report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
+				row := ciPreviewRows(report)[path]
+				if historicalValue == "old-value" {
+					Expect(row["disposition"]).To(Equal("retire"))
+					Expect(report["conflicts"]).To(BeEmpty())
+				} else {
+					Expect(row["disposition"]).To(Equal("preserve"))
+					Expect(report["conflicts"]).NotTo(BeEmpty())
+				}
+				Expect(os.ReadFile(filepath.Join(root, path))).To(Equal(body))
+			}
 		}
 	})
 

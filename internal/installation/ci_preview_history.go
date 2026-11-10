@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/anoop2811/software-factory-template/internal/ciworkflow"
+	"github.com/anoop2811/software-factory-template/internal/config"
 	"github.com/anoop2811/software-factory-template/internal/staging"
 )
 
@@ -40,7 +41,11 @@ func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow
 			result.reason = "Qualified Go predecessor image is unavailable or its release metadata mismatches the request"
 			return result, ctx.Err()
 		}
-		if !ciHistoricalGoInputs(inputs.values) {
+		supported, err := ciHistoricalGoInputs(ctx, inputs.values)
+		if err != nil {
+			return result, err
+		}
+		if !supported {
 			result.reason = "Historical project inputs are outside the qualified Go initializer domain; preserve existing workflow"
 			return result, ctx.Err()
 		}
@@ -101,26 +106,41 @@ func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow
 // Both frozen Go initializers reject these values before producing any workflow.
 // This is historical recognition only; the generic override contract is unchanged.
 // docs/adr/0147-installed-ci-migration-preview.md:84.
-func ciHistoricalGoInputs(values map[string]string) bool {
+func ciHistoricalGoInputs(ctx context.Context, values map[string]string) (bool, error) {
 	for _, value := range values {
 		if !utf8.ValidString(value) || strings.ContainsAny(value, "\x00\r\n\"") {
-			return false
+			return false, nil
 		}
 	}
 	for _, owner := range strings.Fields(values["GITHUB_OWNER"]) {
 		if !strings.ContainsRune(owner, '@') || !ciASCII(owner, "@/._+-=%") {
-			return false
+			return false, nil
 		}
 	}
 	if !ciProtectedPath(values["PROTECTED_PATH"]) {
-		return false
+		return false, nil
 	}
 	for _, key := range []string{"GO_VERSION", "JAVA_VERSION", "NODE_VERSION"} {
 		if !ciASCII(values[key], "._+-") {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	// These two historical configuration fields were emitted without quotes.
+	// Preserve the frozen initializer's own lossless flat-reader requirement.
+	docs := values["DOCS_ROOT"]
+	if docs == "" {
+		docs = "docs"
+	}
+	for _, field := range [][2]string{{"project_name", values["PROJECT_SLUG"]}, {"docs_root", docs}} {
+		decoded, err := config.GetBytes(ctx, []byte(field[0]+": "+field[1]+"\n"), field[0], "")
+		if err != nil {
+			return false, err
+		}
+		if decoded != field[1] {
+			return false, nil
+		}
+	}
+	return true, ctx.Err()
 }
 
 func ciBeforeMatches(request Request, before *staging.Inspection) bool {

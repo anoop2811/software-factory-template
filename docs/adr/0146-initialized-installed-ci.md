@@ -77,8 +77,8 @@ of which packs are selected. Merely having a secret must not enable paid calls.
 The separate opt-in review lane retains its current explicit policy and is not
 claimed as qualified installed CI by this decision.
 
-Use immutable full action revisions and official release checksums for downloaded
-tools. New dependencies must have permissive licenses; existing golangci-lint is
+Use immutable full action revisions and official checksums for downloaded binary
+archives. New dependencies must have permissive licenses; existing golangci-lint is
 an inherited GPL tool, not a newly introduced dependency. Keep that existing
 lint capability rather than introducing another linter. Record the exact verified
 catalog and official sources before implementing it. Do not download executable
@@ -246,3 +246,9 @@ Configured Go lint reported `0 issues.` and `go vet ./...` exited zero.
 Independent security, correctness and test review has no surviving findings.
 Application tool-download execution, hosted adopter rehearsal and release readiness
 remain distinct evidence; these local witnesses do not claim those outcomes.
+
+The archive-checksum policy does not replace the existing package-manager
+resolution of inherited application tooling. In particular, the retained Stryker
+command and its version pins remain those of the TypeScript pack; this slice
+neither adds a dependency lockfile nor claims a new complete integrity catalog
+for that unchanged command.

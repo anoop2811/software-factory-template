@@ -8162,3 +8162,11 @@ All 13 actual initialized YAML variants passed actionlint v1.7.12; configured Go
 lint reported `0 issues.` and `go vet ./...` exited zero. Independent review has
 no surviving findings. Runtime/child/CI deadlines are unchanged. Exact-head hosted
 CI, existing-workflow/review-lane integration and release rehearsal are separate.
+
+Decision 162 hosted adversarial review completed all 24 files and 41 fragments
+in two batches at head `2cec81f`, with a 63-second job duration. Full-source
+verification refuted the conditional injection/nil/publication and test claims
+using the actual validators, guarded callers and unchanged pack contracts.
+Clarify ADR 0146's archive-checksum scope while retaining the existing application
+package-manager pins. No runtime change or additional dependency is warranted by
+those findings. Copilot reported insufficient quota; no Copilot approval is claimed.

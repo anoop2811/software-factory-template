@@ -242,13 +242,6 @@ func sourceGateHandoffPriorityProof() {
 			"executes emitted preparation and real installed Makefile and harness checks without compiler or Python",
 			"refuses failed or empty emitted installer downloads without executing checkout or partial bytes",
 		}},
-		// per docs/adr/0146-initialized-installed-ci.md:127
-		"handoff-init-ci-project": {true, 2, []string{
-			"creates an authenticated ordinary workflow with stable initial harnesses for every pack union",
-			"preserves application workflows while refusing every occupied generated destination before publication",
-			"omits active CI for ineligible authenticated tags and offline local initialization",
-			"runs the committed initialized workflow through clone preparation and real Makefile gates without repairing harnesses",
-		}},
 	}
 	ciIdentities := map[string][]string{}
 	priorities, counts := map[string]int{}, map[string]int{}
@@ -280,13 +273,10 @@ func sourceGateHandoffPriorityProof() {
 		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(67))
+	Expect(identities).To(HaveLen(63))
 	for label, group := range ciGroups {
 		expected := make([]string, 0, len(group.identities))
 		prefix := "Whole installation upgrade release candidate handoff CI checkout preparation "
-		if label == "handoff-init-ci-project" {
-			prefix = "Whole installation upgrade release candidate handoff initialized CI "
-		}
 		for _, identity := range group.identities {
 			expected = append(expected, prefix+identity)
 		}
@@ -295,7 +285,7 @@ func sourceGateHandoffPriorityProof() {
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
 	}
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact67=%v\n", counts, priorities, identities)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact63=%v\n", counts, priorities, identities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))
@@ -360,6 +350,35 @@ func sourceGateHandoffPriorityProof() {
 		Expect(paths).To(HaveLen(8))
 		_, _ = fmt.Fprintf(GinkgoWriter, "real two-worker coarse priority proof: PIDs=%v selected=%d output=%q\n", pids, selected, output)
 	}
+	// The new partition is one real Ordered group. Inspect its actual identities
+	// independently; keep the four-group scheduling oracle above unchanged.
+	// per docs/adr/0146-initialized-installed-ci.md:293
+	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=initialized-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
+	Expect(status).To(Equal(0))
+	tests = sourceGateTests(calls)
+	// The recording fixture accumulates prior commands; retain the new call only.
+	Expect(tests).To(HaveLen(2))
+	tests = tests[1:]
+	sourceGateAssertPartition(tests[0], "initialized-ci")
+	jsonPath = filepath.Join(reportsDir, "initialized-ci.json")
+	Expect(os.Remove(metadataPath)).To(Succeed())
+	output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
+	Expect(err).NotTo(HaveOccurred(), "real initialized CI group metadata: %s", output)
+	metadata := readMetadata()
+	Expect(metadata).To(HaveLen(4))
+	actual, expected := []string{}, []string{}
+	for _, name := range sourceGateInitializedCINames {
+		expected = append(expected, "Whole installation upgrade release candidate handoff initialized CI "+name)
+	}
+	for _, spec := range metadata {
+		Expect(spec.Ordered).To(BeTrue(), "initialized CI fixture ownership: %s", spec.Text)
+		Expect(spec.Priority).To(Equal(2), "initialized CI priority: %s", spec.Text)
+		Expect(spec.Labels).To(ContainElement("handoff-init-ci-project"))
+		actual = append(actual, spec.Text)
+	}
+	Expect(actual).To(ConsistOf(expected))
+	Expect(readReport().SuiteSucceeded).To(BeTrue())
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual initialized CI group metadata: ordered=true priority=2 exact4=%q\n", actual)
 }
 
 // per docs/adr/0102-parallel-go-qualification.md:23
@@ -367,6 +386,7 @@ func sourceGateHandoffPriorityProof() {
 var _ = Describe("Go source qualification worker execution", func() {
 	// per docs/adr/0102-parallel-go-qualification.md:78
 	// per docs/adr/0104-adaptive-qualification-workers.md:62
+	// per docs/adr/0146-initialized-installed-ci.md:293
 	It("executes one and two actual workers with exact-once reports and propagates a real worker failure", func() {
 		// per docs/adr/0104-adaptive-qualification-workers.md:42
 		// Exercise the compiled detector in children, without mutating this worker's runtime.

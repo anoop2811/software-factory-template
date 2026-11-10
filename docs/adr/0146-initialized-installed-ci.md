@@ -279,3 +279,35 @@ with package output
 `ok github.com/anoop2811/software-factory-template/acceptance 138.730s`.
 All invoking/selected-owner marker assertions remain intact. These are fixture
 qualification receipts, not a claim about the separate hosted watchdog failure.
+
+## Bounded source qualification
+
+The final-head macOS handoff artifact `13737696021` exhausted the existing
+aggregate suite allowance. All four initialized-CI criteria passed, occupying one
+ordered worker group for 370.188 seconds. The two interrupted older criteria had
+run only 9.217 and 14.502 seconds when the suite expired. Retained main and PR 176
+receipts passed the original 63 criteria with approximately 172 and 45 seconds
+of spare allowance. Older group durations also varied; do not attribute every
+second of the overrun solely to the new tests.
+
+Give the four initialized-CI criteria a disjoint `initialized-ci` source partition
+on both Linux and macOS, and exclude precisely that family from release handoff.
+Keep every discovered identity: 3348 total, 63 release-handoff and four initialized
+CI criteria. Preserve ordered fixture ownership, default/all selection, failure
+propagation, existing concurrency bounds and the original scheduler's priority
+negative control. Keep child, suite and job deadlines unchanged. Qualify both
+partitions independently; splitting work must not silently omit or duplicate it.
+Run initialized CI with one Ginkgo process because all four criteria share one
+ordered fixture. Additional processes cannot divide that group; retain every
+other partition's existing worker policy.
+
+Independent partition qualification passed all 12 existing scheduling, workflow
+and actual-worker criteria with `go test -race ./acceptance -run TestAcceptance
+-count=1 -timeout=12m '-ginkgo.focus=Go source qualification (scheduling|workflow partition|worker execution)'
+-ginkgo.no-color -ginkgo.fail-on-empty`. Observed package output:
+`ok github.com/anoop2811/software-factory-template/acceptance 188.471s`.
+Actual discovery retained a disjoint, exhaustive union of 3348 identities,
+including 2999 base, 63 handoff and four initialized-CI criteria. The original
+removed-priority negative control still failed as required. Configured Go lint
+reported `0 issues.`; source workflow actionlint and Make/shell syntax checks
+exited zero. Hosted execution of both partitions remains separate evidence.

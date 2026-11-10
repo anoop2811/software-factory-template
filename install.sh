@@ -349,7 +349,7 @@ packaged_install() {
     candidate_control_open=1
     (unset BASH_ENV ENV; ulimit -f 524288; exec /bin/bash --noprofile --norc -c '
       set -m
-      child=
+      child= admission_guard=1 cancel_status=0
       stop_group() {
         trap "" INT TERM HUP
         [ -n "$child" ] || return 0
@@ -367,10 +367,21 @@ packaged_install() {
         printf "%s\n" "install: verifier process group did not close" >&2
         return 125
       }
-      trap "stop_group || exit 125; exit 143" TERM HUP
-      trap "stop_group || exit 125; exit 130" INT
+      # Retain cancellation until the admitted verifier has an owned PID.
+      # docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:301.
+      cancel() {
+        cancel_status=$1
+        if [ "$admission_guard" -eq 0 ]; then
+          stop_group || exit 125
+          exit "$cancel_status"
+        fi
+      }
+      trap "cancel 143" TERM HUP
+      trap "cancel 130" INT
       "$@" &
       child=$!
+      admission_guard=0
+      [ "$cancel_status" -eq 0 ] || cancel "$cancel_status"
       status=0
       wait "$child" 2>/dev/null || status=$?
       stop_group || exit 125

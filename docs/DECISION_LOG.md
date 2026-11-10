@@ -8079,3 +8079,198 @@ The actual report's rendered YAML passed actionlint v1.7.12 (exit zero).
 `go vet ./...` exited zero. Independent review has no surviving findings.
 Existing preparation/help/scheduler regression and exact-head hosted CI remain
 pending; neither untouched initialization nor release readiness is claimed.
+
+## Decision 162 (2026-11-10 UTC): initialize ordinary installed-factory CI
+
+The user merged PR #176 and requested the next task. GitHub reports merge
+`6b8f08c820c347a9c9d12c4afd00b3f7e6aca547`; its tree matches reviewed head
+`3b818205d840e55ba3e1168c2094c80b4b39dc97`. Adopt
+[ADR 0146](adr/0146-initialized-installed-ci.md) before production code.
+
+Authenticated new-project initialization will publish one ordinary installed CI
+workflow with explicit release provenance, selected application-pack setup and
+preserved application workflows. Local-source init must not invent an official
+downloadable release. Omit newly copied development jobs without deleting user
+jobs. Fix first-sync stability by preserving semantic OpenCode permission order,
+not by adding a repair sync. Existing-project reconciliation, privileged review
+bootstrap and integrated release rehearsal remain open. Independent RED,
+implementation, generated-job qualification and exact-head CI are pending.
+
+Decision 162 independent synchronization RED: against unchanged `6b8f08c`,
+`go test -race ./acceptance -run TestAcceptance -count=1 -timeout=4m
+-ginkgo.focus='Native orchestration sync ordered policy'` failed its one new
+criterion in 3.259s (package 5.062s). The retained report shows recursively
+reordered root, agent and non-Bash permission subtrees. This establishes the
+ordering defect; synchronization implementation may begin. Automatic-workflow
+RED and complete init-to-CI qualification remain pending.
+
+Decision 162 independent initializer RED: the actual authenticated packaged
+initializer exited zero against unchanged `6b8f08c`, but the new ordinary-CI
+criterion failed because `.github/workflows/factory.yml` did not exist. The
+one-criterion race run failed in 50.209s; its retained JSON/log record the real
+initialization before the missing-file assertion. Automatic-workflow production
+implementation may begin. Preservation, local-source policy and complete emitted
+job qualification remain pending.
+
+Decision 162 review refinement: independent correctness/security review found
+one shared candidate-tag compatibility gap and a workflow-linter compatibility
+gap. Source verification confirms literal authenticated candidate tags can be
+valid for init but invalid for strict CI preparation. Preserve initialization and
+report omitted CI for those tags. The actual actionlint v1.7.12 invocation against
+the existing review template returned the unsupported `cache-mode` diagnostic;
+reuse only the existing exact diagnostic exclusion, retaining an unrelated-error
+negative control. ADR 0146 records both refinements before their corrections.
+
+Decision 162 remaining baseline RED: all four new packaged-init criteria failed
+against unchanged `6b8f08c` in 115.170s. The report independently records missing
+ordinary workflow publication, replacement of an existing pack workflow, missing
+local-source CI guidance and missing committed workflow at the clone boundary.
+The evaluator now overlays the production change for GREEN; the review-discovered
+noncanonical-tag case requires its own observed failure before correction.
+
+Decision 162 candidate-tag RED: the actual packaged `candidate-r4` initialized
+successfully but emitted an unusable ordinary workflow and lacked eligibility
+guidance; the independent criterion failed in 82.896s. The correction preserves
+candidate initialization and shares strict canonical eligibility with preparation.
+
+Decision 162 first composed run: all three preceding init/preservation/eligibility
+criteria and ordered synchronization passed. The real cloned workflow's healthy
+check, three structural evaluations, mock evaluation and deliberate failing check
+all behaved as required. Its final Vitest call count expected two but observed
+three: two from the unchanged healthy Makefile/configured command, one from the
+deliberately failed request. Adopt ADR 0146's exact per-request oracle correction.
+The manual eight-minute aggregate then expired during the partition proof, with
+no child timeout. Separate integration and metadata receipts remain required;
+no production or hosted deadline is being increased.
+
+Decision 162 separate scheduler/ordering qualification passed 3/3 in 97.320s.
+Actual discovery is 3348 criteria: 2999 base and 67 release-handoff criteria; all
+other partitions and the original positive/removed-priority scheduler controls
+remain intact. Existing default-init and synchronization regression also passed
+48 criteria under race instrumentation (`go test -race ./acceptance -run
+TestAcceptance -count=1 -timeout=8m -ginkgo.focus='Go default packaged initialization|Native orchestration sync'`),
+with package output `ok github.com/anoop2811/software-factory-template/acceptance
+389.356s`. The corrected four-case integration receipt is still pending.
+
+Decision 162 final independent integration qualification passed 4/4 in 474.836s.
+The private race command was `go test -race ./acceptance -run TestAcceptance
+-count=1 -timeout=15m '-ginkgo.focus=Whole installation upgrade release candidate handoff initialized CI'
+-ginkgo.no-color -ginkgo.fail-on-empty`, with the three qualified child race
+settings and a retained JSON report. Package output was
+`ok github.com/anoop2811/software-factory-template/acceptance 476.166s`.
+All 13 actual initialized YAML variants passed actionlint v1.7.12; configured Go
+lint reported `0 issues.` and `go vet ./...` exited zero. Independent review has
+no surviving findings. Runtime/child/CI deadlines are unchanged. Exact-head hosted
+CI, existing-workflow/review-lane integration and release rehearsal are separate.
+
+Decision 162 hosted adversarial review completed all 24 files and 41 fragments
+in two batches at head `2cec81f`, with a 63-second job duration. Full-source
+verification refuted the conditional injection/nil/publication and test claims
+using the actual validators, guarded callers and unchanged pack contracts.
+Clarify ADR 0146's archive-checksum scope while retaining the existing application
+package-manager pins. No runtime change or additional dependency is warranted by
+those findings. Copilot reported insufficient quota; no Copilot approval is claimed.
+
+Decision 162 hosted default-init correction: job `129626683230` in run
+`42754790623` reports five missing selected-runtime marker assertions. Successful
+initialization output is present. The fixture's first-string replacement now
+targets the earlier local-only notice added by eligibility refinement. Adopt
+ADR 0146's unique success-function anchor, retaining all owner-selection assertions
+and production behavior. The prior 48-case regression receipt predates that
+refinement; rerun the affected default-init group on the final source.
+
+Decision 162 separate hosted observation: Linux base job `129626683277` also
+failed the unchanged bootstrap setup-cancellation control. Its JSON artifact
+`13735612314` identifies `bootstrap_timer_stop_test.go:261`: a late-discovered
+verifier PID still answered signal-zero after one second, while outer-group
+absence had passed. The receipt lacks that PID's process state; it does not
+establish the cause. Prior retained Linux runs passed this assertion, and the
+installer/control bytes match the base revision. Preserve this evidence and
+observe the next required hosted run without changing bootstrap deadlines or
+claiming the marker correction resolves this separate failure.
+
+Decision 162 fixture correction qualification: the exact anchored default-init
+group passed 10/10 under race instrumentation, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 400.229s`.
+The indirectly affected ordinary-installer initializer criterion also passed,
+package output `ok github.com/anoop2811/software-factory-template/acceptance 138.730s`.
+ADR 0146 records the command and scope. Independent review found the original
+selected-runtime proof unchanged; no production or deadline edits were needed.
+
+Decision 162 repeated bootstrap observation: final-head run `42757321071` job
+`129634746391` passed the corrected ordinary initializer but again failed the
+unchanged setup-cancellation verifier-PID assertion. Stop diagnostic reruns.
+ADR 0124 now specifies independent reproduction of the inner supervisor's
+unprotected verifier-spawn/PID-publication interval and guarded cancellation
+semantics. This is a prerequisite CI correction within the current delivery,
+not evidence that initialized CI caused the bootstrap defect. Observe RED before
+production correction; retain existing cleanup bounds and signal outcomes.
+
+Decision 162 independent diagnostic RED: the exact current inner Bash wrapper,
+with a scheduling gate between job creation and PID assignment, exited 143 while
+its admitted verifier remained live (`PPID=1`, group equal to the child PID,
+state `S`). Handler-entry instrumentation observed an empty child variable.
+This local Bash 3 observation establishes the publication race; it does not infer
+process state missing from the hosted receipts. The diagnostic released and
+joined its owned work. A real-installer Ginkgo regression must fail before the
+production guard is introduced.
+
+Decision 162 real-installer regression RED: the existing watchdog criterion,
+extended with a controlled verifier-publication schedule, failed 0/1 in 3.802s
+against unchanged `bc5a4dd` production. The installer joined with status 143 while
+verifier PID/group 84028 remained live with parent 1 and state `S`. The fixture
+observed the actual cancellation handler before releasing publication; its original
+verifier-absence assertion failed. Owned-channel cleanup completed without a
+secondary failure. Introduce the bounded inner publication guard specified above;
+the evaluator retains the failed JSON/log receipts before testing GREEN.
+
+Decision 162 separate macOS observation: job `129634747132`, artifact
+`13737410145`, timed out in the forward local-recovery case while awaiting
+publisher admission. The test-owned 90-second command deadline expired during
+`native-gate-proof`; neither admission nor durable READY was observed, and the
+caller was reaped. The reverse case subsequently admitted after approximately
+48.86 seconds and passed. Recovery/preflight/native-proof code and this test's
+deadline are unchanged from the base revision. Retain the failed evidence and
+both unchanged criteria for the next required hosted qualification; the slower
+underlying operation is not established and no timeout increase follows.
+
+Decision 162 source qualification capacity: macOS handoff artifact `13737696021`
+records aggregate suite expiry after 1451.321 seconds, with the two interrupted
+specs running only 9.217 and 14.502 seconds. The new four-case initialized-CI group
+passed in 370.188 seconds. Main and prior PR 176 receipts passed the original 63
+with only approximately 172 and 45 seconds of spare allowance. Adopt ADR 0146's
+disjoint initialized-CI partition on both platforms, retaining all identities,
+failure propagation, concurrency bounds and original deadlines. Independent
+partition/discovery tests must fail before wiring is changed; no criterion is
+removed to make the job fit.
+
+Decision 162 initialized-CI worker policy: use one Ginkgo process for its single
+ordered group, preserving other partition policies and all execution bounds.
+Extra processes cannot subdivide the shared fixture and would add setup work.
+
+Decision 162 guarded verifier qualification: the independent full installer family
+passed 12/12 on macOS (package `206.312s`) and final Linux (package `87.732s`).
+After test-only lint corrections the final focused controls passed 2/2 (package
+`15.288s`); configured Go lint reported `0 issues.`. ADR 0124 records the command,
+controlled RED and scope. All prior bounds and criterion identities remain;
+independent review found no surviving guard or scheduling-oracle defect.
+Disposable Linux setup attempts lacking writable caches or historical jq were
+retained separately and do not count as completed qualification. Owned processes,
+container and derived image were confirmed absent afterward.
+
+Decision 162 independent partition RED: 12 existing scheduling/workflow/worker
+criteria ran against unchanged `bc5a4dd` wiring, with three passing and nine failing
+(package `44.556s`). Failures expose handoff co-selection, the absent workflow
+matrix group and ten rather than eleven all/default partitions. Discovery remains
+3348. Wire the separately specified partition and one-process policy, preserving
+the original priority controls; the evaluator retains the failed reports.
+
+Decision 162 partition GREEN: all 12 independent scheduling/workflow/worker
+criteria passed, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 188.471s`.
+ADR 0146 records the command. Actual discovery is 3348 with 2999 base, 63 handoff
+and four initialized-CI criteria, retaining every other count and the original
+removed-priority negative control. Configured lint reported `0 issues.`; source
+workflow actionlint and Make/shell syntax checks exited zero. No production
+behavior, child deadline, aggregate allowance or criterion was dropped for this
+partition correction. Both new hosted partitions still require final-head runs.

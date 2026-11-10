@@ -94,7 +94,8 @@ jobs:
         # docs/adr/0121-local-upgrade-readiness-boundary.md:117.
         # docs/adr/0122-default-packaged-go-upgrade.md:172.
         # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343.
-        group: [source-entrypoints, installation, release-handoff, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
+        # docs/adr/0146-initialized-installed-ci.md:293.
+        group: [source-entrypoints, installation, release-handoff, initialized-ci, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

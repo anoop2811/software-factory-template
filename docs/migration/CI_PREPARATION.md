@@ -9,9 +9,42 @@ matching selection, not just a copied executable.
 The native `ci prepare` command and its installer entrypoint are being qualified
 for the replacement release. They are unavailable in v0.1.6 and in earlier
 candidates that lack the command. Current Go source also provides the explicit
-workflow renderer below. Automatic workflow installation and reconciliation remain
-separate [release-readiness work](GO_RELEASE_READINESS.md). These commands do not
-automatically install or rewrite CI workflows.
+workflow renderer below. Current authenticated initialization adds the ordinary
+workflow described next; reconciliation of existing installations remains
+[release-readiness work](GO_RELEASE_READINESS.md). The preparation and rendering
+commands themselves do not install or rewrite workflow files.
+
+## CI created by current initialization
+
+Current authenticated `factory init` creates `.github/workflows/factory.yml`,
+using the exact selected release, its authenticated source revision and the
+initial installation platform. Earlier published candidates keep their original
+initializer behavior; this is part of the upcoming replacement release.
+Explicit candidate tags that are not full canonical semantic versions can still
+initialize, but CI preparation does not support them. Initialization explains
+that limitation and preserves existing workflows without creating the new job.
+
+The workflow prepares the installed runtime, provisions the selected Go,
+TypeScript and/or Java application tools, then runs the public factory checks
+and all three harness structural evaluations. Java respects the Gradle/Maven
+selection. Security checks remain required; existing mutation checks remain
+advisory. A single PR-only mock golden evaluation exercises the scorer without
+calling a model or reading model secrets. The job has a twenty-minute limit;
+review that limit and application-specific setup before committing the scaffold.
+Workflow linting retains the repository's narrow compatibility exception for
+GitHub's job-level `cache-mode`; unrelated workflow errors still fail.
+
+Initialization no longer adds the source repository's development workflow or
+separate language-pack workflows. Existing application workflows, including
+`ci.yml` and `<pack>-pack.yml`, remain unchanged. If `factory.yml` is already
+occupied, initialization refuses before publication so the existing file can be
+reviewed deliberately. It does not rename or remove older jobs on your behalf.
+
+Explicit `--local` initialization cannot supply an authenticated downloadable
+release. It preserves existing workflows, omits the new ordinary factory job,
+and reports that hosted CI needs an authenticated release. The separate opt-in
+review lane's installed bootstrap and preservation-aware upgrade of existing CI
+are still pending; this ordinary job does not qualify those paths.
 
 ## Render a workflow for review
 
@@ -34,11 +67,10 @@ supports `ci prepare`. Rendering validates selector syntax; it neither downloads
 nor authenticates those selections, and does not assume they are already
 published. The runtime and installer selections have separate trust requirements.
 
-Complete the initializer's documented adapter synchronization after configuration
-(`./factory sync all`) and review and commit those outputs before enabling CI.
-Current initialization can otherwise leave Claude permission-array ordering that
-the next synchronization changes. The rendered job checks a prepared project and
-does not repair this drift; automatic initialization reconciliation remains open.
+After changing harness configuration, run `./factory sync all` and review and
+commit its outputs before enabling CI. Current synchronization preserves ordered
+OpenCode permissions, so an unchanged newly initialized project needs no extra
+repair sync. CI checks drift and never repairs the committed configuration.
 
 The output contains one Ubuntu 24.04 job with read-only repository permissions,
 a SHA-pinned checkout action, full history and no persisted checkout credentials.
@@ -67,7 +99,7 @@ renderer writes only stdout and has no overwrite option. Inspect existing jobs
 before adoption. The older generic template calls development-only scripts, and
 each pack job that invokes installed factory commands needs its own preparation.
 Adding this workflow alongside obsolete jobs will not make those jobs pass.
-Preservation-aware automatic integration remains pending; retain project-specific
+Preservation-aware existing-workflow integration remains pending; retain project-specific
 setup, checks and policy when reviewing changes to existing workflows.
 
 Use `./factory ci workflow --help` for the selector contract. The shell installer
@@ -162,3 +194,4 @@ rollback and recovery procedures for persistent installations.
 The native implementation contract is [ADR 0143](../adr/0143-ci-checkout-preparation.md);
 the installer boundary is [ADR 0144](../adr/0144-ci-installer-bootstrap.md), and
 workflow rendering is [ADR 0145](../adr/0145-installed-ci-workflow-rendering.md).
+Current initializer integration is [ADR 0146](../adr/0146-initialized-installed-ci.md).

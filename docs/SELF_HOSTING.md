@@ -39,7 +39,8 @@ Client hooks can be disabled, so they do not replace GitHub branch protection.
 The factory source checks select Ginkgo workers from runner CPU and memory
 budgets, capped at four by default. Selection is logged, and JSON/JUnit artifacts
 retain the actual worker count and per-criterion timing. Installation stays
-serial; release handoff uses at most two workers for its two ordered groups.
+serial; release handoff uses at most two workers. Initialized CI has its own
+partition and uses one worker for its four criteria sharing an ordered fixture.
 The private selection helper is not another installed factory command.
 
 ```sh
@@ -49,6 +50,8 @@ make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base
 make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_PROCS=3
 # Permit a higher automatic cap on a suitably provisioned machine.
 make go-runtime-source-check GO_RUNTIME_TEST_GROUP=base GO_RUNTIME_TEST_MAX_PROCS=6
+# Run initialized-project CI qualification independently.
+make go-runtime-source-check GO_RUNTIME_TEST_GROUP=initialized-ci
 ```
 
 Both settings accept canonical positive integers through 32; explicit worker

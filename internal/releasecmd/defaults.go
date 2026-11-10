@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/anoop2811/software-factory-template/internal/ciworkflow"
 	"golang.org/x/mod/semver"
 )
 
@@ -119,7 +120,7 @@ func supportedGoRelease(tag string) bool {
 // Module semver accepts vMAJOR and vMAJOR.MINOR shorthands; release selection
 // requires the complete original tag and retains its build metadata.
 func exactRelease(tag string) bool {
-	return validTag(tag) && semver.IsValid(tag) && semver.Canonical(tag)+semver.Build(tag) == tag
+	return ciworkflow.EligibleRelease(tag)
 }
 
 func (o options) selector() string {

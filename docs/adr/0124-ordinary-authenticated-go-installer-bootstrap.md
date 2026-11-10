@@ -288,3 +288,42 @@ If validation refuses, ordinary-function unwinding restores the caller's prior
 FD 9; subsequent cleanup must not write a stop message through that descriptor.
 This applies to both acquisition and cleanup reaper scopes. Function entry and
 validated control authority are distinct state.
+
+## Verifier admission and cancellation
+
+Decision 162 hosted qualification repeated the setup-cancellation failure at
+the late verifier-PID absence assertion. Source inspection found that the inner
+Bash supervisor installs immediate cleanup traps, starts its verifier job, then
+publishes `child=$!` without guarding that interval. Cancellation in the interval
+can see an empty child variable despite an admitted job. Reproduce this schedule
+through the real installer with an independent gate before selecting a correction.
+
+The supervisor must retain cancellation through verifier admission and PID
+publication, then settle the admitted process group before returning its original
+signal status. Do not clear or infer ownership from the outer installer's exit.
+Keep the existing bounded cleanup, native argv/stdin behavior, unrelated-process
+protection and private-cache retention on unresolved ownership. Regression
+instrumentation must capture late PID/group/state evidence and own its failure
+cleanup. No timeout increase, skipped assertion or substitute shell is permitted.
+
+The independent real-installer control failed against the original wrapper with
+an admitted verifier still live after supervisor status 143. After the guard,
+the qualified race command was:
+
+```sh
+go test -race ./acceptance -count=1 -timeout=15m \
+  '-ginkgo.focus=(Authenticated ordinary Go installer bootstrap|Authenticated candidate shell bootstrap (settles watchdog ownership|cancels and reaps a verifier))' \
+  -ginkgo.fail-on-empty -ginkgo.no-color
+```
+
+The local macOS family passed 12/12, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 206.312s`.
+Final test-only lint corrections retained a separate 2/2 focused control receipt,
+package output `ok github.com/anoop2811/software-factory-template/acceptance 15.288s`.
+The final Linux family passed 12/12, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 87.732s`.
+The Linux run used a disposable Go 1.27.3 environment with the historical
+initializer's jq prerequisite and private compiler caches; incomplete setup
+attempts remain separately recorded. Final controls observed verifier PID/group
+absence, original cancellation status, unrelated-process survival and no numeric
+watcher signals. Configured Go lint reported `0 issues.`.

@@ -21,7 +21,8 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", func() {
 	It("settles a queued watcher stop without TERM and retires control after joining", func() {
 		for _, interpreter := range bootstrapWatchdogInterpreters() {
 			bootstrapWatcherParentRefusal(interpreter)
-			for _, stage := range []string{"queued", "joining-hup", "joined", "channel-error"} {
+			// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:292
+			for _, stage := range []string{"verifier-publication", "queued", "joining-hup", "joined", "channel-error"} {
 				bootstrapWatcherCase(interpreter, stage)
 			}
 		}
@@ -81,6 +82,7 @@ func bootstrapWatchdogInterpreters() []string {
 // Scheduling gates retain the actual public installer and its channel operations.
 // per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:239
 // per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
+// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:292
 func bootstrapWatcherCase(interpreter, stage string) {
 	GinkgoHelper()
 	readerGate := stage == "queued" || stage == "joining-hup" || stage == "channel-error"
@@ -137,12 +139,24 @@ func bootstrapWatcherCase(interpreter, stage string) {
 		pid, _ := strconv.Atoi(strings.TrimSpace(string(body)))
 		return pid
 	}
+	observeVerifier := func() {
+		if verifierPID == 0 {
+			verifierPID = readPID("verifier-pid")
+		}
+		if verifierPID > 1 && verifierGroup == 0 {
+			actual, observeErr := syscall.Getpgid(verifierPID)
+			if observeErr == nil && actual == verifierPID && actual != syscall.Getpgrp() {
+				verifierGroup = actual
+			}
+		}
+	}
 	defer func() {
-		_ = gateRelease.Close()
-		_ = apiRelease.Close()
 		if settled {
 			return
 		}
+		observeVerifier()
+		_ = gateRelease.Close()
+		_ = apiRelease.Close()
 		if !joined {
 			_ = command.Process.Signal(syscall.SIGCONT)
 			select {
@@ -171,10 +185,14 @@ func bootstrapWatcherCase(interpreter, stage string) {
 		if !joined || !errors.Is(syscall.Kill(-group, 0), syscall.ESRCH) {
 			holdFixtureCleanup(f.root, "watcher probe did not establish complete owned-group absence")
 		}
+		observeVerifier()
 		if verifierPID > 1 && verifierGroup == verifierPID && !errors.Is(syscall.Kill(-verifierGroup, 0), syscall.ESRCH) {
 			holdFixtureCleanup(f.root, "watcher failure required separate verifier-group cleanup")
 			_, _ = sourceRunnerStopObservedGroup(verifierPID, verifierGroup)
 			Eventually(func() error { return syscall.Kill(-verifierGroup, 0) }, time.Second).Should(MatchError(syscall.ESRCH))
+		}
+		if verifierPID > 1 && !errors.Is(syscall.Kill(verifierPID, 0), syscall.ESRCH) {
+			holdFixtureCleanup(f.root, "late verifier identity did not establish complete absence")
 		}
 		Expect(joined).To(BeTrue(), "owned installer must join during bounded fixture cleanup")
 		Eventually(func() error { return syscall.Kill(-group, 0) }, time.Second).Should(MatchError(syscall.ESRCH))
@@ -185,7 +203,7 @@ func bootstrapWatcherCase(interpreter, stage string) {
 	Expect(apiReader.Close()).To(Succeed())
 	Eventually(func() bool {
 		_, readyErr := os.Stat(filepath.Join(f.records, "watcher-ready"))
-		return readyErr == nil && (stage == "setup" || stage == "joined" || readPID("verifier-pid") > 1)
+		return readyErr == nil && (stage == "setup" || stage == "joined" || readPID("verifier-pid") > 1) && (stage != "verifier-publication" || readPID("watcher-pid") > 1)
 	}, 3*time.Second, 10*time.Millisecond).Should(BeTrue())
 	if stage != "setup" && stage != "joined" {
 		verifierPID = readPID("verifier-pid")
@@ -205,7 +223,8 @@ func bootstrapWatcherCase(interpreter, stage string) {
 			Expect(actual).To(Equal(group))
 		}
 	}
-	if readerGate {
+	switch {
+	case readerGate:
 		Expect(syscall.Kill(watcherPID, syscall.SIGTERM)).To(Succeed())
 		Consistently(func() error { return syscall.Kill(watcherPID, 0) }, 100*time.Millisecond, 10*time.Millisecond).Should(Succeed(), "the controlled watcher must really survive TERM before reading")
 		if stage != "channel-error" {
@@ -224,7 +243,21 @@ func bootstrapWatcherCase(interpreter, stage string) {
 			Expect(command.Process.Signal(syscall.SIGHUP)).To(Succeed())
 			Consistently(func() error { return syscall.Kill(watcherPID, 0) }, 100*time.Millisecond, 10*time.Millisecond).Should(Succeed())
 		}
-	} else {
+	case stage == "verifier-publication":
+		Expect(readPID("verifier-admitted-pid")).To(Equal(verifierPID))
+		published, readErr := os.ReadFile(filepath.Join(f.records, "verifier-published-child"))
+		Expect(readErr).NotTo(HaveOccurred())
+		Expect(string(published)).To(Equal("\n"), "the actual verifier must start before its supervisor publishes child")
+		supervisorPID := readPID("verifier-supervisor-pid")
+		actual, observeErr := syscall.Getpgid(supervisorPID)
+		Expect(observeErr).NotTo(HaveOccurred())
+		Expect(actual).To(Equal(group))
+		Expect(command.Process.Signal(syscall.SIGTERM)).To(Succeed())
+		Eventually(func() string {
+			entered, _ := os.ReadFile(filepath.Join(f.records, "verifier-signal-entered"))
+			return string(entered)
+		}, 3*time.Second, 10*time.Millisecond).Should(Equal(strconv.Itoa(supervisorPID)+"\t\n"), "acknowledge cancellation while child is unpublished before releasing admission")
+	default:
 		Expect(command.Process.Signal(syscall.SIGSTOP)).To(Succeed())
 		Eventually(func() string {
 			state := imageProcess(f.cwd, nil, "/bin/ps", "-o", "stat=", "-p", strconv.Itoa(command.Process.Pid))
@@ -234,7 +267,7 @@ func bootstrapWatcherCase(interpreter, stage string) {
 	}
 	_, err = gateRelease.Write([]byte("continue\n"))
 	Expect(err).NotTo(HaveOccurred())
-	if !readerGate {
+	if !readerGate && stage != "verifier-publication" {
 		Expect(command.Process.Signal(syscall.SIGCONT)).To(Succeed())
 	}
 	select {
@@ -251,7 +284,15 @@ func bootstrapWatcherCase(interpreter, stage string) {
 	}
 	calls, callsErr := os.ReadFile(filepath.Join(f.records, "watcher-numeric-signal"))
 	waits, _ := os.ReadFile(filepath.Join(f.records, "watcher-waits"))
-	AddReportEntry("bootstrap.watcher-control", map[string]any{"interpreter": interpreter, "stage": stage, "watcher_pid": watcherPID, "verifier_pid": verifierPID, "joined": joined, "status": status, "wait_statuses": string(waits), "numeric_signal": string(calls), "stderr": stderr.String()}, ReportEntryVisibilityAlways)
+	observeVerifier()
+	var verifierState string
+	if verifierPID > 1 {
+		probeCtx, probeCancel := context.WithTimeout(context.Background(), time.Second)
+		state, _ := exec.CommandContext(probeCtx, "/bin/ps", "-o", "pid=,ppid=,pgid=,stat=", "-p", strconv.Itoa(verifierPID)).Output() // #nosec G204 -- fixed diagnostic executable/flags; the sole variable argument is a parsed positive fixture PID, never shell text.
+		probeCancel()
+		verifierState = strings.TrimSpace(string(state))
+	}
+	AddReportEntry("bootstrap.watcher-control", map[string]any{"interpreter": interpreter, "stage": stage, "watcher_pid": watcherPID, "verifier_pid": verifierPID, "verifier_group": verifierGroup, "verifier_state": verifierState, "joined": joined, "status": status, "wait_statuses": string(waits), "numeric_signal": string(calls), "stderr": stderr.String()}, ReportEntryVisibilityAlways)
 	Expect(joined).To(BeTrue(), "actual watcher cleanup must settle within the existing five-second allowance")
 	Eventually(func() error { return syscall.Kill(-group, 0) }, time.Second).Should(MatchError(syscall.ESRCH))
 	if verifierPID == 0 {
@@ -300,6 +341,7 @@ func bootstrapWatcherCase(interpreter, stage string) {
 }
 
 // per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
+// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:292
 func bootstrapWatcherSchedule(f handoffBootstrapFixture, stage string) {
 	GinkgoHelper()
 	data, err := os.ReadFile(f.installer)
@@ -345,6 +387,23 @@ func bootstrapWatcherSchedule(f handoffBootstrapFixture, stage string) {
     fi
 `
 	switch stage {
+	case "verifier-publication":
+		mode := "      set -m\n"
+		replace(mode, mode+`      trap() {
+        if [[ -n "$1" ]]; then
+          builtin trap "printf \"%s\\t%s\\n\" \"\$\$\" \"\${child-}\" > \"\$HANDOFF_RECORD_DIR/verifier-signal-entered\"; $1" "${@:2}"
+        else
+          builtin trap "$@"
+        fi
+      }
+`)
+		spawn := "      \"$@\" &\n"
+		replace(spawn, spawn+`      printf "%s\n" "$$" > "$HANDOFF_RECORD_DIR/verifier-supervisor-pid"
+      printf "%s\n" "$!" > "$HANDOFF_RECORD_DIR/verifier-admitted-pid"
+      printf "%s\n" "${child-}" > "$HANDOFF_RECORD_DIR/verifier-published-child"
+      : > "$HANDOFF_RECORD_DIR/watcher-ready"
+      IFS= read -r watcher_probe_gate <&3 || :
+`)
 	case "setup":
 		setup := "    mkfifo \"$candidate_control\" || return 125\n"
 		replace(setup, setup+gate)

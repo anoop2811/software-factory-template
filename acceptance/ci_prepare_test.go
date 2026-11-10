@@ -85,6 +85,13 @@ type ciPrepareProject struct {
 // CLI, then commit only Git-visible project inputs. No selected private state is copied.
 // per docs/adr/0143-ci-checkout-preparation.md:126
 func ciPrepareProjectFixture(patches ...func(string)) ciPrepareProject {
+	return ciPrepareProjectCustomized(nil, patches...)
+}
+
+// Existing callers retain the original simplified application fixture. Workflow
+// qualification can preserve the actual initialized Makefile before committing.
+// per docs/adr/0145-installed-ci-workflow-rendering.md:99
+func ciPrepareProjectCustomized(customize func(string, []byte, map[string]string), patches ...func(string)) ciPrepareProject {
 	GinkgoHelper()
 	image := handoffBuildImage(patches...)
 	repositorySource, err := filepath.Abs("..")
@@ -99,6 +106,11 @@ func ciPrepareProjectFixture(patches ...func(string)) ciPrepareProject {
 	repository := filepath.Join(f.cwd, "initialized public project")
 	out := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", repository, "--go-candidate", handoffVersion, "--pack", "none")
 	Expect(out.status).To(BeZero(), "actual packaged initialization must establish the source of the committed public assets: %+v", out)
+	var initializedMakefile []byte
+	if customize != nil {
+		initializedMakefile, err = os.ReadFile(filepath.Join(repository, "Makefile"))
+		Expect(err).NotTo(HaveOccurred())
+	}
 	descriptor, err := os.ReadFile(filepath.Join(repository, ".factory/installation.current"))
 	Expect(err).NotTo(HaveOccurred())
 	var selection struct {
@@ -137,6 +149,9 @@ func ciPrepareProjectFixture(patches ...func(string)) ciPrepareProject {
 	writeFixture(filepath.Join(repository, "Makefile"), []byte(".PHONY: check check-drift\ncheck:\n\t./check-application.sh\ncheck-drift:\n\t@:\n"), 0644)
 	writeFixture(filepath.Join(repository, "application.txt"), []byte("application-owned content\n"), 0644)
 	writeFixture(filepath.Join(repository, ".github/workflows/application.yml"), []byte("name: Preserve application CI\non: workflow_dispatch\njobs: {}\n"), 0644)
+	if customize != nil {
+		customize(repository, initializedMakefile, f.environment)
+	}
 	imageGit(repository, "init", "--quiet")
 	imageGit(repository, "add", "--all")
 	imageGit(repository, "commit", "--quiet", "-m", "test: commit public initialized project")

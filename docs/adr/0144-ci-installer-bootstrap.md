@@ -1,6 +1,6 @@
 # ADR 0144: bootstrap CI preparation through the authenticated installer
 
-Status: implemented; independent RED/GREEN passed; hosted qualification pending.
+Status: implemented and merged in PR #175; later workflow integration remains open.
 Decision: 160. Continues R4 after merged PR #174.
 
 ## Bounded delivery

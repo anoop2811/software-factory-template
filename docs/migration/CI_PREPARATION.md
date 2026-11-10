@@ -8,9 +8,71 @@ matching selection, not just a copied executable.
 
 The native `ci prepare` command and its installer entrypoint are being qualified
 for the replacement release. They are unavailable in v0.1.6 and in earlier
-candidates that lack the command. Generated workflows and integration with
-existing workflows remain separate [release-readiness work](GO_RELEASE_READINESS.md).
-These explicit commands do not automatically install or rewrite CI workflows.
+candidates that lack the command. Current Go source also provides the explicit
+workflow renderer below. Automatic workflow installation and reconciliation remain
+separate [release-readiness work](GO_RELEASE_READINESS.md). These commands do not
+automatically install or rewrite CI workflows.
+
+## Render a workflow for review
+
+From an existing Go installation or separately provisioned native executable,
+render to a new temporary file:
+
+```sh
+factory_workflow=$(mktemp)
+./factory ci workflow \
+  --go-candidate TAG \
+  --origin-target darwin/arm64 \
+  --installer-revision COMMIT > "$factory_workflow"
+cat "$factory_workflow"
+```
+
+Replace `TAG` with the project's exact published release and select the original
+installation platform. `COMMIT` must be the full lowercase forty-character SHA
+of an independently reviewed official factory source commit whose installer
+supports `ci prepare`. Rendering validates selector syntax; it neither downloads
+nor authenticates those selections, and does not assume they are already
+published. The runtime and installer selections have separate trust requirements.
+
+Complete the initializer's documented adapter synchronization after configuration
+(`./factory sync all`) and review and commit those outputs before enabling CI.
+Current initialization can otherwise leave Claude permission-array ordering that
+the next synchronization changes. The rendered job checks a prepared project and
+does not repair this drift; automatic initialization reconciliation remains open.
+
+The output contains one Ubuntu 24.04 job with read-only repository permissions,
+a SHA-pinned checkout action, full history and no persisted checkout credentials.
+It obtains the pinned official installer outside the application checkout,
+prepares authenticated runtime custody, and runs installed selftest, project
+checks and structural evaluation for OpenCode, Claude Code and Codex. Only
+preparation receives the ordinary read-only GitHub job token. No model secret,
+harness client installation or paid model call is generated.
+
+Review the application-setup insertion point after preparation and add the
+project's language tools and dependencies there. For example, Go application
+checks may need their selected Go/lint/security tools; TypeScript may need Node
+and package installation; Java may need its JDK and build tool. The factory's own
+runtime does not require Go or Python. Preparation must run before any setup
+that changes tracked files.
+
+The workflow runs on pull requests, manual dispatch and pushes to the repository's
+default branch. Non-PR runs have unique concurrency groups; superseded PR runs
+can be canceled. This event selection does not alter existing native range gates:
+those currently use `origin/main`, so a different default branch does not gain
+generalized range coverage from rendering alone. Review job timeout and project
+requirements before committing the workflow.
+
+Choose a new workflow destination deliberately after reviewing the output; the
+renderer writes only stdout and has no overwrite option. Inspect existing jobs
+before adoption. The older generic template calls development-only scripts, and
+each pack job that invokes installed factory commands needs its own preparation.
+Adding this workflow alongside obsolete jobs will not make those jobs pass.
+Preservation-aware automatic integration remains pending; retain project-specific
+setup, checks and policy when reviewing changes to existing workflows.
+
+Use `./factory ci workflow --help` for the selector contract. The shell installer
+supports `ci prepare`, not workflow rendering. Older published candidates and
+v0.1.6 do not contain this new command.
 
 ## Bootstrap without an existing native executable
 
@@ -98,4 +160,5 @@ Do not delete the barrier or retry over partial custody. Use the normal upgrade,
 rollback and recovery procedures for persistent installations.
 
 The native implementation contract is [ADR 0143](../adr/0143-ci-checkout-preparation.md);
-the installer boundary is [ADR 0144](../adr/0144-ci-installer-bootstrap.md).
+the installer boundary is [ADR 0144](../adr/0144-ci-installer-bootstrap.md), and
+workflow rendering is [ADR 0145](../adr/0145-installed-ci-workflow-rendering.md).

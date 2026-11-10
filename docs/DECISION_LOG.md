@@ -8196,3 +8196,81 @@ The indirectly affected ordinary-installer initializer criterion also passed,
 package output `ok github.com/anoop2811/software-factory-template/acceptance 138.730s`.
 ADR 0146 records the command and scope. Independent review found the original
 selected-runtime proof unchanged; no production or deadline edits were needed.
+
+Decision 162 repeated bootstrap observation: final-head run `42757321071` job
+`129634746391` passed the corrected ordinary initializer but again failed the
+unchanged setup-cancellation verifier-PID assertion. Stop diagnostic reruns.
+ADR 0124 now specifies independent reproduction of the inner supervisor's
+unprotected verifier-spawn/PID-publication interval and guarded cancellation
+semantics. This is a prerequisite CI correction within the current delivery,
+not evidence that initialized CI caused the bootstrap defect. Observe RED before
+production correction; retain existing cleanup bounds and signal outcomes.
+
+Decision 162 independent diagnostic RED: the exact current inner Bash wrapper,
+with a scheduling gate between job creation and PID assignment, exited 143 while
+its admitted verifier remained live (`PPID=1`, group equal to the child PID,
+state `S`). Handler-entry instrumentation observed an empty child variable.
+This local Bash 3 observation establishes the publication race; it does not infer
+process state missing from the hosted receipts. The diagnostic released and
+joined its owned work. A real-installer Ginkgo regression must fail before the
+production guard is introduced.
+
+Decision 162 real-installer regression RED: the existing watchdog criterion,
+extended with a controlled verifier-publication schedule, failed 0/1 in 3.802s
+against unchanged `bc5a4dd` production. The installer joined with status 143 while
+verifier PID/group 84028 remained live with parent 1 and state `S`. The fixture
+observed the actual cancellation handler before releasing publication; its original
+verifier-absence assertion failed. Owned-channel cleanup completed without a
+secondary failure. Introduce the bounded inner publication guard specified above;
+the evaluator retains the failed JSON/log receipts before testing GREEN.
+
+Decision 162 separate macOS observation: job `129634747132`, artifact
+`13737410145`, timed out in the forward local-recovery case while awaiting
+publisher admission. The test-owned 90-second command deadline expired during
+`native-gate-proof`; neither admission nor durable READY was observed, and the
+caller was reaped. The reverse case subsequently admitted after approximately
+48.86 seconds and passed. Recovery/preflight/native-proof code and this test's
+deadline are unchanged from the base revision. Retain the failed evidence and
+both unchanged criteria for the next required hosted qualification; the slower
+underlying operation is not established and no timeout increase follows.
+
+Decision 162 source qualification capacity: macOS handoff artifact `13737696021`
+records aggregate suite expiry after 1451.321 seconds, with the two interrupted
+specs running only 9.217 and 14.502 seconds. The new four-case initialized-CI group
+passed in 370.188 seconds. Main and prior PR 176 receipts passed the original 63
+with only approximately 172 and 45 seconds of spare allowance. Adopt ADR 0146's
+disjoint initialized-CI partition on both platforms, retaining all identities,
+failure propagation, concurrency bounds and original deadlines. Independent
+partition/discovery tests must fail before wiring is changed; no criterion is
+removed to make the job fit.
+
+Decision 162 initialized-CI worker policy: use one Ginkgo process for its single
+ordered group, preserving other partition policies and all execution bounds.
+Extra processes cannot subdivide the shared fixture and would add setup work.
+
+Decision 162 guarded verifier qualification: the independent full installer family
+passed 12/12 on macOS (package `206.312s`) and final Linux (package `87.732s`).
+After test-only lint corrections the final focused controls passed 2/2 (package
+`15.288s`); configured Go lint reported `0 issues.`. ADR 0124 records the command,
+controlled RED and scope. All prior bounds and criterion identities remain;
+independent review found no surviving guard or scheduling-oracle defect.
+Disposable Linux setup attempts lacking writable caches or historical jq were
+retained separately and do not count as completed qualification. Owned processes,
+container and derived image were confirmed absent afterward.
+
+Decision 162 independent partition RED: 12 existing scheduling/workflow/worker
+criteria ran against unchanged `bc5a4dd` wiring, with three passing and nine failing
+(package `44.556s`). Failures expose handoff co-selection, the absent workflow
+matrix group and ten rather than eleven all/default partitions. Discovery remains
+3348. Wire the separately specified partition and one-process policy, preserving
+the original priority controls; the evaluator retains the failed reports.
+
+Decision 162 partition GREEN: all 12 independent scheduling/workflow/worker
+criteria passed, package output
+`ok github.com/anoop2811/software-factory-template/acceptance 188.471s`.
+ADR 0146 records the command. Actual discovery is 3348 with 2999 base, 63 handoff
+and four initialized-CI criteria, retaining every other count and the original
+removed-priority negative control. Configured lint reported `0 issues.`; source
+workflow actionlint and Make/shell syntax checks exited zero. No production
+behavior, child deadline, aggregate allowance or criterion was dropped for this
+partition correction. Both new hosted partitions still require final-head runs.

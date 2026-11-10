@@ -196,6 +196,13 @@ func ciCopiedWorkflow(ctx context.Context, raw []byte, values map[string]string,
 	keys := []string{"PROJECT_NAME", "DOCS_ROOT", "PROJECT_SLUG", "GITHUB_OWNER", "OPENCODE_USERNAME", "MUTATION_TARGET", "PROTECTED_PATH"}
 	if pack {
 		if goRecipe {
+			// The frozen initializer defaulted every version before simultaneous replacement.
+			// docs/adr/0147-installed-ci-migration-preview.md:247.
+			for _, key := range []string{"GO_VERSION", "JAVA_VERSION", "NODE_VERSION"} {
+				if strings.Contains(value, "__"+key+"__") && values[key] == "" {
+					return nil, conflict("historical workflow requires a nonempty version input")
+				}
+			}
 			value = strings.NewReplacer("__GO_VERSION__", values["GO_VERSION"], "__JAVA_VERSION__", values["JAVA_VERSION"], "__NODE_VERSION__", values["NODE_VERSION"], "__MAVEN_COMMAND__", maven).Replace(value)
 		} else {
 			keys = []string{"GO_VERSION", "JAVA_VERSION", "NODE_VERSION", "MUTATION_TARGET", "MAVEN_COMMAND", "PROTECTED_PATH"}
@@ -219,8 +226,14 @@ func ciCopiedWorkflow(ctx context.Context, raw []byte, values map[string]string,
 			}
 		}
 		marker := "__" + key + "__"
-		if strings.Contains(value, marker) && !found {
-			return nil, conflict("historical workflow requires explicit project inputs")
+		if strings.Contains(value, marker) {
+			if !found {
+				return nil, conflict("historical workflow requires explicit project inputs")
+			}
+			// Sequential Bash substitutions may introduce a later version marker.
+			if (key == "GO_VERSION" || key == "JAVA_VERSION" || key == "NODE_VERSION") && input == "" {
+				return nil, conflict("historical workflow requires a nonempty version input")
+			}
 		}
 		if key == "DOCS_ROOT" && input == "" {
 			input = "docs"

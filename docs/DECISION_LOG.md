@@ -8348,3 +8348,13 @@ capture provenance, exact commands and limits. Remaining contextual review
 claims were checked against full source; the public/scheduler behavior and its
 earlier passing receipts are unchanged. Reply on the PR after publishing this
 review correction; fresh hosted checks still belong to the new head.
+
+Decision 163 refreshed hosted review at `0f2c5b9` completed 18/18 files and
+26/26 fragments in two batches in 2m10s. Full-source verification retained two
+concrete findings: empty historical version values reached by substitution, and
+embedded apostrophes in generic flat scalars. Independent positive/negative
+controls failed before the minimal corrections. Final internal race qualification
+passed 44 criteria (`14.293s`), configured lint reported `0 issues.`, and vet
+exited zero. ADR 0147 records scope and evidence. Other contextual claims were
+refuted against callers, frozen sources and actual discovery; publish their
+verification summary in the PR discussion. Fresh hosted checks remain required.

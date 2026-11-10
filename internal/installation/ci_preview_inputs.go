@@ -134,5 +134,7 @@ func ciFlatScalar(raw string) bool {
 		}
 		return tail == "" || len(tail) > 0 && (tail[0] == ' ' || tail[0] == '\t') && (strings.TrimSpace(tail) == "" || strings.HasPrefix(strings.TrimSpace(tail), "#"))
 	}
-	return !strings.ContainsAny(raw, "\"'[]{}\r\t") && !strings.HasPrefix(raw, "|") && !strings.HasPrefix(raw, ">")
+	// Embedded apostrophes are literal in the existing flat reader.
+	// docs/adr/0147-installed-ci-migration-preview.md:256.
+	return !strings.HasPrefix(raw, "'") && !strings.ContainsAny(raw, "\"[]{}\r\t") && !strings.HasPrefix(raw, "|") && !strings.HasPrefix(raw, ">")
 }

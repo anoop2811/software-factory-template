@@ -243,3 +243,26 @@ public preview and scheduler code are unchanged by this follow-up; their earlier
 receipts remain scoped to those paths. Final repository-wide configured lint
 reported `0 issues.` and `go vet ./...` exited zero. The final historical scalar
 guard received independent source review with no surviving finding.
+
+The refreshed hosted review exposed another impossible-history edge: sequential
+Bash substitutions can introduce a different version marker. If that version's
+current recorded value is present but empty, do not synthesize blank historical
+workflow bytes: both pinned initializers defaulted and persisted nonempty tool
+versions. Require presence and a nonempty value whenever a version marker is
+actually used, including later sequential substitutions; leave unused values
+irrelevant and never invent a historical default. Apply the same requirement to
+direct version markers in copied Go templates.
+
+Preserve embedded apostrophes in unquoted generic flat scalars such as
+`project_name: O'Brien`. The historical reader and Go initializer support that
+literal value. Keep the distinct protected-path grammar and ambiguity checks;
+this correction does not interpret YAML single-quoted syntax or shell text.
+
+Both new public-planner controls failed before their corrections: populated
+version and quoted-name controls passed, while blank substituted versions were
+incorrectly recognized and the unquoted apostrophe was rejected. The final
+focused internal race command recorded above passed 44 criteria, with output
+`ok github.com/anoop2811/software-factory-template/internal/installation 14.293s`.
+The literal golden, previous historical-input controls and all variant matrices
+remain included. The acceptance census is unchanged. Final configured lint
+reported `0 issues.` and repository-wide vet exited zero after these corrections.

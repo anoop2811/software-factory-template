@@ -612,4 +612,55 @@ var _ = Describe("Installed CI migration preview", func() {
 		}
 	})
 
+	// per docs/adr/0147-installed-ci-migration-preview.md:247
+	It("requires every used sequential Bash version replacement to be historically nonempty", func() {
+		actual, expected := []string{}, []string{}
+		for _, baseline := range []struct{ profile, revision string }{
+			{"v0.1.6", "b71ecc32e07ecd87eb330ba8e497c86612f92acd"},
+			{"bash-baseline", "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"},
+		} {
+			source := string(immutableRecipeSource(baseline.revision, "packs/go/workflows/ci.yml"))
+			for _, javaVersion := range []string{"25", ""} {
+				root, request := ciPreviewFixture(baseline.profile, ciPreviewVariants[1])
+				cfg := strings.Replace(ciPreviewConfig(ciPreviewVariants[1]), `go_version: "1.26"`, `go_version: "__JAVA_VERSION__"`, 1)
+				cfg = strings.Replace(cfg, `java_version: "25"`, `java_version: "`+javaVersion+`"`, 1)
+				ciPreviewWrite(root, "factory.yaml", []byte(cfg), 0644)
+				// The independently read Bash scripts use sequential sed rules:
+				// Go introduces the Java marker before the Java rule consumes it.
+				pack := strings.ReplaceAll(source, "__GO_VERSION__", "__JAVA_VERSION__")
+				pack = strings.ReplaceAll(pack, "__JAVA_VERSION__", javaVersion)
+				body := []byte(strings.NewReplacer("__NODE_VERSION__", "24", "__MUTATION_TARGET__", "./internal/...", "__PROTECTED_PATH__", "internal").Replace(pack))
+				Expect(string(body)).To(ContainSubstring("go-version: '" + javaVersion + "'"))
+				path := ".github/workflows/go-pack.yml"
+				ciPreviewWrite(root, path, body, 0644)
+				report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, nil))
+				disposition := ciPreviewRows(report)[path]["disposition"].(string)
+				conflicted := len(report["conflicts"].([]any)) > 0
+				actual = append(actual, fmt.Sprintf("%s java=%q: %s conflict=%t", baseline.profile, javaVersion, disposition, conflicted))
+				want, conflict := "retire", false
+				if javaVersion == "" {
+					want, conflict = "preserve", true
+				}
+				expected = append(expected, fmt.Sprintf("%s java=%q: %s conflict=%t", baseline.profile, javaVersion, want, conflict))
+				Expect(os.ReadFile(filepath.Join(root, path))).To(Equal(body))
+			}
+		}
+		Expect(actual).To(Equal(expected), "both independently pinned Bash projections must reject impossible empty persisted versions")
+	})
+
+	// per docs/adr/0147-installed-ci-migration-preview.md:256
+	It("accepts an embedded apostrophe in an unquoted generic scalar like its quoted equivalent", func() {
+		root, request := ciPreviewFixture("v0.1.6", ciPreviewVariants[0])
+		delete(request.Inputs, "PROJECT_SLUG")
+		cfg := strings.Replace(ciPreviewConfig(ciPreviewVariants[0]), "project_name: preview", `project_name: "O'Brien"`, 1)
+		ciPreviewWrite(root, "factory.yaml", []byte(cfg), 0644)
+		quoted := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, nil))
+		Expect(quoted["conflicts"]).To(BeEmpty())
+		Expect(ciPreviewRows(quoted)[".github/workflows/factory.yml"]["disposition"]).To(Equal("create"))
+		cfg = strings.Replace(cfg, `project_name: "O'Brien"`, "project_name: O'Brien", 1)
+		ciPreviewWrite(root, "factory.yaml", []byte(cfg), 0644)
+		unquoted := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, nil))
+		Expect(unquoted).To(Equal(quoted), "the existing flat reader treats the embedded apostrophe as literal generic data")
+	})
+
 })

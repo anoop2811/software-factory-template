@@ -22,10 +22,16 @@ var substitutedFiles = map[string]bool{
 	".codex/agents/implementer.toml": true, ".codex/agents/refactorer.toml": true, ".codex/agents/reviewer.toml": true, ".codex/agents/spec-writer.toml": true, ".codex/agents/wiki-maintainer.toml": true, "docs/FACTORY_RULES.md": true, "memory/lessons/001-verification-contract.md": true, "README.md": true,
 }
 
-func buildPlan(ctx context.Context, source, target *tree, o options, v map[string]string) ([]asset, error) {
+func buildPlan(ctx context.Context, source, target *tree, o options, v map[string]string, selected *qualified) ([]asset, error) {
 	assets := map[string]asset{}
 	replacer := replacements(v)
 	copyAsset := func(src, dst string, required bool) error {
+		// Omit obsolete copied workflows before observing preserved destinations.
+		// The legacy component and frozen inventory retain their original behavior.
+		// docs/adr/0146-initialized-installed-ci.md:24.
+		if selected != nil && (dst == ".github/workflows/ci.yml" || dst == ".github/workflows/go-pack.yml" || dst == ".github/workflows/typescript-pack.yml" || dst == ".github/workflows/java-pack.yml") {
+			return nil
+		}
 		data, mode, exists, err := source.read(ctx, src)
 		if err != nil {
 			return err
@@ -185,11 +191,21 @@ func buildPlan(ctx context.Context, source, target *tree, o options, v map[strin
 			pristineMakefile += "\n# " + pack + " pack targets (test, lint, sec, mutate)\ninclude Makefile." + pack + ".pack\n"
 		}
 	}
+	if selected != nil && selected.workflowEligible() {
+		workflow, err := selected.workflow(ctx, target, o, v)
+		if err != nil {
+			return nil, err
+		}
+		assets[workflow.path] = workflow
+	}
 	for path, a := range assets {
 		if target != nil {
 			data, mode, exists, identity, err := target.observe(ctx, path)
 			if err != nil {
 				return nil, err
+			}
+			if selected != nil && selected.workflowEligible() && path == initializedWorkflowPath && exists {
+				return nil, errors.New("ordinary factory workflow destination changed")
 			}
 			a.previous = data
 			a.previousMode = mode

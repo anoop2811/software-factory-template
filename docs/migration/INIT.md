@@ -43,6 +43,18 @@ once publication starts, preserve its pending barrier and backups for recovery.
 No automatic initializer rollback is claimed. Existing installation upgrades,
 migration recovery, rollback and retention remain separate commands.
 
+Current authenticated initialization also creates
+`.github/workflows/factory.yml` for the exact selected release and chosen language
+packs. It preserves existing application workflows and refuses an occupied
+`factory.yml` before publication. It omits newly copied source-development and
+separate pack jobs. See [generated ordinary CI](CI_PREPARATION.md#ci-created-by-current-initialization)
+for application setup, mock-only evaluation and the remaining review-lane and
+upgrade integration boundaries. Earlier published candidates retain their own
+initialization behavior.
+Authenticated explicit candidates with noncanonical tags, such as `candidate-r4`,
+retain their initialization support but receive an explanation that ordinary CI
+requires a full canonical release version. No unusable workflow is generated.
+
 ## Initialize from committed local source
 
 The explicit developer interface builds and installs a native Go image:
@@ -67,6 +79,11 @@ local build, with no publisher authentication claim. The native `--local --help`
 owner explains the selector without inspecting or packaging source; a source
 launcher still builds its CLI first. For updating an existing
 installation, use the separate [local upgrade interface](../UPGRADING.md).
+
+Current local initialization emits no active ordinary factory CI workflow because
+its local build has no authenticated release to download on a hosted runner. It
+preserves application workflows and explains that an official release is needed
+for that generated job. It does not copy source-development CI as a substitute.
 
 Before publication, build or validation failures preserve the source and target.
 Once publication begins, an incomplete installation keeps the pending barrier

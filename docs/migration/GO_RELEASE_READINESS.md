@@ -194,12 +194,15 @@ generated workflow delivery and preservation-aware existing-workflow integration
 PR #175 merged that installer entrypoint. Decision 161 /
 [ADR 0145](../adr/0145-installed-ci-workflow-rendering.md) adds explicit native
 workflow rendering for review, with pinned bootstrap and installed checks. It
-does not publish workflow files or repair older generated jobs. Automatic
-new-project integration, preservation-aware existing-workflow reconciliation and
-the integrated rehearsal remain separate open obligations. The renderer's fixture
-follows the documented precommit adapter-sync step; automatic integration must
-also reconcile the initial Claude permission-array ordering without relying on
-that extra operator step.
+does not publish workflow files or repair older generated jobs. PR #176 merged
+that renderer. Decision 162 / [ADR 0146](../adr/0146-initialized-installed-ci.md)
+implements automatic ordinary new-project CI with selected-pack setup and
+preserved application workflows. It also preserves semantic OpenCode permission
+ordering so initialization does not need an extra repair synchronization. The
+four independent init-to-CI criteria and three ordering/scheduler criteria pass
+locally. Exact-head hosted qualification is tracked in the PR; existing workflow
+reconciliation, privileged review-lane bootstrap and the integrated rehearsal
+remain open obligations.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

@@ -124,7 +124,7 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 	if err := choiceMessages(ctx, stdout, values, o); err != nil {
 		return err
 	}
-	plan, err := buildPlan(ctx, source, target, o, values)
+	plan, err := buildPlan(ctx, source, target, o, values, selected)
 	if err != nil {
 		return err
 	}
@@ -139,6 +139,15 @@ func run(ctx context.Context, args []string, templateRoot string, environment ma
 	}
 	if err := preflightExternal(ctx, target, plan); err != nil {
 		return err
+	}
+	if selected != nil && !selected.workflowEligible() {
+		message := "factory-init: hosted CI is unavailable for local-source initialization; an authenticated release is required. No ordinary factory workflow will be installed.\n"
+		if selected.release != nil {
+			message = "factory-init: hosted CI is unavailable for this authenticated candidate; a canonical release tag is required for CI preparation. No ordinary factory workflow will be installed.\n"
+		}
+		if err := output.WriteEvent(ctx, stdout, []byte(message)); err != nil {
+			return err
+		}
 	}
 	if err := summary(ctx, stdout, values, o); err != nil {
 		return err

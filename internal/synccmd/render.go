@@ -86,7 +86,7 @@ func renderOpenCode(plan *publication, source *canonical, environment map[string
 			plan.messages = append(plan.messages, "sync-opencode: "+role.name+" -> "+value)
 		}
 	}
-	data, err := jsonBytes(source.object)
+	data, err := openCodeJSON(source)
 	if err != nil {
 		return err
 	}
@@ -97,6 +97,57 @@ func renderOpenCode(plan *publication, source *canonical, environment map[string
 		plan.messages = append(plan.messages, "sync-opencode: model="+main+" small_model="+model(environment, "opencode", "economy"), "sync-opencode: done")
 	}
 	return nil
+}
+
+// Only model fields are owned by synchronization. Nested JSON includes ordered
+// permission rules and must retain its original member order.
+// docs/adr/0146-initialized-installed-ci.md:97.
+func openCodeJSON(source *canonical) ([]byte, error) {
+	document, err := modelFieldsJSON(source.document, source.object, "model", "small_model")
+	if err != nil {
+		return nil, err
+	}
+	if len(source.roles) != 0 {
+		var agents map[string]json.RawMessage
+		if err := json.Unmarshal(document["agent"], &agents); err != nil {
+			return nil, err
+		}
+		for _, role := range source.roles {
+			object, err := modelFieldsJSON(agents[role.name], role.object, "model")
+			if err != nil {
+				return nil, err
+			}
+			agents[role.name], err = json.Marshal(object)
+			if err != nil {
+				return nil, err
+			}
+		}
+		document["agent"], err = json.Marshal(agents)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return jsonBytes(document)
+}
+
+func modelFieldsJSON(data json.RawMessage, configured map[string]any, fields ...string) (map[string]json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return nil, err
+	}
+	for _, field := range fields {
+		value, exists := configured[field]
+		if !exists {
+			delete(object, field)
+			continue
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		object[field] = encoded
+	}
+	return object, nil
 }
 
 func renderClaude(plan *publication, source *canonical, environment map[string]string) error {

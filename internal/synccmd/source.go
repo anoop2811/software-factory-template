@@ -17,10 +17,11 @@ import (
 )
 
 type canonical struct {
-	object map[string]any
-	roles  []role
-	bash   []bashRule
-	files  []*installationfs.File
+	document json.RawMessage
+	object   map[string]any
+	roles    []role
+	bash     []bashRule
+	files    []*installationfs.File
 }
 type role struct {
 	name, description, edit string
@@ -48,6 +49,7 @@ func readSource(ctx context.Context, tree *installationfs.Tree) (result *canonic
 	if !utf8.Valid(data) {
 		return result, errors.New("invalid opencode.json encoding")
 	}
+	result.document = data
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 	if err := decoder.Decode(&result.object); err != nil {

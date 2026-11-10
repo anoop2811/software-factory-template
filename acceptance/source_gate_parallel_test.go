@@ -242,6 +242,13 @@ func sourceGateHandoffPriorityProof() {
 			"executes emitted preparation and real installed Makefile and harness checks without compiler or Python",
 			"refuses failed or empty emitted installer downloads without executing checkout or partial bytes",
 		}},
+		// per docs/adr/0146-initialized-installed-ci.md:127
+		"handoff-init-ci-project": {true, 2, []string{
+			"creates an authenticated ordinary workflow with stable initial harnesses for every pack union",
+			"preserves application workflows while refusing every occupied generated destination before publication",
+			"omits active CI for ineligible authenticated tags and offline local initialization",
+			"runs the committed initialized workflow through clone preparation and real Makefile gates without repairing harnesses",
+		}},
 	}
 	ciIdentities := map[string][]string{}
 	priorities, counts := map[string]int{}, map[string]int{}
@@ -273,18 +280,22 @@ func sourceGateHandoffPriorityProof() {
 		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(63))
+	Expect(identities).To(HaveLen(67))
 	for label, group := range ciGroups {
 		expected := make([]string, 0, len(group.identities))
+		prefix := "Whole installation upgrade release candidate handoff CI checkout preparation "
+		if label == "handoff-init-ci-project" {
+			prefix = "Whole installation upgrade release candidate handoff initialized CI "
+		}
 		for _, identity := range group.identities {
-			expected = append(expected, "Whole installation upgrade release candidate handoff CI checkout preparation "+identity)
+			expected = append(expected, prefix+identity)
 		}
 		Expect(ciIdentities[label]).To(ConsistOf(expected), "exact CI group identities and count: %s", label)
 	}
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
 	}
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact63=%v\n", counts, priorities, identities)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact67=%v\n", counts, priorities, identities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))

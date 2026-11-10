@@ -110,7 +110,7 @@ source; older published candidates can have fewer features.
 | Command | Purpose | Example |
 |---|---|---|
 | `help` | List the public commands. | `./factory help` |
-| `init` | Initialize a project with its selected authenticated Go release. Override with stable `--ref TAG`, prerelease `--go-candidate TAG` or clean committed `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --pack go` |
+| `init` | Initialize a project with its selected authenticated Go release. Current initialization creates ordinary installed CI for the selected language packs and preserves application workflows. Override with stable `--ref TAG`, prerelease `--go-candidate TAG` or clean committed `--local --source DIR`; see [initialization](docs/migration/INIT.md). | `./factory init ../new-project --pack go` |
 | `doctor` | Diagnose armed, inert and stale gates and adapter integrity. | `./factory doctor` |
 | `upgrade` | Authenticate a stable Go update and preview changes; override with `--ref TAG`, then apply with fresh confirmation. See [ordinary upgrades](docs/UPGRADING.md#ordinary-go-upgrades). | `./factory upgrade --dry-run --json` |
 | `ci prepare` **Go only** | Restore the exact release's private runtime in a fresh disposable checkout using a separately trusted native executable. See [CI preparation and its integration boundary](docs/migration/CI_PREPARATION.md). | `/path/to/trusted/factory ci prepare --go-candidate TAG --origin-target darwin/arm64 --ephemeral` |

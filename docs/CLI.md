@@ -67,6 +67,14 @@ Use `--harness claude` or `--harness opencode` for those adapters. `doctor` exec
 gate probes, and `check`/manual loops execute your configured project commands;
 review those commands as you would any build/test tooling.
 
+Current authenticated initialization also writes
+`.github/workflows/factory.yml` with installed-runtime preparation and the selected
+language-pack setup. Its ordinary PR evaluation is mock-only. Existing application
+workflows are preserved; an occupied `factory.yml` refuses initialization before
+publication. Local-source init cannot generate a downloadable release workflow.
+See [initialized CI](migration/CI_PREPARATION.md#ci-created-by-current-initialization)
+for the remaining existing-workflow and opt-in review-lane integration boundaries.
+
 ## Explicit model execution
 
 `budget run`, bounded `loop run`, live evaluation, `review` and non-plan

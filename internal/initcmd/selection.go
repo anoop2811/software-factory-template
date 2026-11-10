@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/ciworkflow"
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/installedlayout"
@@ -20,6 +21,7 @@ import (
 )
 
 type qualified struct {
+	release *ciworkflow.Release
 	image   staging.Inspection
 	runtime string
 	target  string
@@ -33,6 +35,17 @@ type qualified struct {
 // docs/adr/0116-explicit-go-local-initialization.md:58.
 func RunQualified(ctx context.Context, args []string, source, runtime string, image staging.Inspection, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return runCommand(ctx, args, source, environment, stdin, stdout, stderr, &qualified{image: image, runtime: runtime})
+}
+
+// RunAuthenticated receives release authority explicitly from the acquisition
+// owner. Inspection and ambient environment cannot grant that authority.
+// docs/adr/0146-initialized-installed-ci.md:30.
+func RunAuthenticated(ctx context.Context, args []string, source, runtime string, image staging.Inspection, release ciworkflow.Release, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if release.Tag == "" || release.SourceRevision == "" || release.OriginTarget == "" || release.Repository == "" || release.Tag != image.Runtime.Version || release.SourceRevision != image.Manifest.SourceRevision || release.OriginTarget != image.Runtime.Target {
+		_, _ = io.WriteString(stderr, "factory-init: authenticated workflow identity differs from the selected image\n")
+		return 1
+	}
+	return runCommand(ctx, args, source, environment, stdin, stdout, stderr, &qualified{image: image, runtime: runtime, release: &release})
 }
 
 func requireFresh(ctx context.Context, target *tree) error {
@@ -120,6 +133,11 @@ func (q *qualified) begin(ctx context.Context, target *tree, plan []asset, envir
 	}
 	if err := requireFresh(ctx, target); err != nil {
 		return nil, errors.Join(err, lease.Close(context.WithoutCancel(ctx)))
+	}
+	if q.workflowEligible() {
+		if err := requireWorkflowDestination(ctx, target); err != nil {
+			return nil, errors.Join(err, lease.Close(context.WithoutCancel(ctx)))
+		}
 	}
 	var ignore asset
 	for _, entry := range plan {

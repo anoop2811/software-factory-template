@@ -8079,3 +8079,86 @@ The actual report's rendered YAML passed actionlint v1.7.12 (exit zero).
 `go vet ./...` exited zero. Independent review has no surviving findings.
 Existing preparation/help/scheduler regression and exact-head hosted CI remain
 pending; neither untouched initialization nor release readiness is claimed.
+
+## Decision 162 (2026-11-10 UTC): initialize ordinary installed-factory CI
+
+The user merged PR #176 and requested the next task. GitHub reports merge
+`6b8f08c820c347a9c9d12c4afd00b3f7e6aca547`; its tree matches reviewed head
+`3b818205d840e55ba3e1168c2094c80b4b39dc97`. Adopt
+[ADR 0146](adr/0146-initialized-installed-ci.md) before production code.
+
+Authenticated new-project initialization will publish one ordinary installed CI
+workflow with explicit release provenance, selected application-pack setup and
+preserved application workflows. Local-source init must not invent an official
+downloadable release. Omit newly copied development jobs without deleting user
+jobs. Fix first-sync stability by preserving semantic OpenCode permission order,
+not by adding a repair sync. Existing-project reconciliation, privileged review
+bootstrap and integrated release rehearsal remain open. Independent RED,
+implementation, generated-job qualification and exact-head CI are pending.
+
+Decision 162 independent synchronization RED: against unchanged `6b8f08c`,
+`go test -race ./acceptance -run TestAcceptance -count=1 -timeout=4m
+-ginkgo.focus='Native orchestration sync ordered policy'` failed its one new
+criterion in 3.259s (package 5.062s). The retained report shows recursively
+reordered root, agent and non-Bash permission subtrees. This establishes the
+ordering defect; synchronization implementation may begin. Automatic-workflow
+RED and complete init-to-CI qualification remain pending.
+
+Decision 162 independent initializer RED: the actual authenticated packaged
+initializer exited zero against unchanged `6b8f08c`, but the new ordinary-CI
+criterion failed because `.github/workflows/factory.yml` did not exist. The
+one-criterion race run failed in 50.209s; its retained JSON/log record the real
+initialization before the missing-file assertion. Automatic-workflow production
+implementation may begin. Preservation, local-source policy and complete emitted
+job qualification remain pending.
+
+Decision 162 review refinement: independent correctness/security review found
+one shared candidate-tag compatibility gap and a workflow-linter compatibility
+gap. Source verification confirms literal authenticated candidate tags can be
+valid for init but invalid for strict CI preparation. Preserve initialization and
+report omitted CI for those tags. The actual actionlint v1.7.12 invocation against
+the existing review template returned the unsupported `cache-mode` diagnostic;
+reuse only the existing exact diagnostic exclusion, retaining an unrelated-error
+negative control. ADR 0146 records both refinements before their corrections.
+
+Decision 162 remaining baseline RED: all four new packaged-init criteria failed
+against unchanged `6b8f08c` in 115.170s. The report independently records missing
+ordinary workflow publication, replacement of an existing pack workflow, missing
+local-source CI guidance and missing committed workflow at the clone boundary.
+The evaluator now overlays the production change for GREEN; the review-discovered
+noncanonical-tag case requires its own observed failure before correction.
+
+Decision 162 candidate-tag RED: the actual packaged `candidate-r4` initialized
+successfully but emitted an unusable ordinary workflow and lacked eligibility
+guidance; the independent criterion failed in 82.896s. The correction preserves
+candidate initialization and shares strict canonical eligibility with preparation.
+
+Decision 162 first composed run: all three preceding init/preservation/eligibility
+criteria and ordered synchronization passed. The real cloned workflow's healthy
+check, three structural evaluations, mock evaluation and deliberate failing check
+all behaved as required. Its final Vitest call count expected two but observed
+three: two from the unchanged healthy Makefile/configured command, one from the
+deliberately failed request. Adopt ADR 0146's exact per-request oracle correction.
+The manual eight-minute aggregate then expired during the partition proof, with
+no child timeout. Separate integration and metadata receipts remain required;
+no production or hosted deadline is being increased.
+
+Decision 162 separate scheduler/ordering qualification passed 3/3 in 97.320s.
+Actual discovery is 3348 criteria: 2999 base and 67 release-handoff criteria; all
+other partitions and the original positive/removed-priority scheduler controls
+remain intact. Existing default-init and synchronization regression also passed
+48 criteria under race instrumentation (`go test -race ./acceptance -run
+TestAcceptance -count=1 -timeout=8m -ginkgo.focus='Go default packaged initialization|Native orchestration sync'`),
+with package output `ok github.com/anoop2811/software-factory-template/acceptance
+389.356s`. The corrected four-case integration receipt is still pending.
+
+Decision 162 final independent integration qualification passed 4/4 in 474.836s.
+The private race command was `go test -race ./acceptance -run TestAcceptance
+-count=1 -timeout=15m '-ginkgo.focus=Whole installation upgrade release candidate handoff initialized CI'
+-ginkgo.no-color -ginkgo.fail-on-empty`, with the three qualified child race
+settings and a retained JSON report. Package output was
+`ok github.com/anoop2811/software-factory-template/acceptance 476.166s`.
+All 13 actual initialized YAML variants passed actionlint v1.7.12; configured Go
+lint reported `0 issues.` and `go vet ./...` exited zero. Independent review has
+no surviving findings. Runtime/child/CI deadlines are unchanged. Exact-head hosted
+CI, existing-workflow/review-lane integration and release rehearsal are separate.

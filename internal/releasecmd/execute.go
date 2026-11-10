@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anoop2811/software-factory-template/internal/ciworkflow"
 	"github.com/anoop2811/software-factory-template/internal/initcmd"
 	"github.com/anoop2811/software-factory-template/internal/installation"
 	"github.com/anoop2811/software-factory-template/internal/native"
@@ -37,7 +38,8 @@ func execute(ctx context.Context, verb string, option options, environment map[s
 		return handoff(ctx, verb, option, candidate, environment, stdin, stdout, stderr)
 	}
 	if verb == "init" {
-		return initcmd.RunQualified(ctx, option.args, filepath.Join(candidate.staged, "installation/assets"), filepath.Join(candidate.staged, "bin/factory-runtime"), candidate.image, environment, stdin, stdout, stderr)
+		release := ciworkflow.Release{Tag: candidate.options.Version, SourceRevision: candidate.options.Revision, OriginTarget: candidate.options.Target, Repository: officialRepository}
+		return initcmd.RunAuthenticated(ctx, option.args, filepath.Join(candidate.staged, "installation/assets"), filepath.Join(candidate.staged, "bin/factory-runtime"), candidate.image, release, environment, stdin, stdout, stderr)
 	}
 	root, err := projectRoot(ctx, environment)
 	if err != nil {

@@ -74,12 +74,13 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 		return []string{"--source", source, "--revision", revision, "--target", target, "--output", output}
 	}
 	outputFor := func(name string) string { return filepath.Join(source, name) }
-	assertFailure := func(args []string, status int) {
+	assertFailure := func(args []string, status int) cliResult {
 		GinkgoHelper()
 		result := run(packager, source, nil, args...)
 		Expect(result.status).To(Equal(status), result.stderr)
 		Expect(result.stdout).To(BeEmpty())
 		Expect(result.stderr).NotTo(BeEmpty())
+		return result
 	}
 	It("publishes a native bundle with exact metadata, archive files, digest and executable modes", func() {
 		out := outputFor("bundle")
@@ -133,7 +134,8 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 		Expect(string(files[prefix+"runtime.manifest"])).To(Equal(fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%s\nEND\n", version, target, binaryDigest)))
 		var metadata map[string]string
 		Expect(json.Unmarshal(files[prefix+"source.json"], &metadata)).To(Succeed())
-		Expect(metadata).To(Equal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.3", "kind": "source-build"}))
+		// per docs/adr/0149-compiler-provenance-and-security-patches.md:23
+		Expect(metadata).To(Equal(map[string]string{"revision": revision, "version": version, "target": target, "go_version": "go1.27.4", "kind": "source-build"}))
 		for name, contents := range files {
 			onDisk, readErr := os.ReadFile(filepath.Join(out, "store", filepath.FromSlash(name)))
 			Expect(readErr).NotTo(HaveOccurred())
@@ -279,12 +281,17 @@ var _ = Describe("G1 committed-source runtime packaging", Ordered, ContinueOnFai
 		result := run(packager, source, nil, append(argsFor(out), "--go", source+"/tool-alias/../go")...)
 		Expect(result.status).To(Equal(0), result.stderr)
 	})
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:46
 	It("refuses a compiler whose version differs from the pin", func() {
 		compiler := filepath.Join(source, "wrong-go")
-		writeFixture(compiler, []byte("#!/bin/sh\nprintf 'go version go1.26.0 linux/amd64\\n'\n"), 0755)
+		invoked := filepath.Join(source, "unapproved-compiler-invoked")
+		writeFixture(compiler, []byte("#!/bin/sh\nif [ \"$1\" = version ]; then printf 'go version go1.27.3 linux/amd64\\n'; exit 0; fi\nprintf called > '"+strings.ReplaceAll(invoked, "'", "'\\''")+"'\nexit 77\n"), 0755)
 		out := outputFor("wrong-compiler")
-		assertFailure(append(argsFor(out), "--go", compiler), 1)
-		_, err := os.Lstat(out)
+		result := assertFailure(append(argsFor(out), "--go", compiler), 1)
+		Expect(result.stderr).To(ContainSubstring("compiler must be go1.27.4"))
+		_, err := os.Lstat(invoked)
+		Expect(os.IsNotExist(err)).To(BeTrue(), "refuse the former compiler before running any build command")
+		_, err = os.Lstat(out)
 		Expect(os.IsNotExist(err)).To(BeTrue())
 	})
 	It("rejects symlinks from the committed source archive", func() {

@@ -8358,3 +8358,21 @@ passed 44 criteria (`14.293s`), configured lint reported `0 issues.`, and vet
 exited zero. ADR 0147 records scope and evidence. Other contextual claims were
 refuted against callers, frozen sources and actual discovery; publish their
 verification summary in the PR discussion. Fresh hosted checks remain required.
+
+## Decision 165 (2026-11-11 UTC): permit truthful compiler provenance across security patches
+
+While qualifying the separate, unmerged Decision 164 CI migration, the configured
+default-upgrade target passed fourteen behavioral criteria but failed its
+vulnerability scan on `GO-2026-6859` in Go 1.27.3. The official Go release history
+and vulnerability database, fetched 2026-11-11 UTC, identify Go 1.27.4 released
+2026-11-10 as the correction. Do not suppress that gate or mix this prerequisite
+with the project-CI transaction boundary.
+
+Adopt [ADR 0149](adr/0149-compiler-provenance-and-security-patches.md) before code.
+Pin current producers to Go 1.27.4 while validating compiler provenance separately
+from exact requested artifact identity. Share strict metadata decoding and retain
+all authentication, digest, inventory and frozen-generation controls. Explicitly
+qualify historical setup with its genuine Go 1.27.3 compiler. Already published
+experimental readers require the existing fresh authenticated installer route;
+new code cannot retroactively change their old metadata equality check. Stable
+v0.1.6 migration and public default activation remain separate release concerns.

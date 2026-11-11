@@ -662,11 +662,13 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0144-ci-installer-bootstrap.md:112
 		// per docs/adr/0146-initialized-installed-ci.md:127
 		// per docs/adr/0147-installed-ci-migration-preview.md:113
-		Expect(negativeTotal).To(Equal(3350))
+		// Ninety-three strict provenance criteria and one real historical rebootstrap join discovery.
+		// per docs/adr/0149-compiler-provenance-and-security-patches.md:76
+		Expect(negativeTotal).To(Equal(3444))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3350))
+		Expect(allTotal).To(Equal(3444))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -676,7 +678,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0140-go-source-loop-and-python-retirement.md:70
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
-		expectedCounts := map[string]int{"base": 2999, "installation": 101, "release-handoff": 63, "initialized-ci": 6, "historical-recipe": 19, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 3092, "installation": 101, "release-handoff": 63, "initialized-ci": 6, "historical-recipe": 20, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "initialized-ci", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -809,13 +811,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 })
 
 type sourceGateWorkflowStep struct {
-	ID   string            `yaml:"id"`
-	If   string            `yaml:"if"`
-	Name string            `yaml:"name"`
-	Uses string            `yaml:"uses"`
-	With map[string]any    `yaml:"with"`
-	Run  string            `yaml:"run"`
-	Env  map[string]string `yaml:"env"`
+	ID    string            `yaml:"id"`
+	If    string            `yaml:"if"`
+	Name  string            `yaml:"name"`
+	Uses  string            `yaml:"uses"`
+	With  map[string]any    `yaml:"with"`
+	Run   string            `yaml:"run"`
+	Shell string            `yaml:"shell"`
+	Env   map[string]string `yaml:"env"`
 }
 
 type sourceGateWorkflowJob struct {
@@ -846,6 +849,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
 	// per docs/adr/0135-go-source-review-entrypoints.md:78
 	// per docs/adr/0146-initialized-installed-ci.md:293
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:69
 	It("preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -888,7 +892,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 		original.Steps[0].Uses = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 		original.Steps[1].Uses = "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"
 		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
-		original.Steps[1].With["go-version"] = "1.27.3"
+		original.Steps[1].With["go-version"] = "1.27.4"
 		// per docs/adr/0101-go-release-handoff.md:606
 		original.Steps[1].With["cache-dependency-path"] = "go.sum\ntools/security/go.sum\n"
 		Expect(original.Steps[4].Name).To(Equal("Install pinned quality tools"))
@@ -921,17 +925,31 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			// per docs/adr/0101-go-release-handoff.md:597
 			extraSetup := 3
 			if identifier == "go-runtime-installation" {
-				extraSetup++
+				extraSetup += 3
 			}
 			Expect(job.Steps).To(HaveLen(len(original.Steps) + extraSetup))
 			cache, pathStep, install, artifact := sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}
 			moduleSetup, moduleIndex, runnerIndex := sourceGateWorkflowStep{}, -1, -1
+			historicalSetupIndex, historicalCaptureIndex, currentSetupIndex := -1, -1, -1
+			historicalCapture := sourceGateWorkflowStep{}
 			normalized := []sourceGateWorkflowStep{}
 			for index, step := range job.Steps {
 				if step.Name == original.Steps[len(original.Steps)-1].Name {
 					runnerIndex = index
 				}
 				switch {
+				// Historical compiler provenance is explicit and cannot replace the active compiler.
+				// per docs/adr/0149-compiler-provenance-and-security-patches.md:63
+				case step.Name == "Set up the historical fixture compiler":
+					Expect(identifier).To(Equal("go-runtime-installation"))
+					Expect(historicalSetupIndex).To(Equal(-1))
+					historicalSetupIndex = index
+					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Set up the historical fixture compiler", If: "matrix.group == 'historical-recipe'", Uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", With: map[string]any{"go-version": "1.27.3", "cache": false}, Env: map[string]string{"GOTOOLCHAIN": "local", "GOENV": "off"}}))
+				case step.Name == "Retain the historical fixture compiler path":
+					Expect(identifier).To(Equal("go-runtime-installation"))
+					Expect(historicalCaptureIndex).To(Equal(-1))
+					historicalCapture, historicalCaptureIndex = step, index
+					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Retain the historical fixture compiler path", If: "matrix.group == 'historical-recipe'", Shell: "bash", Run: "historical_go=\"$(command -v go)\"\ncase \"$historical_go\" in\n  /*) ;;\n  *) echo \"Historical Go compiler must have an absolute path\" >&2; exit 1 ;;\nesac\nprintf 'FACTORY_HISTORICAL_GO=%s\\n' \"$historical_go\" >> \"$GITHUB_ENV\"\n"}))
 				// per docs/adr/0135-go-source-review-entrypoints.md:81
 				case step.Name == "Provision locked modules for source workflow qualification":
 					Expect(moduleIndex).To(Equal(-1), "source module setup must occur exactly once")
@@ -948,6 +966,10 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					Expect(pathStep.Run).To(BeEmpty())
 					pathStep = step
 				default:
+					if strings.HasPrefix(step.Uses, "actions/setup-go@") {
+						Expect(currentSetupIndex).To(Equal(-1))
+						currentSetupIndex = index
+					}
 					if step.Name == "Install pinned quality tools" {
 						install = step
 						step.If, step.Env = "", nil
@@ -956,9 +978,33 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				}
 			}
 			if identifier == "go-runtime-installation" {
+				Expect(historicalSetupIndex).To(Equal(1), "capture the old compiler before current setup replaces PATH")
+				Expect(historicalCaptureIndex).To(Equal(historicalSetupIndex + 1))
+				Expect(currentSetupIndex).To(Equal(historicalCaptureIndex + 1))
+				for _, relative := range []bool{false, true} {
+					fixture := sourceGateMakeFixture()
+					envFile := filepath.Join(fixture.root, "github-env")
+					environment := []string{"GITHUB_ENV=" + envFile}
+					if relative {
+						environment = append(environment, "PATH=tools:/usr/bin:/bin")
+					}
+					status, calls, _ := sourceGateRun(fixture, historicalCapture.Run, environment)
+					Expect(calls).To(BeEmpty(), "path capture cannot execute the compiler or launch qualification")
+					if relative {
+						Expect(status).NotTo(BeZero())
+						_, err := os.Lstat(envFile)
+						Expect(os.IsNotExist(err)).To(BeTrue())
+					} else {
+						Expect(status).To(BeZero())
+						Expect(os.ReadFile(envFile)).To(Equal([]byte("FACTORY_HISTORICAL_GO=" + filepath.Join(fixture.root, "tools/go") + "\n")))
+					}
+				}
 				Expect(moduleIndex).To(BeNumerically(">", 1), "locked acquisition must follow the pinned compiler setup")
 				Expect(moduleIndex).To(BeNumerically("<", runnerIndex), "source fixtures need their complete module proxy before qualification")
 			} else {
+				Expect(historicalSetupIndex).To(Equal(-1))
+				Expect(historicalCaptureIndex).To(Equal(-1))
+				Expect(currentSetupIndex).To(Equal(1))
 				Expect(moduleIndex).To(Equal(-1), "non-source base qualification does not need extra module acquisition")
 			}
 			Expect(artifact.Uses).To(Equal("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"))
@@ -974,7 +1020,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			Expect(cache.If).To(BeEmpty())
 			Expect(cache.With).To(HaveLen(2), "no broad restore prefix may impersonate an exact qualified cache hit")
 			Expect(cache.With["path"]).To(Equal("${{ runner.temp }}/factory-quality-tools"))
-			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.3-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
+			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.4-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
 			Expect(pathStep.If).To(BeEmpty(), "PATH must be configured on cold and warm runs")
 			Expect(pathStep.Run).NotTo(BeEmpty())
 			Expect(install.If).To(Equal("steps.quality-tools.outputs.cache-hit != 'true'"))

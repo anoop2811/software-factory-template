@@ -233,7 +233,8 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 		case "source identity":
 			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte(revision), []byte(strings.Repeat("a", 40)))
 		case "source compiler":
-			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte("go1.27.3"), []byte("go1.26.0"))
+			// per docs/adr/0149-compiler-provenance-and-security-patches.md:37
+			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte("go1.27.3"), []byte("go1.27.3-custom"))
 		case "source version":
 			entries[2].body = bytes.ReplaceAll(entries[2].body, []byte(version), []byte("v9.9.9"))
 		case "source target":

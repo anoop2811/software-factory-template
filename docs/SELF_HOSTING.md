@@ -34,13 +34,32 @@ This tracked hook blocks direct pushes to main; it does not run the whole
 pre-push suite. The full command above and CI provide the broader checks.
 Client hooks can be disabled, so they do not replace GitHub branch protection.
 
+## Source qualification toolchains
+
+Current factory builds and source checks use Go 1.27.4. The historical-recipe
+partition also rebuilds immutable source with its original Go 1.27.3 compiler.
+Provide that separate executable through an absolute path:
+
+```sh
+export FACTORY_HISTORICAL_GO=/absolute/path/to/go1.27.3/bin/go
+make go-runtime-source-check GO_RUNTIME_TEST_GROUP=historical-recipe
+```
+
+Keep Go 1.27.4 first on `PATH` for the command above. The fixture checks the
+historical executable's version and the resulting binary's build information,
+with automatic toolchain switching disabled. A missing/wrong historical compiler
+fails with a diagnostic. GitHub Actions provisions both versions for that
+partition. The historical compiler is a development fixture requirement; current
+release artifacts use 1.27.4, and installed users require neither compiler.
+See [ADR 0149](adr/0149-compiler-provenance-and-security-patches.md).
+
 ## Qualification workers
 
 The factory source checks select Ginkgo workers from runner CPU and memory
 budgets, capped at four by default. Selection is logged, and JSON/JUnit artifacts
 retain the actual worker count and per-criterion timing. Installation stays
 serial; release handoff uses at most two workers. Initialized CI has its own
-partition and uses one worker for its four criteria sharing an ordered fixture.
+partition and uses one worker for initialization and migration-preview criteria.
 The private selection helper is not another installed factory command.
 
 ```sh

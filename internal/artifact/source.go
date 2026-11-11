@@ -1,6 +1,6 @@
 package artifact
 
-// SourceGoVersion binds source builds and staged metadata to the compiler
-// contract in docs/adr/0060-runtime-source-bundles.md:24, with the qualified
-// security-patch compiler in docs/DECISION_LOG.md:4529.
-const SourceGoVersion = "go1.27.3"
+// SourceGoVersion is the exact compiler required for newly produced bundles.
+// Reader provenance is independently validated instead of matching this pin.
+// docs/adr/0149-compiler-provenance-and-security-patches.md:23.
+const SourceGoVersion = "go1.27.4"

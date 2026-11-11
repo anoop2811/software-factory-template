@@ -76,6 +76,10 @@ older sets while retaining the immediately preceding usable installation.
 
 Read the [upgrade and recovery guide](docs/UPGRADING.md) for prerequisites,
 configuration/history preservation, retention exceptions and interrupted upgrades.
+For an earlier experimental Go installation, use the freshly downloaded installer
+for both preview and confirmation: its old reader may reject metadata from a newer
+compiler before handing off. The installer authenticates the new owner first;
+see [earlier Go candidates](docs/UPGRADING.md#earlier-experimental-go-installations).
 See the [CLI command reference](docs/CLI.md) for the commands available in each
 runtime. Ordinary Go `init` now authenticates its selected installed release or
 the prepared v0.2.0 source default. Until v0.2.0 is published, source-built callers

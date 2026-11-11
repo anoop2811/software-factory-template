@@ -23,6 +23,27 @@ You continue to use `./factory` in your project. Thin executable and sourceable
 adapters retain supported old paths for hooks and automation. Regular users do
 not need the separate maintainer staging/packaging tools. See [CLI.md](CLI.md).
 
+## Earlier experimental Go installations
+
+Use the freshly downloaded installer in steps 1 and 2 for both preview and
+confirmation. An older experimental Go executable can reject a newer bundle
+with a `go_version` source-metadata error before it can hand off to the new
+runtime. Its immutable reader cannot be repaired by changing the new release.
+
+The installer authenticates the selected release's raw bootstrap first, then
+that new owner reads its bundle and the supported predecessor. Current source
+keeps compiler provenance separate from requested artifact identity while
+retaining attestation, digest and exact inventory checks. This route requires no
+Go compiler or Python in the adopter project. Keep the exact same published tag
+and project inputs for preview and confirmation; never edit `source.json` or
+version markers to bypass a refusal.
+
+The v0.1.6 Bash migration already uses this authenticated installer route.
+An unknown/customized predecessor can still be a preserved blocker. These
+instructions do not make an unpublished release available or turn earlier
+experimental Go readers into direct-upgrade-compatible programs. See
+[the compiler compatibility contract](adr/0149-compiler-provenance-and-security-patches.md).
+
 ## Before upgrading
 
 - The Go replacement supports Ubuntu 24.04+ and macOS 15+, on amd64/arm64.

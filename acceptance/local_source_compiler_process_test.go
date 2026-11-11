@@ -47,7 +47,7 @@ func main(){
  }
  if stage==c.Stage&&c.Mode=="overflow"{
   switch stage{
-  case "version":fmt.Print("go version go1.27.3 fixture/fixture\n"+strings.Repeat(" ",64<<10));return
+  case "version":fmt.Print("go version go1.27.4 fixture/fixture\n"+strings.Repeat(" ",64<<10));return
   case "mod":if c.Stream=="stderr"{fmt.Print("{}\n");fmt.Fprint(os.Stderr,strings.Repeat("x",(64<<10)+1))}else{fmt.Print("{}\n"+strings.Repeat(" ",1<<20))};return
   case "build":fmt.Fprint(os.Stderr,strings.Repeat("x",(16<<20)+1))
   }

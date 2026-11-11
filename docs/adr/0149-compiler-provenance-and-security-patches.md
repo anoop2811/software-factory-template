@@ -197,3 +197,35 @@ Before implementation, the healthy old-compiler metadata controls passed while
 six current/future-provenance cases failed, and all three producer criteria
 failed against the old pin. The unchanged malformed/identity controls remain
 part of the passing reader matrix.
+
+## Hosted qualification follow-up
+
+PR #179 head `72515fb` passed the artifact, historical-recipe and other runtime
+partitions, but both source-entrypoint jobs panicked while decoding a language-pack
+workflow: `duplicated key 'shell' in struct acceptance_test.step`. Adding `Shell`
+to the shared workflow-step oracle collided with an existing inline wrapper's
+own `Shell` field. This is a test-model composition error, not invalid workflow
+YAML or a runtime/compiler failure.
+
+Keep one declaration for the YAML field and retain the existing distinction
+between absent shell configuration and an explicit shell override. Reproduce
+the actual structural-workflow criterion before correction, then rerun both its
+source-entrypoint partition and the compiler-workflow criteria that share the
+type. Keep all workflow execution, shell-absence and historical compiler wiring
+assertions; do not skip the criterion or relax its checks.
+
+The exact structural-workflow criterion reproduced the hosted duplicate-field
+panic locally before correction. After using one optional shared `Shell` field,
+the structural consumer and historical compiler workflow consumer passed together:
+
+```sh
+go test -race -count=1 -v -timeout=5m ./acceptance -ginkgo.focus='executes the actual structural steps from every language-pack workflow with a native runtime|Go source qualification workflow partition' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/security-prereq-evidence/structural-shell-workflow-green.json
+```
+
+```text
+Ran 2 of 3444 Specs in 91.099 seconds
+SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 3442 Skipped
+```
+
+This focused result is not a claim that the entire source-entrypoint partition
+or the corrected hosted head has passed. Both still require their own evidence.

@@ -295,14 +295,11 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 	})
 
 	// per docs/adr/0134-go-source-structural-evaluation.md:39
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:210
 	It("executes the actual structural steps from every language-pack workflow with a native runtime", func() {
 		root, environment := sourceStructuralNativeFixture()
 		type defaults struct {
 			Run map[string]any `yaml:"run"`
-		}
-		type step struct {
-			sourceGateWorkflowStep `yaml:",inline"`
-			Shell                  *string `yaml:"shell"`
 		}
 		for _, path := range []string{"packs/go/workflows/ci.yml", "packs/typescript/workflows/ci.yml", "packs/java/workflows/ci.yml", "packs/java/maven/workflows/ci.yml"} {
 			body, err := os.ReadFile(filepath.Join("..", path))
@@ -310,8 +307,8 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 			var workflow struct {
 				Defaults defaults `yaml:"defaults"`
 				Jobs     map[string]struct {
-					Defaults defaults `yaml:"defaults"`
-					Steps    []step   `yaml:"steps"`
+					Defaults defaults                 `yaml:"defaults"`
+					Steps    []sourceGateWorkflowStep `yaml:"steps"`
 				} `yaml:"jobs"`
 			}
 			Expect(yaml.Unmarshal(body, &workflow)).To(Succeed())
@@ -322,7 +319,7 @@ var _ = Describe("Go source runtime entrypoints structural evaluation adapter", 
 					if strings.Contains(step.Run, "harness-structural-eval.sh") {
 						Expect(job.Defaults.Run).NotTo(HaveKey("shell"))
 						Expect(step.Shell).To(BeNil())
-						selected = append(selected, step.sourceGateWorkflowStep)
+						selected = append(selected, step)
 					}
 				}
 			}

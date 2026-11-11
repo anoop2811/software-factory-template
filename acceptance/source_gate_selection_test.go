@@ -810,6 +810,8 @@ var _ = Describe("Go source qualification scheduling", func() {
 	}, Entry("unknown group", "unrecognized"), Entry("explicit empty group", ""))
 })
 
+// Preserve an absent shell separately from an explicit empty override.
+// per docs/adr/0149-compiler-provenance-and-security-patches.md:210
 type sourceGateWorkflowStep struct {
 	ID    string            `yaml:"id"`
 	If    string            `yaml:"if"`
@@ -817,7 +819,7 @@ type sourceGateWorkflowStep struct {
 	Uses  string            `yaml:"uses"`
 	With  map[string]any    `yaml:"with"`
 	Run   string            `yaml:"run"`
-	Shell string            `yaml:"shell"`
+	Shell *string           `yaml:"shell"`
 	Env   map[string]string `yaml:"env"`
 }
 
@@ -949,7 +951,8 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					Expect(identifier).To(Equal("go-runtime-installation"))
 					Expect(historicalCaptureIndex).To(Equal(-1))
 					historicalCapture, historicalCaptureIndex = step, index
-					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Retain the historical fixture compiler path", If: "matrix.group == 'historical-recipe'", Shell: "bash", Run: "historical_go=\"$(command -v go)\"\ncase \"$historical_go\" in\n  /*) ;;\n  *) echo \"Historical Go compiler must have an absolute path\" >&2; exit 1 ;;\nesac\nprintf 'FACTORY_HISTORICAL_GO=%s\\n' \"$historical_go\" >> \"$GITHUB_ENV\"\n"}))
+					shell := "bash"
+					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Retain the historical fixture compiler path", If: "matrix.group == 'historical-recipe'", Shell: &shell, Run: "historical_go=\"$(command -v go)\"\ncase \"$historical_go\" in\n  /*) ;;\n  *) echo \"Historical Go compiler must have an absolute path\" >&2; exit 1 ;;\nesac\nprintf 'FACTORY_HISTORICAL_GO=%s\\n' \"$historical_go\" >> \"$GITHUB_ENV\"\n"}))
 				// per docs/adr/0135-go-source-review-entrypoints.md:81
 				case step.Name == "Provision locked modules for source workflow qualification":
 					Expect(moduleIndex).To(Equal(-1), "source module setup must occur exactly once")

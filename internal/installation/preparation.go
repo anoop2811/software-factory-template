@@ -211,7 +211,7 @@ func (owner *transaction) backup(ctx context.Context) error {
 			return conflict("installation before-image was not saved exactly")
 		}
 	}
-	manifest := backupManifest{1, "installation-before-images", operationID(owner.request), owner.request.Profile, owner.record.Entries}
+	manifest := backupManifest{SchemaVersion: 1, Kind: "installation-before-images", MigrationID: operationID(owner.request), Profile: owner.request.Profile, Entries: owner.record.Entries, CIWorkflow: owner.record.CIWorkflow}
 	if err := writeRecord(ctx, owner.tree, base+"/installation.manifest", manifest, nil); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package installation
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"unicode/utf8"
 
@@ -19,7 +20,7 @@ type ciPreviewInputs struct {
 // docs/adr/0147-installed-ci-migration-preview.md:81.
 func ciReadInputs(ctx context.Context, data []byte, overrides map[string]string) (ciPreviewInputs, error) {
 	result := ciPreviewInputs{values: map[string]string{}, packs: map[string]bool{}}
-	keys := map[string]string{"project_display_name": "PROJECT_NAME", "project_name": "PROJECT_SLUG", "github_owner": "GITHUB_OWNER", "opencode_username": "OPENCODE_USERNAME", "protected_paths": "PROTECTED_PATH", "docs_root": "DOCS_ROOT", "citation_prefix": "CITATION_PREFIX", "language_packs": "PACKS", "go_version": "GO_VERSION", "node_version": "NODE_VERSION", "java_version": "JAVA_VERSION", "java_build_tool": "JAVA_BUILD_TOOL"}
+
 	if !utf8.Valid(data) || strings.ContainsRune(string(data), 0) {
 		return result, conflict("factory.yaml has invalid Unicode or NUL bytes")
 	}
@@ -30,7 +31,7 @@ func ciReadInputs(ctx context.Context, data []byte, overrides map[string]string)
 		}
 		key, raw, found := strings.Cut(line, ":")
 		selected := strings.TrimSpace(key)
-		if !found || keys[selected] == "" {
+		if !found || ciInputKeys[selected] == "" {
 			continue
 		}
 		if key != selected || seen[key] || !ciFlatScalar(raw) {
@@ -38,7 +39,7 @@ func ciReadInputs(ctx context.Context, data []byte, overrides map[string]string)
 		}
 		seen[key] = true
 	}
-	for key, input := range keys {
+	for key, input := range ciInputKeys {
 		if !seen[key] {
 			continue
 		}
@@ -50,6 +51,44 @@ func ciReadInputs(ctx context.Context, data []byte, overrides map[string]string)
 	}
 	if !seen["language_packs"] || !seen["protected_paths"] {
 		return result, conflict("factory.yaml lacks explicit language-pack or protected-path settings")
+	}
+	var err error
+	result, err = ciInputsFromValues(ctx, result.values)
+	if err != nil {
+		return result, err
+	}
+	// Only the existing generic input contract can override configuration data.
+	for _, key := range []string{"PROJECT_NAME", "PROJECT_SLUG", "GITHUB_OWNER", "OPENCODE_USERNAME", "PROTECTED_PATH", "DOCS_ROOT", "CITATION_PREFIX"} {
+		if value, ok := overrides[key]; ok {
+			if len(value) > 64<<10 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+				return result, conflict("invalid explicit project input")
+			}
+			result.values[key] = value
+		}
+	}
+	return result, ctx.Err()
+}
+
+var ciInputKeys = map[string]string{"project_display_name": "PROJECT_NAME", "project_name": "PROJECT_SLUG", "github_owner": "GITHUB_OWNER", "opencode_username": "OPENCODE_USERNAME", "protected_paths": "PROTECTED_PATH", "docs_root": "DOCS_ROOT", "citation_prefix": "CITATION_PREFIX", "language_packs": "PACKS", "go_version": "GO_VERSION", "node_version": "NODE_VERSION", "java_version": "JAVA_VERSION", "java_build_tool": "JAVA_BUILD_TOOL"}
+
+// The same semantic grammar qualifies live observations and retained input evidence.
+// docs/adr/0148-transactional-installed-ci-migration.md:75.
+func ciInputsFromValues(ctx context.Context, values map[string]string) (ciPreviewInputs, error) {
+	result := ciPreviewInputs{values: maps.Clone(values), packs: map[string]bool{}}
+	allowed := map[string]bool{}
+	for _, key := range ciInputKeys {
+		allowed[key] = true
+	}
+	for key, value := range values {
+		if !allowed[key] || len(value) > 64<<10 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+			return result, conflict("invalid CI projection input")
+		}
+	}
+	if _, ok := values["PACKS"]; !ok {
+		return result, conflict("missing CI pack selection")
+	}
+	if _, ok := values["PROTECTED_PATH"]; !ok {
+		return result, conflict("missing CI protected path")
 	}
 	for _, pack := range strings.Fields(result.values["PACKS"]) {
 		if pack != "go" && pack != "typescript" && pack != "java" || result.packs[pack] {
@@ -81,15 +120,6 @@ func ciReadInputs(ctx context.Context, data []byte, overrides map[string]string)
 	}
 	if protected != "" {
 		result.application.MutationDirectory = "./" + protected
-	}
-	// Only the existing generic input contract can override configuration data.
-	for _, key := range []string{"PROJECT_NAME", "PROJECT_SLUG", "GITHUB_OWNER", "OPENCODE_USERNAME", "PROTECTED_PATH", "DOCS_ROOT", "CITATION_PREFIX"} {
-		if value, ok := overrides[key]; ok {
-			if len(value) > 64<<10 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
-				return result, conflict("invalid explicit project input")
-			}
-			result.values[key] = value
-		}
 	}
 	return result, ctx.Err()
 }

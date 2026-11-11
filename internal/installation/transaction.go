@@ -244,6 +244,9 @@ func (capability *Capability) Complete(ctx context.Context) error {
 		return errors.New("installation capability already completed or closed")
 	}
 	if owner.idempotent {
+		if err := owner.validateCIResult(ctx); err != nil {
+			return err
+		}
 		owner.completed = true
 		return owner.check(ctx)
 	}
@@ -262,13 +265,13 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	reverse := owner.request.Rollback != "" || owner.request.Direction == "reverse"
 	if owner.request.Rollback == "" && owner.request.Recover == "" {
 		entries := make([]journalEntry, 0, len(owner.planned.proposal.Actions))
-		recipe := rolesForImage(owner.planned.image)
+		recipe := transactionRecipe(owner.planned.image, owner.planned.ci)
 		for _, action := range owner.planned.proposal.Actions {
 			if rolePath(recipe, action.Path) {
 				entries = append(entries, journalEntry{Path: action.Path, Action: action.Action, Phase: "prepared", Before: action.Before, ExpectedAfter: action.After})
 			}
 		}
-		owner.record = journal{SchemaVersion: 1, Kind: "installation-transaction", MigrationID: operationID(owner.request), Purpose: "upgrade", Direction: "forward", Phase: "prepared", Profile: owner.request.Profile, Target: owner.request.Source.Target, PlanDigest: owner.request.Confirmation, Entries: entries, Checks: []checkRecord{}, Outcome: "pending"}
+		owner.record = journal{CIWorkflow: owner.planned.ci, SchemaVersion: 1, Kind: "installation-transaction", MigrationID: operationID(owner.request), Purpose: "upgrade", Direction: "forward", Phase: "prepared", Profile: owner.request.Profile, Target: owner.request.Source.Target, PlanDigest: owner.request.Confirmation, Entries: entries, Checks: []checkRecord{}, Outcome: "pending"}
 	}
 	if err := owner.preflightCandidate(ctx, reverse); err != nil {
 		cleanupErr := owner.discardPreparation(context.WithoutCancel(ctx))
@@ -366,6 +369,11 @@ func (capability *Capability) Complete(ctx context.Context) error {
 			return err
 		}
 	}
+	if reverse {
+		if err := owner.validateCIResult(ctx); err != nil {
+			return err
+		}
+	}
 	owner.record.Phase = "metadata_prepared"
 	if err := owner.save(ctx); err != nil {
 		return err
@@ -384,6 +392,9 @@ func (capability *Capability) Complete(ctx context.Context) error {
 		if _, err := installedlayout.Validate(ctx, owner.tree, nil); err != nil {
 			return err
 		}
+	}
+	if err := owner.validateCIResult(ctx); err != nil {
+		return err
 	}
 	owner.record.Phase = "committed"
 	owner.record.Outcome = "completed"
@@ -504,6 +515,9 @@ func (owner *transaction) check(ctx context.Context) error {
 		return err
 	}
 	if err := owner.guard.Check(ctx); err != nil {
+		return err
+	}
+	if err := owner.checkCIConfig(ctx); err != nil {
 		return err
 	}
 	return owner.tree.Check(ctx)

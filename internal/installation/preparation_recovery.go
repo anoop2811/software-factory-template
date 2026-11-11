@@ -70,13 +70,13 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 	if request.Recover == "" || !preparationOnly(record) {
 		return result, conflict("installation is not unchanged preparation")
 	}
-	result = plan{image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
+	result = plan{ci: record.CIWorkflow, image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
 	result.reference = reference
 	if request.Source.Local {
 		result.proposal.Authentication = "local-source"
 	}
-	recipe := rolesForImage(image)
-	if !matchesRoleEntries(record.Entries, recipe) {
+	recipe := transactionRecipe(image, record.CIWorkflow)
+	if !matchesTransactionEntries(record.Entries, rolesForImage(image), record.CIWorkflow) {
 		return result, conflict("preparation journal omits complete selection")
 	}
 	for _, row := range recipe {
@@ -139,7 +139,8 @@ func buildPreparationPlan(ctx context.Context, root string, request Request, rec
 		Inputs                 map[string]string
 		Entries                []Action
 		State                  []stateObservation
-	}{root, request.Source, request.Before, image.ArchiveSHA256, reference.ArchiveSHA256, request.Profile, record.MigrationID, request.Direction, request.Inputs, result.proposal.Actions, state})
+		CIWorkflow             *ciWorkflowContext `json:",omitempty"`
+	}{root, request.Source, request.Before, image.ArchiveSHA256, reference.ArchiveSHA256, request.Profile, record.MigrationID, request.Direction, request.Inputs, result.proposal.Actions, state, record.CIWorkflow})
 	if err != nil {
 		return result, err
 	}

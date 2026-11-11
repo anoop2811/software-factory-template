@@ -23,6 +23,7 @@ import (
 var referenceData embed.FS
 
 type baseline struct {
+	CI            map[string][][]byte       `json:"-"`
 	Profile       string                    `json:"profile"`
 	Revision      string                    `json:"revision"`
 	Catalog       []installationimage.Asset `json:"catalog"`
@@ -63,6 +64,13 @@ func predecessor(ctx context.Context, request Request, after staging.Inspection)
 }
 
 func (reference baseline) expected(ctx context.Context, path string, inputs map[string]string) (*Image, []byte, bool, error) {
+	if reference.CI != nil && ciWorkflowPath(path) {
+		candidates := reference.CI[path]
+		if len(candidates) == 0 {
+			return nil, nil, false, ctx.Err()
+		}
+		return bytesImage(candidates[0], 0644), candidates[0], true, ctx.Err()
+	}
 	if reference.Expected != nil {
 		image, known := reference.Expected[path]
 		return image, reference.Blobs[path], known, ctx.Err()
@@ -78,6 +86,10 @@ func (reference baseline) expected(ctx context.Context, path string, inputs map[
 // marker spellings. Marker matching alone never establishes profile ownership.
 // docs/adr/0101-go-release-handoff.md:465.
 func (reference baseline) matching(ctx context.Context, path string, observed *Image, inputs map[string]string) (*Image, bool, error) {
+	if reference.CI != nil && ciWorkflowPath(path) {
+		expected, matched := ciExpectedBefore(ciWorkflowHistory{bytes: reference.CI}, path, observed)
+		return expected, matched, ctx.Err()
+	}
 	expected, _, known, err := reference.expected(ctx, path, inputs)
 	if err != nil || !known {
 		return expected, false, err

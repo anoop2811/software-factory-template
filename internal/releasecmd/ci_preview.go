@@ -7,11 +7,15 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installation"
 )
 
-// Keep informational CI conflicts separate from installation confirmation advice.
-// docs/adr/0147-installed-ci-migration-preview.md:35.
+// Show whether the release owner included CI in installation confirmation.
+// docs/adr/0148-transactional-installed-ci-migration.md:39.
 func ciWorkflowReport(report installation.CIWorkflowPreview) string {
 	var text strings.Builder
-	text.WriteString("\nCI workflow preview (read-only; apply unsupported)\n")
+	if report.ApplySupported {
+		text.WriteString("\nCI workflow migration (included in installation confirmation)\n")
+	} else {
+		text.WriteString("\nCI workflow preview (read-only; apply unsupported)\n")
+	}
 	text.WriteString(report.Reason + "\n")
 	for _, change := range report.Changes {
 		fmt.Fprintf(&text, "  %s %s: %s\n", change.Disposition, change.Path, change.Reason)

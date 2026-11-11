@@ -28,12 +28,20 @@ type defaultInitFixtures struct {
 	invoker                           handoffReleaseImage
 	source, revision, cache, packager string
 	images                            map[string]defaultInitImage
+	initializerWitness                bool
 }
 
 // A selected-only message witnesses the actual initializer owner, while the
 // invoking public binary was compiled before this fixture commit.
 // per docs/adr/0118-default-packaged-go-initialization.md:15
 func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
+	return prepareDefaultInitWithWitness(true, patches...)
+}
+
+// Upgrade fixtures have independent planner/apply witnesses and must preserve
+// the immutable initializer recipe used to recognize historical CI output.
+// per docs/adr/0148-transactional-installed-ci-migration.md:150
+func prepareDefaultInitWithWitness(initializerWitness bool, patches ...func(string) []string) *defaultInitFixtures {
 	GinkgoHelper()
 	image := handoffBuildImage()
 	Expect(string(image.binary)).NotTo(ContainSubstring(defaultInitMarker))
@@ -44,18 +52,21 @@ func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
 	imageGit(source, "fetch", "--quiet", "--no-tags", repository, "b71ecc32e07ecd87eb330ba8e497c86612f92acd", "76952eaa63aebd1ecd282f5ab51dd7c3627cb497")
-	path := filepath.Join(source, "internal/initcmd/command.go")
-	data, err := os.ReadFile(path)
-	Expect(err).NotTo(HaveOccurred())
-	// Bind the witness to successful setup, not an earlier eligibility notice.
-	// per docs/adr/0146-initialized-installed-ci.md:263
-	const successPrefix = "func setupMessage(ctx context.Context, stdout io.Writer, o options, v map[string]string) error {\n\tmessage := \""
-	const successAnchor = successPrefix + "factory-init:"
-	Expect(strings.Count(string(data), successAnchor)).To(Equal(1), "selected-runtime fixture requires one successful setup-message anchor")
-	changed := strings.Replace(string(data), successAnchor, successPrefix+defaultInitMarker+`\nfactory-init:`, 1)
-	Expect(changed).NotTo(Equal(string(data)))
-	writeFixture(path, []byte(changed), 0644)
-	changedFiles := []string{"internal/initcmd/command.go"}
+	changedFiles := []string{}
+	if initializerWitness {
+		path := filepath.Join(source, "internal/initcmd/command.go")
+		data, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		// Bind the witness to successful setup, not an earlier eligibility notice.
+		// per docs/adr/0146-initialized-installed-ci.md:263
+		const successPrefix = "func setupMessage(ctx context.Context, stdout io.Writer, o options, v map[string]string) error {\n\tmessage := \""
+		const successAnchor = successPrefix + "factory-init:"
+		Expect(strings.Count(string(data), successAnchor)).To(Equal(1), "selected-runtime fixture requires one successful setup-message anchor")
+		changed := strings.Replace(string(data), successAnchor, successPrefix+defaultInitMarker+`\nfactory-init:`, 1)
+		Expect(changed).NotTo(Equal(string(data)))
+		writeFixture(path, []byte(changed), 0644)
+		changedFiles = append(changedFiles, "internal/initcmd/command.go")
+	}
 	for _, patch := range patches {
 		changedFiles = append(changedFiles, patch(source)...)
 	}
@@ -66,7 +77,7 @@ func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 	Expect(os.Mkdir(cache, 0700)).To(Succeed())
 	cache, err = filepath.EvalSymlinks(cache)
 	Expect(err).NotTo(HaveOccurred())
-	f := &defaultInitFixtures{invoker: image, source: source, revision: revision, cache: cache, images: map[string]defaultInitImage{}}
+	f := &defaultInitFixtures{invoker: image, source: source, revision: revision, cache: cache, images: map[string]defaultInitImage{}, initializerWitness: initializerWitness}
 	f.image(defaultInitTag)
 	AddReportEntry("default-init.selected-source", map[string]string{"source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
 	return f
@@ -144,7 +155,11 @@ func (f *defaultInitFixtures) image(version string) defaultInitImage {
 		}
 	}
 	Expect(program).NotTo(BeEmpty())
-	Expect(string(program)).To(ContainSubstring(defaultInitMarker))
+	if f.initializerWitness {
+		Expect(string(program)).To(ContainSubstring(defaultInitMarker))
+	} else {
+		Expect(string(program)).NotTo(ContainSubstring(defaultInitMarker), "upgrade fixture preserves the initializer's closed source recipe")
+	}
 	image := defaultInitImage{result, program, archive}
 	f.images[version] = image
 	return image

@@ -76,13 +76,13 @@ func snapshotRetentionSet(ctx context.Context, tree *installationfs.Tree, id str
 		return result, conflict("backup manifest is unrecognized")
 	}
 	manifest := result.Manifest
-	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != id || manifest.Profile != result.Record.Profile || !knownRoleEntries(manifest.Entries) || len(result.Record.Entries) != len(manifest.Entries) {
+	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != id || manifest.Profile != result.Record.Profile || !knownTransactionEntries(manifest.Entries, manifest.CIWorkflow) || len(result.Record.Entries) != len(manifest.Entries) || !ciContextEqual(manifest.CIWorkflow, result.Record.CIWorkflow) {
 		return result, conflict("backup manifest is incomplete")
 	}
 	expected := map[string]bool{"installation.manifest": true}
 	seen := map[string]bool{}
 	for _, row := range manifest.Entries {
-		if seen[row.Path] || !selectedPath(row.Path) {
+		if seen[row.Path] || !selectedTransactionPath(row.Path, manifest.CIWorkflow) {
 			return result, conflict("backup has unrecognized or repeated roles")
 		}
 		seen[row.Path] = true

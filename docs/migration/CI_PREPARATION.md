@@ -10,9 +10,10 @@ The native `ci prepare` command and its installer entrypoint are being qualified
 for the replacement release. They are unavailable in v0.1.6 and in earlier
 candidates that lack the command. Current Go source also provides the explicit
 workflow renderer below. Current authenticated initialization adds the ordinary
-workflow described next; reconciliation of existing installations remains
-[release-readiness work](GO_RELEASE_READINESS.md). The preparation and rendering
-commands themselves do not install or rewrite workflow files.
+workflow described next; eligible authenticated upgrades integrate existing
+workflow migration with installation backup and recovery. Integrated hosted
+rehearsal remains [release-readiness work](GO_RELEASE_READINESS.md). The preparation
+and rendering commands themselves do not install or rewrite workflow files.
 
 ## CI created by current initialization
 
@@ -43,8 +44,8 @@ reviewed deliberately. It does not rename or remove older jobs on your behalf.
 Explicit `--local` initialization cannot supply an authenticated downloadable
 release. It preserves existing workflows, omits the new ordinary factory job,
 and reports that hosted CI needs an authenticated release. The separate opt-in
-review lane's installed bootstrap and preservation-aware upgrade of existing CI
-are still pending; this ordinary job does not qualify those paths.
+review lane's installed bootstrap is still pending; this ordinary job does not
+qualify that separate path.
 
 ## Render a workflow for review
 
@@ -99,14 +100,21 @@ renderer writes only stdout and has no overwrite option. Inspect existing jobs
 before adoption. The older generic template calls development-only scripts, and
 each pack job that invokes installed factory commands needs its own preparation.
 Adding this workflow alongside obsolete jobs will not make those jobs pass.
-Preservation-aware existing-workflow integration remains pending; retain project-specific
-setup, checks and policy when reviewing changes to existing workflows.
+Retain project-specific setup, checks and policy when reviewing changes to existing
+workflows. For a supported factory installation, use the ordinary upgrade preview
+and confirmation flow described in [UPGRADING.md](../UPGRADING.md).
 
-Decision 163 adds read-only workflow ownership planning to the existing upgrade
-preview. Its `ci_workflow` report distinguishes recognized copies from preserved
-customizations and unsafe paths. `apply_supported: false` is deliberate: runtime
-upgrade confirmation does not apply this workflow advice. See the
-[migration preview contract](../adr/0147-installed-ci-migration-preview.md).
+Decision 164 extends the existing `ci_workflow` ownership report into the shared
+installation transaction. Eligible authenticated previews report
+`apply_supported: true`; confirmation then includes the exact proposed workflow
+changes. Exact owned old jobs retire, and the new factory job uses the selected
+release. Customized or unsafe known-path occupants block the automatic transaction
+and remain unchanged. Unrelated workflows are outside the migration selection.
+Original bytes are stored inertly in the existing ignored recovery set and follow
+its rollback, interrupted-recovery and later-release retention rules. Local or
+ineligible releases retain explicit unavailability instead of inventing a
+downloadable CI release. See the
+[transactional migration contract](../adr/0148-transactional-installed-ci-migration.md).
 
 Use `./factory ci workflow --help` for the selector contract. The shell installer
 supports `ci prepare`, not workflow rendering. Older published candidates and

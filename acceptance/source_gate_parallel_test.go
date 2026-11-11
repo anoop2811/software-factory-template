@@ -350,36 +350,43 @@ func sourceGateHandoffPriorityProof() {
 		Expect(paths).To(HaveLen(8))
 		_, _ = fmt.Fprintf(GinkgoWriter, "real two-worker coarse priority proof: PIDs=%v selected=%d output=%q\n", pids, selected, output)
 	}
-	// The initialized and migration preview fixtures are separate Ordered groups. Inspect their actual identities
+	// The initialized, migration preview and transaction fixtures are separate Ordered groups. Inspect their actual identities
 	// independently; keep the four-group scheduling oracle above unchanged.
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0147-installed-ci-migration-preview.md:113
-	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=initialized-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
-	Expect(status).To(Equal(0))
-	tests = sourceGateTests(calls)
-	// The recording fixture accumulates prior commands; retain the new call only.
-	Expect(tests).To(HaveLen(2))
-	tests = tests[1:]
-	sourceGateAssertPartition(tests[0], "initialized-ci")
-	jsonPath = filepath.Join(reportsDir, "initialized-ci.json")
-	Expect(os.Remove(metadataPath)).To(Succeed())
-	output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
-	Expect(err).NotTo(HaveOccurred(), "real initialized CI group metadata: %s", output)
-	metadata := readMetadata()
-	Expect(metadata).To(HaveLen(6))
-	actual, expected := []string{}, []string{}
-	for _, name := range sourceGateInitializedCINames {
-		expected = append(expected, "Whole installation upgrade release candidate handoff initialized CI "+name)
+	// per docs/adr/0148-transactional-installed-ci-migration.md:256
+	for index, group := range []string{"initialized-ci", "ci-migration"} {
+		status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + group, "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
+		Expect(status).To(Equal(0))
+		tests = sourceGateTests(calls)
+		// The recording fixture accumulates prior commands; retain the new call only.
+		Expect(tests).To(HaveLen(index + 2))
+		tests = tests[len(tests)-1:]
+		sourceGateAssertPartition(tests[0], group)
+		jsonPath = filepath.Join(reportsDir, group+".json")
+		Expect(os.Remove(metadataPath)).To(Succeed())
+		output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
+		Expect(err).NotTo(HaveOccurred(), "real %s group metadata: %s", group, output)
+		names := sourceGateInitializedCINames
+		if group == "ci-migration" {
+			names = sourceGateCIMigrationNames
+		}
+		metadata := readMetadata()
+		Expect(metadata).To(HaveLen(len(names)))
+		actual, expected := []string{}, []string{}
+		for _, name := range names {
+			expected = append(expected, "Whole installation upgrade release candidate handoff initialized CI "+name)
+		}
+		for _, spec := range metadata {
+			Expect(spec.Ordered).To(BeTrue(), "CI fixture ownership: %s", spec.Text)
+			Expect(spec.Priority).To(Equal(2), "CI fixture priority: %s", spec.Text)
+			Expect(spec.Labels).To(ContainElement("handoff-init-ci-project"))
+			actual = append(actual, spec.Text)
+		}
+		Expect(actual).To(ConsistOf(expected))
+		Expect(readReport().SuiteSucceeded).To(BeTrue())
+		_, _ = fmt.Fprintf(GinkgoWriter, "actual %s group metadata: ordered=true priority=2 exact%d=%q\n", group, len(names), actual)
 	}
-	for _, spec := range metadata {
-		Expect(spec.Ordered).To(BeTrue(), "initialized CI fixture ownership: %s", spec.Text)
-		Expect(spec.Priority).To(Equal(2), "initialized CI priority: %s", spec.Text)
-		Expect(spec.Labels).To(ContainElement("handoff-init-ci-project"))
-		actual = append(actual, spec.Text)
-	}
-	Expect(actual).To(ConsistOf(expected))
-	Expect(readReport().SuiteSucceeded).To(BeTrue())
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual initialized CI group metadata: ordered=true priority=2 exact6=%q\n", actual)
 }
 
 // per docs/adr/0102-parallel-go-qualification.md:23

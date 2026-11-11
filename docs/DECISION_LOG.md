@@ -8376,3 +8376,55 @@ qualify historical setup with its genuine Go 1.27.3 compiler. Already published
 experimental readers require the existing fresh authenticated installer route;
 new code cannot retroactively change their old metadata equality check. Stable
 v0.1.6 migration and public default activation remain separate release concerns.
+
+## Decision 164 (2026-11-11 UTC): transact installed CI migration
+
+PR #178 merged as `24712604cbe98dc2df087b73910141defb68f745`. Its head
+`440157803221cbd7ec660de5116dddb4f7dda57c` reached 34/34 successful hosted checks.
+The macOS default-upgrade job passed its unchanged-source second attempt after
+an installed wiki-lint proof timeout in the first attempt; this is not evidence
+of a permanent timeout correction. Adversarial run `42856588131` completed all
+18 files and 26 fragments in two batches in 1m41s. Findings received full-source
+verification and replies; no unresolved inline threads remained at merge.
+
+Adopt [ADR 0148](adr/0148-transactional-installed-ci-migration.md) before code.
+Include the finite workflow projection in the existing installation transaction
+and consent, with ignored inert before-images, interrupted recovery, rollback
+and later-release retention. Keep project workflows outside runtime admission
+and preserve frozen runtime recipes. Unknown/customized selected workflows block
+automatic combined migration; unrelated application workflows remain untouched.
+Independent RED precedes implementation. Review bootstrap and the integrated
+adopter rehearsal remain separate R4 boundaries.
+
+Decision 164 independent public RED: before production edits, the private race
+command `go test -race -count=1 -timeout=15m ./acceptance
+-ginkgo.focus="initialized CI migration transaction migrates exact legacy"
+-ginkgo.fail-on-empty -ginkgo.no-color` reached the authenticated preview and
+observed `apply_supported: false` where the new contract requires true. The
+retained report contains `Ran 1 of 3351 Specs in 107.263 seconds` and
+`FAIL! -- 0 Passed | 1 Failed | 0 Pending | 3350 Skipped`; package output is
+`108.935s`. This establishes the missing public integration before implementation;
+the remaining apply/recovery/retention assertions still require qualification.
+
+Decision 164 local qualification: all 83 installation and two presentation
+criteria passed under race instrumentation. Actual public migration, backup,
+rollback, forward/reverse interruption and retention behavior passed across
+focused runs. ADR 0148 records commands, failures, corrected evaluator assumptions
+and evidence limits. The original combined CI group exhausted its 25-minute
+allowance; split its fifteen migration criteria from the six existing initialized
+criteria with the same worker/time limits. Eleven actual scheduler/worker controls
+and the workflow-matrix criterion passed after an independent partition RED.
+Full split-group qualification remains pending. The fourteen existing upgrade
+criteria passed, but their later security scan found newly published
+`GO-2026-6859` in Go 1.27.3. Handle the corrected compiler and historical bundle
+compatibility as a separately bounded prerequisite; do not suppress the scan or
+claim the complete source gate passed.
+
+Decision 164 integration follow-up (2026-11-12 UTC): PR #179 merged as
+`64cd29f9e29a3f5bc3340b29877f41a2432d293f` after all 34 hosted checks passed.
+Resume the saved CI transaction on that security prerequisite. Keep the current
+Go 1.27.4 producer and truthful historical Go 1.27.3 fixtures. Provision the
+historical compiler for the new CI-migration partition as well as historical
+recipe qualification. Preserve both additions in the independent discovery
+census and rerun the transaction boundary on this combined source. Do not infer
+release readiness from the earlier Go 1.27.3 behavioral evidence.

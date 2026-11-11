@@ -95,7 +95,8 @@ jobs:
         # docs/adr/0122-default-packaged-go-upgrade.md:172.
         # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343.
         # docs/adr/0146-initialized-installed-ci.md:293.
-        group: [source-entrypoints, installation, release-handoff, initialized-ci, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
+        # docs/adr/0148-transactional-installed-ci-migration.md:256.
+        group: [source-entrypoints, installation, release-handoff, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30
@@ -108,8 +109,9 @@ jobs:
           # Differential acceptance executes the identified historical baseline.
           fetch-depth: 0
       # docs/adr/0149-compiler-provenance-and-security-patches.md:63.
+      # docs/adr/0148-transactional-installed-ci-migration.md:319.
       - name: Set up the historical fixture compiler
-        if: matrix.group == 'historical-recipe'
+        if: matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         env:
           GOTOOLCHAIN: local
@@ -118,7 +120,7 @@ jobs:
           go-version: '1.27.3'
           cache: false
       - name: Retain the historical fixture compiler path
-        if: matrix.group == 'historical-recipe'
+        if: matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'
         shell: bash
         run: |
           historical_go="$(command -v go)"

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/anoop2811/software-factory-template/internal/ciworkflow"
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/staging"
 	"github.com/anoop2811/software-factory-template/internal/transition"
@@ -14,6 +15,9 @@ import (
 )
 
 type Request struct {
+	// Only the acquired release owner supplies forward CI intent.
+	// docs/adr/0148-transactional-installed-ci-migration.md:24.
+	CIRelease                                                        *ciworkflow.Release
 	Source, Before                                                   staging.Options
 	Profile, MigrationID, Confirmation, Rollback, Recover, Direction string
 	Inputs                                                           map[string]string
@@ -52,23 +56,24 @@ type Issue struct {
 	Reason string `json:"reason"`
 }
 type Proposal struct {
-	SchemaVersion     int      `json:"schema_version"`
-	Mode              string   `json:"mode"`
-	Profile           string   `json:"profile"`
-	Target            string   `json:"target"`
-	Authentication    string   `json:"authentication"`
-	ProposalDigest    string   `json:"proposal_digest"`
-	Actions           []Action `json:"actions"`
-	Checks            []string `json:"checks"`
-	Conflicts         []Issue  `json:"conflicts"`
-	Blockers          []Issue  `json:"blockers"`
-	RollbackBlockers  []Issue  `json:"rollback_blockers"`
-	Applicable        bool     `json:"applicable"`
-	ChecksReady       bool     `json:"checks_ready"`
-	Success           bool     `json:"success"`
-	RollbackReady     bool     `json:"rollback_ready"`
-	RecoveryCommand   string   `json:"recovery_command,omitempty"`
-	RecoveryArguments []string `json:"recovery_arguments,omitempty"`
+	CIWorkflow        *CIWorkflowPreview `json:"ci_workflow,omitempty"`
+	SchemaVersion     int                `json:"schema_version"`
+	Mode              string             `json:"mode"`
+	Profile           string             `json:"profile"`
+	Target            string             `json:"target"`
+	Authentication    string             `json:"authentication"`
+	ProposalDigest    string             `json:"proposal_digest"`
+	Actions           []Action           `json:"actions"`
+	Checks            []string           `json:"checks"`
+	Conflicts         []Issue            `json:"conflicts"`
+	Blockers          []Issue            `json:"blockers"`
+	RollbackBlockers  []Issue            `json:"rollback_blockers"`
+	Applicable        bool               `json:"applicable"`
+	ChecksReady       bool               `json:"checks_ready"`
+	Success           bool               `json:"success"`
+	RollbackReady     bool               `json:"rollback_ready"`
+	RecoveryCommand   string             `json:"recovery_command,omitempty"`
+	RecoveryArguments []string           `json:"recovery_arguments,omitempty"`
 }
 type Failure struct {
 	Code   int

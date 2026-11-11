@@ -89,14 +89,16 @@ repeatable literal `--project-input KEY=VALUE`; use the same inputs on confirmat
 Do not change version markers, force ownership or delete custom files to clear a
 blocker. See [candidate handoff](migration/GO_CANDIDATE_HANDOFF.md).
 
-The current source includes an informational `ci_workflow` section for existing
-projects. It lists exact recognized old factory workflows and preserved conflicts
-at the five known workflow paths; unrelated application and review workflows are
-outside its scope. `apply_supported: false` means confirmation does not apply
-these CI changes. Runtime blockers and the existing confirmation digest retain
-their current meaning. Workflow backup, replacement and recovery remain a
-separate implementation step; adding a new job alone does not repair old jobs.
-See [the CI migration preview contract](adr/0147-installed-ci-migration-preview.md).
+Read the `ci_workflow` section too. For an eligible authenticated upgrade,
+`apply_supported: true` means the listed workflow changes participate in the
+same confirmation, backup and recovery transaction as the runtime. The upgrader
+recognizes only exact supported factory copies at five known workflow paths;
+unrelated application and review workflows are outside its selection. Customized
+or unsafe occupants at selected paths are preserved blockers. Review and reconcile
+those conflicts deliberately; adding a new job alone does not repair old jobs.
+Local or unsupported release previews explain why automatic authenticated CI
+migration is unavailable. See the
+[transactional CI migration contract](adr/0148-transactional-installed-ci-migration.md).
 
 ## 2. Confirm during a quiet maintenance window
 
@@ -116,6 +118,13 @@ it is preview-only. The engine independently reacquires and rechecks identities,
 project observations and backup state. Changes since preview require a new
 preview and confirmation. Validation and durable publication precede a successful
 activation result. There is no silent fallback to another release or script runtime.
+
+When the proposal includes CI migration, unchanged old factory jobs are retired
+and `.github/workflows/factory.yml` is created or refreshed for the selected
+release. Their original bytes join the same ignored recovery set. Changing a
+selected workflow or relevant configuration after preview requires fresh consent.
+Review and commit the resulting workflow diff yourself; the factory does not push
+it to your repository or enable a paid review lane.
 
 ## 3. Check the selected installation
 

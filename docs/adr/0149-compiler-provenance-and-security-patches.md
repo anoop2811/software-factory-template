@@ -229,3 +229,39 @@ SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 3442 Skipped
 
 This focused result is not a claim that the entire source-entrypoint partition
 or the corrected hosted head has passed. Both still require their own evidence.
+
+The corrected head's Linux source-entrypoint job passed. Its macOS counterpart
+passed 114 of 115 criteria and exposed a different mock-evaluator failure: the
+test tried to read `mock-current.json` before checking the command's exit status
+and diagnostics. Preserve all existing expected outcomes, but assert the process
+result before reading its artifacts so a refusal cannot be reported merely as
+a missing file. Keep scoring, oracle, baseline and ownership assertions intact.
+Investigate the underlying startup behavior with that evidence; do not substitute
+retries, omitted checks or an arbitrary deadline increase for a diagnosis.
+
+The diagnostic-only correction passed its focused criterion:
+
+```sh
+go test -race -count=1 -v -timeout=2m ./acceptance -ginkgo.focus='scores pass, fail and oracle tampering through the converted mock adapter' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/security-prereq-evidence/mock-status-diagnostic.json
+```
+
+```text
+Ran 1 of 3444 Specs in 3.943 seconds
+SUCCESS! -- 1 Passed | 0 Failed | 0 Pending | 3443 Skipped
+```
+
+`golangci-lint run --config packs/go/.golangci.yml ./...` also exited 0 with
+`0 issues.`. Neither result establishes a production-runtime correction.
+
+Local full-group attempts remain nonpassing evidence: two four-worker runs
+reported startup-readiness failures. A subsequent two-worker run passed 114 of
+115 criteria, but its failed cold-source readiness observation crossed a recorded
+322-second host Idle Sleep, from 2026-11-11 12:19:11 to 12:24:33 -0700. That run
+cannot establish a clean qualification result. The sleep observation does not
+explain the earlier four-worker failures or the hosted macOS mock failure.
+
+The corrected hosted head also failed its macOS release-handoff job. Its detailed
+report is still required to identify the cause; elapsed job time alone is not a
+diagnosis. Keep these open outcomes separate from the resolved YAML panic and
+the passing focused diagnostic check. No production deadline, retry policy or
+hosted worker limit is changed by this follow-up.

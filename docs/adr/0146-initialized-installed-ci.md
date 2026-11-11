@@ -1,6 +1,6 @@
 # ADR 0146: initialize ordinary CI for the installed Go factory
 
-Status: implemented; independent integration, ordering and scheduler criteria pass locally. Hosted qualification is tracked in the PR.
+Status: merged in PR #177; all 34 final-head hosted checks passed.
 Decision: 162. Continues R4 after merged PR #176.
 
 ## Boundary

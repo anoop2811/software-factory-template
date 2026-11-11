@@ -102,6 +102,12 @@ Adding this workflow alongside obsolete jobs will not make those jobs pass.
 Preservation-aware existing-workflow integration remains pending; retain project-specific
 setup, checks and policy when reviewing changes to existing workflows.
 
+Decision 163 adds read-only workflow ownership planning to the existing upgrade
+preview. Its `ci_workflow` report distinguishes recognized copies from preserved
+customizations and unsafe paths. `apply_supported: false` is deliberate: runtime
+upgrade confirmation does not apply this workflow advice. See the
+[migration preview contract](../adr/0147-installed-ci-migration-preview.md).
+
 Use `./factory ci workflow --help` for the selector contract. The shell installer
 supports `ci prepare`, not workflow rendering. Older published candidates and
 v0.1.6 do not contain this new command.

@@ -68,6 +68,15 @@ repeatable literal `--project-input KEY=VALUE`; use the same inputs on confirmat
 Do not change version markers, force ownership or delete custom files to clear a
 blocker. See [candidate handoff](migration/GO_CANDIDATE_HANDOFF.md).
 
+The current source includes an informational `ci_workflow` section for existing
+projects. It lists exact recognized old factory workflows and preserved conflicts
+at the five known workflow paths; unrelated application and review workflows are
+outside its scope. `apply_supported: false` means confirmation does not apply
+these CI changes. Runtime blockers and the existing confirmation digest retain
+their current meaning. Workflow backup, replacement and recovery remain a
+separate implementation step; adding a new job alone does not repair old jobs.
+See [the CI migration preview contract](adr/0147-installed-ci-migration-preview.md).
+
 ## 2. Confirm during a quiet maintenance window
 
 Stop factory jobs, background harness work and other automation that can touch

@@ -8274,3 +8274,87 @@ removed-priority negative control. Configured lint reported `0 issues.`; source
 workflow actionlint and Make/shell syntax checks exited zero. No production
 behavior, child deadline, aggregate allowance or criterion was dropped for this
 partition correction. Both new hosted partitions still require final-head runs.
+
+## Decision 163 (2026-11-10 UTC): preview existing-project CI migration
+
+PR #177 merged as `8f2c6ae27f47a1ddbffc76cc10bdceffd424f2c4`. Its final
+reviewed head `c4739a298a9957f66bb21bb5f3f125e3d7ea223d` passed all 34 hosted
+checks; adversarial run `42762503831` covered 32/32 files and 82/82 fragments
+in two batches, with a 3m39s job duration. No unresolved inline threads remained.
+Copilot had exhausted its quota; no Copilot approval is claimed.
+
+Adopt [ADR 0147](adr/0147-installed-ci-migration-preview.md) before implementation.
+Extend ordinary upgrade preview with a clearly informational finite CI projection,
+recognizing exact independently qualified old workflow bytes and preserving
+customizations. Do not add these project files to runtime admission or CI
+preparation's control selection. The next bounded change will compose proven
+workflow rows into backup, activation, recovery and retention; this change alone
+does not apply CI migration or complete R4. Keep current consent and transactional
+semantics unchanged. Independent RED must precede production changes.
+
+Decision 163 independent public RED: with unchanged production, the actual
+authenticated ordinary preview returned status zero but lacked `ci_workflow`.
+The private race command `go test -race -count=1 -timeout=15m ./acceptance
+-ginkgo.focus="initialized CI migration preview adds a separate authenticated JSON"
+-ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.succinct` reported
+`Ran 1 of 3350 Specs in 97.991 seconds` and
+`FAIL! -- 0 Passed | 1 Failed | 0 Pending | 3349 Skipped`.
+Retain its JSON/log receipts before production implementation. The first attempt
+stopped on the fixture's unborn Git HEAD, before the feature assertion; that
+setup failure is not feature RED. The fixture now creates its baseline commit
+before observing unchanged HEAD/index/project state.
+
+Decision 163 independent scheduling qualification: actual discovery passed with
+3350 criteria, including six initialized-CI criteria and every previous identity.
+The race command focused on `executes disjoint feature partitions while retaining
+every source quality stage` reported package `78.968s`. The separate race command
+focused on `executes one and two actual workers with exact-once reports and
+propagates a real worker failure` reported package `36.369s`. Both used
+`go test -race -count=1 -timeout=10m ./acceptance -ginkgo.fail-on-empty
+-ginkgo.no-color` with retained JSON reports. The original removed-priority
+negative control remains intact. These receipts qualify the test registration,
+not the still-pending preview implementation.
+
+Decision 163 independent review found the same dot-path projection defect in
+both lenses: the reused general substitution helper normalizes a dot protected
+path, while each immutable Bash initializer preserves it in the mutation target.
+ADR 0147 records the exact distinction and separate regression/negative control.
+Keep frozen core projection behavior unchanged. Also keep current target settings
+separate from historical overrides, and report absent selection/path keys as
+unknown rather than inventing an empty configuration.
+
+Decision 163 final local qualification: 41 internal CI-preview criteria passed
+under race instrumentation (`10.376s`), both actual public-preview criteria passed
+(`123.188s`), and the affected existing ordinary-preview regression passed
+(`110.734s`). ADR 0147 records exact commands, outputs, retained reports and
+limitations. Repository-wide configured lint reported `0 issues.` and vet exited
+zero. Independent correctness/security verification and deterministic finding
+deduplication left no survivors. Transactional workflow migration is still a
+separate pending boundary; this informational report never enters consent or
+the installed-runtime descriptor. Hosted checks remain required on the PR head.
+
+Decision 163 hosted review at `631d706` completed 17/17 files, 25/25 fragments
+and 2/2 batches in 2m19s. Adopt ADR 0147's literal historical-renderer golden to
+strengthen the independent oracle. Verify other contextual/speculative findings
+against full source and actual qualification receipts before replying; review
+coverage alone is not approval. Copilot reported exhausted quota.
+
+Decision 163 review follow-up: add the actual immutable renderer's 6446-byte
+golden and a deliberate-byte negative control. Full-source verification also
+identified the missing historical flat-scalar roundtrip; its independent
+regression failed before the historical-only guard. Final internal qualification
+passed 42 criteria under race instrumentation (`13.049s`). ADR 0147 records
+capture provenance, exact commands and limits. Remaining contextual review
+claims were checked against full source; the public/scheduler behavior and its
+earlier passing receipts are unchanged. Reply on the PR after publishing this
+review correction; fresh hosted checks still belong to the new head.
+
+Decision 163 refreshed hosted review at `0f2c5b9` completed 18/18 files and
+26/26 fragments in two batches in 2m10s. Full-source verification retained two
+concrete findings: empty historical version values reached by substitution, and
+embedded apostrophes in generic flat scalars. Independent positive/negative
+controls failed before the minimal corrections. Final internal race qualification
+passed 44 criteria (`14.293s`), configured lint reported `0 issues.`, and vet
+exited zero. ADR 0147 records scope and evidence. Other contextual claims were
+refuted against callers, frozen sources and actual discovery; publish their
+verification summary in the PR discussion. Fresh hosted checks remain required.

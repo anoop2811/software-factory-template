@@ -350,9 +350,10 @@ func sourceGateHandoffPriorityProof() {
 		Expect(paths).To(HaveLen(8))
 		_, _ = fmt.Fprintf(GinkgoWriter, "real two-worker coarse priority proof: PIDs=%v selected=%d output=%q\n", pids, selected, output)
 	}
-	// The new partition is one real Ordered group. Inspect its actual identities
+	// The initialized and migration preview fixtures are separate Ordered groups. Inspect their actual identities
 	// independently; keep the four-group scheduling oracle above unchanged.
 	// per docs/adr/0146-initialized-installed-ci.md:293
+	// per docs/adr/0147-installed-ci-migration-preview.md:113
 	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=initialized-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
 	Expect(status).To(Equal(0))
 	tests = sourceGateTests(calls)
@@ -365,7 +366,7 @@ func sourceGateHandoffPriorityProof() {
 	output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
 	Expect(err).NotTo(HaveOccurred(), "real initialized CI group metadata: %s", output)
 	metadata := readMetadata()
-	Expect(metadata).To(HaveLen(4))
+	Expect(metadata).To(HaveLen(6))
 	actual, expected := []string{}, []string{}
 	for _, name := range sourceGateInitializedCINames {
 		expected = append(expected, "Whole installation upgrade release candidate handoff initialized CI "+name)
@@ -378,7 +379,7 @@ func sourceGateHandoffPriorityProof() {
 	}
 	Expect(actual).To(ConsistOf(expected))
 	Expect(readReport().SuiteSucceeded).To(BeTrue())
-	_, _ = fmt.Fprintf(GinkgoWriter, "actual initialized CI group metadata: ordered=true priority=2 exact4=%q\n", actual)
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual initialized CI group metadata: ordered=true priority=2 exact6=%q\n", actual)
 }
 
 // per docs/adr/0102-parallel-go-qualification.md:23

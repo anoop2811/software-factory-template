@@ -23,15 +23,15 @@ import (
 var referenceData embed.FS
 
 type baseline struct {
-	CI            map[string][][]byte       `json:"-"`
-	Profile       string                    `json:"profile"`
-	Revision      string                    `json:"revision"`
-	Catalog       []installationimage.Asset `json:"catalog"`
-	Blobs         map[string][]byte         `json:"blobs"`
-	Substituted   []string                  `json:"substituted"`
-	Expected      map[string]*Image         `json:"-"`
-	ArchiveSHA256 string                    `json:"-"`
-	Runtime       *staging.Inspection       `json:"-"`
+	CI            map[string][]ciWorkflowCandidate `json:"-"`
+	Profile       string                           `json:"profile"`
+	Revision      string                           `json:"revision"`
+	Catalog       []installationimage.Asset        `json:"catalog"`
+	Blobs         map[string][]byte                `json:"blobs"`
+	Substituted   []string                         `json:"substituted"`
+	Expected      map[string]*Image                `json:"-"`
+	ArchiveSHA256 string                           `json:"-"`
+	Runtime       *staging.Inspection              `json:"-"`
 }
 
 // A predecessor uses a closed supported generation recipe, never saved code.
@@ -69,7 +69,8 @@ func (reference baseline) expected(ctx context.Context, path string, inputs map[
 		if len(candidates) == 0 {
 			return nil, nil, false, ctx.Err()
 		}
-		return bytesImage(candidates[0], 0644), candidates[0], true, ctx.Err()
+		candidate := candidates[0]
+		return bytesImage(candidate.data, candidate.mode), candidate.data, true, ctx.Err()
 	}
 	if reference.Expected != nil {
 		image, known := reference.Expected[path]

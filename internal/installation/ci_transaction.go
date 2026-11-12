@@ -233,8 +233,8 @@ func ciExpectedBefore(history ciWorkflowHistory, path string, before *Image) (*I
 	if before == nil {
 		return nil, true
 	}
-	for _, data := range history.bytes[path] {
-		expected := bytesImage(data, 0644)
+	for _, candidate := range history.bytes[path] {
+		expected := bytesImage(candidate.data, candidate.mode)
 		if imageEqual(expected, before, false) {
 			return expected, true
 		}

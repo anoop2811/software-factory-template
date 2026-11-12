@@ -9,7 +9,6 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/staging"
 	"github.com/anoop2811/software-factory-template/internal/transition"
-	"golang.org/x/sys/unix"
 )
 
 // CIWorkflowPreview describes whether the caller has integrated CI into consent.
@@ -139,15 +138,18 @@ func inspectCIWorkflow(ctx context.Context, tree *installationfs.Tree, request R
 			}
 		case !ready:
 			row.Disposition, row.Reason = "preserve", "CI proposal unavailable because authenticated release or project inputs could not be qualified"
-		case actual.Mode != unix.S_IFREG|0644:
-			row.Disposition, row.Reason = "preserve", "Workflow mode differs from the qualified initializer mode"
 		default:
 			row.Disposition, row.Reason = "preserve", history.reason
 			if strings.HasSuffix(name, "-pack.yml") && !inputs.packs[strings.TrimSuffix(name, "-pack.yml")] {
 				row.Reason = "Pack workflow is present but the pack is not selected; preserve it"
 			}
-			for _, body := range history.bytes[path] {
-				if imageEqual(actual, bytesImage(body, 0644), false) {
+			for _, candidate := range history.bytes[path] {
+				expected := bytesImage(candidate.data, candidate.mode)
+				if actual.Mode != expected.Mode {
+					row.Reason = "Workflow mode differs from the qualified initializer mode"
+					continue
+				}
+				if imageEqual(actual, expected, false) {
 					row.Disposition, row.Reason = "retire", "Exact qualified copied workflow; proposed retirement only"
 					if name == "factory.yml" {
 						row.Disposition, row.Reason = "replace", "Exact frozen generated workflow; proposed authenticated target refresh only"

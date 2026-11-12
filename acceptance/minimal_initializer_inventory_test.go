@@ -382,12 +382,15 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:85
 	It("retains the older recovery when a preserved historical cache cannot prove the alternate usable", func() {
-		const oldest = "v9.7.0"
+		// Literal candidate tags retain authenticated release retention, while this
+		// historical renderer explicitly remains outside canonical CI support.
+		// per docs/adr/0148-transactional-installed-ci-migration.md:353
+		const oldest, middle, newest = "v9.7", "v9.8", "v9.9"
 		f, driver := handoffNativeFixture(consumer)
 		assets := f.environment["HANDOFF_ASSETS"]
-		for _, version := range []string{oldest, handoffVersion, retentionReleaseC} {
+		for _, version := range []string{oldest, middle, newest, handoffVersion} {
 			part := before
-			if version == retentionReleaseC {
+			if version == newest {
 				part = image
 			}
 			binary := consumer.binary
@@ -404,7 +407,7 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		gh, err := os.ReadFile(ghPath)
 		Expect(err).NotTo(HaveOccurred())
 		old := `  api) printf '%s\n' "$HANDOFF_REVISION" ;;`
-		replacement := `  api) case "$2" in *v9.7.0|*v9.8.0-rc.1) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
+		replacement := `  api) case "$2" in *v9.7|*v9.8|*v9.8.0-rc.1) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
 		rewritten := strings.Replace(string(gh), old, replacement, 1)
 		Expect(rewritten).NotTo(Equal(string(gh)))
 		writeFixture(ghPath, []byte(rewritten), 0700)
@@ -417,7 +420,22 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		Expect(initialized.status).To(Equal(0), "%+v", initialized)
 		Expect(minimalInitializerCacheFiles(root)).To(HaveLen(85))
 		scenario := retentionScenario{f, root}
-		scenario.advance(handoffVersion)
+		// The historical target still cannot claim a canonical CI renderer.
+		canonicalBefore := installationSnapshot(root)
+		canonical := ciMigrationProposal(handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json"), 2)
+		Expect(canonical["blockers"]).To(ContainElement(HaveKeyWithValue("reason", ContainSubstring("CI target renderer recipe is not qualified"))))
+		Expect(installationSnapshot(root)).To(Equal(canonicalBefore))
+		requireUnavailableCI := func(proposal map[string]any) {
+			GinkgoHelper()
+			ci, ok := proposal["ci_workflow"].(map[string]any)
+			Expect(ok).To(BeTrue())
+			Expect(ci["apply_supported"]).To(BeFalse())
+			Expect(ci["reason"]).To(ContainSubstring("noncanonical release tag"))
+		}
+		first := scenario.preview(middle)
+		requireUnavailableCI(first)
+		Expect(retentionPreviewReport(first).Advanced).To(BeTrue())
+		Expect(scenario.apply(middle, first).status).To(BeZero())
 		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(consumer.binary), "current code owns retention preview, apply and explicit pruning")
 		ids := retentionBackupIDs(root)
 		Expect(ids).To(HaveLen(1))
@@ -426,15 +444,16 @@ var _ = Describe("Supported predecessor recipe compatibility preserved historica
 		path := ".factory/assets/scaffold/scripts/lib/loop.py"
 		custom := []byte("unusable historical alternate must not authorize pruning\n")
 		writeFixture(filepath.Join(root, filepath.FromSlash(path)), custom, 0600)
-		preview := scenario.preview(retentionReleaseC)
+		preview := scenario.preview(newest)
+		requireUnavailableCI(preview)
 		report := retentionPreviewReport(preview)
 		Expect(retentionSet(report, older).Action).To(Equal("prune"), "first prove this is a genuinely eligible older recovery")
-		advanced := scenario.apply(retentionReleaseC, preview)
+		advanced := scenario.apply(newest, preview)
 		Expect(advanced.status).NotTo(Equal(0), "cleanup must report the unavailable alternate proof: %+v", advanced)
 		applied := retentionApplyReport(advanced)
 		Expect(applied.RemovedSets).To(BeZero())
 		Expect(retentionSet(applied, older).Reason).To(ContainSubstring("historical cache"))
-		Expect(minimalInventoryJSON(filepath.Join(root, ".factory/installation.current"))["version"]).To(Equal(retentionReleaseC), "the new installation is healthy; only cleanup is incomplete")
+		Expect(minimalInventoryJSON(filepath.Join(root, ".factory/installation.current"))["version"]).To(Equal(newest), "the new installation is healthy; only cleanup is incomplete")
 		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(consumer.binary), "the final pruning refusal must execute the current consumer")
 		current := installationSnapshot(root)
 		for path, value := range oldBackup {

@@ -151,7 +151,8 @@ var _ = Describe("Native Go report safety", func() {
 		root, cwd, environment := reportFixture()
 		bin := filepath.Join(cwd, "bin")
 		marker := filepath.Join(cwd, "git-pid")
-		writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/bash\nprintf '%s' \"$$\" > \"$REPORT_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
+		// per docs/adr/0148-transactional-installed-ci-migration.md:376
+		writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/bash\nset -eu\nprintf '%s' \"$$\" > \"$REPORT_PID_MARKER.pending\"\n/bin/mv \"$REPORT_PID_MARKER.pending\" \"$REPORT_PID_MARKER\"\nexec /bin/sleep 30\n"), 0700)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "report") // #nosec G204 -- compiled fixture.
 		command.Dir, command.Env = cwd, append(environment, "PATH="+bin, "REPORT_PID_MARKER="+marker)

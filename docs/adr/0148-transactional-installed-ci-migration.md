@@ -328,3 +328,103 @@ its existing 25-minute allowance. Requalify scheduling, workflow wiring,
 installation/release-owner internals and the complete public transaction group.
 Previous receipts remain historical evidence; record the current-source results
 separately before claiming this integration is qualified.
+
+## Historical workflow mode qualification
+
+The first hosted historical-recipe job on PR #180 head `9b962a3` passed eighteen
+of twenty criteria. Its two refusals exposed a real predecessor-mode gap:
+the immutable copied Go initializer retained mode 0600 from its private staged
+source assets, while CI ownership recognition assumed 0644 for every predecessor.
+The genuine installation and its clone both retain that mode; changing the test
+fixture to 0644 would conceal the migration defect.
+
+Qualify the expected historical mode together with its exact frozen initializer
+recipe and projected bytes. Authenticated copied Go initializers use 0600;
+qualified Bash copies and generated workflows use 0644. Carry that evidence
+through preview, transaction reconstruction, rollback and retention. Do not accept
+both modes indiscriminately, derive ownership from the live occupant, or relax
+unknown-recipe and mode-change conflicts. New generated target workflows remain
+0644 and saved backup files remain inert 0600.
+
+Independently reproduce the genuine copied-Go refusal, then require successful
+preview/application/reverse restoration with the original exact mode. Retain
+negative controls for changed modes and for every other initializer family.
+
+The historical-cache retention criterion also intentionally pairs the current
+consumer with an older target source recipe lacking the new CI renderer. Keep
+target-recipe authentication strict. Exercise that historical retention scenario
+through the existing authenticated candidate owner, retaining independently
+qualified images, release-based retention, the corrupted alternate proof and all
+no-deletion assertions. Use fixture-local abbreviated semantic versions
+`v9.7`, `v9.8`, and `v9.9`: acquisition authenticates those exact identities and
+retention orders them, while CI explicitly reports its existing noncanonical-tag
+boundary. Assert that unavailable-CI result. Also retain a canonical-tag negative
+control requiring the unsupported historical target recipe to refuse without
+mutation. This keeps the historical-image resolver required for the three-release
+retention proof. Do not skip the criterion, alter historical source bytes, or
+claim that a historical renderer gained new CI behavior.
+
+## Qualification fixture boundaries
+
+The ordinary installer identity witness must remain observable by its existing
+bootstrap criteria. Upgrade fixtures must use the exact historical workflow
+projection they claim; witness instrumentation cannot silently redefine those
+authenticated bytes. Keep these fixture purposes explicit at their shared owner.
+Current and evaluator-modified archive images must also have distinct file paths;
+assert each file still contains the exact bytes of the image it represents.
+
+The report cancellation criterion must observe a completely published process-ID
+record before parsing and signalling it. File creation alone is not a completed
+write handshake. Preserve the existing cancellation deadlines and process-exit
+assertions.
+
+## Earlier copied-Go initializer recipe
+
+The genuine predecessor regression exposed a second refusal after mode handling
+was corrected: the immutable initializer at
+`95486ecdd3868a319a0e6362ee99cafd8f154200` predates the copied-Go vector at
+`6b8f08c820c347a9c9d12c4afd00b3f7e6aca547`. The earlier generation has ten
+initializer production files; the later one has twelve, and five shared members
+have different bytes. Its workflow copy/substitution behavior remains equivalent;
+its original staging path also produces mode 0600.
+
+Qualify this predecessor with its own complete frozen source vector. Pass that
+vector through the existing exact hash, member-set and source-asset validation,
+then reuse the copied-workflow projection and its 0600 mode. Never make missing
+members optional, match only a subset, infer a generation from its release name,
+or accept an unknown initializer. Bind the oracle to the immutable Git objects;
+require changed, missing and unexpected member controls as well as successful
+public upgrade and reverse restoration from the actual predecessor initializer.
+
+Qualification receipts on 2026-11-12 UTC:
+
+- Before the historical corrections, the complete `make go-runtime-source-check
+  GO_RUNTIME_TEST_GROUP=ci-migration GO_RUNTIME_TEST_TIMEOUT=25m
+  GO_RUNTIME_TEST_PROCS=auto` gate reported `15 Passed | 0 Failed` in 842.239
+  seconds; its lint and security checks passed. Linux hosted migration also passed.
+- The mode correction's race run of `go test -race -count=1 -v -timeout=5m
+  ./internal/installation ./internal/releasecmd -ginkgo.fail-on-empty
+  -ginkgo.no-color` reported 83 installation and 2 release-command criteria passed.
+- The combined ten-criterion public regression reported `9 Passed | 1 Failed`
+  in 785.398 seconds. The sole failure was the earlier initializer recipe above;
+  it failed at read-only preview before the new apply/rollback assertions.
+- The expanded immutable copied-workflow oracle, run with `go test -race
+  -count=1 -v -timeout=3m ./internal/installation -ginkgo.focus='recognizes copied workflows
+  from the frozen pre-generated Go initializer recipe' -ginkgo.fail-on-empty
+  -ginkgo.no-color`, reported `0 Passed | 1 Failed` in 0.151 seconds before adding
+  that vector: expected `retire`, observed `preserve`.
+- With the complete earlier vector admitted through the strict matcher, the same
+  full internal race command reported `83 Passed | 0 Failed` in 29.659 seconds
+  and `2 Passed | 0 Failed` in 0.001 seconds.
+- The final genuine historical path ran with `go test -race -count=1 -v
+  -timeout=15m ./acceptance -ginkgo.focus='requires fresh authenticated installer
+  rebootstrap when the immutable predecessor rejects newer compiler provenance'
+  -ginkgo.fail-on-empty -ginkgo.no-color
+  -ginkgo.json-report=../.factory/ci-mode-evidence/historical-rebootstrap-green.json`
+  under command-scoped `caffeinate -i` and the explicit historical compiler.
+  It reported `1 Passed | 0 Failed | 3458 Skipped` in 109.018 seconds, including
+  forward application, inert backup, independent rollback and original mode/runtime
+  restoration with distinct archive identity assertions.
+
+These receipts do not claim final-head hosted qualification; that remains a
+separate gate after the completed correction.

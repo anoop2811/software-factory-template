@@ -88,7 +88,13 @@ func recipePrepare() recipeFixture {
 	for _, path := range recipeCurrentMembers {
 		after.archive = recipeSupplyMember(after.archive, path)
 	}
+	// Keep the clean current archive separate from the evaluator-only future image.
+	// per docs/adr/0148-transactional-installed-ci-migration.md:373
+	after.archivePath = filepath.Join(after.work, "evaluator-future-generation-image.tar.gz")
 	writeFixture(after.archivePath, after.archive, 0600)
+	Expect(after.archivePath).NotTo(Equal(current.archivePath))
+	Expect(os.ReadFile(current.archivePath)).To(Equal(current.archive))
+	Expect(os.ReadFile(after.archivePath)).To(Equal(after.archive))
 	return recipeFixture{before, after, prepared, rows, current}
 }
 
@@ -179,9 +185,17 @@ var _ = Describe("Supported predecessor recipe compatibility", Ordered, Continue
 	// per docs/adr/0149-compiler-provenance-and-security-patches.md:50
 	// per docs/adr/0149-compiler-provenance-and-security-patches.md:82
 	It("requires fresh authenticated installer rebootstrap when the immutable predecessor rejects newer compiler provenance", func() {
-		f, _ := handoffNativeFixture(fixture.current)
+		f, driver := handoffNativeFixture(fixture.current)
 		cloned := installationCloneLegacyFixture(fixture.current.binary, installationFixtureData{root: fixture.prepared})
 		root := cloned.root
+		// The real immutable initializer, not a repaired synthetic fixture, owns this mode.
+		// per docs/adr/0148-transactional-installed-ci-migration.md:349
+		copiedPath := filepath.Join(root, ".github/workflows/ci.yml")
+		copied, err := os.ReadFile(copiedPath)
+		Expect(err).NotTo(HaveOccurred())
+		info, err := os.Stat(copiedPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
 		for _, part := range []struct {
 			version string
 			image   handoffReleaseImage
@@ -202,18 +216,65 @@ var _ = Describe("Supported predecessor recipe compatibility", Ordered, Continue
 		Expect(strings.Count(string(provider), original)).To(Equal(1))
 		writeFixture(providerPath, []byte(strings.Replace(string(provider), original, replacement, 1)), 0700)
 		before := installationSnapshot(root)
-		args := []string{"upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json"}
-		for _, input := range []string{"PROJECT_NAME=Recipe Project", "PROJECT_SLUG=recipe-project", "GITHUB_OWNER=@example", "OPENCODE_USERNAME=recipe-user", "PROTECTED_PATH=internal", "DOCS_ROOT=docs", "CITATION_PREFIX="} {
+		args := []string{"upgrade", "--go-candidate", handoffVersion}
+		inputs := []string{"PROJECT_NAME=Recipe Project", "PROJECT_SLUG=recipe-project", "GITHUB_OWNER=@example", "OPENCODE_USERNAME=recipe-user", "PROTECTED_PATH=internal", "DOCS_ROOT=docs", "CITATION_PREFIX="}
+		for _, input := range inputs {
 			args = append(args, "--project-input", input)
 		}
-		old := handoffNativeProcess(root, f.environment, "", filepath.Join(root, ".factory/bin/factory-runtime"), args...)
+		previewArgs := append(append([]string{}, args...), "--dry-run", "--json")
+		old := handoffNativeProcess(root, f.environment, "", filepath.Join(root, ".factory/bin/factory-runtime"), previewArgs...)
 		Expect(old.status).NotTo(BeZero(), "the immutable old reader cannot gain compatibility retroactively: %+v", old)
 		Expect(old.stderr).To(ContainSubstring("go_version"))
 		Expect(installationSnapshot(root)).To(Equal(before))
-		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", "/bin/sh", append([]string{f.installer}, args...)...))
+		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", "/bin/sh", append([]string{f.installer}, previewArgs...)...))
 		Expect(proposal["proposal_digest"]).NotTo(BeEmpty())
 		Expect(proposal["conflicts"]).To(BeEmpty())
 		Expect(installationSnapshot(root)).To(Equal(before), "both refusal and the rebootstrap preview remain read-only")
+		rows := ciMigrationRows(ciMigrationReport(proposal))
+		Expect(rows[".github/workflows/ci.yml"]["disposition"]).To(Equal("retire"))
+		applied := handoffNativeProcess(root, f.environment, "", "/bin/sh", append(append([]string{f.installer}, args...), "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+		Expect(applied.status).To(BeZero(), "%+v", applied)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(fixture.current.binary))
+		_, err = os.Lstat(copiedPath)
+		Expect(os.IsNotExist(err)).To(BeTrue())
+		generatedPath := filepath.Join(root, ".github/workflows/factory.yml")
+		info, err = os.Stat(generatedPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0644)))
+		ids := retentionBackupIDs(root)
+		Expect(ids).To(HaveLen(1))
+		savedPath := filepath.Join(root, ".factory/backups", ids[0], "assets/.github/workflows/ci.yml")
+		Expect(os.ReadFile(savedPath)).To(Equal(copied))
+		info, err = os.Stat(savedPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+
+		// Independent authenticated archive operands must reconstruct the original mode.
+		// per docs/adr/0148-transactional-installed-ci-migration.md:349
+		roots := filepath.Join(f.root, "operator-trusted-roots.jsonl")
+		writeFixture(roots, []byte("independently obtained fixture roots\n"), 0600)
+		rollback := []string{"upgrade", "--installation", "--profile", "go-hybrid-v1", "--rollback", ids[0]}
+		for _, part := range []struct {
+			prefix, version string
+			image           handoffReleaseImage
+		}{{"", handoffVersion, fixture.current}, {"before-", recipeRC3Version, fixture.before}} {
+			rollback = append(rollback, "--"+part.prefix+"source", part.image.archivePath, "--"+part.prefix+"version", part.version, "--"+part.prefix+"revision", part.image.revision, "--"+part.prefix+"target", runtime.GOOS+"/"+runtime.GOARCH,
+				"--"+part.prefix+"attestation", filepath.Join(f.environment["HANDOFF_ASSETS"], "runtime-attestations.jsonl"), "--"+part.prefix+"trusted-root", roots)
+		}
+		for _, input := range inputs {
+			rollback = append(rollback, "--project-input", input)
+		}
+		reverse := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, rollback...), "--dry-run", "--json")...))
+		Expect(reverse["rollback_blockers"]).To(BeEmpty())
+		restored := handoffNativeProcess(root, f.environment, "", driver, append(rollback, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
+		Expect(restored.status).To(BeZero(), "%+v", restored)
+		Expect(os.ReadFile(copiedPath)).To(Equal(copied))
+		info, err = os.Stat(copiedPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+		_, err = os.Lstat(generatedPath)
+		Expect(os.IsNotExist(err)).To(BeTrue())
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(fixture.before.binary))
 		_, err = os.Lstat(filepath.Join(f.records, "forbidden-tool"))
 		Expect(os.IsNotExist(err)).To(BeTrue(), "the installed upgrade route must not need a compiler or Python")
 	})

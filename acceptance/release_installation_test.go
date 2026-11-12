@@ -268,14 +268,27 @@ func (fixtures handoffScenarioFixtures) legacyFixture(profile string) installati
 func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, string, installationFixtureData) {
 	GinkgoHelper()
 	f, driver := handoffNativeFixture(fixtures.image)
-	legacy := fixtures.legacyFixture("bash-baseline")
-	legacy.archive = filepath.Join(filepath.Dir(legacy.root), "before-go-image.tar.gz")
-	writeFixture(legacy.archive, fixtures.beforeArchive, 0600)
-	installationApply(legacy, "qualified-prior-go")
+	// The generated predecessor must come from its authenticated initializer,
+	// not an archive-only migration that preserves an older copied workflow.
+	// per docs/adr/0148-transactional-installed-ci-migration.md:369
 	assets := f.environment["HANDOFF_ASSETS"]
 	writeFixture(filepath.Join(assets, "factory-installation-v9.8.0-"+f.target+".tar.gz"), fixtures.beforeArchive, 0600)
 	writeFixture(filepath.Join(assets, "factory-bootstrap-v9.8.0-"+f.target), fixtures.beforeBinary, 0600)
-	return f, driver, legacy
+	root := filepath.Join(f.cwd, "genuine generated Go predecessor")
+	Expect(os.Mkdir(root, 0700)).To(Succeed())
+	imageGit(root, "init", "--quiet")
+	initialized := handoffNativeProcess(f.cwd, f.environment, localUpgradeAnswers, driver, "init", root, "--go-candidate", "v9.8.0", "--pack", "none")
+	Expect(initialized.status).To(BeZero(), "%+v", initialized)
+	Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(fixtures.beforeBinary))
+	workflow, err := os.ReadFile(filepath.Join(root, ".github/workflows/factory.yml"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(string(workflow)).To(ContainSubstring("v9.8.0"))
+	Expect(string(workflow)).To(ContainSubstring(fixtures.image.revision))
+	_, err = os.Lstat(filepath.Join(root, ".github/workflows/ci.yml"))
+	Expect(os.IsNotExist(err)).To(BeTrue(), "genuine generated initialization does not copy the source CI")
+	archive := filepath.Join(f.root, "before-go-image.tar.gz")
+	writeFixture(archive, fixtures.beforeArchive, 0600)
+	return f, driver, installationFixtureData{root: root, archive: archive}
 }
 
 // per docs/adr/0107-published-release-qualification.md:207

@@ -16,8 +16,15 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/staging"
 )
 
+// Historical bytes and mode are one qualified initializer projection.
+// docs/adr/0148-transactional-installed-ci-migration.md:341.
+type ciWorkflowCandidate struct {
+	data []byte
+	mode uint32
+}
+
 type ciWorkflowHistory struct {
-	bytes  map[string][][]byte
+	bytes  map[string][]ciWorkflowCandidate
 	reason string
 }
 
@@ -25,9 +32,10 @@ type ciWorkflowHistory struct {
 // docs/adr/0147-installed-ci-migration-preview.md:56.
 // docs/adr/0147-installed-ci-migration-preview.md:63.
 func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow.Release, before *staging.Inspection, inputs ciPreviewInputs) (ciWorkflowHistory, error) {
-	result := ciWorkflowHistory{bytes: map[string][][]byte{}, reason: "Unsupported predecessor initializer recipe; preserve existing workflow"}
+	result := ciWorkflowHistory{bytes: map[string][]ciWorkflowCandidate{}, reason: "Unsupported predecessor initializer recipe; preserve existing workflow"}
 	var blobs map[string][]byte
 	copied := false
+	copiedMode := uint32(0644)
 	switch request.Profile {
 	case "v0.1.6", "bash-baseline":
 		ref, err := reference(ctx, request.Profile)
@@ -61,10 +69,10 @@ func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow
 			if err != nil {
 				return result, err
 			}
-			result.bytes[".github/workflows/factory.yml"] = [][]byte{body}
+			result.bytes[".github/workflows/factory.yml"] = []ciWorkflowCandidate{{data: body, mode: 0644}}
 			result.reason = "Workflow bytes do not match the qualified generated initializer projection"
-		case ciExactRecipe(*before, ciCopiedRecipe):
-			blobs, copied = before.Assets, true
+		case ciExactRecipe(*before, ciCopiedRecipe), ciExactRecipe(*before, ciInlineInventoryCopiedRecipe):
+			blobs, copied, copiedMode = before.Assets, true, 0600
 			result.reason = "Workflow bytes do not match the qualified copied Go initializer projection"
 		}
 	}
@@ -97,7 +105,7 @@ func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow
 				}
 				continue
 			}
-			result.bytes[path] = append(result.bytes[path], body)
+			result.bytes[path] = append(result.bytes[path], ciWorkflowCandidate{data: body, mode: copiedMode})
 		}
 	}
 	return result, ctx.Err()

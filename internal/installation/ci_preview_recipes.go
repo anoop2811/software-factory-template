@@ -37,3 +37,19 @@ var ciCopiedRecipe = map[string]string{
 	"internal/initcmd/selection.go":       "c1ee0bcec3dc9bf682b8baa89506e4c0cadda7fe630c6212b96faa10ca2d7b58",
 	"internal/initinventory/inventory.go": "6c5c0afffd167f7ce13128945347986facf58faecd3eda5a952f527ec36a76b7",
 }
+
+// The earlier copied initializer kept its inventory inside initcmd.
+// docs/adr/0148-transactional-installed-ci-migration.md:391.
+// 95486ecdd3868a319a0e6362ee99cafd8f154200
+var ciInlineInventoryCopiedRecipe = map[string]string{
+	"internal/initcmd/answers.go":         "0ae298b61ce6f5c41fac44c0631dd5d71c94192179a60c645c4973ed766d9f75",
+	"internal/initcmd/boundaries.go":      "28689f5ac6204a2ec00c307bf14ab7c58b25aeacfe744746633d961f7c845c14",
+	"internal/initcmd/command.go":         "afcc397f65fae97fdfe16f4eaea772e29070f0882ccb167ffad7becd3f1bad22",
+	"internal/initcmd/configuration.go":   "d838d5a2beeb9677a46eb96d1588b61aac8ef05c3508cbdef5ae38652dbf0cfb",
+	"internal/initcmd/files.go":           "ee7c8698f7ed08a8d574b034aa8607a77a2f278ce3c4507df6a724237cb8d320",
+	"internal/initcmd/ignore_evidence.go": "c0d39b5a15ed7b7aceb39f0f518d8540d891033bcd9ddcd4ff5ae89f67f76f88",
+	"internal/initcmd/input.go":           "2e782978acbabe97d27f5c5a35de161d9708aa27c3abf21c9f3e3ed6a8f3f39a",
+	"internal/initcmd/messages.go":        "f5a11e7ba20639d8b48376ef23bfa736f5200fea9dd1ec493a24c924341c9f20",
+	"internal/initcmd/plan.go":            "7ddd35c732aa07d7abd9b9b765613e7053959089630a4bd38f2aaf74d8b4424d",
+	"internal/initcmd/selection.go":       "8d6882e40ddf084e58a1dc963f90f820455ccd10c23ad1cda47520bbbd35d62e",
+}

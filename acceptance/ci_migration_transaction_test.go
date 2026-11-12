@@ -67,7 +67,7 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 	})
 	path := filepath.Join(p.root, ".factory/installation-transactions", id+".json")
 	witness := map[string]any{}
-	observe := func(stopped bool) bool {
+	observe := func() bool {
 		select {
 		case err := <-finished:
 			waited = true
@@ -78,9 +78,14 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 		var record map[string]any
 		decodeErr := json.Unmarshal(body, &record)
 		witness = map[string]any{"owner_pid": cmd.Process.Pid, "requested_direction": direction, "journal_error": fmt.Sprint(err), "decode_error": fmt.Sprint(decodeErr), "phase": record["phase"], "direction": record["direction"]}
-		// The owner can enter post-publication verification before SIGSTOP arrives.
+		// per docs/adr/0148-transactional-installed-ci-migration.md:441
+		// Publication remains interruptible through validation and metadata preparation.
 		// A committed record is never an interruption witness.
-		unfinished := record["phase"] == "applying" || stopped && (record["phase"] == "checking" || record["phase"] == "metadata_prepared")
+		unfinished := false
+		switch record["phase"] {
+		case "applying", "checking", "metadata_prepared":
+			unfinished = true
+		}
 		if err != nil || decodeErr != nil || !unfinished || record["direction"] != direction {
 			return false
 		}
@@ -111,7 +116,7 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 		}
 		return false
 	}
-	Eventually(func() bool { return observe(false) }, 80*time.Second, time.Millisecond).Should(BeTrue(), "witness the actual workflow publication under pending intent")
+	Eventually(observe, 80*time.Second, time.Millisecond).Should(BeTrue(), "witness the actual workflow publication under pending intent")
 	beforeStop := witness
 	Expect(syscall.Kill(cmd.Process.Pid, syscall.SIGSTOP)).To(Succeed())
 	Eventually(func() bool {
@@ -119,7 +124,7 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 		Expect(err).NotTo(HaveOccurred())
 		return stopped
 	}, 5*time.Second, time.Millisecond).Should(BeTrue())
-	stillPublished := observe(true)
+	stillPublished := observe()
 	AddReportEntry("CI publication before stopping", beforeStop)
 	AddReportEntry("CI publication after stopping", witness)
 	Expect(stillPublished).To(BeTrue(), "stopped owner must still retain the published workflow and pending transaction in the required direction")

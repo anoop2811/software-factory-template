@@ -428,3 +428,42 @@ Qualification receipts on 2026-11-12 UTC:
 
 These receipts do not claim final-head hosted qualification; that remains a
 separate gate after the completed correction.
+
+## Observe the complete unfinished publication interval
+
+Hosted Linux qualification of `b79e48c` passed fourteen transaction criteria and
+missed the reverse interruption witness in one. The forward witness was observed
+in `applying`, but the reverse owner completed normally before the initial poll
+observed its narrower `applying` interval. Initial observation ignored `checking`
+and `metadata_prepared`, although the stopped-owner observation already accepted
+those unfinished phases and reverse validation still held pending intent.
+
+Use the same finite unfinished-phase predicate for both observations. Require
+the requested direction, the exact applied/reversed workflow row, the restored
+original bytes for reverse publication, and the pending marker before stopping.
+Then observe actual SIGSTOP and reread that complete proof before SIGKILL and
+reaping. A committed record, missing pending marker or exited owner never proves
+interruption. This supersedes the initial-applying-only sampling restriction in
+the earlier fixture receipt; it does not change product behavior, extend deadlines,
+add test hooks, or permit successful completion to stand in for interruption.
+
+Observed qualification on 2026-11-12 UTC: the Ginkgo CLI command used
+`--procs=1 --race --timeout=15m --repeat=2 --fail-on-empty --no-color` with the
+two existing interruption entries selected. It completed `2 Passed | 0 Failed`
+in 303.130 seconds, then `2 Passed | 0 Failed` in 306.758 seconds. The third
+forward case passed before the shared runner deadline interrupted reverse recovery;
+the aggregate command exited 1 with `Suite Timeout Elapsed` after
+`15m1.814212958s`. This was not a passing aggregate command.
+
+Only the unfinished reverse entry was rerun under the original limits:
+`go test -race -count=1 -v -timeout=15m ./acceptance
+-ginkgo.focus='recovers actual interrupted workflow publication through emitted archive recovery arguments reverse restoration'
+-ginkgo.fail-on-empty -ginkgo.no-color
+-ginkgo.json-report=../.factory/ci-mode-evidence/interruption-reverse-third.json`
+under command-scoped `caffeinate -i`. It reported
+`1 Passed | 0 Failed | 3458 Skipped` in 243.159 seconds. Across these commands,
+three forward and three reverse cases completed successfully. Reverse stopped
+witnesses included `checking`, the reversed row, exact original workflow bytes
+and pending intent; every completed case retained signal/reap and recovery checks.
+Final `go vet ./...` exited 0 without output; configured
+`golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`.

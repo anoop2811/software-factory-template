@@ -40,7 +40,7 @@ func prepareDefaultInit(patches ...func(string) []string) *defaultInitFixtures {
 
 // Upgrade fixtures have independent planner/apply witnesses and must preserve
 // the immutable initializer recipe used to recognize historical CI output.
-// per docs/adr/0148-transactional-installed-ci-migration.md:150
+// per docs/adr/0148-transactional-installed-ci-migration.md:153
 func prepareDefaultInitWithWitness(initializerWitness bool, patches ...func(string) []string) *defaultInitFixtures {
 	GinkgoHelper()
 	image := handoffBuildImage()

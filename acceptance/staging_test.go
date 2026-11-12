@@ -247,7 +247,11 @@ var _ = Describe("G1 runtime bundle staging", Ordered, ContinueOnFailure, func()
 			entries[2].body = bytes.Repeat([]byte(" "), 65537)
 		}
 		write()
-		failure(args(true), 1)
+		result := failure(args(true), 1)
+		if kind == "source compiler" {
+			// per docs/adr/0149-compiler-provenance-and-security-patches.md:279
+			Expect(result.stderr).To(ContainSubstring("compiler provenance"))
+		}
 	}, Entry("duplicate", "duplicate"), Entry("extra", "extra"), Entry("missing", "missing"), Entry("traversal", "traversal"), Entry("absolute", "absolute"), Entry("alternate", "alternate"), Entry("symlink", "symlink"), Entry("hardlink", "hardlink"), Entry("mode", "mode"), Entry("digest", "digest"), Entry("manifest", "manifest"), Entry("manifest version", "manifest version"), Entry("manifest binary", "manifest binary"), Entry("source duplicate", "source duplicate"), Entry("source trailing", "source trailing"), Entry("source unknown", "source unknown"), Entry("source identity", "source identity"), Entry("source compiler", "source compiler"), Entry("source version", "source version"), Entry("source target", "source target"), Entry("source kind", "source kind"), Entry("source missing", "source missing"), Entry("metadata bound", "metadata bound"))
 	DescribeTable("validates the complete compressed stream", func(kind string) {
 		data := stageArchive(entries)

@@ -64,7 +64,7 @@ var _ = Describe("Compiler provenance across artifact readers", Ordered, Continu
 				source["go_version"] = compiler
 				entries[2].body = imageMarshal(source)
 			}
-			check := func(success bool) {
+			check := func(success bool, diagnostic string) {
 				GinkgoHelper()
 				body := stageArchive(entries)
 				writeFixture(archive, body, 0600)
@@ -80,6 +80,9 @@ var _ = Describe("Compiler provenance across artifact readers", Ordered, Continu
 						Expect(inspected.Manifest.Target).To(Equal(target))
 					} else {
 						Expect(err).To(HaveOccurred())
+						if diagnostic != "" {
+							Expect(err.Error()).To(ContainSubstring(diagnostic))
+						}
 					}
 					Expect(installationSnapshot(root)).To(Equal(before), "read-only inspection must not publish or execute anything")
 				} else {
@@ -95,6 +98,9 @@ var _ = Describe("Compiler provenance across artifact readers", Ordered, Continu
 					} else {
 						Expect(result.status).To(Equal(1), "%+v", result)
 						Expect(result.stdout).To(BeEmpty())
+						if diagnostic != "" {
+							Expect(result.stderr).To(ContainSubstring(diagnostic))
+						}
 						Expect(installationSnapshot(root)).To(Equal(before), "failed staging must not publish output or change its input")
 					}
 				}
@@ -107,13 +113,14 @@ var _ = Describe("Compiler provenance across artifact readers", Ordered, Continu
 			// per docs/adr/0149-compiler-provenance-and-security-patches.md:76
 			DescribeTable("accepts canonical compiler provenance without equating it to the reader pin", func(compiler string) {
 				setCompiler(compiler)
-				check(true)
+				check(true, "")
 			}, Entry("historical patch", "go1.27.3"), Entry("current patch", "go1.27.4"), Entry("future grammar control", "go1.28.0"), Entry("zero components", "go1.0.0"), Entry("maximum component width", "go1.999999999.999999999"))
 
+			// per docs/adr/0149-compiler-provenance-and-security-patches.md:277
 			// per docs/adr/0149-compiler-provenance-and-security-patches.md:37
 			DescribeTable("refuses malformed compiler provenance", func(compiler string) {
 				setCompiler(compiler)
-				check(false)
+				check(false, "compiler provenance")
 			}, Entry("empty", ""), Entry("missing prefix", "1.27.4"), Entry("wrong major", "go2.27.4"), Entry("missing patch", "go1.27"), Entry("minor leading zero", "go1.027.4"), Entry("patch leading zero", "go1.27.04"), Entry("signed component", "go1.+27.4"), Entry("leading space", " go1.27.4"), Entry("trailing newline", "go1.27.4\n"), Entry("prerelease", "go1.28rc1"), Entry("custom suffix", "go1.27.4-custom"), Entry("development", "devel go1.28"), Entry("minor overflow", "go1.1000000000.0"), Entry("patch overflow", "go1.27.1000000000"))
 
 			// per docs/adr/0149-compiler-provenance-and-security-patches.md:33
@@ -145,7 +152,7 @@ var _ = Describe("Compiler provenance across artifact readers", Ordered, Continu
 				case "inventory":
 					entries = append(entries, stageEntry{prefix + "unowned", []byte("not an allowed member"), 0644, tar.TypeReg})
 				}
-				check(false)
+				check(false, "")
 			}, Entry("revision", "revision"), Entry("version", "version"), Entry("target", "target"), Entry("kind", "kind"), Entry("missing compiler", "missing"), Entry("unknown field", "unknown"), Entry("non-string compiler", "number"), Entry("null compiler", "null"), Entry("duplicate compiler", "duplicate"), Entry("trailing object", "trailing"), Entry("binary digest", "binary digest"), Entry("closed inventory", "inventory"))
 		})
 	}

@@ -1,6 +1,6 @@
 # ADR 0149: separate compiler provenance from artifact reader identity
 
-Status: implemented; local qualification recorded below; hosted qualification pending.
+Status: implemented; qualification receipts below; final-head hosted checks required.
 Decision: 165. Security prerequisite discovered during Decision 164 qualification.
 
 ## Observed blocker and scope
@@ -260,8 +260,62 @@ reported startup-readiness failures. A subsequent two-worker run passed 114 of
 cannot establish a clean qualification result. The sleep observation does not
 explain the earlier four-worker failures or the hosted macOS mock failure.
 
-The corrected hosted head also failed its macOS release-handoff job. Its detailed
-report is still required to identify the cause; elapsed job time alone is not a
-diagnosis. Keep these open outcomes separate from the resolved YAML panic and
-the passing focused diagnostic check. No production deadline, retry policy or
-hosted worker limit is changed by this follow-up.
+The macOS release-handoff log from head `fba25ec`, retrieved after Actions
+recovered, shows a suite timeout: 56 passed and two timed out. Head `5db0299`
+later passed all 63 in 23m37.765s. This establishes those outcomes without
+identifying a runtime defect. No production deadline, retry policy or hosted
+worker limit is changed by this follow-up.
+
+## Adversarial review follow-up
+
+The hosted checks on head `5db0299` completed successfully, including both macOS
+partitions that failed on the preceding head. This is a passing hosted result,
+not proof that the earlier intermittent failures have a diagnosed runtime cause.
+
+The next adversarial review identified a useful specificity gap in the compiler
+negative controls: any refusal could satisfy an individual malformed-provenance
+case. Require the compiler-provenance diagnostic from both staging and inspection
+for those cases, while preserving all existing identity, digest, inventory,
+no-publication and no-execution assertions. Also require that diagnostic in the
+older staging fixture's compiler-tamper case. That fixture deliberately owns
+literal Go 1.27.3 metadata; it must not be changed to match the separate current
+compiler fixture. Demonstrate that a generic unrelated refusal fails the more
+specific assertions, then run the complete reader matrix and staging control.
+
+Full-source review refuted the other decoder and helper claims: `contextReader`
+already checks cancellation, closing-token errors return before the missing-field
+check, and joined errors preserve underlying causes. The ignored helper results
+are payload bytes and an executable path, not errors. Keep production behavior
+and workflow step counts unchanged.
+
+The follow-up ran in a private checkout using the qualified Go 1.27.4 compiler,
+`GOTOOLCHAIN=local`, `GOENV=off` and `GOMAXPROCS=2`. A temporary ignored Go overlay
+changed only the compiler rejection text to `unrelated fixture refusal`:
+
+```sh
+GOFLAGS="-overlay=$PWD/.factory/review179-evidence/generic-refusal-overlay.json" go test -race -count=1 -v -timeout=5m ./acceptance -ginkgo.focus='Compiler provenance across artifact readers.*refuses malformed compiler provenance|G1 runtime bundle staging rejects malformed archive members source compiler' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/review179-evidence/generic-refusal-red.json
+```
+
+```text
+Ran 43 of 3444 Specs in 5.508 seconds
+FAIL! -- 0 Passed | 43 Failed | 0 Pending | 3401 Skipped
+```
+
+All 43 failures reported the missing compiler-provenance diagnostic. With
+`GOFLAGS` unset and the unchanged production decoder:
+
+```sh
+go test -race -count=1 -v -timeout=5m ./acceptance -ginkgo.focus='Compiler provenance across artifact readers|G1 runtime bundle staging rejects malformed archive members source compiler' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/review179-evidence/provenance-diagnostic-green.json
+```
+
+```text
+Ran 94 of 3444 Specs in 4.775 seconds
+SUCCESS! -- 94 Passed | 0 Failed | 0 Pending | 3350 Skipped
+```
+
+`golangci-lint run --config packs/go/.golangci.yml ./...` exited 0 with
+`0 issues.`. These results qualify the test correction locally; its new hosted
+head still requires its own checks. Before this correction,
+`gh pr view 179 --json headRefOid,statusCheckRollup` showed all 34 checks completed
+successfully on `5db02996b2a4d1720f7f327328eb44d9e3c1a984`, including the
+[macOS handoff job](https://github.com/anoop2811/software-factory-template/actions/runs/43099678874/job/130786817709).

@@ -8437,3 +8437,12 @@ handoff criteria, as recorded in ADR 0148. Preserve all 3459 acceptance criteria
 the existing worker/time limits, genuine initializer evidence and failure
 propagation. Six other macOS jobs never acquired runners; their GitHub annotations
 report hosted ARM64 capacity constraints, rather than assertion failures.
+
+Decision 164 local-source qualification follow-up (2026-11-12 UTC): the split
+handoff and CI-checkout gates passed on both platforms at `6d64d6d`. A separate
+macOS local-upgrade case exceeded its 90-second command watchdog while other
+compilation/proof work shared that runner. Isolate the two Go predecessor cases
+on one worker, omit their unused legacy setup, and retain the nine ordinary and
+two recovery cases in their existing boundaries. ADR 0148 records unchanged
+deadlines, exact coverage and improved diagnostics; individual stage timings and
+any broader production packaging optimization are not claimed by this decision.

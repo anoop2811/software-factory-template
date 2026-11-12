@@ -97,7 +97,8 @@ jobs:
         # docs/adr/0146-initialized-installed-ci.md:293.
         # docs/adr/0148-transactional-installed-ci-migration.md:256.
         # docs/adr/0148-transactional-installed-ci-migration.md:488.
-        group: [source-entrypoints, installation, release-handoff, release-ci, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade]
+        # docs/adr/0148-transactional-installed-ci-migration.md:515.
+        group: [source-entrypoints, installation, release-handoff, release-ci, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-upgrade-go, local-recovery, default-init, default-upgrade]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

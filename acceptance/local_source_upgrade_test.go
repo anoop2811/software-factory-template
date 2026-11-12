@@ -32,7 +32,8 @@ type localUpgradeFixture struct {
 // A source-only proposal marker proves the selected compiled planner runs; the
 // invoker was built before that marker. No supplied predecessor code executes.
 // per docs/adr/0117-explicit-go-local-upgrade.md:10
-func localUpgradePrepare() localUpgradeFixture {
+// per docs/adr/0148-transactional-installed-ci-migration.md:519
+func localUpgradePrepareSource() localUpgradeFixture {
 	GinkgoHelper()
 	image := handoffBuildImage()
 	Expect(string(image.binary)).NotTo(ContainSubstring(localUpgradePlanMarker))
@@ -78,14 +79,22 @@ func localUpgradePrepare() localUpgradeFixture {
 	revision := strings.TrimSpace(imageGit(source, "rev-parse", "HEAD"))
 	Expect(revision).NotTo(Equal(image.revision))
 	Expect(imageGit(source, "status", "--porcelain", "--untracked-files=all")).To(BeEmpty())
-	legacy := installationLegacyFixture(image.binary, image.references["v0.1.6"], image.archivePath, image.revision)
 	AddReportEntry("local-upgrade.source", map[string]string{"before_source": before, "source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
+	return localUpgradeFixture{image: image, beforeSource: before, source: source, revision: revision, control: control}
+}
+
+// Legacy-consuming groups add their own initialized predecessor to the shared source setup.
+// per docs/adr/0148-transactional-installed-ci-migration.md:519
+func localUpgradePrepare() localUpgradeFixture {
+	GinkgoHelper()
+	fixture := localUpgradePrepareSource()
+	image := fixture.image
+	fixture.legacy = installationLegacyFixture(image.binary, image.references["v0.1.6"], image.archivePath, image.revision)
 	// Commit-triggered detached Git maintenance changes loose-object storage while
-	// a preview runs. Disable it before any adopter commit; keep the complete
-	// .git byte/mode preservation witness rather than dropping its paths.
-	imageGit(legacy.root, "config", "gc.auto", "0")
-	imageGit(legacy.root, "config", "maintenance.auto", "false")
-	return localUpgradeFixture{image, before, source, revision, control, legacy}
+	// a preview runs. Keep the complete .git byte/mode preservation witness.
+	imageGit(fixture.legacy.root, "config", "gc.auto", "0")
+	imageGit(fixture.legacy.root, "config", "maintenance.auto", "false")
+	return fixture
 }
 
 func localUpgradeArgs(source, before string) []string {
@@ -345,44 +354,6 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(installationSnapshot(f.environment["FACTORY_RELEASE_DIR"])).To(Equal(cache))
 		localInitNoAcquisition(f)
 	})
-	// per docs/adr/0117-explicit-go-local-upgrade.md:34
-	DescribeTable("upgrades an exact Go predecessor and restores its original native identity", func(versioned bool) {
-		before := fixture.goPredecessor(versioned)
-		f, driver, root := before.f, before.driver, before.root
-		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve Go history\"}\n")
-		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
-		writeFixture(filepath.Join(root, "docs/operator-go-note.md"), []byte("operator Go content\n"), 0600)
-		writeFixture(filepath.Join(root, ".factory/backups/operator-held/witness"), []byte("do not advance release retention\n"), 0600)
-		original, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
-		Expect(err).NotTo(HaveOccurred())
-		snapshot := installationSnapshot(root)
-		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json", "--")...))
-		Expect(preview["profile"]).To(Equal("go-hybrid-v1"))
-		Expect(preview["authentication"]).To(Equal("local-source"))
-		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
-		Expect(preview["blockers"]).To(BeEmpty())
-		Expect(installationSnapshot(root)).To(Equal(snapshot))
-		applied := handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
-		Expect(applied.status).To(Equal(0), "%+v", applied)
-		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
-		localInitDescriptor(root, fixture.revision)
-		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
-		after := localUpgradeBundle(fixture.source, fixture.revision, "local-"+fixture.revision, filepath.Join(f.root, "original after image"))
-		reverse := localUpgradeBefore(localUpgradeWholeArgs(after, "go-hybrid-v1"), before.before)
-		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
-		localInitPoisonCompiler(f)
-		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
-		restored := handoffNativeProcess(root, f.environment, "", driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
-		Expect(restored.status).To(Equal(0), "%+v", restored)
-		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
-		healthy := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "selftest")
-		Expect(healthy.status).To(Equal(0), "%+v", healthy)
-		localInitNoAcquisition(f)
-	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:34
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:171
@@ -472,6 +443,53 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(extra.status).To(Equal(2), "%+v", extra)
 		Expect(installationSnapshot(legacy.root)).To(Equal(legacyBefore))
 	})
+
+})
+
+// The separately selected Go predecessor family owns no unused legacy installation.
+// per docs/adr/0148-transactional-installed-ci-migration.md:515
+var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure, func() {
+	var fixture localUpgradeFixture
+	BeforeAll(func() { fixture = localUpgradePrepareSource() })
+
+	// per docs/adr/0117-explicit-go-local-upgrade.md:34
+	DescribeTable("upgrades an exact Go predecessor and restores its original native identity", func(versioned bool) {
+		before := fixture.goPredecessor(versioned)
+		f, driver, root := before.f, before.driver, before.root
+		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve Go history\"}\n")
+		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
+		writeFixture(filepath.Join(root, "docs/operator-go-note.md"), []byte("operator Go content\n"), 0600)
+		writeFixture(filepath.Join(root, ".factory/backups/operator-held/witness"), []byte("do not advance release retention\n"), 0600)
+		original, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
+		Expect(err).NotTo(HaveOccurred())
+		snapshot := installationSnapshot(root)
+		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
+		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json", "--")...))
+		Expect(preview["profile"]).To(Equal("go-hybrid-v1"))
+		Expect(preview["authentication"]).To(Equal("local-source"))
+		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
+		Expect(preview["blockers"]).To(BeEmpty())
+		Expect(installationSnapshot(root)).To(Equal(snapshot))
+		applied := handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
+		Expect(applied.status).To(Equal(0), "%+v", applied)
+		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
+		localInitDescriptor(root, fixture.revision)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
+		after := localUpgradeBundle(fixture.source, fixture.revision, "local-"+fixture.revision, filepath.Join(f.root, "original after image"))
+		reverse := localUpgradeBefore(localUpgradeWholeArgs(after, "go-hybrid-v1"), before.before)
+		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
+		localInitPoisonCompiler(f)
+		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
+		restored := handoffNativeProcess(root, f.environment, "", driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+		Expect(restored.status).To(Equal(0), "%+v", restored)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
+		healthy := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "selftest")
+		Expect(healthy.status).To(Equal(0), "%+v", healthy)
+		localInitNoAcquisition(f)
+	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 })
 

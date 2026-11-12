@@ -107,8 +107,10 @@ func handoffNativeProcessWithEnvironment(cwd string, environment map[string]stri
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	// per docs/adr/0148-transactional-installed-ci-migration.md:527
+	started := time.Now()
 	err := cmd.Run()
-	Expect(ctx.Err()).NotTo(HaveOccurred(), "candidate process watchdog: %s", stderr.String())
+	Expect(ctx.Err()).NotTo(HaveOccurred(), "candidate process watchdog after %s: run_error=%v process_state=%v context_error=%v; stderr=%s", time.Since(started), err, cmd.ProcessState, ctx.Err(), stderr.String())
 	status := 0
 	if err != nil {
 		var exit *exec.ExitError

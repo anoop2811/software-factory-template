@@ -1,6 +1,6 @@
 # ADR 0148: transact existing-project CI migration with installation recovery
 
-Status: accepted for implementation; qualification pending.
+Status: implemented; final-head qualification and human review pending.
 Decision: 164. Continues R4 after merged PR #178.
 
 ## Boundary
@@ -187,7 +187,7 @@ that limit. Deliberately erased history may require manual CI reconciliation.
 
 ## Local qualification receipts
 
-All commands below ran in complete private checkouts on macOS arm64, using the
+All commands in this section ran in private macOS arm64 checkouts, using the
 existing Go 1.27.3 toolchain, `GOTOOLCHAIN=local`,
 `GORACE=atexit_sleep_ms=0` and explicit `FACTORY_AGENT_ROLE=spec-writer`.
 No primary-checkout binary was built or executed. Local evidence remains distinct
@@ -497,3 +497,38 @@ discovery paths; do not infer coverage solely from the workflow matrix text.
 
 These are decisions for the next qualification run, not measured timing savings
 or a claim that final-head hosted qualification has passed.
+
+## Isolate competing local Go upgrade qualification
+
+Run `43305598632` at `6d64d6d` passed both new handoff partitions on Linux
+and macOS, including all 44 handoff and 19 CI-checkout criteria. The separate
+macOS local-upgrade job then reported one failed versioned Go predecessor case
+and ten passes. Its failure occurred about eight minutes into the suite, on the
+fresh 90-second watchdog around forward local apply, rather than the suite limit.
+
+The two Go predecessor criteria intentionally rebuild selected and predecessor
+sources through the public commands. Keep those actual builds, compiler-count
+assertions, native initialization, rollback and identity checks. Cache links are
+already shared through the evaluator's private HOME; bypassing compilation or
+changing the packager's hermetic environment is not the correction.
+
+Place the exact `Go explicit local source upgrade upgrades an exact Go predecessor
+and restores its original native identity` family in a `local-upgrade-go` source
+gate with one worker. Keep nine ordinary local-upgrade criteria at the existing
+worker cap and the two recovery criteria in their existing separate gate. The
+Go-only fixture must prepare the real source/image inputs without initializing
+an unused legacy installation. Require exact identities, exhaustive disjoint
+9/2/2 selection, unchanged 3459 total discovery, forced one-worker execution,
+separate reports and failure propagation through explicit and all/default runs.
+
+This removes competing test work from the failed command's runner; it is not a
+measured claim about the time spent in an individual compiler or packaging stage.
+Retain the 90-second command deadline, 25-minute suite deadline and 30-minute job
+deadline. Add elapsed time, the command's actual run error, process exit state and
+context error to watchdog diagnostics before asserting. A buffered completion
+message alone cannot establish completion before the deadline: the default
+CommandContext cancellation kills the direct caller, while an independently
+supervised selected child may still own its output handles. Do not reinterpret
+that message as successful exit or change cancellation semantics without an
+owned-child negative control. Production batching of Git blob reads is a separate
+performance boundary requiring its own strict size, framing and ownership proof.

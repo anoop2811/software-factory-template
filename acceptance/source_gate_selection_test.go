@@ -101,6 +101,12 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Other suite mentions Go explicit local source initialization", "base"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades selected source", "local-upgrade"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade", "local-upgrade"},
+	// per docs/adr/0148-transactional-installed-ci-migration.md:515
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity versioned Go image", "local-upgrade-go"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity local Go image", "local-upgrade-go"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity", "local-upgrade-go"},
+	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity-extra unrelated", "local-upgrade"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity", "base"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler forward", "local-recovery"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler reverse", "local-recovery"},
 	{"./acceptance", "Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler", "local-recovery"},
@@ -177,7 +183,7 @@ if args and (args[0]=='test' or is_runner):
    record['selected'].append(case['package']+' :: '+case['name'])
    selected_groups.add(case['group'])
  if './...' not in packages and './acceptance' not in packages:record['group']='internal'
- if focus and selected_groups in [{'release-handoff'},{'release-ci'},{'initialized-ci'},{'ci-migration'},{'historical-recipe'},{'local-init'},{'local-upgrade'},{'local-recovery'},{'default-init'},{'default-upgrade'},{'source-entrypoints'}]:record['group']=next(iter(selected_groups))
+ if focus and selected_groups in [{'release-handoff'},{'release-ci'},{'initialized-ci'},{'ci-migration'},{'historical-recipe'},{'local-init'},{'local-upgrade'},{'local-upgrade-go'},{'local-recovery'},{'default-init'},{'default-upgrade'},{'source-entrypoints'}]:record['group']=next(iter(selected_groups))
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
 if is_helper:
  sys.stdout.buffer.write(helper.stdout);sys.stderr.buffer.write(helper.stderr);sys.exit(helper.returncode)
@@ -482,7 +488,7 @@ func sourceGateAssertWorkerPlan(calls []sourceGateCall, requested, maximum strin
 			expected = handoff
 		}
 		// per docs/adr/0146-initialized-installed-ci.md:300
-		if call.Group == "initialized-ci" || call.Group == "ci-migration" {
+		if call.Group == "initialized-ci" || call.Group == "ci-migration" || call.Group == "local-upgrade-go" {
 			expected = 1
 		}
 		Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(strconv.Itoa(expected)), "%s dispatch must use the exact real helper plan %q", call.Group, plans[0].Plan)
@@ -513,7 +519,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 			workerLimit = 2
 		}
 		// per docs/adr/0146-initialized-installed-ci.md:300
-		if group == "initialized-ci" || group == "ci-migration" {
+		if group == "initialized-ci" || group == "ci-migration" || group == "local-upgrade-go" {
 			workerLimit = 1
 		}
 		Expect(workers).To(BeNumerically("<=", workerLimit))
@@ -530,7 +536,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 			Expect(call.Skip).NotTo(BeEmpty(), "release handoff must exclude the dedicated initialized CI family")
 		case "initialized-ci":
 			Expect(call.Skip).NotTo(BeEmpty(), "initialization must exclude its separately qualified CI migration transactions")
-		case "release-ci", "ci-migration", "historical-recipe", "local-init", "local-recovery", "default-init", "default-upgrade", "source-entrypoints":
+		case "release-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints":
 			Expect(call.Skip).To(BeEmpty())
 		}
 	}
@@ -548,9 +554,10 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
+	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	It("executes disjoint feature partitions while retaining every source quality stage", func() {
 		callsByGroup := map[string]sourceGateCall{}
-		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			fixture := sourceGateMakeFixture()
 			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, nil)
 			Expect(status).To(Equal(0))
@@ -577,6 +584,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction( |$)"))
 				Expect(callsByGroup["initialized-ci"].Skip).To(Equal(tests[0].Focus), "initialized CI must exclude precisely the transaction family")
 			}
+			// per docs/adr/0148-transactional-installed-ci-migration.md:515
+			if group == "local-upgrade-go" {
+				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity( |$)"))
+			}
+			if group == "local-recovery" {
+				Expect(callsByGroup["local-upgrade"].Skip).To(Equal(tests[0].Focus+"|"+callsByGroup["local-upgrade-go"].Focus), "ordinary local upgrades must exclude precisely the two separately selected families")
+			}
+
 			if group == "source-entrypoints" {
 				const family = "^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$)"
 				Expect(tests[0].Focus).To(Equal(family))
@@ -596,7 +611,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(commands).To(ContainElements("list", "vet", "build"))
 		}
 		// per docs/adr/0121-local-upgrade-readiness-boundary.md:134
-		for _, negativeGroup := range []string{"release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-recovery", "default-upgrade", "source-entrypoints"} {
+		for _, negativeGroup := range []string{"release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints"} {
 			for _, empty := range []bool{false, true} {
 				fixture := sourceGateMakeFixture()
 				environment := []string{"SOURCE_GATE_FAIL_GROUP=" + negativeGroup}
@@ -643,7 +658,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 				if (call.Group == "release-handoff" || call.Group == "release-ci" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" || call.Group == "local-recovery" || call.Group == "default-init" || call.Group == "default-upgrade") && workers == "3" {
 					expected = "2"
 				}
-				if call.Group == "initialized-ci" || call.Group == "ci-migration" {
+				if call.Group == "initialized-ci" || call.Group == "ci-migration" || call.Group == "local-upgrade-go" {
 					expected = "1"
 				}
 				Expect(sourceGateOperand(call.Args, "--procs")).To(Equal(expected))
@@ -658,7 +673,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		Expect(negativeStatus).NotTo(Equal(0), "real fail-on-empty must reject an actual zero selection")
 		Expect(negativeCount).To(Equal(0))
 		// Forty-nine hosted large-review criteria remain in the base partition.
-		// Eleven ordinary local-upgrade, two durable recovery, and ten default-init criteria are independently discovered below.
+		// Nine ordinary local-upgrade, two Go predecessor, two durable recovery, and ten default-init criteria are independently discovered below.
 		// per docs/adr/0118-default-packaged-go-initialization.md:76
 		// per docs/adr/0117-explicit-go-local-upgrade.md:94
 		// per docs/adr/0109-complete-large-review-inputs.md:72
@@ -721,9 +736,9 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
-		expectedCounts := map[string]int{"base": 3092, "installation": 101, "release-handoff": 44, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 11, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 3092, "installation": 101, "release-handoff": 44, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 9, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
-		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
 			Expect(status).To(Equal(0), group)
 			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
@@ -752,6 +767,18 @@ var _ = Describe("Go source qualification scheduling", func() {
 				}
 				Expect(actual).To(ConsistOf(expected), "each partition must retain its exact independently declared criteria")
 			}
+			// per docs/adr/0148-transactional-installed-ci-migration.md:520
+			if group == "local-upgrade-go" {
+				actual := []string{}
+				for _, identity := range identities {
+					name, location, found := strings.Cut(identity, " :: ")
+					Expect(found).To(BeTrue())
+					Expect(location).To(MatchRegexp(`^local_source_upgrade_test\.go:[1-9][0-9]*$`))
+					actual = append(actual, name)
+				}
+				const prefix = "Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity "
+				Expect(actual).To(ConsistOf(prefix+"versioned Go image", prefix+"local Go image"))
+			}
 			for _, identity := range identities {
 				_, duplicate := seen[identity]
 				Expect(duplicate).To(BeFalse(), "actual criterion appeared in two partitions: %s", identity)
@@ -770,13 +797,14 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
+	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	DescribeTable("attempts the complete qualification union and propagates every group failure", func(selection, failing string) {
 		failures := []string{failing}
 		if selection == "all" && failing == "" {
-			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints")
+			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints")
 		}
 		if selection == "default" && failing == "" {
-			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-recovery", "default-upgrade", "source-entrypoints")
+			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints")
 		}
 		for _, failing := range failures {
 			fixture := sourceGateMakeFixture()
@@ -787,7 +815,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
 			sourceGateAssertWorkerPlan(calls, "auto", "4")
 			tests := sourceGateTests(calls)
-			Expect(tests).To(HaveLen(13), "all must attempt every qualification partition even after any earlier failure")
+			Expect(tests).To(HaveLen(14), "all must attempt every qualification partition even after any earlier failure")
 			sourceGateAssertInternal(calls, true)
 			seen, union, expected := map[string]bool{}, []string{}, []string{}
 			for _, call := range tests {
@@ -806,6 +834,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(seen).To(HaveKey("historical-recipe"))
 			Expect(seen).To(HaveKey("local-init"))
 			Expect(seen).To(HaveKey("local-upgrade"))
+			Expect(seen).To(HaveKey("local-upgrade-go"))
 			Expect(seen).To(HaveKey("local-recovery"))
 			Expect(seen).To(HaveKey("default-init"))
 			Expect(seen).To(HaveKey("default-upgrade"))
@@ -905,6 +934,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0149-compiler-provenance-and-security-patches.md:69
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
+	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	It("preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", func() {
 		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
 		baselineCommand.Dir = ".."
@@ -974,7 +1004,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 			} else {
 				Expect(identifier).To(Equal("go-runtime-installation"))
 				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
-				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"))
+				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"))
 				groups = job.Strategy.Matrix.Group
 			}
 			// per docs/adr/0101-go-release-handoff.md:597

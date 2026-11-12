@@ -239,7 +239,18 @@ type handoffScenarioFixtures struct {
 	prepared                    map[string]installationFixtureData
 }
 
-func handoffPrepareScenarioFixtures() handoffScenarioFixtures {
+// per docs/adr/0148-transactional-installed-ci-migration.md:480
+func handoffPrepareLegacyFixtures() handoffScenarioFixtures {
+	GinkgoHelper()
+	fixtures := handoffScenarioFixtures{image: handoffBuildImage(), prepared: map[string]installationFixtureData{}}
+	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
+		fixtures.prepared[profile] = installationLegacyFixture(fixtures.image.binary, fixtures.image.references[profile], fixtures.image.archivePath, fixtures.image.revision)
+	}
+	return fixtures
+}
+
+// per docs/adr/0148-transactional-installed-ci-migration.md:480
+func handoffPrepareGoFixtures() handoffScenarioFixtures {
 	GinkgoHelper()
 	fixtures := handoffScenarioFixtures{image: handoffBuildImage()}
 	beforePath := filepath.Join(fixtures.image.work, "compiled-predecessor")
@@ -253,10 +264,6 @@ func handoffPrepareScenarioFixtures() handoffScenarioFixtures {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(fixtures.beforeBinary).NotTo(Equal(fixtures.image.binary), "independently built predecessor must have distinct bytes")
 	fixtures.beforeArchive = handoffImageBinary(fixtures.image, fixtures.beforeBinary, "v9.8.0")
-	fixtures.prepared = map[string]installationFixtureData{}
-	for _, profile := range []string{"v0.1.6", "bash-baseline"} {
-		fixtures.prepared[profile] = installationLegacyFixture(fixtures.image.binary, fixtures.image.references[profile], fixtures.image.archivePath, fixtures.image.revision)
-	}
 	return fixtures
 }
 
@@ -295,7 +302,7 @@ func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, st
 var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-legacy-and-init"), func() {
 	var fixtures handoffScenarioFixtures
 	BeforeAll(func() {
-		fixtures = handoffPrepareScenarioFixtures()
+		fixtures = handoffPrepareLegacyFixtures()
 	})
 
 	// per docs/adr/0101-go-release-handoff.md:148
@@ -754,7 +761,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 var _ = Describe("Whole installation upgrade release candidate handoff", Ordered, ContinueOnFailure, Label("handoff-go-recovery"), func() {
 	var fixtures handoffScenarioFixtures
 	BeforeAll(func() {
-		fixtures = handoffPrepareScenarioFixtures()
+		fixtures = handoffPrepareGoFixtures()
 	})
 
 	// per docs/adr/0101-go-release-handoff.md:171

@@ -8428,3 +8428,12 @@ historical compiler for the new CI-migration partition as well as historical
 recipe qualification. Preserve both additions in the independent discovery
 census and rerun the transaction boundary on this combined source. Do not infer
 release readiness from the earlier Go 1.27.3 behavioral evidence.
+
+Decision 164 handoff qualification follow-up (2026-11-12 UTC): run
+`43259987561` passed Linux and macOS CI migration, but the macOS handoff suite
+exhausted its shared 25-minute budget. Remove unused cross-boundary fixture setup
+and separate the nineteen CI-checkout criteria from the forty-four original
+handoff criteria, as recorded in ADR 0148. Preserve all 3459 acceptance criteria,
+the existing worker/time limits, genuine initializer evidence and failure
+propagation. Six other macOS jobs never acquired runners; their GitHub annotations
+report hosted ARM64 capacity constraints, rather than assertion failures.

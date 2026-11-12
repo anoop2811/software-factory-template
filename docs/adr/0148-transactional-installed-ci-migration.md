@@ -467,3 +467,33 @@ witnesses included `checking`, the reversed row, exact original workflow bytes
 and pending intent; every completed case retained signal/reap and recovery checks.
 Final `go vet ./...` exited 0 without output; configured
 `golangci-lint run --config packs/go/.golangci.yml ./...` reported `0 issues.`.
+
+## Bound handoff qualification by the exercised boundary
+
+Hosted run `43259987561` at `851fe93` passed both CI-migration partitions,
+but the macOS release-handoff partition exhausted its shared 25-minute suite
+budget: `50 Passed | 2 Failed | 3407 Skipped`, with both failures reporting
+`Suite Timeout Elapsed`. Its Go-recovery `BeforeAll` was inside a legacy Bash
+initializer whose result that group no longer consumes. The legacy/init group
+also built a distinct Go predecessor that only the Go-recovery group consumes.
+
+Prepare legacy templates only for the legacy/init boundary and the distinct Go
+predecessor only for Go recovery. Retain genuine authenticated native initialization
+inside the Go recovery cases, immutable legacy sources, every assertion and the
+existing child deadlines. Do not substitute a copied or hand-edited installation
+for the actual initializer.
+
+The same report attributes 684.739 seconds of worker time to twelve completed
+CI-checkout criteria; seven further CI-checkout criteria had not run. Separate
+the exact `CI checkout preparation` title family into a `release-ci` source gate
+and matrix job. The original handoff partition retains its four ordered fixture
+groups and their scheduling priorities. The independent CI boundary retains its
+existing project fixtures and assertions. Preserve the current maximum of two
+handoff workers, 25-minute suite limit, 30-minute job limit, race checks and quality
+gates in both partitions. Require exhaustive disjoint selection of 44 handoff and
+19 CI-checkout criteria, with the full acceptance census unchanged at 3459.
+Exercise failure propagation, report names, worker selection and the real Ginkgo
+discovery paths; do not infer coverage solely from the workflow matrix text.
+
+These are decisions for the next qualification run, not measured timing savings
+or a claim that final-head hosted qualification has passed.

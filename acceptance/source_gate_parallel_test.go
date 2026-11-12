@@ -193,6 +193,33 @@ func sourceGateHandoffPriorityProof() {
 		}
 		return entries
 	}
+	// The real runners must split whole fixture owners while preserving their union.
+	// per docs/adr/0148-transactional-installed-ci-migration.md:488
+	handoffMetadata := readMetadata()
+	Expect(handoffMetadata).To(HaveLen(44))
+	Expect(readReport().SuiteSucceeded).To(BeTrue())
+	const checkoutPrefix = "Whole installation upgrade release candidate handoff CI checkout preparation "
+	for _, spec := range handoffMetadata {
+		Expect(spec.Text).NotTo(HavePrefix(checkoutPrefix))
+	}
+	handoffTests, handoffJSONPath := tests, jsonPath
+	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=release-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
+	Expect(status).To(Equal(0))
+	tests = sourceGateTests(calls)
+	Expect(tests).To(HaveLen(2))
+	tests = tests[len(tests)-1:]
+	sourceGateAssertPartition(tests[0], "release-ci")
+	jsonPath = filepath.Join(reportsDir, "release-ci.json")
+	output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
+	Expect(err).NotTo(HaveOccurred(), "real CI-checkout priority metadata: %s", output)
+	Expect(readReport().SuiteSucceeded).To(BeTrue())
+	combinedMetadata := readMetadata()
+	Expect(combinedMetadata).To(HaveLen(63))
+	for _, spec := range combinedMetadata[len(handoffMetadata):] {
+		Expect(spec.Text).To(HavePrefix(checkoutPrefix))
+	}
+	// The established four-group execution oracle still uses the handoff runner.
+	tests, jsonPath = handoffTests, handoffJSONPath
 	type bucket struct {
 		label, name     string
 		count, priority int
@@ -360,7 +387,7 @@ func sourceGateHandoffPriorityProof() {
 		Expect(status).To(Equal(0))
 		tests = sourceGateTests(calls)
 		// The recording fixture accumulates prior commands; retain the new call only.
-		Expect(tests).To(HaveLen(index + 2))
+		Expect(tests).To(HaveLen(index + 3))
 		tests = tests[len(tests)-1:]
 		sourceGateAssertPartition(tests[0], group)
 		jsonPath = filepath.Join(reportsDir, group+".json")

@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -70,37 +69,8 @@ func Inspect(ctx context.Context, options Options) (result Inspection, returned 
 	if metadata.Version != options.Version || metadata.Binary != "bin/factory-runtime" || metadata.SHA256 != image.binaryDigest {
 		return result, errors.New("runtime identity or digest mismatch")
 	}
-	expected := map[string]string{"version": options.Version, "revision": options.Revision, "target": options.Target, "go_version": artifact.SourceGoVersion, "kind": "installation-source-build"}
-	decoder := json.NewDecoder(bytes.NewReader(image.controls[prefix+"source.json"]))
-	token, err := decoder.Token()
-	if err != nil || token != json.Delim('{') {
-		return result, errors.New("invalid source identity")
-	}
-	seen := map[string]bool{}
-	for decoder.More() {
-		token, err := decoder.Token()
-		if err != nil {
-			return result, err
-		}
-		key, ok := token.(string)
-		if !ok || seen[key] {
-			return result, errors.New("duplicate source field")
-		}
-		required, known := expected[key]
-		if !known {
-			return result, errors.New("unknown source field")
-		}
-		var value string
-		if err := decoder.Decode(&value); err != nil || value != required {
-			return result, errors.New("source identity mismatch")
-		}
-		seen[key] = true
-	}
-	if _, err := decoder.Token(); err != nil || len(seen) != len(expected) {
-		return result, errors.New("incomplete source identity")
-	}
-	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
-		return result, errors.New("trailing source identity")
+	if err := validateSourceIdentity(ctx, bytes.NewReader(image.controls[prefix+"source.json"]), options); err != nil {
+		return result, err
 	}
 	return Inspection{Manifest: image.manifest, Runtime: metadata, ArchiveSHA256: hex.EncodeToString(hash.Sum(nil)), BinaryBytes: image.binaryBytes, RuntimeManifest: image.controls[prefix+"runtime.manifest"], Source: image.controls[prefix+"source.json"], Assets: image.payload}, ctx.Err()
 }

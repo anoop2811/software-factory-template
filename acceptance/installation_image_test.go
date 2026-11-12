@@ -55,7 +55,7 @@ func imageProcess(dir string, overrides map[string]string, program string, argv 
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, program, argv...) // #nosec G204 -- test-owned native binaries and literal subprocess operands.
+	command := exec.CommandContext(ctx, program, argv...) // #nosec G204 G702 -- test-owned binaries or explicitly trusted developer/CI compiler selection; separate argv, no shell expansion.
 	command.Dir = dir
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -131,9 +131,16 @@ func imageMarshal(value any) []byte {
 }
 
 func imageFixtureEntries(manifest imageManifestOracle, payload map[string][]byte, binary []byte) []stageEntry {
+	return imageFixtureEntriesWithCompiler(manifest, payload, binary, "go1.27.4")
+}
+
+// Synthetic archives choose provenance explicitly; real historical builders
+// independently inspect their executable before selecting historical metadata.
+// per docs/adr/0149-compiler-provenance-and-security-patches.md:63
+func imageFixtureEntriesWithCompiler(manifest imageManifestOracle, payload map[string][]byte, binary []byte, compiler string) []stageEntry {
 	prefix := manifest.Version + "/" + manifest.Target + "/"
 	runtimeManifest := fmt.Sprintf("FACTORY_RUNTIME_ARTIFACT_V1\nversion\t%s\ntarget\t%s\nbinary\tbin/factory-runtime\nsha256\t%x\nEND\n", manifest.Version, manifest.Target, sha256.Sum256(binary))
-	source := map[string]string{"revision": manifest.SourceRevision, "version": manifest.Version, "target": manifest.Target, "go_version": "go1.27.3", "kind": "installation-source-build"}
+	source := map[string]string{"revision": manifest.SourceRevision, "version": manifest.Version, "target": manifest.Target, "go_version": compiler, "kind": "installation-source-build"}
 	entries := []stageEntry{
 		{prefix + "bin/factory-runtime", binary, 0755, tar.TypeReg},
 		{prefix + "runtime.manifest", []byte(runtimeManifest), 0644, tar.TypeReg},
@@ -375,7 +382,8 @@ var _ = Describe("G1 complete installation source images", Ordered, ContinueOnFa
 		expected := imageFixtureEntries(manifest, payload, entries[0].body)
 		var sourceMetadata map[string]string
 		Expect(json.Unmarshal(entries[2].body, &sourceMetadata)).To(Succeed())
-		Expect(sourceMetadata).To(Equal(map[string]string{"revision": current, "version": version, "target": target, "go_version": "go1.27.3", "kind": "installation-source-build"}))
+		// per docs/adr/0149-compiler-provenance-and-security-patches.md:23
+		Expect(sourceMetadata).To(Equal(map[string]string{"revision": current, "version": version, "target": target, "go_version": "go1.27.4", "kind": "installation-source-build"}))
 		var imageMetadata map[string]json.RawMessage
 		Expect(json.Unmarshal(entries[3].body, &imageMetadata)).To(Succeed())
 		Expect(imageMetadata).To(HaveLen(9))

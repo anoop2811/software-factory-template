@@ -63,8 +63,7 @@ func historicalInstallationImage(after handoffReleaseImage, revision, version st
 	if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
 		args = append([]string{"build", "-race"}, args[1:]...)
 	}
-	built := imageProcess(source, nil, "go", args...)
-	Expect(built.status).To(Equal(0), "%+v", built)
+	buildHistoricalRuntime(source, binaryPath, args...)
 	binary, err := os.ReadFile(binaryPath)
 	Expect(err).NotTo(HaveOccurred())
 	assets, payload := installationGitCatalog(repository, revision)
@@ -74,7 +73,7 @@ func historicalInstallationImage(after handoffReleaseImage, revision, version st
 		baselines = append(baselines, imageBaselineOracle{profile, ref.revision, ref.assets})
 	}
 	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", version, runtime.GOOS + "/" + runtime.GOARCH, revision, false, assets, baselines}
-	archive := stageArchive(imageFixtureEntries(manifest, payload, binary))
+	archive := stageArchive(imageFixtureEntriesWithCompiler(manifest, payload, binary, "go1.27.3"))
 	archivePath := filepath.Join(after.work, "immutable-inventory-image-"+revision[:7]+".tar.gz")
 	writeFixture(archivePath, archive, 0600)
 	return handoffReleaseImage{binary, archive, archivePath, revision, after.work, after.references}

@@ -30,6 +30,7 @@ type recipeFixture struct {
 	before, after handoffReleaseImage
 	prepared      string
 	rows          []installationRoleOracle
+	current       handoffReleaseImage
 }
 
 // The only historical executable is rebuilt from an immutable trusted Git
@@ -38,6 +39,7 @@ type recipeFixture struct {
 func recipePrepare() recipeFixture {
 	GinkgoHelper()
 	after := handoffBuildImage()
+	current := after
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
 	source := filepath.Join(after.work, "immutable-rc3")
@@ -45,8 +47,7 @@ func recipePrepare() recipeFixture {
 	imageGit(source, "checkout", "--quiet", "--detach", recipeRC3Revision)
 	Expect(strings.TrimSpace(imageGit(source, "rev-parse", "HEAD"))).To(Equal(recipeRC3Revision))
 	binaryPath := filepath.Join(after.work, "locally-rebuilt-rc3-runtime")
-	build := imageProcess(source, nil, "go", "build", "-o", binaryPath, "./cmd/factory")
-	Expect(build.status).To(Equal(0), "%+v", build)
+	buildHistoricalRuntime(source, binaryPath, "build", "-o", binaryPath, "./cmd/factory")
 	binary, err := os.ReadFile(binaryPath)
 	Expect(err).NotTo(HaveOccurred())
 	assets, payload := installationGitCatalog(repository, recipeRC3Revision)
@@ -56,7 +57,7 @@ func recipePrepare() recipeFixture {
 		baselines = append(baselines, imageBaselineOracle{profile, ref.revision, ref.assets})
 	}
 	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", recipeRC3Version, runtime.GOOS + "/" + runtime.GOARCH, recipeRC3Revision, false, assets, baselines}
-	archive := stageArchive(imageFixtureEntries(manifest, payload, binary))
+	archive := stageArchive(imageFixtureEntriesWithCompiler(manifest, payload, binary, "go1.27.3"))
 	archivePath := filepath.Join(after.work, "locally-rebuilt-rc3-image.tar.gz")
 	writeFixture(archivePath, archive, 0600)
 	before := handoffReleaseImage{binary, archive, archivePath, recipeRC3Revision, after.work, after.references}
@@ -88,7 +89,7 @@ func recipePrepare() recipeFixture {
 		after.archive = recipeSupplyMember(after.archive, path)
 	}
 	writeFixture(after.archivePath, after.archive, 0600)
-	return recipeFixture{before, after, prepared, rows}
+	return recipeFixture{before, after, prepared, rows, current}
 }
 
 // Complete manifest rewrites keep negative archives structurally valid; the
@@ -121,7 +122,11 @@ func recipeAsset(archive []byte, path string, body []byte, remove bool) []byte {
 	}
 	sort.Slice(assets, func(i, j int) bool { return assets[i].Path < assets[j].Path })
 	manifest.Assets = assets
-	return stageArchive(imageFixtureEntries(manifest, payload, entries[0].body))
+	rewritten := imageFixtureEntries(manifest, payload, entries[0].body)
+	// Preserve the original executable's compiler identity across catalog mutations.
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:19
+	rewritten[2].body = entries[2].body
+	return stageArchive(rewritten)
 }
 
 func recipeSupplyMember(archive []byte, path string) []byte {
@@ -171,6 +176,47 @@ func recipeBeforePath(args []string, path string) []string {
 var _ = Describe("Supported predecessor recipe compatibility", Ordered, ContinueOnFailure, func() {
 	var fixture recipeFixture
 	BeforeAll(func() { fixture = recipePrepare() })
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:50
+	// per docs/adr/0149-compiler-provenance-and-security-patches.md:82
+	It("requires fresh authenticated installer rebootstrap when the immutable predecessor rejects newer compiler provenance", func() {
+		f, _ := handoffNativeFixture(fixture.current)
+		cloned := installationCloneLegacyFixture(fixture.current.binary, installationFixtureData{root: fixture.prepared})
+		root := cloned.root
+		for _, part := range []struct {
+			version string
+			image   handoffReleaseImage
+		}{{recipeRC3Version, fixture.before}, {handoffVersion, fixture.current}} {
+			writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+part.version+"-"+f.target), part.image.binary, 0600)
+			writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-installation-"+part.version+"-"+f.target+".tar.gz"), part.image.archive, 0600)
+		}
+		providerPath := filepath.Join(f.root, "host tools/gh")
+		provider, err := os.ReadFile(providerPath)
+		Expect(err).NotTo(HaveOccurred())
+		original := `  api) printf '%s\n' "$HANDOFF_REVISION" ;;`
+		replacement := `  api)
+    case "$2" in
+      */refs/tags/` + recipeRC3Version + `) printf '%s\n' '` + fixture.before.revision + `' ;;
+      */refs/tags/` + handoffVersion + `) printf '%s\n' "$HANDOFF_REVISION" ;;
+      *) exit 97 ;;
+    esac ;;`
+		Expect(strings.Count(string(provider), original)).To(Equal(1))
+		writeFixture(providerPath, []byte(strings.Replace(string(provider), original, replacement, 1)), 0700)
+		before := installationSnapshot(root)
+		args := []string{"upgrade", "--go-candidate", handoffVersion, "--dry-run", "--json"}
+		for _, input := range []string{"PROJECT_NAME=Recipe Project", "PROJECT_SLUG=recipe-project", "GITHUB_OWNER=@example", "OPENCODE_USERNAME=recipe-user", "PROTECTED_PATH=internal", "DOCS_ROOT=docs", "CITATION_PREFIX="} {
+			args = append(args, "--project-input", input)
+		}
+		old := handoffNativeProcess(root, f.environment, "", filepath.Join(root, ".factory/bin/factory-runtime"), args...)
+		Expect(old.status).NotTo(BeZero(), "the immutable old reader cannot gain compatibility retroactively: %+v", old)
+		Expect(old.stderr).To(ContainSubstring("go_version"))
+		Expect(installationSnapshot(root)).To(Equal(before))
+		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", "/bin/sh", append([]string{f.installer}, args...)...))
+		Expect(proposal["proposal_digest"]).NotTo(BeEmpty())
+		Expect(proposal["conflicts"]).To(BeEmpty())
+		Expect(installationSnapshot(root)).To(Equal(before), "both refusal and the rebootstrap preview remain read-only")
+		_, err = os.Lstat(filepath.Join(f.records, "forbidden-tool"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "the installed upgrade route must not need a compiler or Python")
+	})
 	// per docs/adr/0115-frozen-rc3-recipe-compatibility.md:64
 	It("reconstructs predecessor bytes and modes through preview apply and rollback while retaining all cache and user history", func() {
 		f, driver, root, _ := fixture.predecessor()

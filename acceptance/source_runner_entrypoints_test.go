@@ -1022,23 +1022,28 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 				args = append(args, "--save-baseline")
 			}
 			observed := sourceRunnerInvoke(caller, environment, "", golden, false, args...)
+			// Diagnose the process result before requiring its published artifacts.
+			// per docs/adr/0149-compiler-provenance-and-security-patches.md:236
+			expectedStatus := 1
+			if mode == "pass" {
+				expectedStatus = 0
+			}
+			Expect(observed.status).To(Equal(expectedStatus), "mode=%s observed=%+v", mode, observed)
+			Expect(observed.stderr).To(BeEmpty(), "mode=%s observed=%+v", mode, observed)
 			current := orchestrationReadResults(caller, "current")
 			Expect(current.Runner).To(Equal(program))
 			Expect(current.Tasks).To(HaveLen(1))
 			Expect(current.Tasks[0].Runs).To(Equal(1))
 			if mode == "pass" {
-				Expect(observed.status).To(Equal(0), "%+v", observed)
 				Expect(current.Tasks[0].Passes).To(Equal(1))
 				Expect(current.Tasks[0].Score).To(Equal(1.0))
 				baseline, err = os.ReadFile(filepath.Join(caller, "eval/results/mock-baseline.json"))
 				Expect(err).NotTo(HaveOccurred())
 			} else {
-				Expect(observed.status).To(Equal(1), "%+v", observed)
 				Expect(observed.stdout).To(ContainSubstring("REGRESSION DETECTED"))
 				Expect(current.Tasks[0].Passes).To(Equal(0))
 				Expect(current.Tasks[0].Score).To(Equal(0.0))
 			}
-			Expect(observed.stderr).To(BeEmpty())
 			Expect(os.ReadFile(filepath.Join(caller, "eval/results/mock-baseline.json"))).To(Equal(baseline))
 			Expect(os.ReadFile(oraclePath)).To(Equal(oracle))
 			Expect(installationSnapshot(owner)).To(Equal(beforeOwner))

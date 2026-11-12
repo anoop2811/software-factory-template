@@ -2,10 +2,7 @@ package staging
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -32,46 +29,5 @@ func validateIdentity(ctx context.Context, content *os.Root, directory string, o
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	expected := map[string]string{"revision": o.Revision, "version": o.Version, "target": o.Target, "go_version": artifact.SourceGoVersion, "kind": "source-build"}
-	if o.Installation {
-		expected["kind"] = "installation-source-build"
-	}
-	decoder := json.NewDecoder(file)
-	token, err := decoder.Token()
-	if err != nil {
-		return err
-	}
-	if token != json.Delim('{') {
-		return errors.New("source metadata must be a JSON object")
-	}
-	seen := make(map[string]bool)
-	for decoder.More() {
-		token, err = decoder.Token()
-		if err != nil {
-			return err
-		}
-		key, ok := token.(string)
-		value, known := expected[key]
-		if !ok || !known || seen[key] {
-			return fmt.Errorf("unknown or duplicate source field %q", token)
-		}
-		var actual string
-		if err = decoder.Decode(&actual); err != nil {
-			return err
-		}
-		if actual != value {
-			return fmt.Errorf("source field %q does not match requested identity", key)
-		}
-		seen[key] = true
-	}
-	if _, err = decoder.Token(); err != nil {
-		return err
-	}
-	if len(seen) != len(expected) {
-		return errors.New("source metadata missing required fields")
-	}
-	if _, err = decoder.Token(); !errors.Is(err, io.EOF) {
-		return errors.New("source metadata has trailing data")
-	}
-	return nil
+	return validateSourceIdentity(ctx, file, o)
 }

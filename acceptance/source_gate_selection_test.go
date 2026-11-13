@@ -1394,7 +1394,7 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					}
 					environment := []string{"RUNNER_TEMP=" + fixture.root, "GITHUB_PATH=" + pathFile, "GO_RUNTIME_REVISION=" + strings.Repeat("a", 40), "GO_RUNTIME_RUN_ID=12345", "GO_RUNTIME_PRODUCER_ATTEMPT=1"}
 					for key, value := range job.Env {
-						if !strings.HasPrefix(key, "GO_RUNTIME_REVISION") && key != "GO_RUNTIME_RUN_ID" && key != "GO_RUNTIME_PRODUCER_ATTEMPT" {
+						if key != "GO_RUNTIME_REVISION" && key != "GO_RUNTIME_RUN_ID" && key != "GO_RUNTIME_PRODUCER_ATTEMPT" {
 							environment = append(environment, key+"="+expand(value))
 						}
 					}

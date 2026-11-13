@@ -217,8 +217,6 @@ func init() {
 
 var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
-	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
-	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	DescribeTable("admits the compiler group and preserves completion signals diagnostics and inherited descriptors", func(received syscall.Signal, diagnostic bool) {
 		root, cwd := fixtureDirectories()
 		base := filepath.Dir(root)
@@ -237,7 +235,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		published := filepath.Join(filepath.Dir(root), "actual compiled source result")
 		writeFixture(published, candidateBinary, 0700)
 		executable := sourcePrivateCompilerHelper(base)
-		Expect(executable).NotTo(BeEmpty(), "BeforeSuite must retain the actual instrumented helper")
+		Expect(executable).NotTo(BeEmpty(), "the private fixture must retain the actual instrumented helper copy")
 		ready, readyWriter, err := os.Pipe()
 		Expect(err).NotTo(HaveOccurred())
 		releaseReader, release, err := os.Pipe()
@@ -363,7 +361,6 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(unchanged).To(Equal(before), "successful publication may replace only the developer binary and must remove private build/admission residue")
 	}, Entry("TERM", syscall.SIGTERM, false), Entry("INT", syscall.SIGINT, false), Entry("HUP", syscall.SIGHUP, false), Entry("healthy normal completion with occupied descriptors", syscall.Signal(0), false), Entry("literal compiler diagnostics with occupied descriptors", syscall.Signal(0), true))
 
-	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:241
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:328
@@ -507,7 +504,6 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		}
 	}, Entry("ordinary scheduling", time.Duration(0)), Entry("delayed reap scheduling", 120*time.Millisecond))
 
-	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	It("preserves a prior caller background job when interrupted before its compiler fork", func() {
 		root, cwd := fixtureDirectories()

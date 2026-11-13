@@ -8574,3 +8574,10 @@ allowance and one non-resettable 180-second outer command context. Preserve
 all runtime limits, original public routes, transaction authority and actual
 durable recovery assertions. Independent real-child controls must reject missing
 receipts, early exit and discarded outer bounds before hosted qualification.
+
+Decision 167 final review precision (2026-11-13 UTC): complete-source review of
+checkpoint `c9471b9` found no new behavioral defect. Correct exact pinned-module
+line pointers, narrow the recovery supersession wording, remove a duplicate
+source citation and describe the private helper copy precisely. Use exact
+environment-key comparison in the workflow fixture. These changes preserve
+all command behavior, budgets, criterion identities and process assertions.

@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -222,6 +221,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	DescribeTable("admits the compiler group and preserves completion signals diagnostics and inherited descriptors", func(received syscall.Signal, diagnostic bool) {
 		root, cwd := fixtureDirectories()
+		base := filepath.Dir(root)
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(root, "factory"), launcher, 0700)
@@ -236,7 +236,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		writeFixture(filepath.Join(tools, "go"), []byte("#!/bin/sh\n"+startupDelay+"exec \"$SOURCE_COMPILER_HELPER\" "+sourceCompilerHandshake+" \"$@\"\n"), 0700)
 		published := filepath.Join(filepath.Dir(root), "actual compiled source result")
 		writeFixture(published, candidateBinary, 0700)
-		executable := sourceCompilerHelperImage
+		executable := sourcePrivateCompilerHelper(base)
 		Expect(executable).NotTo(BeEmpty(), "BeforeSuite must retain the actual instrumented helper")
 		ready, readyWriter, err := os.Pipe()
 		Expect(err).NotTo(HaveOccurred())
@@ -248,12 +248,11 @@ var _ = Describe("Go source launcher signal ownership", func() {
 				Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue(), "owned pipe cleanup: %v", err)
 			})
 		}
-		var releaseOnce sync.Once
-		releaseCompiler := func() { releaseOnce.Do(func() { _ = release.Close() }) }
-		DeferCleanup(releaseCompiler)
+		releaseCompiler := sourceHeldChildRelease(release, nil)
+		DeferCleanup(func() { Expect(releaseCompiler()).To(Succeed()) })
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- acceptance-owned source launcher and fixed literal argv.
+		command := exec.Command(filepath.Join(root, "factory"), "help") // #nosec G204 -- acceptance-owned source launcher and fixed literal argv.
 		command.Dir = cwd
 		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_COMPILER_HELPER="+executable, "SOURCE_COMPILER_PUBLISHED_IMAGE="+published, "GORACE=atexit_sleep_ms=0", "SOURCE_COMPILER_DIAGNOSTIC="+strconv.FormatBool(diagnostic), "SOURCE_COMPILER_LAUNCHER="+filepath.Join(root, "factory"))
 		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
@@ -272,24 +271,19 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
-		finished := make(chan error, 1)
-		reaped := false
-		DeferCleanup(func() {
-			releaseCompiler()
-			if command.Process == nil || reaped {
-				return
-			}
-			_ = command.Process.Kill()
-			select {
-			case <-finished:
-			case <-time.After(3 * time.Second):
-				Fail("the owned source launcher was not reaped during bounded cleanup")
-			}
-		})
+		var compiler struct {
+			PID, Group  int
+			Descriptors map[string]string
+		}
+		readinessConfirmed := false
 		before := installationSnapshot(root)
 		started := time.Now()
-		Expect(command.Start()).To(Succeed())
-		go func() { finished <- command.Wait() }()
+		owner, err := startDirectInterruptionOwner(ctx, func(context.Context) *exec.Cmd { return command })
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			sourceLauncherFixtureCleanup(owner, base, releaseCompiler, readinessConfirmed, compiler.PID)
+			AddReportEntry("source-launcher.compiler-cleanup", map[string]any{"compiler_pid": compiler.PID, "compiler_absent": true})
+		})
 		Expect(readyWriter.Close()).To(Succeed())
 		Expect(releaseReader.Close()).To(Succeed())
 		// Startup shares the existing fixture deadline, reserving the signal window.
@@ -298,75 +292,37 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(bounded).To(BeTrue())
 		startupDeadline := deadline.Add(-2 * time.Second)
 		Expect(ready.SetReadDeadline(startupDeadline)).To(Succeed())
-		var compiler struct {
-			PID, Group  int
-			Descriptors map[string]string
-		}
 		if readyErr := json.NewDecoder(ready).Decode(&compiler); readyErr != nil {
-			// Diagnose an actual launch failure before attempting a signal. Release
-			// the owned helper, and read output only after its sole waiter returns.
-			// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
-			releaseCompiler()
-			var launchErr error
-			select {
-			case launchErr = <-finished:
-				reaped = true
-			case <-time.After(3 * time.Second):
-				Expect(command.Process.Kill()).To(Or(Succeed(), MatchError(os.ErrProcessDone)))
-				select {
-				case launchErr = <-finished:
-					reaped = true
-				case <-time.After(3 * time.Second):
-					Fail("compiler readiness failed and the owned launcher was not reaped within bounded cleanup")
-				}
-			}
-			status := 0
-			var exited *exec.ExitError
-			if errors.As(launchErr, &exited) {
-				status = exited.ExitCode()
-			} else {
-				Expect(launchErr).NotTo(HaveOccurred())
-			}
-			AddReportEntry("source-launcher.readiness-failure", map[string]any{"error": readyErr.Error(), "launcher_reaped": reaped, "launcher_status": status, "stdout": stdout.String(), "stderr": stderr.String(), "helper": executable})
-			Fail(fmt.Sprintf("the actual compiler must announce readiness before parent-only signaling: %v; launcher status=%d; stdout=%q; stderr=%q", readyErr, status, stdout.String(), stderr.String()))
+			holdFixtureCleanup(base, "compiler readiness did not establish descendant custody")
+			AddReportEntry("source-launcher.readiness-failure", map[string]any{"error": readyErr.Error(), "helper": executable})
+			Fail(fmt.Sprintf("the actual compiler must announce readiness before parent-only signaling: %v", readyErr))
 		}
 		Expect(compiler.PID).To(BeNumerically(">", 1))
-		DeferCleanup(func() {
-			releaseCompiler()
-			Eventually(func() bool { return errors.Is(syscall.Kill(compiler.PID, 0), syscall.ESRCH) }, 3*time.Second).Should(BeTrue(), "the actual owned compiler must disappear before fixture removal")
-			AddReportEntry("source-launcher.compiler-cleanup", map[string]any{"compiler_pid": compiler.PID, "compiler_absent": true})
-		})
 		Expect(syscall.Kill(compiler.PID, 0)).To(Succeed())
 		actualGroup, err := syscall.Getpgid(compiler.PID)
 		Expect(err).NotTo(HaveOccurred())
-		launcherGroup, err := syscall.Getpgid(command.Process.Pid)
+		launcherGroup, err := syscall.Getpgid(owner.PID())
 		Expect(err).NotTo(HaveOccurred())
 		AddReportEntry("source-launcher.compiler-admission", map[string]any{"compiler_pid": compiler.PID, "reported_group": compiler.Group, "actual_group": actualGroup, "launcher_group": launcherGroup, "preserved_descriptors": reflect.DeepEqual(compiler.Descriptors, expectedDescriptors)})
 		Expect(compiler.Group).To(Equal(compiler.PID), "the actual compiler must lead its own process group")
 		Expect(actualGroup).To(Equal(compiler.PID))
 		Expect(actualGroup).NotTo(Equal(launcherGroup))
 		Expect(compiler.Descriptors).To(Equal(expectedDescriptors), "occupied FD5 through FD20 must retain their exact bytes while FD3/4 carry the held-open handshake")
+		readinessConfirmed = true
 		AddReportEntry("source-launcher.compiler-startup", map[string]any{"controlled_delay": startupDelay != "", "elapsed_seconds": time.Since(started).Seconds()})
 		Expect(time.Now().Before(startupDeadline)).To(BeTrue(), "startup must leave the unchanged two-second completion window before signaling")
 		if received == 0 {
-			releaseCompiler()
+			Expect(releaseCompiler()).To(Succeed())
 		} else {
-			Expect(command.Process.Signal(received)).To(Succeed())
+			Expect(owner.Signal(received)).To(Succeed())
 		}
-		var waitErr error
-		exitedBeforeRelease := false
-		select {
-		case waitErr = <-finished:
-			reaped, exitedBeforeRelease = true, true
-		case <-time.After(2 * time.Second):
-			releaseCompiler()
-			select {
-			case waitErr = <-finished:
-				reaped = true
-			case <-time.After(3 * time.Second):
-				Fail("the source launcher did not exit after its controlled compiler was released")
-			}
+		completion, completionErr := owner.AwaitExit(2 * time.Second)
+		exitedBeforeRelease := completionErr == nil && completion.Joined
+		if !exitedBeforeRelease {
+			holdFixtureCleanup(base, "source launcher exceeded its original completion window")
+			Fail(fmt.Sprintf("the source launcher did not join within its existing two-second completion bound: %v", completionErr))
 		}
+		waitErr := completion.WaitError
 		status := 0
 		var exit *exec.ExitError
 		if errors.As(waitErr, &exit) {
@@ -414,6 +370,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0133-go-source-evaluation-runners.md:256
 	DescribeTable("refuses an absent compiler group without waiting on a live unadmitted child or killing its borrowed group", func(reapDelay time.Duration) {
 		root, cwd := fixtureDirectories()
+		base := filepath.Dir(root)
+		helper := sourcePrivateCompilerHelper(base)
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
 		Expect(err).NotTo(HaveOccurred())
 		monitor := []byte("\nset -m\n")
@@ -452,54 +410,45 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		for _, file := range []*os.File{ready, readyWriter, releaseReader, unrelatedReader} {
 			DeferCleanup(func() { err := file.Close(); Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue()) })
 		}
-		var once sync.Once
-		releaseChild := func() { once.Do(func() { Expect(release.Close()).To(Succeed()) }) }
-		DeferCleanup(releaseChild)
+		releaseChild := sourceHeldChildRelease(release, nil)
+		DeferCleanup(func() { Expect(releaseChild()).To(Succeed()) })
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- owned copy with test-only admission handshake; production has no fault flag.
+		command := exec.Command(filepath.Join(root, "factory"), "help") // #nosec G204 -- owned copy with test-only admission handshake; production has no fault flag.
 		command.Dir = cwd
-		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "SOURCE_LAUNCHER_PHASE_TRACE="+phaseTrace, "SOURCE_REAP_DELAYED_POLLS="+delayedPolls, "GORACE=atexit_sleep_ms=0")
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+helper, "SOURCE_PRIOR_READY="+witnessReady, "SOURCE_PRIOR_UNRELATED_TOKEN="+unrelatedToken, "SOURCE_LAUNCHER_PHASE_TRACE="+phaseTrace, "SOURCE_REAP_DELAYED_POLLS="+delayedPolls, "GORACE=atexit_sleep_ms=0")
 		command.ExtraFiles = []*os.File{readyWriter, releaseReader, unrelatedReader}
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
-		finished := make(chan error, 1)
-		reaped := false
-		DeferCleanup(func() {
-			releaseChild()
-			if command.Process != nil && !reaped {
-				_ = command.Process.Kill()
-				Eventually(finished, 3*time.Second).Should(Receive())
-			}
-		})
+		var child struct{ PID int }
+		var witness struct {
+			PID, Group, Parent int
+			CaptureIsolation   sourcePriorCaptureIsolation
+		}
+		readinessConfirmed := false
 		before := installationSnapshot(root)
-		Expect(command.Start()).To(Succeed())
-		go func() { finished <- command.Wait() }()
+		owner, err := startDirectInterruptionOwner(ctx, func(context.Context) *exec.Cmd { return command })
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			sourceLauncherFixtureCleanup(owner, base, releaseChild, readinessConfirmed, child.PID, witness.PID)
+			AddReportEntry("source-launcher.unadmitted-child-cleanup", map[string]any{"child_pid": child.PID, "child_absent": true})
+			AddReportEntry("source-launcher.borrowed-group-witness-cleanup", map[string]any{"witness_pid": witness.PID, "witness_absent": true})
+		})
 		Expect(readyWriter.Close()).To(Succeed())
 		Expect(releaseReader.Close()).To(Succeed())
 		Expect(unrelatedReader.Close()).To(Succeed())
 		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
-		var child struct{ PID int }
 		Expect(json.NewDecoder(ready).Decode(&child)).To(Succeed())
 		Expect(child.PID).To(BeNumerically(">", 1))
-		DeferCleanup(func() {
-			releaseChild()
-			Eventually(func() bool { return errors.Is(syscall.Kill(child.PID, 0), syscall.ESRCH) }, 3*time.Second).Should(BeTrue(), "the test-owned unadmitted child must disappear before fixture removal")
-			AddReportEntry("source-launcher.unadmitted-child-cleanup", map[string]any{"child_pid": child.PID, "child_absent": true})
-		})
 		childGroup, err := syscall.Getpgid(child.PID)
 		Expect(err).NotTo(HaveOccurred())
-		launcherGroup, err := syscall.Getpgid(command.Process.Pid)
+		launcherGroup, err := syscall.Getpgid(owner.PID())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(childGroup).To(Equal(launcherGroup))
 		Expect(childGroup).NotTo(Equal(child.PID), "the controlled wrapper is alive outside its expected compiler group")
 		body, err := os.ReadFile(witnessReady)
 		Expect(err).NotTo(HaveOccurred())
-		var witness struct {
-			PID, Group, Parent int
-			CaptureIsolation   sourcePriorCaptureIsolation
-		}
 		Expect(json.Unmarshal(body, &witness)).To(Succeed())
 		AddReportEntry("source-launcher.witness-capture-isolation", witness.CaptureIsolation)
 		Expect(witness.CaptureIsolation.ClosedCaptureDuplicates).To(ContainElements(9, 10))
@@ -507,35 +456,26 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(witness.CaptureIsolation.UnrelatedPipePreserved).To(BeTrue())
 		Expect(witness.CaptureIsolation.UnrelatedToken).To(Equal(unrelatedToken))
 		Expect(witness.PID).To(BeNumerically(">", 1))
-		Expect(witness.Parent).To(Equal(command.Process.Pid))
+		Expect(witness.Parent).To(Equal(owner.PID()))
 		Expect(witness.Group).To(Equal(launcherGroup))
 		Expect(syscall.Kill(witness.PID, 0)).To(Succeed())
-		DeferCleanup(func() {
-			releaseChild()
-			Eventually(func() bool { return errors.Is(syscall.Kill(witness.PID, 0), syscall.ESRCH) }, 3*time.Second).Should(BeTrue(), "release the test-owned borrowed-group witness separately")
-			AddReportEntry("source-launcher.borrowed-group-witness-cleanup", map[string]any{"witness_pid": witness.PID, "witness_absent": true})
-		})
-		Expect(command.Process.Signal(syscall.SIGTERM)).To(Succeed())
-		var returned error
-		returnedBeforeRelease := false
-		select {
-		case returned = <-finished:
-			reaped, returnedBeforeRelease = true, true
-		case <-time.After(3 * time.Second):
-		}
+		readinessConfirmed = true
+		Expect(owner.Signal(syscall.SIGTERM)).To(Succeed())
+		returned, completionErr := owner.AwaitExit(3 * time.Second)
+		returnedBeforeRelease := completionErr == nil && returned.Joined
 		liveBeforeRelease := syscall.Kill(child.PID, 0) == nil
-		launcherAbsentBeforeRelease := errors.Is(syscall.Kill(command.Process.Pid, 0), syscall.ESRCH)
+		launcherAbsentBeforeRelease := errors.Is(syscall.Kill(owner.PID(), 0), syscall.ESRCH)
 		witnessAlive := syscall.Kill(witness.PID, 0) == nil
 		held := installationSnapshot(root)
-		beforeReleaseObservation := sourceAbsentBeforeReleaseObservation(phaseTrace, command.Process.Pid, child.PID, witness.PID)
+		beforeReleaseObservation := sourceAbsentBeforeReleaseObservation(phaseTrace, owner.PID(), child.PID, witness.PID)
 		AddReportEntry("source-launcher.before-release-observation", beforeReleaseObservation)
 		if !returnedBeforeRelease {
-			releaseChild()
-			Eventually(finished, 3*time.Second).Should(Receive(&returned))
-			reaped = true
+			holdFixtureCleanup(base, "absent-group observer did not join before releasing held children")
+			Fail(fmt.Sprintf("real caller Wait must return without releasing a live unadmitted child: %v", completionErr))
 		}
-		Expect(returned).To(HaveOccurred())
-		AddReportEntry("source-launcher.absent-group-refusal", map[string]any{"returned_before_release": returnedBeforeRelease, "launcher_absent_before_release": launcherAbsentBeforeRelease, "child_live_before_release": liveBeforeRelease, "borrowed_group_witness_alive": witnessAlive, "child_pid": child.PID, "child_group": childGroup, "launcher_group": launcherGroup, "status": command.ProcessState.ExitCode(), "stderr": stderr.String()})
+		Expect(returned.WaitError).To(HaveOccurred())
+		Expect(returned.State).NotTo(BeNil())
+		AddReportEntry("source-launcher.absent-group-refusal", map[string]any{"returned_before_release": returnedBeforeRelease, "launcher_absent_before_release": launcherAbsentBeforeRelease, "child_live_before_release": liveBeforeRelease, "borrowed_group_witness_alive": witnessAlive, "child_pid": child.PID, "child_group": childGroup, "launcher_group": launcherGroup, "status": returned.State.ExitCode(), "stderr": stderr.String()})
 		if reapDelay > 0 {
 			polls, err := os.ReadFile(delayedPolls)
 			Expect(err).NotTo(HaveOccurred())
@@ -544,7 +484,7 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		}
 		Expect(returnedBeforeRelease).To(BeTrue(), "real caller Wait must return without releasing a live unadmitted child holding capture; stderr=%s", stderr.String())
 		Expect(witnessAlive).To(BeTrue(), "uncertain compiler cleanup must never signal the borrowed caller group")
-		Expect(command.ProcessState.ExitCode()).To(Equal(125))
+		Expect(returned.State.ExitCode()).To(Equal(125))
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(ContainSubstring("ownership is unconfirmed"))
 		retained := 0
@@ -571,6 +511,8 @@ var _ = Describe("Go source launcher signal ownership", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34
 	It("preserves a prior caller background job when interrupted before its compiler fork", func() {
 		root, cwd := fixtureDirectories()
+		base := filepath.Dir(root)
+		helper := sourcePrivateCompilerHelper(base)
 		launcher, err := os.ReadFile(filepath.Join("..", "factory"))
 		Expect(err).NotTo(HaveOccurred())
 		prefork := []byte("SOURCE_BUILDING=1\n")
@@ -592,67 +534,54 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		for _, file := range []*os.File{ready, readyWriter, releaseReader} {
 			DeferCleanup(func() { err := file.Close(); Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue()) })
 		}
-		var once sync.Once
-		releasePrior := func() { once.Do(func() { Expect(release.Close()).To(Succeed()) }) }
-		DeferCleanup(releasePrior)
+		releasePrior := sourceHeldChildRelease(release, nil)
+		DeferCleanup(func() { Expect(releasePrior()).To(Succeed()) })
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- owned launcher and BASH_ENV prior-job fixture; only the launcher parent receives the test signal.
+		command := exec.Command(filepath.Join(root, "factory"), "help") // #nosec G204 -- owned launcher and BASH_ENV prior-job fixture; only the launcher parent receives the test signal.
 		command.Dir = cwd
-		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+priorReady, "SOURCE_UNADMITTED_MARKER="+marker, "GORACE=atexit_sleep_ms=0")
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "BASH_ENV="+startup, "SOURCE_PRIOR_HELPER="+helper, "SOURCE_PRIOR_READY="+priorReady, "SOURCE_UNADMITTED_MARKER="+marker, "GORACE=atexit_sleep_ms=0")
 		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
-		finished := make(chan error, 1)
-		reaped := false
-		DeferCleanup(func() {
-			releasePrior()
-			if command.Process != nil && !reaped {
-				_ = command.Process.Kill()
-				Eventually(finished, 3*time.Second).Should(Receive())
-			}
-		})
+		var prior struct{ PID, Group, Parent int }
+		readinessConfirmed := false
 		before := installationSnapshot(root)
-		Expect(command.Start()).To(Succeed())
-		go func() { finished <- command.Wait() }()
+		owner, err := startDirectInterruptionOwner(ctx, func(context.Context) *exec.Cmd { return command })
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			sourceLauncherFixtureCleanup(owner, base, releasePrior, readinessConfirmed, prior.PID)
+			AddReportEntry("source-launcher.prior-job-cleanup", map[string]any{"prior_pid": prior.PID, "prior_absent": true})
+		})
 		Expect(readyWriter.Close()).To(Succeed())
 		Expect(releaseReader.Close()).To(Succeed())
 		Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
 		var parent struct{ PID int }
 		Expect(json.NewDecoder(ready).Decode(&parent)).To(Succeed())
-		Expect(parent.PID).To(Equal(command.Process.Pid), "signal only after SOURCE_BUILDING=1 and before any compiler fork")
+		Expect(parent.PID).To(Equal(owner.PID()), "signal only after SOURCE_BUILDING=1 and before any compiler fork")
 		body, err := os.ReadFile(priorReady)
 		Expect(err).NotTo(HaveOccurred())
-		var prior struct{ PID, Group, Parent int }
 		Expect(json.Unmarshal(body, &prior)).To(Succeed())
 		Expect(prior.PID).To(BeNumerically(">", 1))
-		DeferCleanup(func() {
-			releasePrior()
-			Eventually(func() bool { return errors.Is(syscall.Kill(prior.PID, 0), syscall.ESRCH) }, 3*time.Second).Should(BeTrue(), "release and observe absence of the evaluator-owned prior job")
-			AddReportEntry("source-launcher.prior-job-cleanup", map[string]any{"prior_pid": prior.PID, "prior_absent": true})
-		})
-		Expect(prior.Parent).To(Equal(command.Process.Pid))
+		Expect(prior.Parent).To(Equal(owner.PID()))
 		Expect(prior.Group).To(Equal(prior.PID))
 		Expect(syscall.Kill(prior.PID, 0)).To(Succeed())
 		actualGroup, err := syscall.Getpgid(prior.PID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(actualGroup).To(Equal(prior.Group))
-		Expect(command.Process.Signal(syscall.SIGINT)).To(Succeed())
-		var returned error
-		select {
-		case returned = <-finished:
-			reaped = true
-		case <-time.After(3 * time.Second):
-			releasePrior()
-			Eventually(finished, 3*time.Second).Should(Receive(&returned))
-			reaped = true
-			Fail("parent-only INT must not wait for or cancel a prior caller job")
+		readinessConfirmed = true
+		Expect(owner.Signal(syscall.SIGINT)).To(Succeed())
+		returned, completionErr := owner.AwaitExit(3 * time.Second)
+		if completionErr != nil || !returned.Joined {
+			holdFixtureCleanup(base, "prior-job observer did not join before releasing the held prior job")
+			Fail(fmt.Sprintf("parent-only INT must not wait for or cancel a prior caller job: %v", completionErr))
 		}
+		Expect(returned.State).NotTo(BeNil())
 		priorAlive := syscall.Kill(prior.PID, 0) == nil
-		AddReportEntry("source-launcher.prior-job-preservation", map[string]any{"prior_pid": prior.PID, "prior_group": prior.Group, "prior_alive_after_parent_exit": priorAlive, "launcher_status": command.ProcessState.ExitCode()})
-		Expect(returned).To(HaveOccurred())
-		Expect(command.ProcessState.ExitCode()).To(Equal(130))
+		AddReportEntry("source-launcher.prior-job-preservation", map[string]any{"prior_pid": prior.PID, "prior_group": prior.Group, "prior_alive_after_parent_exit": priorAlive, "launcher_status": returned.State.ExitCode()})
+		Expect(returned.WaitError).To(HaveOccurred())
+		Expect(returned.State.ExitCode()).To(Equal(130))
 		Expect(priorAlive).To(BeTrue(), "SOURCE_BUILDING alone must never transfer ownership of an earlier $! job")
 		Expect(stdout.String()).To(BeEmpty())
 		Expect(stderr.String()).To(BeEmpty())

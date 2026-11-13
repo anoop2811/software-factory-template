@@ -1,6 +1,6 @@
 # ADR 0121: measure local upgrade interruption at the publisher boundary
 
-Status: accepted bounded test correction; controlled RED precedes changes
+Status: accepted bounded test correction; local-recovery test budgets superseded by [ADR 0152](0152-phase-bounded-local-recovery-qualification.md).
 
 Date: 2026-10-31 UTC
 

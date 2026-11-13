@@ -97,6 +97,13 @@ func handoffNativeProcessWithEnvironment(cwd string, environment map[string]stri
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	return handoffNativeProcessContext(ctx, cwd, environment, exact, input, program, args...)
+}
+
+// Caller-scoped qualification leaves the default watchdog unchanged elsewhere.
+// per docs/adr/0152-phase-bounded-local-recovery-qualification.md:31
+func handoffNativeProcessContext(ctx context.Context, cwd string, environment map[string]string, exact bool, input, program string, args ...string) cliResult {
+	GinkgoHelper()
 	cmd := handoffCommand(ctx, cwd, environment, input, program, args...)
 	if exact {
 		cmd.Env = make([]string, 0, len(environment))

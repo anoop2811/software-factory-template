@@ -240,3 +240,66 @@ retain borrowed inputs at the transaction caller. Only this natural-exit
 Darwin control permits that specific error; stopped and canceled live-owner
 controls still require successful group termination. Do not convert an
 unconfirmed signal into a claimed cleanup success.
+
+## Held-source-child cleanup review
+
+The complete review of checkpoint `cb79827` identified related cleanup hazards
+in the source launcher's uncertainty evaluator. It released a held helper before
+issuing `SIGCONT`, and could kill its launcher while another goroutine reaped
+that launcher. Neither a finished-channel poll nor a new liveness probe reserves
+the numeric identity. No PID reuse or collateral signal was observed.
+
+Reuse the interruption owner's signaling/reaping phase boundary with an explicit
+direct-process constructor for the evaluator's borrowed process group. Preserve
+the existing isolated-group constructor and CI interruption semantics. A terminal
+join must confirm exit without reaping under the phase mutex, close signaling,
+and enter the sole bounded wait without issuing another signal. A live-child
+join request must refuse without changing ownership; cancellation and failure
+cleanup use the same serialized boundary. Never signal the evaluator's borrowed
+group.
+
+Complete launcher custody before releasing its held helper. Resume only a helper
+that this evaluator actually stopped, while its release pipe is still held, then
+close that pipe exactly once. Perform no mutating PID operation after release.
+Missing or malformed readiness, failed resume/release, uncertain launcher join
+or unconfirmed helper absence retain the fixture before assertions fail. Copy
+the existing qualified helper bytes into this fixture's owned directory so
+retention also preserves its actual executable; do not recompile or change the
+shared suite's cleanup policy. Preserve the original signal, capture-isolation,
+publication and absence assertions and all existing deadlines. Extend existing
+independent criteria for direct ownership and release ordering; do not change
+the census to manufacture coverage.
+
+The bounded audit of both source-launcher fixture files also found the same
+concurrent-wait/late-signal pattern in cancellation observation, compiler
+admission, absent compiler groups and prior background jobs. Apply the shared
+direct owner to those four paths together, preserving their existing process
+attributes and observation deadlines. Consolidate parent/descendant cleanup and
+retain evidence before failed absence assertions. Healthy compiler completion
+must still release its compiler before the launcher can exit; reserve the
+launcher identity throughout that release and close signaling before its sole
+wait. Preserve actual launcher absence before releasing unrelated held children.
+
+## Local-recovery phase diagnostics
+
+Hosted macOS job `131973875574` at checkpoint `cb79827` timed out both local
+recovery calls before publication admission. Reverse reached candidate
+materialization; forward reported cancellation before `Complete`. The two
+criteria already execute sequentially within one ordered owner. The acceptance
+suite is race-instrumented, but that does not establish the build flags of its
+child CLI; no child-race selector is configured in this workflow.
+
+Keep the original public invoker, authority checks and deadlines while measuring
+coarse preparation phases in the already instrumented selected-source fixture.
+Record actual driver build metadata and preview duration, then selected Begin,
+plan completion, target/predecessor staging and candidate materialization. These
+are best-effort diagnostic receipts, never admission or readiness authority. Read
+them into the report after the caller joins. No shipping hook or production
+control is added, and no timeout, validation or acquisition work is removed.
+Choose any further correction from that evidence rather than inferring race
+overhead or host contention from a timeout alone.
+
+The diagnostic run above preserved the original ninety-second context. The
+subsequent test-budget decision is recorded separately in [ADR 0152](0152-phase-bounded-local-recovery-qualification.md); it supersedes only the two
+recovery criteria's evaluator allowances, not runtime or source-fixture cleanup
+limits.

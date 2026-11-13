@@ -13,8 +13,8 @@ publication, interrupted recovery, explicit rollback and later-release retention
 Keep this one functional boundary; privileged review bootstrap and integrated
 hosted adopter rehearsal remain separate release obligations.
 
-Do not add commands, flags, dependencies or paid operations. Keep the runtime
-role sets, fresh-init Selection and installed descriptor semantics unchanged.
+Do not add public factory commands, flags, dependencies or paid operations. Keep
+the runtime role sets, fresh-init Selection and installed descriptor semantics unchanged.
 Project workflows are transaction participants, not runtime custody assets.
 Editing an application workflow must not prevent ordinary factory commands or
 CI preparation from admitting an otherwise healthy runtime.
@@ -801,6 +801,7 @@ preparation/consumer architecture and explicit successful-mutator custody scope.
 The receipts above describe the source state at each recorded run, before that
 architecture and its additional regression controls. They are not final-head
 qualification. Preserve the original 3459 criterion identities; four prepared
-qualification criteria and four independent process-helper criteria raise the
-current census to 3467. Complete final-head local and hosted evidence must include
+qualification criteria, four independent process-helper criteria, one
+interruption-custody criterion and one recovery-budget criterion raise the current
+census to 3469. Complete final-head local and hosted evidence must include
 the new routing and all affected fixture callers before merge readiness is claimed.

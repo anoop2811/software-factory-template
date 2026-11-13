@@ -8540,3 +8540,37 @@ criteria in `local-upgrade`; run both with one worker. Preserve every exact
 criterion, real compiler invocation, public installed local-upgrade path and
 existing deadline. This removes observed workload overlap without asserting
 unmeasured CPU contention or a particular internal transaction bottleneck.
+
+Decision 167 held-source-child review follow-up (2026-11-13 UTC): full-source
+verification of checkpoint `cb79827` exposed release-before-resume and concurrent
+launcher signal/reap hazards in a source uncertainty fixture. ADR 0151 records
+reuse of the child-identity owner with explicit direct-process signaling,
+terminal-only joining, signal-before-release ordering and conservative retention
+of every borrowed input. Preserve the borrowed process group, existing CI group
+semantics and deadlines. Clarify ADR 0148's public-command boundary and update
+its current census to 3468; keep historical qualification receipts unchanged.
+
+Decision 167 source-fixture family audit (2026-11-13 UTC): the same bounded
+source-file review identified four additional cancellation/compiler/background
+fixture paths with concurrent wait and late numeric signaling. Extend the shared
+direct-owner correction across all five affected paths in one change, with
+scenario-specific release ordering and unchanged product assertions. ADR 0151
+records the complete audit scope; no cross-repository process rewrite is implied.
+
+Decision 167 local-recovery diagnosis (2026-11-13 UTC): macOS job
+`131973875574` failed before publisher admission in both already sequential
+recovery entries. ADR 0151 records coarse test-fixture phase diagnostics and
+actual child build metadata, preserving the original invoker and all operation
+bounds. A race-enabled evaluator does not imply its compiled child uses race
+instrumentation; do not change invocation or authority checks on that assumption.
+
+## Decision 168 (2026-11-13 UTC): separate local recovery qualification budgets
+
+Adopt [ADR 0152](adr/0152-phase-bounded-local-recovery-qualification.md) before
+implementation. Measured legitimate acquisition and preflight leave inadequate
+margin in the two recovery criteria's old ninety-second test watchdog. Use
+120-second preview/admission allowances, the unchanged sixty-second publication
+allowance and one non-resettable 180-second outer command context. Preserve
+all runtime limits, original public routes, transaction authority and actual
+durable recovery assertions. Independent real-child controls must reject missing
+receipts, early exit and discarded outer bounds before hosted qualification.

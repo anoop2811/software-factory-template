@@ -11,3 +11,10 @@ was fetched the same day and documents this race. The independent control in
 acceptance/interruption_process_controls_test.go:19 exercises terminal-state
 observation, stopped interruption, cancellation and repeated cleanup. No
 recycled PID or collateral signal was observed.
+
+The follow-up audit found the same lifetime boundary in all five source-launcher
+fixture paths. Review signaling, waiting, descendant release and retained inputs
+as one owner; a correction to one cleanup call is not evidence for its siblings.
+Provenance: observed 2026-11-13 by tracing the two source-launcher fixture files
+at checkpoint `cb79827`; the complete correction scope is recorded in
+docs/adr/0151-reliable-ci-qualification.md:274.

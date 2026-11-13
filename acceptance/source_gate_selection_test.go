@@ -976,11 +976,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0148-transactional-installed-ci-migration.md:325
 		// Ninety-three strict provenance criteria and one real historical rebootstrap join discovery.
 		// per docs/adr/0149-compiler-provenance-and-security-patches.md:76
-		Expect(negativeTotal).To(Equal(3468))
+		// per docs/adr/0152-phase-bounded-local-recovery-qualification.md:61
+		Expect(negativeTotal).To(Equal(3469))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3468))
+		Expect(allTotal).To(Equal(3469))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -991,7 +992,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
-		expectedCounts := map[string]int{"base": 3101, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 3102, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-predecessor", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])

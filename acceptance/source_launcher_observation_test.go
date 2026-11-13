@@ -188,6 +188,67 @@ func sourceEntrypointGroupObservationCases() {
 	}
 }
 
+// Resume while the writer still reserves the helper's lifetime, then release
+// exactly once. Cleanup callers inspect both errors before discarding evidence.
+// per docs/adr/0151-reliable-ci-qualification.md:261
+func sourceHeldChildRelease(release *os.File, resume func() error) func() error {
+	var once sync.Once
+	var result error
+	return func() error {
+		once.Do(func() {
+			if resume != nil {
+				result = resume()
+			}
+			result = errors.Join(result, release.Close())
+		})
+		return result
+	}
+}
+
+// Every fixture holds its actual helper executable with its private evidence.
+// per docs/adr/0151-reliable-ci-qualification.md:266
+func sourcePrivateCompilerHelper(base string) string {
+	GinkgoHelper()
+	image, err := os.ReadFile(sourceCompilerHelperImage)
+	Expect(err).NotTo(HaveOccurred())
+	path := filepath.Join(base, "held-child-helper")
+	writeFixture(path, image, 0700)
+	return path
+}
+
+// Cleanup owns one order: complete parent signaling/joining, release held
+// descendants, then observe absence without sending them a late signal.
+// per docs/adr/0151-reliable-ci-qualification.md:274
+func sourceLauncherFixtureCleanup(owner *ciInterruptionOwner, base string, release func() error, ready bool, descendants ...int) {
+	GinkgoHelper()
+	result := owner.TerminateAndWait()
+	if !result.Joined || result.SignalError != nil || !ready {
+		holdFixtureCleanup(base, "source launcher join or descendant readiness was not confirmed")
+	}
+	releaseErr := release()
+	if releaseErr != nil {
+		holdFixtureCleanup(base, "source launcher descendant release failed")
+	}
+	AddReportEntry("source-launcher.fixture-cleanup", map[string]any{"launcher_joined": result.Joined, "signal_error": fmt.Sprint(result.SignalError), "wait_error": fmt.Sprint(result.WaitError), "release_error": fmt.Sprint(releaseErr), "readiness_confirmed": ready, "descendants": descendants}, ReportEntryVisibilityNever)
+	for _, pid := range descendants {
+		absent := false
+		defer func() {
+			if !absent {
+				holdFixtureCleanup(base, "source launcher descendant absence was not confirmed")
+			}
+		}()
+		Expect(pid).To(BeNumerically(">", 1), "never probe a guessed descendant identity")
+		Eventually(func() bool {
+			absent = errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
+			return absent
+		}, 3*time.Second).Should(BeTrue(), "release and observe the actual descendant before deleting its fixture")
+	}
+	Expect(result.Joined).To(BeTrue(), "the source launcher must join within its original cleanup bound")
+	Expect(result.SignalError).NotTo(HaveOccurred())
+	Expect(ready).To(BeTrue(), "unknown readiness retains the private fixture")
+	Expect(releaseErr).NotTo(HaveOccurred())
+}
+
 // A real held child remains outside the expected group; observation uncertainty
 // never grants authority to terminate it, even when Bash knows it is stopped.
 // per docs/adr/0150-bounded-source-group-reobservation.md:58
@@ -195,6 +256,7 @@ func sourceUncertainLiveChild(stopped bool) {
 	GinkgoHelper()
 	root, caller := fixtureDirectories()
 	base := filepath.Dir(root)
+	helper := sourcePrivateCompilerHelper(base)
 	launcher, err := os.ReadFile("../factory")
 	Expect(err).NotTo(HaveOccurred())
 	launcher = sourceObservationLauncher(launcher)
@@ -224,44 +286,75 @@ func sourceUncertainLiveChild(stopped bool) {
 	for _, file := range []*os.File{ready, readyWriter, releaseReader} {
 		DeferCleanup(func() { err := file.Close(); Expect(err == nil || errors.Is(err, os.ErrClosed)).To(BeTrue()) })
 	}
-	var once sync.Once
-	releaseChild := func() { once.Do(func() { _ = release.Close() }) }
-	DeferCleanup(releaseChild)
+	childPID, resumeCount := 0, 0
+	childStopped, readinessConfirmed := false, false
+	releaseEvents := []string{}
+	releaseChild := sourceHeldChildRelease(release, func() error {
+		if !childStopped {
+			return nil
+		}
+		if _, err := release.Stat(); err != nil {
+			return fmt.Errorf("held helper release closed before resume: %w", err)
+		}
+		resumeCount++
+		releaseEvents = append(releaseEvents, "resume-held-child")
+		return syscall.Kill(childPID, syscall.SIGCONT)
+	})
+	DeferCleanup(func() { Expect(releaseChild()).To(Succeed()) })
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, filepath.Join(root, "factory"), "help") // #nosec G204 -- evaluator-owned launcher with a controlled admission handshake.
-	command.Dir = caller
-	command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "SOURCE_TEST_OBSERVATION=transient", "SOURCE_TEST_PROBES="+probes, "SOURCE_TEST_SIGNALS="+signals, "SOURCE_TEST_CHILD_HELPER="+sourceCompilerHelperImage, "SOURCE_PRIOR_READY="+childReady, "SOURCE_PRIOR_UNRELATED_TOKEN=", "GORACE=atexit_sleep_ms=0", "BASH_ENV=", "ENV=")
-	command.ExtraFiles = []*os.File{readyWriter, releaseReader}
 	// Keep the borrowed evaluator group non-orphaned when the launcher exits;
 	// an orphaned stopped group would receive kernel SIGHUP/CONT independently.
 	// per docs/adr/0150-bounded-source-group-reobservation.md:58
 	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	finished := make(chan error, 1)
-	joined, childPID := false, 0
+	before, callerBefore := installationSnapshot(root), installationSnapshot(caller)
+	owner, err := startDirectInterruptionOwner(ctx, func(childContext context.Context) *exec.Cmd {
+		command := exec.CommandContext(childContext, filepath.Join(root, "factory"), "help") // #nosec G204 -- evaluator-owned launcher with a controlled admission handshake.
+		command.Dir = caller
+		command.Env = append(os.Environ(), "PATH="+tools+string(os.PathListSeparator)+"/usr/bin:/bin", "SOURCE_UNADMITTED_MARKER="+marker, "SOURCE_TEST_OBSERVATION=transient", "SOURCE_TEST_PROBES="+probes, "SOURCE_TEST_SIGNALS="+signals, "SOURCE_TEST_CHILD_HELPER="+helper, "SOURCE_PRIOR_READY="+childReady, "SOURCE_PRIOR_UNRELATED_TOKEN=", "GORACE=atexit_sleep_ms=0", "BASH_ENV=", "ENV=")
+		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
+		command.Stdout, command.Stderr = &stdout, &stderr
+		return command
+	})
+	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(func() {
-		releaseChild()
-		if childPID > 1 {
-			_ = syscall.Kill(childPID, syscall.SIGCONT)
+		// Finish every parent signal before the held helper can leave, and never
+		// discard either process's borrowed evidence on incomplete cleanup.
+		// per docs/adr/0151-reliable-ci-qualification.md:261
+		result := owner.TerminateAndWait()
+		if !result.Joined || result.SignalError != nil || !readinessConfirmed {
+			holdFixtureCleanup(base, "uncertain-child launcher custody or helper readiness was not confirmed")
 		}
-		if command.Process != nil && !joined {
-			_ = command.Process.Kill()
-			select {
-			case <-finished:
-				joined = true
-			case <-time.After(3 * time.Second):
-				holdFixtureCleanup(base, "uncertain-child observer did not reap its launcher")
-				Fail("the owned launcher did not join during bounded fixture cleanup")
+		releaseErr := releaseChild()
+		releaseEvents = append(releaseEvents, "release-child")
+		if releaseErr != nil {
+			holdFixtureCleanup(base, "uncertain-child resume or release failed")
+		}
+		AddReportEntry("source-launcher.uncertain-child-cleanup", map[string]any{"child_pid": childPID, "readiness_confirmed": readinessConfirmed, "stopped_by_evaluator": childStopped, "resume_count": resumeCount, "release_events": releaseEvents, "release_error": fmt.Sprint(releaseErr), "launcher_joined": result.Joined, "launcher_signal_error": fmt.Sprint(result.SignalError)}, ReportEntryVisibilityNever)
+		childAbsent := false
+		defer func() {
+			if !childAbsent {
+				holdFixtureCleanup(base, "uncertain-child helper absence was not confirmed")
 			}
-		}
+		}()
 		if childPID > 1 {
-			Eventually(func() bool { return errors.Is(syscall.Kill(childPID, 0), syscall.ESRCH) }, 3*time.Second).Should(BeTrue(), "release and reap the actual controlled child before deleting its fixture")
+			Eventually(func() bool {
+				childAbsent = errors.Is(syscall.Kill(childPID, 0), syscall.ESRCH)
+				return childAbsent
+			}, 3*time.Second).Should(BeTrue(), "release and reap the actual controlled child before deleting its fixture")
+		}
+		Expect(result.Joined).To(BeTrue(), "the owned launcher must join during bounded fixture cleanup")
+		Expect(result.SignalError).NotTo(HaveOccurred())
+		Expect(readinessConfirmed).To(BeTrue())
+		Expect(releaseErr).NotTo(HaveOccurred())
+		if childStopped {
+			Expect(resumeCount).To(Equal(1))
+			Expect(releaseEvents).To(Equal([]string{"resume-held-child", "release-child"}))
+		} else {
+			Expect(resumeCount).To(BeZero(), "an unstopped held child receives no cleanup signal")
+			Expect(releaseEvents).To(Equal([]string{"release-child"}))
 		}
 	})
-	before, callerBefore := installationSnapshot(root), installationSnapshot(caller)
-	Expect(command.Start()).To(Succeed())
-	go func() { finished <- command.Wait() }()
 	Expect(readyWriter.Close()).To(Succeed())
 	Expect(releaseReader.Close()).To(Succeed())
 	var child struct {
@@ -282,32 +375,39 @@ func sourceUncertainLiveChild(stopped bool) {
 	Expect(childPID).To(BeNumerically(">", 1))
 	childGroup, err := syscall.Getpgid(childPID)
 	Expect(err).NotTo(HaveOccurred())
-	launcherGroup, err := syscall.Getpgid(command.Process.Pid)
+	launcherGroup, err := syscall.Getpgid(owner.PID())
 	Expect(err).NotTo(HaveOccurred())
 	Expect(childGroup).To(Equal(launcherGroup))
 	Expect(childGroup).NotTo(Equal(childPID))
 	Expect(syscall.Kill(-childPID, 0)).To(Equal(syscall.ESRCH), "the expected compiler group is actually absent")
+	readinessConfirmed = true
 	if stopped {
 		Expect(syscall.Kill(childPID, syscall.SIGSTOP)).To(Succeed())
+		childStopped = true
 		Eventually(func() bool {
 			data, err := exec.Command("/bin/ps", "-o", "stat=", "-p", strconv.Itoa(childPID)).Output() // #nosec G204 -- fixed utility and the observed owned child PID.
 			return err == nil && strings.HasPrefix(strings.TrimSpace(string(data)), "T")
 		}, 3*time.Second).Should(BeTrue(), "observe actual stopped state before signaling the parent")
 	}
 	started := time.Now()
-	Expect(command.Process.Signal(syscall.SIGTERM)).To(Succeed())
-	var returned error
-	Eventually(finished, 3*time.Second).Should(Receive(&returned), "the launcher must refuse without waiting for the held child or its release")
-	joined = true
+	Expect(owner.Signal(syscall.SIGTERM)).To(Succeed())
+	returned, err := owner.AwaitExit(3 * time.Second)
+	Expect(err).NotTo(HaveOccurred(), "the launcher must refuse without waiting for the held child or its release")
+	if !returned.Joined || returned.SignalError != nil {
+		holdFixtureCleanup(base, "uncertain-child observer could not confirm terminal launcher custody")
+	}
+	Expect(returned.Joined).To(BeTrue())
+	Expect(returned.SignalError).NotTo(HaveOccurred())
+	Expect(returned.State).NotTo(BeNil())
 	elapsed := time.Since(started)
 	childErr := syscall.Kill(childPID, 0)
 	probeData, err := os.ReadFile(probes)
 	Expect(err).NotTo(HaveOccurred())
 	signalData, err := os.ReadFile(signals)
 	Expect(err).NotTo(HaveOccurred())
-	AddReportEntry("source-launcher.uncertain-live-child", map[string]any{"stopped": stopped, "status": command.ProcessState.ExitCode(), "elapsed_seconds": elapsed.Seconds(), "stderr": stderr.String(), "child_pid": childPID, "child_group": childGroup, "launcher_group": launcherGroup, "child_still_alive": childErr == nil, "observations": string(probeData), "signal_attempts": string(signalData)}, ReportEntryVisibilityNever)
-	Expect(returned).To(HaveOccurred())
-	Expect(command.ProcessState.ExitCode()).To(Equal(125))
+	AddReportEntry("source-launcher.uncertain-live-child", map[string]any{"stopped": stopped, "status": returned.State.ExitCode(), "elapsed_seconds": elapsed.Seconds(), "stderr": stderr.String(), "child_pid": childPID, "child_group": childGroup, "launcher_group": launcherGroup, "child_still_alive": childErr == nil, "observations": string(probeData), "signal_attempts": string(signalData)}, ReportEntryVisibilityNever)
+	Expect(returned.WaitError).To(HaveOccurred())
+	Expect(returned.State.ExitCode()).To(Equal(125))
 	Expect(childErr).To(Succeed(), "initial uncertainty must not authorize killing the live or stopped direct child")
 	Expect(signalData).To(BeEmpty(), "neither the borrowed group nor the direct child may be signalled")
 	Expect(strings.Split(strings.TrimSpace(string(probeData)), "\n")).To(Equal([]string{"unknown 1", "actual 2 1"}))
@@ -355,6 +455,7 @@ func sourceObservationCancellationLauncher(launcher []byte) []byte {
 // per docs/adr/0150-bounded-source-group-reobservation.md:36
 func sourceObservationCancelInvocation(caller string, environment map[string]string, program string) cliResult {
 	GinkgoHelper()
+	base := filepath.Dir(caller)
 	ready, readyWriter, err := os.Pipe()
 	Expect(err).NotTo(HaveOccurred())
 	releaseReader, release, err := os.Pipe()
@@ -362,55 +463,43 @@ func sourceObservationCancelInvocation(caller string, environment map[string]str
 	for _, file := range []*os.File{ready, readyWriter, releaseReader} {
 		defer func() { _ = file.Close() }()
 	}
-	var once sync.Once
-	releaseOwner := func() { once.Do(func() { _ = release.Close() }) }
-	defer releaseOwner()
+	releaseOwner := sourceHeldChildRelease(release, nil)
+	defer func() { Expect(releaseOwner()).To(Succeed()) }()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, program, "help") // #nosec G204 -- test-owned launcher and fixed help invocation.
-	command.Dir = caller
-	command.Env = os.Environ()
-	for name, value := range environment {
-		command.Env = append(command.Env, name+"="+value)
-	}
-	command.ExtraFiles = []*os.File{readyWriter, releaseReader}
-	command.Stdin = strings.NewReader("application input must remain borrowed\n")
 	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	finished := make(chan error, 1)
-	joined := false
-	defer func() {
-		if command.Process != nil && !joined {
-			releaseOwner()
-			_ = command.Process.Kill()
-			select {
-			case <-finished:
-			case <-time.After(3 * time.Second):
-				holdFixtureCleanup(filepath.Dir(program), "uncertainty signal fixture did not join its owner")
-				Fail("the owned uncertainty launcher did not join during bounded cleanup")
-			}
+	owner, err := startDirectInterruptionOwner(ctx, func(childContext context.Context) *exec.Cmd {
+		command := exec.CommandContext(childContext, program, "help") // #nosec G204 -- test-owned launcher and fixed help invocation.
+		command.Dir = caller
+		command.Env = os.Environ()
+		for name, value := range environment {
+			command.Env = append(command.Env, name+"="+value)
 		}
-	}()
-	Expect(command.Start()).To(Succeed())
-	go func() { finished <- command.Wait() }()
+		command.ExtraFiles = []*os.File{readyWriter, releaseReader}
+		command.Stdin = strings.NewReader("application input must remain borrowed\n")
+		command.Stdout, command.Stderr = &stdout, &stderr
+		return command
+	})
+	Expect(err).NotTo(HaveOccurred())
+	readinessConfirmed := false
+	defer func() { sourceLauncherFixtureCleanup(owner, base, releaseOwner, readinessConfirmed) }()
 	Expect(readyWriter.Close()).To(Succeed())
 	Expect(releaseReader.Close()).To(Succeed())
 	Expect(ready.SetReadDeadline(time.Now().Add(3 * time.Second))).To(Succeed())
-	var owner struct{ PID int }
-	if readyErr := json.NewDecoder(ready).Decode(&owner); readyErr != nil {
-		releaseOwner()
-		var returned error
-		Eventually(finished, 3*time.Second).Should(Receive(&returned))
-		joined = true
-		Fail(fmt.Sprintf("uncertainty handshake failed before signaling: %v; wait=%v stderr=%s", readyErr, returned, stderr.String()))
+	var announced struct{ PID int }
+	if readyErr := json.NewDecoder(ready).Decode(&announced); readyErr != nil {
+		holdFixtureCleanup(base, "uncertainty handshake did not establish owner identity")
+		Fail(fmt.Sprintf("uncertainty handshake failed before signaling: %v", readyErr))
 	}
-	Expect(owner.PID).To(Equal(command.Process.Pid))
+	Expect(announced.PID).To(Equal(owner.PID()))
+	readinessConfirmed = true
 	Expect(os.ReadFile(environment["SOURCE_TEST_PROBES"])).To(Equal([]byte("unknown 1\n")), "the signal must arrive after the first unknown and before the next probe")
-	Expect(command.Process.Signal(syscall.SIGTERM)).To(Succeed())
-	var returned error
-	Eventually(finished, 3*time.Second).Should(Receive(&returned), "cancellation during uncertainty must not require the observation hold to be released")
-	joined = true
-	Expect(returned).To(HaveOccurred())
+	Expect(owner.Signal(syscall.SIGTERM)).To(Succeed())
+	returned, err := owner.AwaitExit(3 * time.Second)
+	Expect(err).NotTo(HaveOccurred(), "cancellation during uncertainty must not require the observation hold to be released")
+	Expect(returned.Joined).To(BeTrue())
+	Expect(returned.WaitError).To(HaveOccurred())
+	Expect(returned.State).NotTo(BeNil())
 	Expect(ctx.Err()).NotTo(HaveOccurred())
-	return cliResult{stdout.String(), stderr.String(), command.ProcessState.ExitCode()}
+	return cliResult{stdout.String(), stderr.String(), returned.State.ExitCode()}
 }

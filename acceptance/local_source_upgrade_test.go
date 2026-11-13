@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"debug/buildinfo"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/packaging"
+	"github.com/anoop2811/software-factory-template/internal/qualification"
 	"github.com/anoop2811/software-factory-template/internal/transition"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -71,6 +73,18 @@ func localUpgradePrepareSource() localUpgradeFixture {
 	publication := "\tnewPending := owner.pending == nil"
 	admitted := strings.Replace(paused, publication, "\tif err := owner.independentLocalUpgradeAdmission(ctx); err != nil { return err }\n"+publication, 1)
 	Expect(admitted).NotTo(Equal(paused))
+	// Coarse diagnostics cannot satisfy admission/READY or alter a product result.
+	// per docs/adr/0151-reliable-ci-qualification.md:283
+	for _, phase := range []struct{ before, after string }{
+		{"	owner := &transaction{root: root", "	independentLocalUpgradeTiming(root, \"begin\")\n	owner := &transaction{root: root"},
+		{"	options := request.Source", "	independentLocalUpgradeTiming(root, \"plan-complete\")\n	options := request.Source"},
+		{"	staged, err := staging.Stage(ctx, options)", "	independentLocalUpgradeTiming(root, \"target-stage-start\")\n	staged, err := staging.Stage(ctx, options)\n	independentLocalUpgradeTiming(root, \"target-stage-end\")"},
+		{"		qualified, err := staging.Stage(ctx, before)", "		independentLocalUpgradeTiming(root, \"before-stage-start\")\n		qualified, err := staging.Stage(ctx, before)\n		independentLocalUpgradeTiming(root, \"before-stage-end\")"},
+		{"owner.materializeCandidate(ctx)", "owner.independentLocalUpgradeMaterialize(ctx)"},
+	} {
+		Expect(strings.Count(admitted, phase.before)).To(Equal(1), "diagnostic phase must identify one exact existing operation")
+		admitted = strings.Replace(admitted, phase.before, phase.after, 1)
+	}
 	writeFixture(transaction, []byte(admitted), 0644)
 	hook := strings.ReplaceAll(localUpgradePauseSource, "INDEPENDENT_CONTROL_PATH", fmt.Sprintf("%q", control))
 	writeFixture(filepath.Join(source, "internal/installation/independent_local_upgrade_fixture.go"), []byte(hook), 0644)
@@ -217,6 +231,18 @@ func localUpgradeCompiler(f handoffBootstrapFixture, image handoffReleaseImage, 
 // per docs/adr/0117-explicit-go-local-upgrade.md:78
 const localUpgradePauseSource = `package installation
 import("context";"encoding/json";"os";"syscall";"time")
+func independentLocalUpgradeTiming(root,phase string){
+ data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if err!=nil{return}
+ var c struct{Root,Ready string};if json.Unmarshal(data,&c)!=nil||root!=c.Root||c.Ready==""{return}
+ file,err:=os.OpenFile(c.Ready+".timing",os.O_CREATE|os.O_WRONLY|os.O_APPEND,0600);if err!=nil{return}
+ _=json.NewEncoder(file).Encode(map[string]any{"phase":phase,"pid":os.Getpid(),"root":root,"at":time.Now().UTC().Format(time.RFC3339Nano)});_=file.Close()
+}
+func(owner *transaction)independentLocalUpgradeMaterialize(ctx context.Context)error{
+ independentLocalUpgradeTiming(owner.root,"materialize-start")
+ err:=owner.materializeCandidate(ctx)
+ independentLocalUpgradeTiming(owner.root,"materialize-end")
+ return err
+}
 func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)error{
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
  var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
@@ -776,40 +802,57 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			"initialization_seconds": time.Since(started).Seconds(),
 		}, ReportEntryVisibilityNever)
 		f, driver, root := before.f, before.driver, before.root
+		build, buildErr := buildinfo.ReadFile(driver)
+		driverBuild := map[string]any{"path": driver, "build_info_error": fmt.Sprint(buildErr), "race_selector": os.Getenv("FACTORY_CLI_TEST_RACE")}
+		if buildErr == nil {
+			driverBuild["go_version"] = build.GoVersion
+			driverBuild["settings"] = build.Settings
+		}
+		AddReportEntry("local-recovery.invoker-build", driverBuild, ReportEntryVisibilityNever)
 		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"interrupt witness\"}\n")
 		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
 		originalDescriptor, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
 		Expect(err).NotTo(HaveOccurred())
 		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
+		limits := qualification.LocalRecoveryLimits()
+		previewContext, stopPreview := limits.PreviewContext(context.Background())
+		defer stopPreview()
+		previewStarted := time.Now()
+		preview := handoffProposal(handoffNativeProcessContext(previewContext, root, f.environment, false, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
+		stopPreview()
+		AddReportEntry("local-recovery.preview-seconds", time.Since(previewStarted).Seconds(), ReportEntryVisibilityNever)
 		ready := filepath.Join(f.root, "actual-selected-worker.json")
 		control, err := json.Marshal(map[string]string{"Root": root, "Ready": ready})
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(fixture.control, control, 0600)
 		DeferCleanup(func() { Expect(os.Remove(fixture.control)).To(Succeed()) })
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := limits.Context(context.Background())
 		defer cancel()
 		command := handoffCommand(ctx, root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
 		command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }
 		Expect(command.Start()).To(Succeed())
-		// Acquisition and preflight share the unchanged whole-command deadline;
-		// publication gets its own unchanged allowance only after actual admission.
-		// per docs/adr/0121-local-upgrade-readiness-boundary.md:25
+		// Phase allowances inherit one command deadline; only the actual admission
+		// receipt starts the unchanged durable-publication allowance.
+		// per docs/adr/0152-phase-bounded-local-recovery-qualification.md:31
 		finished := make(chan struct{})
 		var returned error
 		go func() { returned = command.Wait(); close(finished) }()
 		phase := "awaiting publisher admission"
 		var admission, receipt localUpgradeWorkerReceipt
-		readReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+		readReceipt := func(path string, target *localUpgradeWorkerReceipt) (bool, error) {
 			data, err := os.ReadFile(path)
 			if os.IsNotExist(err) {
-				return false
+				return false, nil
 			}
-			Expect(err).NotTo(HaveOccurred())
-			Expect(json.Unmarshal(data, target)).To(Succeed())
-			return true
+			if err != nil {
+				return false, err
+			}
+			if err := json.Unmarshal(data, target); err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 		groupAbsent := func(value localUpgradeWorkerReceipt) (bool, error) {
 			if value.PID <= 0 || value.Group != value.PID {
@@ -875,6 +918,9 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 				"context_seconds_remaining_at_fixture_cleanup_entry": remaining, "caller_wait_confirmed": waited,
 			}
 			if waited {
+				timing, timingErr := os.ReadFile(ready + ".timing")
+				observation["phase_timing_json"] = string(timing)
+				observation["phase_timing_error"] = fmt.Sprint(timingErr)
 				observation["caller_wait"] = fmt.Sprint(returned)
 				observation["stdout_after_wait"] = stdout.String()
 				observation["stderr_after_wait"] = stderr.String()
@@ -884,17 +930,18 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			Expect(probeAfter).NotTo(HaveOccurred(), "selected process-group absence must be observable")
 			Expect(absentAfter).To(BeTrue(), "the whole recorded group must settle, including descendants of a reaped leader")
 		}()
-		waitForReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+		callerExited := func() error {
 			select {
 			case <-finished:
-				StopTrying(fmt.Sprintf("caller exited before %s: %v stderr=%q", phase, returned, stderr.String())).Now()
+				if returned != nil {
+					return fmt.Errorf("caller exited before %s: %w stderr=%q", phase, returned, stderr.String())
+				}
+				return fmt.Errorf("caller exited successfully before %s: stderr=%q", phase, stderr.String())
 			default:
+				return nil
 			}
-			return readReceipt(path, target)
 		}
-		deadline, ok := ctx.Deadline()
-		Expect(ok).To(BeTrue())
-		Eventually(func() bool { return waitForReceipt(ready+".admitted", &admission) }, time.Until(deadline)).WithContext(ctx).Should(BeTrue())
+		Expect(limits.AwaitAdmission(ctx, func() (bool, error) { return readReceipt(ready+".admitted", &admission) }, callerExited)).To(Succeed())
 		Expect(admission.PID).NotTo(Equal(command.Process.Pid), "admission must belong to the selected worker")
 		Expect(admission.Group).To(Equal(admission.PID))
 		Expect(admission.Root).To(Equal(root))
@@ -902,7 +949,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(admission.Source).To(BeAnExistingFile())
 		Expect(admission.Before).To(BeAnExistingFile())
 		phase = "awaiting selected worker durable READY"
-		Eventually(func() bool { return waitForReceipt(ready, &receipt) }, 60*time.Second).WithContext(ctx).Should(BeTrue())
+		Expect(limits.AwaitPublication(ctx, func() (bool, error) { return readReceipt(ready, &receipt) }, callerExited)).To(Succeed())
 		Expect(receipt.PID).To(Equal(admission.PID), "the admitted publisher must produce the durable witness")
 		Expect(receipt.Group).To(Equal(admission.Group))
 		Expect(receipt.Migration).To(Equal(admission.Migration))

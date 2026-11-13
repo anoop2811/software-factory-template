@@ -286,7 +286,7 @@ func (fixtures handoffScenarioFixtures) goFixture() (handoffBootstrapFixture, st
 	root := filepath.Join(f.cwd, "genuine generated Go predecessor")
 	Expect(os.Mkdir(root, 0700)).To(Succeed())
 	imageGit(root, "init", "--quiet")
-	initialized := handoffNativeProcess(f.cwd, f.environment, localUpgradeAnswers, driver, "init", root, "--go-candidate", "v9.8.0", "--pack", "none")
+	initialized := handoffCooperativeProcess(f.cwd, f.environment, localUpgradeAnswers, []string{f.root}, driver, "init", root, "--go-candidate", "v9.8.0", "--pack", "none")
 	Expect(initialized.status).To(BeZero(), "%+v", initialized)
 	Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(fixtures.beforeBinary))
 	workflow, err := os.ReadFile(filepath.Join(root, ".github/workflows/factory.yml"))
@@ -313,7 +313,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		// per docs/DECISION_LOG.md:4873
 		handoffNPMLifecycleFixture(f)
 		target := filepath.Join(f.cwd, "new governed project")
-		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
+		result := handoffCooperativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), []string{f.root}, driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
 		Expect(result.status).To(Equal(0), "%+v", result)
 		handoffNPMLifecyclePreserved(f, target)
 		data, err := os.ReadFile(filepath.Join(target, ".factory/installation.current"))
@@ -370,6 +370,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		f, _ := handoffNativeFixture(fixtures.image)
 		target := filepath.Join(f.cwd, "handoff-project")
 		var program string
+		retainedRoots := []string{f.root}
 		args := []string{"init", target, "--go-candidate", handoffVersion, "--pack", "none"}
 		if entry == "shell" {
 			program, args = "/bin/sh", append([]string{f.installer}, args...)
@@ -380,12 +381,15 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 			// per docs/adr/0101-go-release-handoff.md:119
 			caller, err := os.CreateTemp("/tmp", "factory-public-caller-")
 			Expect(err).NotTo(HaveOccurred())
-			DeferCleanup(os.Remove, caller.Name())
+			DeferCleanup(cleanupFixtureDirectory, caller.Name())
 			_, writeErr := caller.Write(candidateBinary)
 			Expect(errors.Join(writeErr, caller.Chmod(0700), caller.Close())).To(Succeed())
 			program = caller.Name()
+			// Retain only the borrowed executable, never its public parent.
+			// per docs/adr/0151-reliable-ci-qualification.md:130
+			retainedRoots = append(retainedRoots, program)
 		}
-		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), program, args...)
+		result := handoffCooperativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), retainedRoots, program, args...)
 		Expect(result.status).To(Equal(0), "%+v", result)
 		runtimeBytes, err := os.ReadFile(filepath.Join(target, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
@@ -528,7 +532,14 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		}
 		ref := "main"
 		legacyEnvironment := map[string]string{"PATH": filepath.Join(filepath.Dir(legacy.source), "external tools") + string(os.PathListSeparator) + os.Getenv("PATH")}
-		upgraded := imageProcess(legacy.root, legacyEnvironment, "bash", filepath.Join(legacy.root, "scripts/factory-upgrade.sh"), "--source", legacy.source, "--ref", ref)
+		// The frozen writer's own recursion guard skips only duplicate doctor setup.
+		// It must not reach the restored legacy selftest below.
+		// per docs/adr/0148-transactional-installed-ci-migration.md:758
+		writerEnvironment := map[string]string{"PATH": legacyEnvironment["PATH"], "FACTORY_UPGRADE_ACTIVE": "1"}
+		upgraded := cooperativeFixtureProcess(filepath.Dir(legacy.root), "release-handoff.historical-writer", "", []string{filepath.Dir(legacy.root), filepath.Dir(legacy.source)}, func(ctx context.Context) *exec.Cmd {
+			return imageCommand(ctx, legacy.root, writerEnvironment, "bash", filepath.Join(legacy.root, "scripts/factory-upgrade.sh"), "--source", legacy.source, "--ref", ref)
+		})
+		Expect(upgraded.stdout).To(ContainSubstring("(nested upgrade — skipping the doctor proof to avoid recursion)"))
 		Expect(upgraded.status).To(Equal(0), "%+v", upgraded)
 		originalMarker, err := os.ReadFile(filepath.Join(legacy.root, ".factory-version"))
 		Expect(err).NotTo(HaveOccurred())
@@ -540,7 +551,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(first).To(HavePrefix(f.root + string(os.PathSeparator)))
 		Expect(first).NotTo(Equal(f.root))
 		Expect(os.RemoveAll(first)).To(Succeed())
-		result := handoffApply(f, driver, legacy.root, proposal)
+		result := handoffCooperativeProcess(legacy.root, f.environment, "", []string{f.root, legacy.root}, driver, "upgrade", "--go-candidate", handoffVersion, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
 		Expect(result.status).To(Equal(0), "%+v", result)
 		second := handoffFlag(handoffRecorded(f, "release-download"), "--dir")
 		Expect(second).NotTo(Equal(first))
@@ -581,7 +592,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		writeFixture(filepath.Join(recoveryTools, "gh"), verifier, 0700)
 		recoveryEnvironment["PATH"] = recoveryTools + string(os.PathListSeparator) + legacyEnvironment["PATH"]
 		reverse := handoffProposal(handoffNativeProcess(legacy.root, recoveryEnvironment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
-		rollback := handoffNativeProcess(legacy.root, recoveryEnvironment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
+		rollback := handoffCooperativeProcess(legacy.root, recoveryEnvironment, "", []string{f.root, legacy.root, filepath.Dir(legacy.source), fixtures.image.work}, driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
 		Expect(rollback.status).To(Equal(0), "%+v", rollback)
 		marker, err := os.ReadFile(filepath.Join(legacy.root, ".factory-version"))
 		Expect(err).NotTo(HaveOccurred())
@@ -773,7 +784,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		installedDriver := filepath.Join(legacy.root, "factory")
 		proposal := handoffPreview(f, installedDriver, legacy.root)
 		Expect(proposal["profile"]).To(Equal("go-hybrid-v1"))
-		result := handoffApply(f, installedDriver, legacy.root, proposal)
+		result := handoffCooperativeProcess(legacy.root, f.environment, "", []string{f.root, legacy.root}, installedDriver, "upgrade", "--go-candidate", handoffVersion, "--confirm", proposal["proposal_digest"].(string), "--quiescent")
 		Expect(result.status).To(Equal(0), "%+v", result)
 		ordinary := handoffNativeProcess(legacy.root, f.environment, "", filepath.Join(legacy.root, "factory"), "selftest")
 		Expect(ordinary.status).To(Equal(0), "%+v", ordinary)
@@ -793,7 +804,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		changedReverse := handoffProposal(handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--dry-run", "--json")...))
 		Expect(changedReverse["proposal_digest"]).NotTo(Equal(reverse["proposal_digest"]), "reverse confirmation must bind freshly observed predecessor archive bytes")
 		writeFixture(legacy.archive, fixtures.beforeArchive, 0600)
-		rollback := handoffNativeProcess(legacy.root, f.environment, "", driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
+		rollback := handoffCooperativeProcess(legacy.root, f.environment, "", []string{f.root, legacy.root, fixtures.image.work}, driver, append(rollbackArgs, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
 		Expect(rollback.status).To(Equal(0), "%+v", rollback)
 		actual, err = os.ReadFile(filepath.Join(legacy.root, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())
@@ -954,7 +965,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		Expect(err).NotTo(HaveOccurred())
 		recoveryArgs := append(handoffRecoveryOperands(fixtures.image, f, installed.archive), "--recover", migration, "--direction", direction)
 		recovery := handoffProposal(handoffNativeProcess(installed.root, f.environment, "", driver, append(recoveryArgs, "--dry-run", "--json")...))
-		result := handoffNativeProcess(installed.root, f.environment, "", driver, append(recoveryArgs, "--confirm", recovery["proposal_digest"].(string), "--quiescent")...)
+		result := handoffCooperativeProcess(installed.root, f.environment, "", []string{f.root, installed.root, fixtures.image.work}, driver, append(recoveryArgs, "--confirm", recovery["proposal_digest"].(string), "--quiescent")...)
 		Expect(result.status).To(Equal(0), "%+v", result)
 		actual, err := os.ReadFile(filepath.Join(installed.root, ".factory/bin/factory-runtime"))
 		Expect(err).NotTo(HaveOccurred())

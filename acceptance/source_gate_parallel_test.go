@@ -59,10 +59,11 @@ var _=Describe("Go explicit local source upgrade upgrades an exact Go predecesso
 })
 `
 
-// Four small whole groups exercise scheduling without splitting Ordered fixtures.
-// The heavy groups rendezvous; one stays occupied until medium completes, so
-// selecting light before medium is an observable policy failure, not a timing claim.
+// Three small retention owners exercise scheduling without splitting Ordered fixtures.
+// The heavy owners rendezvous; one stays occupied until backup retention completes.
+// Their observed priorities must dispatch both safeguards before the lighter owner.
 // per docs/adr/0107-published-release-qualification.md:222
+// per docs/adr/0148-transactional-installed-ci-migration.md:779
 const sourceGatePrioritySuite = sourceGateWorkerBootstrap + `
 func exists(name string) bool { _,err:=os.Stat(filepath.Join(os.Getenv("WORKER_PROOF_DIR"),name));return err==nil }
 func receipt(name string) {
@@ -72,7 +73,7 @@ func receipt(name string) {
 }
 func priority(name string) int { n,err:=strconv.Atoi(os.Getenv("PRIORITY_"+name));if err!=nil {panic(err)};return n }
 func group(name string) bool {
- return Describe("Whole installation upgrade release candidate handoff "+name,Ordered,ContinueOnFailure,SpecPriority(priority(name)),func(){
+ return Describe("Whole installation upgrade release candidate handoff backup retention "+name,Ordered,ContinueOnFailure,SpecPriority(priority(name)),func(){
   BeforeAll(func(){
    receipt("started-"+name)
    switch name {
@@ -80,14 +81,12 @@ func group(name string) bool {
     Eventually(func() bool{return exists("started-HEAVY_A")&&exists("started-HEAVY_B")},3*time.Second,10*time.Millisecond).Should(BeTrue(),"priority oracle: both heavy groups must be dispatched first")
    case "MEDIUM":
     Expect(exists("started-HEAVY_A")&&exists("started-HEAVY_B")).To(BeTrue(),"priority oracle: medium cannot precede either heavy group")
-   case "LIGHT":
-    Expect(exists("finished-MEDIUM")).To(BeTrue(),"priority oracle: light cannot precede medium completion")
    }
   })
   It("first",func(){receipt("criterion-"+name+"-first")})
   It("second",func(){
    Expect(exists("criterion-"+name+"-first")).To(BeTrue(),"Ordered first must precede second")
-   if name=="HEAVY_B" {Eventually(func()bool{return exists("finished-MEDIUM")},3*time.Second,10*time.Millisecond).Should(BeTrue(),"priority oracle: the freed worker must dispatch medium before light")}
+   if name=="HEAVY_B" {Eventually(func()bool{return exists("finished-MEDIUM")},3*time.Second,10*time.Millisecond).Should(BeTrue(),"priority oracle: the freed worker must dispatch backup retention")}
    receipt("criterion-"+name+"-second")
   })
   AfterAll(func(){if exists("criterion-"+name+"-second"){receipt("finished-"+name)}})
@@ -96,7 +95,6 @@ func group(name string) bool {
 var _=group("HEAVY_A")
 var _=group("HEAVY_B")
 var _=group("MEDIUM")
-var _=group("LIGHT")
 `
 
 // Ginkgo's default JSON omits priority and Ordered fields; serialize those
@@ -105,6 +103,7 @@ var _=group("LIGHT")
 const sourceGatePriorityObserver = `package acceptance_test
 import (
  "encoding/json"
+ "fmt"
  "os"
  . "github.com/onsi/ginkgo/v2"
  "github.com/onsi/ginkgo/v2/types"
@@ -114,7 +113,9 @@ var _=ReportAfterEach(func(spec SpecReport){
  path:=os.Getenv("PRIORITY_METADATA_PATH")
  if path==""||spec.LeafNodeType!=types.NodeTypeIt||spec.State.Is(types.SpecStateSkipped){return}
  file,err:=os.OpenFile(path,os.O_WRONLY|os.O_CREATE|os.O_APPEND,0600);Expect(err).NotTo(HaveOccurred())
- err=json.NewEncoder(file).Encode(struct{Text string;Labels []string;Priority int;Ordered bool}{spec.FullText(),spec.Labels(),spec.SpecPriority,spec.IsInOrderedContainer})
+ owner:=""
+ if len(spec.ContainerHierarchyLocations)>0 {location:=spec.ContainerHierarchyLocations[0];owner=fmt.Sprintf("%s:%d",location.FileName,location.LineNumber)}
+ err=json.NewEncoder(file).Encode(struct{Text string;Labels []string;Priority int;Ordered bool;Owner string}{spec.FullText(),spec.Labels(),spec.SpecPriority,spec.IsInOrderedContainer,owner})
  Expect(err).NotTo(HaveOccurred());Expect(file.Close()).To(Succeed())
 })
 `
@@ -124,6 +125,7 @@ type sourceGatePriorityEntry struct {
 	Labels   []string
 	Priority int
 	Ordered  bool
+	Owner    string
 }
 
 // per docs/adr/0107-published-release-qualification.md:207
@@ -196,20 +198,42 @@ func sourceGateHandoffPriorityProof() {
 		}
 		return entries
 	}
-	// The real runners must split whole fixture owners while preserving their union.
-	// per docs/adr/0148-transactional-installed-ci-migration.md:488
+	// Real runners preserve the exact union and each independently owned fixture.
+	// per docs/adr/0148-transactional-installed-ci-migration.md:778
 	handoffMetadata := readMetadata()
-	Expect(handoffMetadata).To(HaveLen(44))
+	Expect(handoffMetadata).To(HaveLen(26))
 	Expect(readReport().SuiteSucceeded).To(BeTrue())
 	const checkoutPrefix = "Whole installation upgrade release candidate handoff CI checkout preparation "
+	const retentionPrefix = "Whole installation upgrade release candidate handoff backup retention "
 	for _, spec := range handoffMetadata {
 		Expect(spec.Text).NotTo(HavePrefix(checkoutPrefix))
+		Expect(spec.Text).NotTo(HavePrefix(retentionPrefix))
 	}
-	handoffTests, handoffJSONPath := tests, jsonPath
-	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=release-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
+	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=release-retention", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
 	Expect(status).To(Equal(0))
 	tests = sourceGateTests(calls)
 	Expect(tests).To(HaveLen(2))
+	tests = tests[len(tests)-1:]
+	sourceGateAssertPartition(tests[0], "release-retention")
+	jsonPath = filepath.Join(reportsDir, "release-retention.json")
+	output, err = replay("..", []string{"--dry-run"}, []string{"GOFLAGS=-overlay=" + overlayPath, "PRIORITY_METADATA_PATH=" + metadataPath})
+	Expect(err).NotTo(HaveOccurred(), "real retention priority metadata: %s", output)
+	Expect(readReport().SuiteSucceeded).To(BeTrue())
+	retentionMetadata := readMetadata()[len(handoffMetadata):]
+	Expect(retentionMetadata).To(HaveLen(18))
+	actualRetention, expectedRetention := []string{}, []string{}
+	for _, name := range sourceGateRetentionNames {
+		expectedRetention = append(expectedRetention, retentionPrefix+name)
+	}
+	for _, spec := range retentionMetadata {
+		actualRetention = append(actualRetention, spec.Text)
+	}
+	Expect(actualRetention).To(ConsistOf(expectedRetention))
+	retentionTests, retentionJSONPath := tests, jsonPath
+	status, calls, _ = sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=release-ci", "GO_RUNTIME_TEST_PROCS=2", "GO_RUNTIME_REPORT_DIR=" + reportsDir})
+	Expect(status).To(Equal(0))
+	tests = sourceGateTests(calls)
+	Expect(tests).To(HaveLen(3))
 	tests = tests[len(tests)-1:]
 	sourceGateAssertPartition(tests[0], "release-ci")
 	jsonPath = filepath.Join(reportsDir, "release-ci.json")
@@ -218,18 +242,17 @@ func sourceGateHandoffPriorityProof() {
 	Expect(readReport().SuiteSucceeded).To(BeTrue())
 	combinedMetadata := readMetadata()
 	Expect(combinedMetadata).To(HaveLen(63))
-	for _, spec := range combinedMetadata[len(handoffMetadata):] {
+	for _, spec := range combinedMetadata[len(handoffMetadata)+len(retentionMetadata):] {
 		Expect(spec.Text).To(HavePrefix(checkoutPrefix))
 	}
-	// The established four-group execution oracle still uses the handoff runner.
-	tests, jsonPath = handoffTests, handoffJSONPath
+	// Scheduling replays the actual three-owner retention job, with real priorities.
+	tests, jsonPath = retentionTests, retentionJSONPath
 	type bucket struct {
 		label, name     string
 		count, priority int
 	}
-	buckets := []bucket{{"handoff-legacy-and-init", "HEAVY_A", 21, 2}, {"handoff-retention-safeguards", "HEAVY_B", 10, 2}, {"handoff-backup-retention", "MEDIUM", 8, 1}, {"handoff-go-recovery", "LIGHT", 5, 0}}
-	// Register new groups independently; the original four-group real scheduling
-	// replay below remains unchanged, including its removed-priority control.
+	buckets := []bucket{{"handoff-legacy-and-init", "LEGACY", 21, 2}, {"handoff-retention-safeguards", "SAFEGUARDS", 10, 2}, {"handoff-backup-retention", "BACKUPS", 8, 1}, {"handoff-go-recovery", "GO", 5, 0}}
+	// Register CI groups independently of retention ownership and scheduling.
 	// per docs/adr/0143-ci-checkout-preparation.md:178
 	type ciGroup struct {
 		ordered    bool
@@ -314,8 +337,42 @@ func sourceGateHandoffPriorityProof() {
 	}
 	for _, b := range buckets {
 		Expect(counts[b.name]).To(Equal(b.count))
+		Expect(priorities[b.name]).To(Equal(b.priority), "preserve every existing coarse group priority")
 	}
 	_, _ = fmt.Fprintf(GinkgoWriter, "actual handoff group metadata: counts=%v priorities=%v exact63=%v\n", counts, priorities, identities)
+	// Outer declaration locations distinguish the two same-named safeguard owners.
+	// A boolean Ordered flag or one synthetic ten-case bucket cannot prove the split.
+	// per docs/adr/0148-transactional-installed-ci-migration.md:779
+	const unsafePrefix = retentionPrefix + "safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them "
+	materialNames := map[string]bool{}
+	for _, name := range []string{"operator file", "external symlink", "foreign hardlink", "edited before-image"} {
+		materialNames[unsafePrefix+name] = true
+	}
+	retentionOwners := map[string]string{}
+	retentionCounts, retentionPriorities := map[string]int{}, map[string]int{}
+	for _, spec := range retentionMetadata {
+		name, priority := "MEDIUM", 1
+		if strings.HasPrefix(spec.Text, retentionPrefix+"safeguards ") {
+			name, priority = "HEAVY_B", 2
+			if materialNames[spec.Text] {
+				name = "HEAVY_A"
+			}
+		}
+		Expect(spec.Ordered).To(BeTrue())
+		Expect(spec.Owner).NotTo(BeEmpty())
+		Expect(spec.Priority).To(Equal(priority))
+		if owner, found := retentionOwners[name]; found {
+			Expect(spec.Owner).To(Equal(owner), "one immutable image owner per retention group")
+		}
+		retentionOwners[name] = spec.Owner
+		retentionCounts[name]++
+		retentionPriorities[name] = spec.Priority
+	}
+	Expect(retentionCounts).To(Equal(map[string]int{"HEAVY_A": 4, "HEAVY_B": 6, "MEDIUM": 8}))
+	Expect(retentionOwners["HEAVY_A"]).NotTo(Equal(retentionOwners["HEAVY_B"]), "material and custody cases require distinct Ordered owners")
+	Expect(retentionOwners["MEDIUM"]).NotTo(Or(Equal(retentionOwners["HEAVY_A"]), Equal(retentionOwners["HEAVY_B"])))
+	scheduling := []bucket{{"handoff-retention-safeguards", "HEAVY_A", 4, 2}, {"handoff-retention-safeguards", "HEAVY_B", 6, 2}, {"handoff-backup-retention", "MEDIUM", 8, 1}}
+	_, _ = fmt.Fprintf(GinkgoWriter, "actual retention ownership: counts=%v owners=%v priorities=%v\n", retentionCounts, retentionOwners, retentionPriorities)
 	root := GinkgoT().TempDir()
 	for _, path := range []string{"go.mod", "go.sum"} {
 		data, err := os.ReadFile(filepath.Join("..", path))
@@ -328,9 +385,9 @@ func sourceGateHandoffPriorityProof() {
 		receipts := GinkgoT().TempDir()
 		Expect(os.Remove(metadataPath)).To(Succeed())
 		environment := []string{"WORKER_PROOF_DIR=" + receipts, "PRIORITY_METADATA_PATH=" + metadataPath}
-		for _, b := range buckets {
-			value := priorities[b.name]
-			if removed {
+		for _, b := range scheduling {
+			value := retentionPriorities[b.name]
+			if removed && b.name == "HEAVY_A" {
 				value = 0
 			}
 			environment = append(environment, fmt.Sprintf("PRIORITY_%s=%d", b.name, value))
@@ -339,7 +396,7 @@ func sourceGateHandoffPriorityProof() {
 		report := readReport()
 		if removed {
 			var exit *exec.ExitError
-			Expect(errors.As(err, &exit)).To(BeTrue(), "removing priorities must make the real scheduling oracle fail: %s", output)
+			Expect(errors.As(err, &exit)).To(BeTrue(), "removing one safeguard priority must make the real scheduling oracle fail: %s", output)
 			Expect(report.SuiteSucceeded).To(BeFalse())
 			Expect(string(output)).To(ContainSubstring("priority oracle:"))
 			_, _ = fmt.Fprintf(GinkgoWriter, "removed-priority negative control: exit=%d output=%q\n", exit.ExitCode(), output)
@@ -349,7 +406,7 @@ func sourceGateHandoffPriorityProof() {
 		Expect(report.SuiteSucceeded).To(BeTrue())
 		Expect(report.SuiteConfig.ParallelTotal).To(Equal(2))
 		pids := map[string]string{}
-		for _, b := range buckets {
+		for _, b := range scheduling {
 			data, err := os.ReadFile(filepath.Join(receipts, "started-"+b.name))
 			Expect(err).NotTo(HaveOccurred())
 			pids[b.name] = string(data)
@@ -358,7 +415,7 @@ func sourceGateHandoffPriorityProof() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(data)).To(Equal(pids[b.name]), "Ordered nodes must execute in their group-owned process")
 			}
-			Expect(priorities[b.name]).To(Equal(b.priority), "actual handoff metadata must select the reviewed coarse bucket")
+			Expect(retentionPriorities[b.name]).To(Equal(b.priority), "actual handoff metadata must select the reviewed coarse bucket")
 		}
 		Expect(pids["HEAVY_A"]).NotTo(Equal(pids["HEAVY_B"]), "both heavy groups must really execute on different workers")
 		selected := 0
@@ -369,19 +426,19 @@ func sourceGateHandoffPriorityProof() {
 
 			}
 		}
-		Expect(selected).To(Equal(8))
+		Expect(selected).To(Equal(6))
 		metadata := readMetadata()
-		Expect(metadata).To(HaveLen(8))
+		Expect(metadata).To(HaveLen(6))
 		for _, spec := range metadata {
 			Expect(spec.Ordered).To(BeTrue())
 		}
 		paths, err := filepath.Glob(filepath.Join(receipts, "criterion-*"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(paths).To(HaveLen(8))
+		Expect(paths).To(HaveLen(6))
 		_, _ = fmt.Fprintf(GinkgoWriter, "real two-worker coarse priority proof: PIDs=%v selected=%d output=%q\n", pids, selected, output)
 	}
 	// The initialized, migration preview and transaction fixtures are separate Ordered groups. Inspect their actual identities
-	// independently; keep the four-group scheduling oracle above unchanged.
+	// independently from the three-owner retention scheduling oracle.
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0147-installed-ci-migration-preview.md:113
 	// per docs/adr/0148-transactional-installed-ci-migration.md:256
@@ -390,7 +447,7 @@ func sourceGateHandoffPriorityProof() {
 		Expect(status).To(Equal(0))
 		tests = sourceGateTests(calls)
 		// The recording fixture accumulates prior commands; retain the new call only.
-		Expect(tests).To(HaveLen(index + 3))
+		Expect(tests).To(HaveLen(index + 4))
 		tests = tests[len(tests)-1:]
 		sourceGateAssertPartition(tests[0], group)
 		jsonPath = filepath.Join(reportsDir, group+".json")

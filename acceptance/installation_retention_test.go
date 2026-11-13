@@ -474,52 +474,74 @@ var _ = Describe("Whole installation upgrade release candidate handoff backup re
 	})
 })
 
+// Preserve every material/custody mutation and refusal assertion across fresh owners.
+// per docs/adr/0106-go-backup-retention.md:73
+// per docs/adr/0148-transactional-installed-ci-migration.md:779
+func retentionPreserveUnsafeSet(images retentionImages, change string) {
+	GinkgoHelper()
+	scenario, a, b := images.heldAtC()
+	set := filepath.Join(scenario.root, ".factory/backups", a)
+	outside := filepath.Join(scenario.transport.root, "outside-preserved")
+	writeFixture(outside, []byte("outside reference"), 0600)
+	switch change {
+	case "extra":
+		writeFixture(filepath.Join(set, "operator-note"), []byte("keep this"), 0600)
+	case "symlink":
+		Expect(os.Symlink(outside, filepath.Join(set, "outside-link"))).To(Succeed())
+	case "hardlink":
+		Expect(os.Link(outside, filepath.Join(set, "outside-hardlink"))).To(Succeed())
+	case "edited":
+		file, err := os.OpenFile(filepath.Join(set, "assets/.factory/bin/factory-runtime"), os.O_WRONLY|os.O_APPEND, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = file.Write([]byte("edited recovery"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(file.Close()).To(Succeed())
+	case "unknown-record":
+		writeFixture(filepath.Join(set, "retention.json"), []byte("{\"schema_version\":999}\n"), 0600)
+	case "unsafe-directory":
+		Expect(os.Chmod(set, 0777)).To(Succeed()) // #nosec G302 -- deliberately unsafe test-owned backup directory.
+	case "unignored":
+		path := filepath.Join(scenario.root, ".gitignore")
+		body, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(path, append(body, []byte("\n!/.factory/\n!/.factory/backups/\n!/.factory/backups/**\n")...), 0644)
+	case "tracked":
+		git := imageProcess(scenario.root, nil, "git", "-c", "core.hooksPath="+os.DevNull, "add", "--force", "--", ".factory/backups/"+a+"/installation.manifest")
+		Expect(git.status).To(Equal(0), "%+v", git)
+	}
+	before := installationSnapshot(scenario.root)
+	result := retentionPruneResult(scenario, a)
+	retentionRequireRefusal(result)
+	Expect(result.stderr).To(MatchRegexp(`(?i)(preserv|unsafe|changed|unknown|unrecognized|ignored|tracked|complete|conflict)`))
+	Expect(installationSnapshot(scenario.root)).To(Equal(before), "a refused older set and its usable alternate must remain unchanged")
+	Expect(retentionBackupIDs(scenario.root)).To(ConsistOf(a, b))
+	Expect(os.ReadFile(outside)).To(Equal([]byte("outside reference")))
+}
+
 // per docs/adr/0106-go-backup-retention.md:101
 // per docs/adr/0107-published-release-qualification.md:207
+// per docs/adr/0148-transactional-installed-ci-migration.md:779
 var _ = Describe("Whole installation upgrade release candidate handoff backup retention safeguards", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-retention-safeguards"), func() {
 	var images retentionImages
 	BeforeAll(func() { images = retentionPrepareImages() })
 
 	// per docs/adr/0106-go-backup-retention.md:73
 	DescribeTable("preserves unsafe older sets with a visible reason instead of recursively deleting them", func(change string) {
-		scenario, a, b := images.heldAtC()
-		set := filepath.Join(scenario.root, ".factory/backups", a)
-		outside := filepath.Join(scenario.transport.root, "outside-preserved")
-		writeFixture(outside, []byte("outside reference"), 0600)
-		switch change {
-		case "extra":
-			writeFixture(filepath.Join(set, "operator-note"), []byte("keep this"), 0600)
-		case "symlink":
-			Expect(os.Symlink(outside, filepath.Join(set, "outside-link"))).To(Succeed())
-		case "hardlink":
-			Expect(os.Link(outside, filepath.Join(set, "outside-hardlink"))).To(Succeed())
-		case "edited":
-			file, err := os.OpenFile(filepath.Join(set, "assets/.factory/bin/factory-runtime"), os.O_WRONLY|os.O_APPEND, 0600)
-			Expect(err).NotTo(HaveOccurred())
-			_, err = file.Write([]byte("edited recovery"))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(file.Close()).To(Succeed())
-		case "unknown-record":
-			writeFixture(filepath.Join(set, "retention.json"), []byte("{\"schema_version\":999}\n"), 0600)
-		case "unsafe-directory":
-			Expect(os.Chmod(set, 0777)).To(Succeed()) // #nosec G302 -- deliberately unsafe test-owned backup directory.
-		case "unignored":
-			path := filepath.Join(scenario.root, ".gitignore")
-			body, err := os.ReadFile(path)
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(path, append(body, []byte("\n!/.factory/\n!/.factory/backups/\n!/.factory/backups/**\n")...), 0644)
-		case "tracked":
-			git := imageProcess(scenario.root, nil, "git", "-c", "core.hooksPath="+os.DevNull, "add", "--force", "--", ".factory/backups/"+a+"/installation.manifest")
-			Expect(git.status).To(Equal(0), "%+v", git)
-		}
-		before := installationSnapshot(scenario.root)
-		result := retentionPruneResult(scenario, a)
-		retentionRequireRefusal(result)
-		Expect(result.stderr).To(MatchRegexp(`(?i)(preserv|unsafe|changed|unknown|unrecognized|ignored|tracked|complete|conflict)`))
-		Expect(installationSnapshot(scenario.root)).To(Equal(before), "a refused older set and its usable alternate must remain unchanged")
-		Expect(retentionBackupIDs(scenario.root)).To(ConsistOf(a, b))
-		Expect(os.ReadFile(outside)).To(Equal([]byte("outside reference")))
-	}, Entry("operator file", "extra"), Entry("external symlink", "symlink"), Entry("foreign hardlink", "hardlink"), Entry("edited before-image", "edited"), Entry("unknown record schema", "unknown-record"), Entry("unsafe directory permissions", "unsafe-directory"), Entry("no longer ignored", "unignored"), Entry("tracked recovery path", "tracked"))
+		retentionPreserveUnsafeSet(images, change)
+	}, Entry("operator file", "extra"), Entry("external symlink", "symlink"), Entry("foreign hardlink", "hardlink"), Entry("edited before-image", "edited"))
+})
+
+// per docs/adr/0106-go-backup-retention.md:101
+// per docs/adr/0107-published-release-qualification.md:207
+// per docs/adr/0148-transactional-installed-ci-migration.md:779
+var _ = Describe("Whole installation upgrade release candidate handoff backup retention safeguards", Ordered, SpecPriority(2), ContinueOnFailure, Label("handoff-retention-safeguards"), func() {
+	var images retentionImages
+	BeforeAll(func() { images = retentionPrepareImages() })
+
+	// per docs/adr/0106-go-backup-retention.md:73
+	DescribeTable("preserves unsafe older sets with a visible reason instead of recursively deleting them", func(change string) {
+		retentionPreserveUnsafeSet(images, change)
+	}, Entry("unknown record schema", "unknown-record"), Entry("unsafe directory permissions", "unsafe-directory"), Entry("no longer ignored", "unignored"), Entry("tracked recovery path", "tracked"))
 
 	// per docs/adr/0106-go-backup-retention.md:48
 	DescribeTable("refuses coherent legacy-shaped alternate records that omit freshly required B roles", func(attack string) {

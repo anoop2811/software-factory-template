@@ -85,7 +85,7 @@ func prepareDefaultInitWithWitness(initializerWitness bool, patches ...func(stri
 
 // Supervision is fixture setup only; the selected-runtime assertions remain
 // independent of the producer. per docs/adr/0132-go-source-golden-evaluation.md:82
-func (f *defaultInitFixtures) setupCommand(ctx context.Context, cooperative bool, argv ...string) []byte {
+func (f *defaultInitFixtures) setupCommand(ctx context.Context, cooperative bool, retainedRoots []string, argv ...string) []byte {
 	GinkgoHelper()
 	environment := map[string]string{}
 	for _, entry := range os.Environ() {
@@ -105,7 +105,9 @@ func (f *defaultInitFixtures) setupCommand(ctx context.Context, cooperative bool
 	// per docs/adr/0132-go-source-golden-evaluation.md:88
 	packagerFailed := cooperative && (err != nil || result.Outcome != "completed" || result.ExitCode == nil || *result.ExitCode != 0)
 	if ctx.Err() != nil || result.OwnershipUnconfirmed || result.ProcessPID != 0 && !result.ExitConfirmed || packagerFailed {
-		holdFixtureCleanup(f.invoker.work, "default image setup did not confirm completed process ownership")
+		for _, root := range retainedRoots {
+			holdFixtureCleanup(root, "default image setup did not confirm completed process ownership")
+		}
 	}
 	Expect(ctx.Err()).NotTo(HaveOccurred(), "default image setup deadline: %s", result.Stderr)
 	Expect(err).NotTo(HaveOccurred(), "default image setup: %s", result.Stderr)
@@ -117,17 +119,29 @@ func (f *defaultInitFixtures) setupCommand(ctx context.Context, cooperative bool
 	return result.Stdout
 }
 
-func (f *defaultInitFixtures) image(version string) defaultInitImage {
+// Shared native fixture production keeps the first compilation and packaging in
+// one deadline, while each caller owns its target and immutable image cache.
+// per docs/adr/0148-transactional-installed-ci-migration.md:643
+func (f *defaultInitFixtures) packageImage(version, target, outputDirectory string, selectedCompiler ...string) packaging.Result {
 	GinkgoHelper()
-	if image, found := f.images[version]; found {
-		return image
-	}
 	compiler, err := exec.LookPath("go")
 	Expect(err).NotTo(HaveOccurred())
 	compiler, err = filepath.EvalSymlinks(compiler)
 	Expect(err).NotTo(HaveOccurred())
 	compiler, err = filepath.Abs(compiler)
 	Expect(err).NotTo(HaveOccurred())
+	// The producer is compiled with qualified Go; an intentional runtime compiler
+	// wrapper must receive only the selected runtime's packaging operations.
+	// per docs/adr/0151-reliable-ci-qualification.md:106
+	Expect(len(selectedCompiler)).To(BeNumerically("<=", 1))
+	runtimeCompiler := compiler
+	if len(selectedCompiler) == 1 {
+		runtimeCompiler, err = filepath.EvalSymlinks(selectedCompiler[0])
+		Expect(err).NotTo(HaveOccurred())
+		runtimeCompiler, err = filepath.Abs(runtimeCompiler)
+		Expect(err).NotTo(HaveOccurred())
+	}
+	retainedRoots := []string{f.invoker.work, f.source, outputDirectory}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	// Compile once, inside the first image's existing deadline, then exercise the
@@ -139,12 +153,36 @@ func (f *defaultInitFixtures) image(version string) defaultInitImage {
 			args = append(args, "-race")
 		}
 		args = append(args, "-o", program, "./cmd/factory-package")
-		f.setupCommand(ctx, false, args...)
+		f.setupCommand(ctx, false, retainedRoots, args...)
 		f.packager = program
 	}
-	output := f.setupCommand(ctx, true, f.packager, "--source", f.source, "--revision", f.revision, "--version", version, "--target", runtime.GOOS+"/"+runtime.GOARCH, "--output", filepath.Join(f.cache, version), "--go", compiler, "--installation")
+	output := f.setupCommand(ctx, true, retainedRoots, f.packager, "--source", f.source, "--revision", f.revision, "--version", version, "--target", target, "--output", outputDirectory, "--go", runtimeCompiler, "--installation")
 	var result packaging.Result
 	Expect(json.Unmarshal(output, &result)).To(Succeed())
+	return result
+}
+
+// Incidental installation images share native supervision while keeping producer
+// artifacts outside the private local-init cache and its exact package layout.
+// per docs/adr/0151-reliable-ci-qualification.md:104
+func fixtureNativeInstallationImage(source, revision, version, target, output string, selectedCompiler ...string) packaging.Result {
+	GinkgoHelper()
+	work, err := os.MkdirTemp("", "factory-native-image-producer-")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(cleanupFixtureDirectory, work)
+	producer := defaultInitFixtures{invoker: handoffReleaseImage{work: work}, source: source, revision: revision}
+	started := time.Now()
+	result := producer.packageImage(version, target, output, selectedCompiler...)
+	AddReportEntry("fixture.native-image-producer", map[string]any{"producer": producer.packager, "source": source, "revision": revision, "version": version, "target": target, "archive": result.Archive, "sha256": result.SHA256, "elapsed_seconds": time.Since(started).Seconds(), "selected_compiler": selectedCompiler}, ReportEntryVisibilityNever)
+	return result
+}
+
+func (f *defaultInitFixtures) image(version string) defaultInitImage {
+	GinkgoHelper()
+	if image, found := f.images[version]; found {
+		return image
+	}
+	result := f.packageImage(version, runtime.GOOS+"/"+runtime.GOARCH, filepath.Join(f.cache, version))
 	archive, err := os.ReadFile(result.Archive)
 	Expect(err).NotTo(HaveOccurred())
 	entries, _ := imageDecodeArchive(archive)

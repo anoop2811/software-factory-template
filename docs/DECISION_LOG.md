@@ -8465,3 +8465,52 @@ the macOS release-CI snapshot in run `43320430957` observed a disappearing
 and its clones to disable automatic maintenance before commit/fetch. ADR 0148
 records the evidence and scope. Keep complete `.git` snapshots and all refusal
 assertions; do not mask filesystem errors or change adopter Git configuration.
+
+Decision 164 local-recovery qualification follow-up (2026-11-13 UTC): job
+`131658583440` failed while producing predecessor archives, before recovery
+began. Preserve the 90-second setup deadline and reuse the existing supervised
+native image producer for these sequential recovery fixtures. ADR 0148 records
+the source-only setup owner, immutable-image reuse, fresh genuine adopters,
+required ownership checks and limits on the timing evidence. Production packaging
+and the actual interruption/recovery assertions remain outside this fixture fix.
+
+Decision 164 foreign-origin fixture follow-up (2026-11-13 UTC): macOS job
+`131658583983` exhausted a direct race-evaluator packaging context while
+preparing its foreign-origin archive. ADR 0148 records reuse of the supervised
+native producer with an explicit target and no cross-target cache reuse. Preserve
+the 90-second context, actual cross compilation and all reprojection assertions.
+
+Decision 164 base-job qualification follow-up (2026-11-13 UTC): macOS job
+`131658583119` completed its selected tests but exhausted the 30-minute job
+budget at the final quality stages. ADR 0148 records separate explicit package
+and base-acceptance selections for CI, preserving combined local selections,
+coverage, failure behavior and all existing time/resource limits. Require
+independent executable selection and workflow evidence before publication.
+
+Decision 164 source-entrypoint fixture follow-up (2026-11-13 UTC): macOS job
+`131658583969` exposed five pre-evaluation preparation refusals and a separate
+native local-installer watchdog. ADR 0148 records deterministic non-Git discovery
+for the evaluator fixtures, isolated scheduling of the real native journey, and
+cooperative watchdog diagnostics/retention. Preserve tested public paths and
+deadlines; the hosted stage cost and underlying host Git cause remain unmeasured.
+
+Decision 164 historical-writer and retention qualification follow-up
+(2026-11-13 UTC): final macOS handoff job `131658584067` exposed frozen
+Bash writer setup timeouts and an exhausted authenticated-retention schedule.
+ADR 0148 records the existing nested-upgrade guard only for historical marker
+preparation, preserved initial/restored gate proof, shared cooperative fixture
+ownership, and independent 26/18 handoff/retention selections. Retain all
+criteria, native journeys and time/resource limits; qualify the new scheduling
+controls independently before relying on hosted timing.
+
+## Decision 167 (2026-11-13 UTC): qualify CI as one execution system
+
+Adopt [ADR 0151](adr/0151-reliable-ci-qualification.md) before code after the
+user requested a comprehensive correction to recurring PR #180 CI failures.
+Run global checks and compile acceptance once per platform, then validate and
+execute exact-run cached binaries with explicit suite budgets. Complete the
+analogous fixture-production and non-Git corrections, independently qualify
+subprocess ownership, and preserve the full scenario union. Keep free-host
+resource limits and existing deadlines; do not infer complete reliability from
+targeted passes or unmeasured scheduling estimates. Final-head platform results
+and review closure remain mandatory before human merge.

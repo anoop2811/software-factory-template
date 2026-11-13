@@ -81,6 +81,8 @@ func sourceRunnerCancellation(mode string, explicit bool, external string) {
 	oracleCalled := filepath.Join(base, "ORACLE_CALLED")
 	writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\nexit 0\n"), 0700)
 	tools, ready := filepath.Join(base, "tools"), filepath.Join(base, "harness started")
+	// per docs/adr/0148-transactional-installed-ci-migration.md:693
+	orchestrationNonGitDiscovery(tools)
 	sourceOwner, sourceBefore := "", map[string]string(nil)
 	sourceCompiler := external == "source-compiler" || external == "source-compiler-slow" || external == "source-compiler-contention"
 	compilerDelay := time.Duration(0)
@@ -504,8 +506,11 @@ func sourceRunnerReceiptCase(mode string) {
 
 	writeFixture(runner, []byte(body), 0700)
 	stale := strings.Repeat("b", 64)
+	// per docs/adr/0151-reliable-ci-qualification.md:115
+	tools := filepath.Join(base, "tools")
+	orchestrationNonGitDiscovery(tools)
 	environment := map[string]string{
-		"PATH": "/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
+		"PATH": tools + ":/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
 		"FACTORY_CONFIG": filepath.Join(root, "factory.yaml"), "FACTORY_EVAL_OWNERSHIP_TOKEN": stale,
 		"SOURCE_RUNNER_ATTEMPTS": calls, "SOURCE_RUNNER_ORACLE_CALLED": oracleCalled, "SOURCE_RUNNER_STALE_TOKEN": stale, "SOURCE_RUNNER_RECEIPT_MODE": mode,
 		"SOURCE_RUNNER_PRIOR_TOKEN": filepath.Join(base, "prior valid token"), "SOURCE_RUNNER_EMITTED": filepath.Join(base, "emitted stale receipt"),
@@ -1008,8 +1013,11 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 		oraclePath := filepath.Join(caller, "eval/golden-tasks/reference-answer/verify.sh")
 		oracle, err := os.ReadFile(oraclePath)
 		Expect(err).NotTo(HaveOccurred())
+		// per docs/adr/0148-transactional-installed-ci-migration.md:693
+		tools := filepath.Join(base, "non-Git discovery tools")
+		orchestrationNonGitDiscovery(tools)
 		environment := map[string]string{
-			"PATH": "/usr/bin:/bin", "HOME": caller, "BASH_ENV": "", "ENV": "", "GORACE": "atexit_sleep_ms=0",
+			"PATH": tools + ":/usr/bin:/bin", "HOME": caller, "BASH_ENV": "", "ENV": "", "GORACE": "atexit_sleep_ms=0",
 			"FACTORY_CONFIG": filepath.Join(caller, "factory.yaml"), "SOURCE_RUNNER_RECEIPT": receipt, "SOURCE_RUNNER_NATIVE": native,
 			"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,
 		}
@@ -1107,6 +1115,8 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 			oracleCalled, ready := filepath.Join(base, "ORACLE_CALLED"), filepath.Join(base, "detached ready")
 			writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\n[ \"$(/bin/cat answer.txt)\" = FIXED ]\n"), 0700)
 			tools := filepath.Join(base, "tools")
+			// per docs/adr/0151-reliable-ci-qualification.md:115
+			orchestrationNonGitDiscovery(tools)
 			writeFixture(filepath.Join(tools, "claude"), []byte("#!/bin/sh\nexec \"$SOURCE_RUNNER_FIXTURE\" "+sourceRunnerDetachedHandshake+" cli \"$@\"\n"), 0700)
 			environment := map[string]string{
 				"PATH": tools + ":/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
@@ -1158,8 +1168,11 @@ var _ = Describe("Go source runtime entrypoints evaluation runner adapters", fun
 			writeFixture(filepath.Join(root, "eval/golden-tasks/reference-answer/verify.sh"), []byte("#!/bin/sh\nprintf called > \"$SOURCE_RUNNER_ORACLE_CALLED\"\nexit 0\n"), 0700)
 			runner := filepath.Join(root, "custom external controller")
 			writeFixture(runner, []byte("#!/bin/sh\ncd \"$1\" || exit 94\nexec \"$SOURCE_RUNNER_FIXTURE\" "+sourceRunnerDetachedHandshake+" overflow\n"), 0700)
+			// per docs/adr/0151-reliable-ci-qualification.md:115
+			tools := filepath.Join(base, "tools")
+			orchestrationNonGitDiscovery(tools)
 			environment := map[string]string{
-				"PATH": "/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
+				"PATH": tools + ":/usr/bin:/bin", "HOME": root, "TMPDIR": base, "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
 				"FACTORY_CONFIG": filepath.Join(root, "factory.yaml"), "SOURCE_RUNNER_FIXTURE": sourceCompilerHelperImage,
 				"SOURCE_RUNNER_DETACHED_READY": ready, "SOURCE_RUNNER_ORACLE_CALLED": oracleCalled,
 				"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull,

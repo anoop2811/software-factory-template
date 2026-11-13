@@ -581,3 +581,226 @@ standalone `golangci-lint run --config packs/go/.golangci.yml ./...` reported
 `Your code is affected by 0 vulnerabilities.` All three commands exited 0. The
 vulnerability scan retained ten module-only advisories, with none in imported
 packages or called symbols. These local results do not replace final-head CI.
+
+## Bound local-recovery fixture production
+
+At `7c44830`, hosted macOS job `131658583440` in run `43356159724` failed
+both local-recovery entries before their interruption/recovery operations began.
+The predecessor fixture's `packaging.Build` call exhausted its own 90-second
+context after compilation, while writing the archive. `archive/tar: missed
+writing ... bytes` is secondary to context cancellation during archive copying.
+The prior `2eb4feb` job `131539371978` passed both entries in 322.701 seconds
+on the same hosted image and resource/worker configuration; these fixture and
+packaging paths did not change between those heads.
+
+Both entries already execute sequentially in one ordered container. Their setup
+runs packaging directly inside the race-instrumented evaluator, including archive
+compression, and rebuilds the same immutable predecessor. The shared setup also
+initializes a legacy Bash adopter these two Go recovery cases do not consume.
+Current receipts do not identify which packaging stage dominates the deadline;
+do not claim host contention or race instrumentation as a measured root cause.
+
+Give the two recovery entries a source-only fixture owner, preserving their exact
+identities and all ordinary legacy-consuming cases. Reuse the existing supervised
+native `factory-package` image producer used by default initialization/upgrade
+fixtures, including its first-image compilation, existing 90-second context,
+cooperative cancellation and uncertain-owner fixture retention. Reuse only the
+immutable predecessor image between the two entries. Every entry must still
+initialize its own genuine Go adopter and execute its own interrupted forward or
+reverse operation and emitted recovery route with the compiler unavailable.
+Do not clone a preinstalled adopter, bypass real packaging, change production
+packaging or raise command, setup, suite or job limits.
+
+Record producer/cache identity and elapsed fixture preparation for the controlled
+qualification. Preserve explicit compiler selection in other local-upgrade
+fixtures and the unchanged 3459-criterion census. Run both recovery entries and
+review the shared initialization extraction and producer supervision before the
+next hosted run. A faster local setup is evidence about that setup, not proof of
+the unrecorded hosted stage timings.
+
+The corrected local command
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=local-recovery
+GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_PROCS=auto` exited 0:
+`2 Passed | 0 Failed | 3457 Skipped` in 367.844 seconds, followed by
+candidate build, vet, lint and security checks. The native image producer took
+22.398 seconds including its first compilation; source/image setup took
+27.728 seconds. Both entries used identical image bytes and distinct cache and
+adopter paths, with genuine initialization taking 19.225 and 17.596 seconds.
+These receipts measure this local fixture, not the earlier hosted failure stages.
+
+The extracted initialization tail also passed its existing versioned-image
+compatibility criterion with
+`go test -race -count=1 -v -timeout=15m ./acceptance
+-ginkgo.focus='upgrades an exact Go predecessor and restores its original native identity versioned Go image'
+-ginkgo.fail-on-empty -ginkgo.no-color`: `1 Passed | 0 Failed | 3458 Skipped`
+in 237.390 seconds. Ordinary and custom compiler selection remain unchanged.
+
+## Bound foreign-origin CI fixture production
+
+At the same head, macOS release-CI job `131658583983` reported
+`18 Passed | 1 Failed`. The foreign-origin reprojection criterion exhausted
+its own 90-second `packaging.Build` context during archive writing, before
+its foreign-origin assertions began. Keep real cross-target packaging and its
+original compiler selection, target, revision and source. Extract the existing
+supervised native producer from `defaultInitFixtures.image` into a helper
+accepting explicit version, target and output; keep host-image caching in the
+original caller, so a foreign image cannot alias a cached host image.
+
+Reuse the existing first-compile plus production-call 90-second context and
+cooperative process ownership/retention for both callers. Do not alter the
+foreign binary marker, authenticated transport or reprojection/refusal assertions.
+Record selected target, source identity, archive digest and producer duration.
+Qualify the existing nineteen release-CI criteria and the shared producer callers.
+This is a test-fixture change; production packaging and deadlines stay unchanged.
+
+## Separate package and acceptance job budgets
+
+At `7c44830`, macOS base job `131658583119` reached its 30-minute
+job limit after package tests passed and the base acceptance suite reported
+`3067 Passed | 0 Failed | 392 Skipped`. The selected base census was 3092;
+25 conditional platform skips account for the difference. Package tests and
+setup consumed roughly six minutes before the 22m55s acceptance runner, leaving
+no time for the final quality stages. This is a job-budget failure, not an
+acceptance assertion failure or runner-acquisition failure.
+
+Keep the default, `all` and `base` local Make selections unchanged. Add
+explicit `packages` and `base-acceptance` selections: the former runs every
+non-acceptance package with race checking; the latter runs the exact existing
+base acceptance selector and keeps the base report name. Both retain formatting,
+dialect, vet, candidate build, lint and security stages. Run base-acceptance in
+the existing hosted base job and packages in the existing independent matrix on
+both platforms. Preserve 30-minute job limits, 25-minute suite limits, adaptive
+worker rules, fail-on-empty, failure propagation and all 3459 criteria.
+
+Before implementation, extend independent executable Make/workflow checks to
+prove exact disjoint selections, package omission/empty/failure refusal and
+legacy combined behavior. Check the actual workflow selects both required
+branches once per platform. GitHub required-status configuration was read on
+2026-11-13 UTC and requires only `selftest`; no protection change is needed.
+ADR 0151 supersedes this initial hosted routing with shared preparation; local
+selectors remain available. Complete final-head hosted timing remains pending.
+
+## Own evaluation setup and isolate the native source journey
+
+The same macOS source-entrypoint job `131658583969` reported six failures.
+Five evaluation cases ended before the public golden header with status 1 and
+`golden-task-eval: evaluation could not complete`; the four cancellation
+receipts contained no admitted harness PID/group. These non-Git fixtures expose
+host Git discovery, whose preparation limit is five seconds. The receipts support
+a preparation refusal, but do not reveal the host Git failure or establish
+resource contention. Give their intended non-Git boundary the existing strict
+`rev-parse --show-toplevel` exit-128 fixture used in orchestration evaluation.
+Preserve real non-Git fallback, evaluator/runner behavior and all readiness, task
+and cleanup limits; do not stub a tested harness or evaluation result.
+
+The sixth failure exhausted the 90-second public local installer watchdog after
+printing the source identity. It already uses uninstrumented native packaging;
+replacing that journey with a prepared image would erase the proof. Mark only
+this existing criterion `Serial`, retaining its name, original argv and actual
+installer-to-adapter-to-native initialization path. Ginkgo documents that Serial
+specs execute on worker one after other workers finish; the
+[official documentation](https://onsi.github.io/ginkgo/#serial-specs) was fetched
+on 2026-11-13 UTC. This is a resource-isolation mitigation to qualify, not a
+measured attribution of the timeout to contention.
+
+Use the existing native cooperative inherited-stream owner for this criterion
+with private regular input/output files, the same effective child environment
+and 90-second context. Emit outcome, ownership and elapsed diagnostics before
+asserting success. Retain fixture evidence on timeout or unconfirmed ownership,
+so a watchdog cannot silently erase the source or adopter of an uncertain child.
+Keep actual pipeline/status and all subsequent upgrade-boundary assertions. Do
+not change production behavior, enlarge deadlines or alter unrelated helpers.
+
+## Qualification receipts for the intermediate CI corrections
+
+The foreign-origin correction passed
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=release-ci
+GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_PROCS=auto`: Make exited 0 after
+`19 Passed | 0 Failed | 3440 Skipped` in 299.642 seconds and the full
+build/vet/lint/security stages. Native foreign-image production took 20.631
+seconds including first compilation; the entire foreign-origin criterion took
+50.738 seconds. These are local measurements, not reconstructed hosted stages.
+
+Before the Make/workflow split,
+`go test -race -count=1 -v -timeout=10m ./acceptance
+-ginkgo.focus='executes disjoint feature partitions while retaining every source quality stage|preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms'
+-ginkgo.fail-on-empty -ginkgo.no-color` reported
+`0 Passed | 2 Failed | 3457 Skipped` in 4.286 seconds. The new package
+selection was rejected as unknown, and the old hosted base recipe still launched
+the package tests the independent acceptance-only oracle forbids.
+
+After the routing change, the broader
+`go test -race -count=1 -v -timeout=15m ./acceptance
+-ginkgo.focus='Go source qualification' -ginkgo.fail-on-empty -ginkgo.no-color`
+exited 0: `12 Passed | 0 Failed | 3447 Skipped` in 289.499 seconds. This
+includes real worker execution, exact native discovery of all 3459 criteria,
+legacy complete-union failure controls, the two new explicit selections and
+actual workflow recipes on cold/warm cache paths. Final-head hosted timing and
+qualification remain pending.
+
+## Bound historical writer setup and retention scheduling
+
+The final job from run `43356159724`, macOS handoff `131658584067`,
+reported two 90-second frozen Bash upgrader timeouts, then exhausted its shared
+25-minute allowance during authenticated retention operations. The commands
+failed before Go preview/apply/rollback. Existing timeout receipts omitted stdout,
+so the precise inner legacy stage is unproved.
+
+For historical marker preparation only, invoke the real frozen writer with its
+existing `FACTORY_UPGRADE_ACTIVE=1` recursion guard. Both pinned sources
+use this guard in their own selftests, preserving framework copying and actual
+short-marker publication while omitting a repeated doctor proof. The immutable
+v0.1.6 source is `b71ecc32e07ecd87eb330ba8e497c86612f92acd`,
+`scripts/factory-upgrade.sh` lines 276–279 and 396–402; the Bash baseline is
+`76952eaa63aebd1ecd282f5ab51dd7c3627cb497`, lines 284–287 and
+404–410. Both frozen `scripts/selftest/run.sh` files use the guard at
+lines 588, 654, 662 and 685. These objects were read on 2026-11-13 UTC.
+Assert the explicit nested-skip diagnostic and original seven-character marker.
+Keep the actual initializer full gate proof, Go upgrade/rollback and restored
+legacy selftest; do not propagate the guard to the restored selftest invocation.
+This prepares genuine historical writer output, not a second top-level doctor
+qualification.
+
+Reuse one test-owned cooperative process helper for this writer and the real
+source initialization journey, preserving their respective effective environment
+policies and selected interpreters. Keep real argv/stdin, the existing 90-second
+context, regular output files and diagnostics before assertions. On uncertain or
+failed ownership retain both the cloned legacy adopter and the separately owned
+borrowed source. Do not change the shared image-process execution policy for
+unrelated callers or enlarge deadlines.
+
+The retained JSON shows legacy/init occupied one worker for 811 seconds; the
+10-case safeguards chain consumed 1318 seconds and remained incomplete. The
+8-case backup-retention group started late and consumed 508 seconds before
+timeout, with three cases unrun; all five Go-recovery cases were unrun. These
+are partial observed durations, not predictions of the corrected schedule.
+
+Separate the existing 18 backup-retention criteria into `release-retention`,
+leaving 26 in `release-handoff`. Split safeguard setup into independent
+material-integrity (four cases) and recovery-authorization/custody (six cases)
+ordered owners. Each owns its immutable images; each criterion still performs
+its own genuine initialized A-to-B or A-to-B-to-C journey. Preserve the exact
+outer/table/entry names, labels, priorities, assertions and complete 3459-spec
+census. No installed-state clones or reduced scenarios are permitted. Keep the
+existing two-worker handoff cap and 25/30-minute suite/job limits. The executable
+selection and priority oracles must prove both the new disjoint 26/18 split and
+the actual three ordered retention owners before the next hosted run.
+
+Before the subsequent shared-owner extraction for the historical writer,
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=source-entrypoints
+GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_PROCS=auto` exited 0 with
+`115 Passed | 0 Failed | 3344 Skipped` in 531.603 seconds, followed by
+`0 issues.`, `Issues : 0` and `Your code is affected by 0 vulnerabilities.`
+The source native-journey consumer must run again after the shared-helper
+extraction; the other 114 source criteria are not changed by that extraction.
+
+## Comprehensive qualification supersedes isolated routing changes
+
+[ADR 0151](0151-reliable-ci-qualification.md) records Decision 167's final
+preparation/consumer architecture and explicit successful-mutator custody scope.
+The receipts above describe the source state at each recorded run, before that
+architecture and its additional regression controls. They are not final-head
+qualification. Preserve the original 3459 criterion identities; four prepared
+qualification criteria and four independent process-helper criteria raise the
+current census to 3467. Complete final-head local and hosted evidence must include
+the new routing and all affected fixture callers before merge readiness is claimed.

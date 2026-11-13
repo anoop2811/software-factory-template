@@ -54,6 +54,29 @@ var sourceGateCIMigrationNames = []string{
 	"migration transaction refuses partial or tampered workflow evidence without changing the active installation",
 }
 
+// Retained pre-change identities, independently captured from hosted run 43356159724.
+// per docs/adr/0148-transactional-installed-ci-migration.md:741
+var sourceGateRetentionNames = []string{
+	"holds a complete predecessor backup through the installed public command without activation or acquisition",
+	"prunes A only after a successful ordinary authenticated A to B to C release chain",
+	"preserves a held A through C and explicitly prunes it only while exact B recovery remains usable",
+	"refuses to prune the sole complete recovery set even when it is explicitly held",
+	"refuses stale release confirmation after retention observations change a new explicit hold",
+	"refuses stale release confirmation after retention observations change an edited saved before-image",
+	"keeps prior recovery on a same-release rerun without advancing retention",
+	"does not expire A when C fails its actual installed native proof",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them operator file",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them external symlink",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them foreign hardlink",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them edited before-image",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them unknown record schema",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them unsafe directory permissions",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them no longer ignored",
+	"safeguards preserves unsafe older sets with a visible reason instead of recursively deleting them tracked recovery path",
+	"safeguards refuses coherent legacy-shaped alternate records that omit freshly required B roles forged retain labels with only the real B marker saved",
+	"safeguards refuses coherent legacy-shaped alternate records that omit freshly required B roles one invented create row with B runtime omitted",
+}
+
 // Independently declared from the reviewed family contract, with neighboring
 // descriptions that must remain in base rather than matching a substring.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
@@ -70,6 +93,12 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Installed hook-existence library and invocation modes accepts library", "installation"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initializes a real selected Go installation", "release-handoff"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff recovers interrupted selection", "release-handoff"},
+	// per docs/adr/0148-transactional-installed-ci-migration.md:741
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff backup retention prunes qualified recovery", "release-retention"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff backup retention safeguards refuses unsafe material", "release-retention"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff backup retention", "release-retention"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff backup retention-extra unrelated", "release-handoff"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff backup retention", "base"},
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff CI checkout preparation authenticates an initialized project", "release-ci"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff CI checkout preparation", "release-ci"},
@@ -156,7 +185,12 @@ def operand(*names):
    if value==name:return args[index+1]
  return ''
 with open(os.environ['SOURCE_GATE_CASES']) as source:cases=json.load(source)
-is_runner=bool(args and args[0]=='run' and 'github.com/onsi/ginkgo/v2/ginkgo' in args)
+is_precompiled=pathlib.Path(sys.argv[0]).name=='ginkgo'
+is_runner=is_precompiled or bool(args and args[0]=='run' and 'github.com/onsi/ginkgo/v2/ginkgo' in args)
+is_preparer=bool(args and args[0]=='run' and './internal/qualification/cmd/prepare-suite' in args)
+record['prepared']=is_precompiled
+if is_preparer:
+ record['group']='prepared-prepare' if 'prepare' in args else 'prepared-verify'
 is_helper=bool(args and args[0]=='run' and './internal/qualification/cmd/worker-count' in args)
 if args==['mod','download']:
  record['group']='module-setup'
@@ -175,6 +209,7 @@ if args and (args[0]=='test' or is_runner):
  focus=operand('-ginkgo.focus','--focus');skip=operand('-ginkgo.skip','--skip')
  record['focus']=focus;record['skip']=skip
  packages=[value if value.startswith('./') else './'+value[len(module)+1:] for value in args[1:] if value.startswith('./') or value.startswith(module+'/')]
+ if is_precompiled and './acceptance/qualification.test' in args:packages=['./acceptance']
  record['group']='installation' if focus else 'base' if skip else 'unpartitioned'
  selected_groups=set()
  for case in cases:
@@ -183,8 +218,12 @@ if args and (args[0]=='test' or is_runner):
    record['selected'].append(case['package']+' :: '+case['name'])
    selected_groups.add(case['group'])
  if './...' not in packages and './acceptance' not in packages:record['group']='internal'
- if focus and selected_groups in [{'release-handoff'},{'release-ci'},{'initialized-ci'},{'ci-migration'},{'historical-recipe'},{'local-init'},{'local-upgrade'},{'local-upgrade-go'},{'local-recovery'},{'default-init'},{'default-upgrade'},{'source-entrypoints'}]:record['group']=next(iter(selected_groups))
+ if focus and selected_groups in [{'release-handoff'},{'release-retention'},{'release-ci'},{'initialized-ci'},{'ci-migration'},{'historical-recipe'},{'local-init'},{'local-upgrade'},{'local-upgrade-go'},{'local-recovery'},{'default-init'},{'default-upgrade'},{'source-entrypoints'}]:record['group']=next(iter(selected_groups))
 with open(os.environ['SOURCE_GATE_GO_LOG'],'a') as output:output.write(json.dumps(record)+'\n')
+if is_preparer and record['group']=='prepared-verify':
+ for path in ['acceptance/qualification.test','.factory/qualification/prepared-v1/ginkgo','.factory/qualification/prepared-v1/receipt.json']:
+  if not pathlib.Path(path).is_file():
+   print('fixture refused missing prepared input '+path,file=sys.stderr);sys.exit(45)
 if is_helper:
  sys.stdout.buffer.write(helper.stdout);sys.stderr.buffer.write(helper.stderr);sys.exit(helper.returncode)
 if 'install' in args:
@@ -214,6 +253,7 @@ type sourceGateFixture struct {
 }
 
 type sourceGateCall struct {
+	Prepared  bool     `json:"prepared"`
 	Args      []string `json:"args"`
 	Selected  []string `json:"selected"`
 	Group     string   `json:"group"`
@@ -260,6 +300,12 @@ func sourceGateMakeFixture() sourceGateFixture {
 	writeFixture(filepath.Join(root, "runtime/shell/source.sh"), []byte("#!/bin/bash\n:\n"), 0600)
 	writeFixture(filepath.Join(root, "packs/go/hooks/ginkgo-only-check.sh"), []byte("printf 'dialect\\n' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"), 0600)
 	writeFixture(filepath.Join(root, "tools/go"), []byte(sourceGateRecordingGo), 0700)
+	// The recorder represents already-authenticated material; real authentication
+	// and real Ginkgo execution are independently covered by prepared-suite specs.
+	// per docs/adr/0151-reliable-ci-qualification.md:146
+	writeFixture(filepath.Join(root, preparedQualificationRunnerPath), []byte(sourceGateRecordingGo), 0700)
+	writeFixture(filepath.Join(root, preparedQualificationSuitePath), []byte("inert recorded acceptance fixture\n"), 0700)
+	writeFixture(filepath.Join(root, preparedQualificationReceiptPath), []byte("fixture verification boundary\n"), 0600)
 	for _, name := range []string{"gofmt", "golangci-lint", "gosec", "govulncheck"} {
 		body := "#!/bin/sh\nprintf '%s\\n' '" + name + "' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"
 		writeFixture(filepath.Join(root, "tools", name), []byte(body), 0700)
@@ -341,7 +387,7 @@ func sourceGateRun(fixture sourceGateFixture, script string, extraEnvironment []
 func sourceGateTests(calls []sourceGateCall) []sourceGateCall {
 	tests := []sourceGateCall{}
 	for _, call := range calls {
-		if len(call.Args) > 0 && (call.Args[0] == "test" || call.Args[0] == "run") && call.Group != "internal" && call.Group != "worker-plan" {
+		if call.Prepared || len(call.Args) > 0 && (call.Args[0] == "test" || call.Args[0] == "run") && call.Group != "internal" && call.Group != "worker-plan" && !strings.HasPrefix(call.Group, "prepared-") {
 			tests = append(tests, call)
 		}
 	}
@@ -484,7 +530,7 @@ func sourceGateAssertWorkerPlan(calls []sourceGateCall, requested, maximum strin
 		if call.Group == "installation" {
 			continue
 		}
-		if call.Group == "release-handoff" || call.Group == "release-ci" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" || call.Group == "local-recovery" || call.Group == "default-init" || call.Group == "default-upgrade" {
+		if call.Group == "release-handoff" || call.Group == "release-retention" || call.Group == "release-ci" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" || call.Group == "local-recovery" || call.Group == "default-init" || call.Group == "default-upgrade" {
 			expected = handoff
 		}
 		// per docs/adr/0146-initialized-installed-ci.md:300
@@ -515,7 +561,7 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(workers).To(BeNumerically(">=", 1))
 		workerLimit := 32
-		if group == "release-handoff" || group == "release-ci" || group == "historical-recipe" || group == "local-init" || group == "local-upgrade" || group == "local-recovery" || group == "default-init" || group == "default-upgrade" {
+		if group == "release-handoff" || group == "release-retention" || group == "release-ci" || group == "historical-recipe" || group == "local-init" || group == "local-upgrade" || group == "local-recovery" || group == "default-init" || group == "default-upgrade" {
 			workerLimit = 2
 		}
 		// per docs/adr/0146-initialized-installed-ci.md:300
@@ -536,9 +582,142 @@ func sourceGateAssertPartition(call sourceGateCall, group string) {
 			Expect(call.Skip).NotTo(BeEmpty(), "release handoff must exclude the dedicated initialized CI family")
 		case "initialized-ci":
 			Expect(call.Skip).NotTo(BeEmpty(), "initialization must exclude its separately qualified CI migration transactions")
-		case "release-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints":
+		case "release-retention", "release-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints":
 			Expect(call.Skip).To(BeEmpty())
 		}
+	}
+}
+
+// The new CI boundary shares exact family selection while preserving the local
+// source target's compilation and complete quality obligations.
+// per docs/adr/0151-reliable-ci-qualification.md:35
+// per docs/adr/0151-reliable-ci-qualification.md:146
+func sourceGatePreparedExecutionProof() {
+	GinkgoHelper()
+	identity := []string{"GO_RUNTIME_REVISION=" + strings.Repeat("a", 40), "GO_RUNTIME_RUN_ID=12345", "GO_RUNTIME_PRODUCER_ATTEMPT=1"}
+	fixture := sourceGateMakeFixture()
+	status, calls, quality := sourceGateRun(fixture, "make go-runtime-ci-prepare GO_RUNTIME_TEST_TIMEOUT=25m", identity)
+	Expect(status).To(BeZero(), "the preparation target must run global gates and publish the prepared image")
+	sourceGateAssertInternal(calls, true)
+	Expect(sourceGateTests(calls)).To(BeEmpty(), "preparation cannot execute acceptance")
+	Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
+	prepared := []sourceGateCall{}
+	for _, call := range calls {
+		if call.Group == "prepared-prepare" {
+			prepared = append(prepared, call)
+		}
+	}
+	Expect(prepared).To(HaveLen(1))
+	Expect(prepared[0].Args).To(Equal([]string{"run", "-mod=readonly", "./internal/qualification/cmd/prepare-suite", "prepare", "--root", fixture.root, "--revision", strings.Repeat("a", 40), "--run-id", "12345", "--producer-attempt", "1"}))
+	// Provenance values are literal data at Make/shell transport; the separately
+	// exercised real private CLI owns their actual identity validation.
+	// per docs/adr/0151-reliable-ci-qualification.md:61
+	for key, flag := range map[string]string{"GO_RUNTIME_REVISION": "--revision", "GO_RUNTIME_RUN_ID": "--run-id", "GO_RUNTIME_PRODUCER_ATTEMPT": "--producer-attempt"} {
+		fixture = sourceGateMakeFixture()
+		literal := "$(shell touch SOURCE_GATE_METADATA_EXECUTED) `touch SOURCE_GATE_SHELL_METADATA_EXECUTED` 'literal value'"
+		environment := []string{}
+		for _, entry := range identity {
+			if !strings.HasPrefix(entry, key+"=") {
+				environment = append(environment, entry)
+			}
+		}
+		environment = append(environment, key+"="+literal)
+		status, calls, _ = sourceGateRun(fixture, "make go-runtime-ci-prepare GO_RUNTIME_TEST_TIMEOUT=25m", environment)
+		Expect(status).To(BeZero())
+		found := false
+		for _, call := range calls {
+			if call.Group == "prepared-prepare" {
+				found = true
+				Expect(sourceGateOperand(call.Args, flag)).To(Equal(literal))
+			}
+		}
+		Expect(found).To(BeTrue())
+		for _, marker := range []string{"SOURCE_GATE_METADATA_EXECUTED", "SOURCE_GATE_SHELL_METADATA_EXECUTED"} {
+			_, err := os.Lstat(filepath.Join(fixture.root, marker))
+			Expect(os.IsNotExist(err)).To(BeTrue(), key)
+		}
+	}
+	fixture = sourceGateMakeFixture()
+	status, calls, _ = sourceGateRun(fixture, "make go-runtime-ci-prepare GO_RUNTIME_TEST_TIMEOUT=25m", append(append([]string{}, identity...), "SOURCE_GATE_FAIL_GROUP=internal"))
+	Expect(status).NotTo(BeZero())
+	for _, call := range calls {
+		Expect(call.Group).NotTo(Equal("prepared-prepare"), "failed package qualification cannot publish an admissible image")
+	}
+	groups := []string{"base-acceptance", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"}
+	for _, group := range groups {
+		for _, failed := range []bool{false, true} {
+			fixture = sourceGateMakeFixture()
+			expected := group
+			if group == "base-acceptance" {
+				expected = "base"
+			}
+			environment := append(append([]string{}, identity...), "GO_RUNTIME_REPORT_DIR="+filepath.Join(fixture.root, "reports"), "GITHUB_RUN_ATTEMPT=2")
+			if failed {
+				environment = append(environment, "SOURCE_GATE_FAIL_GROUP="+expected)
+			}
+			status, calls, quality = sourceGateRun(fixture, "make go-runtime-ci-acceptance GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_PROCS=2 GO_RUNTIME_TEST_GROUP="+group, environment)
+			if failed {
+				Expect(status).NotTo(BeZero(), group)
+			} else {
+				Expect(status).To(BeZero(), group)
+			}
+			Expect(quality).To(BeEmpty(), "consumer repeats no global quality stage")
+			sourceGateAssertInternal(calls, false)
+			Expect(calls).NotTo(BeEmpty())
+			Expect(calls[0].Group).To(Equal("prepared-verify"), "verification must precede worker planning and cached execution")
+			Expect(calls[0].Args).To(Equal([]string{"run", "-mod=readonly", "./internal/qualification/cmd/prepare-suite", "verify", "--root", fixture.root, "--revision", strings.Repeat("a", 40), "--run-id", "12345"}))
+			tests := sourceGateTests(calls)
+			Expect(tests).To(HaveLen(1))
+			call := tests[0]
+			Expect(call.Prepared).To(BeTrue())
+			Expect(call.Selected).To(ConsistOf(sourceGateExpected(expected)))
+			Expect(call.Group).To(Equal(expected))
+			Expect(call.Args).To(ContainElements("./acceptance/qualification.test", "--timeout=25m", "--fail-on-empty", "--keep-going", "--no-color", "--", "-test.count=1", "-test.timeout=25m"))
+			Expect(call.Args).NotTo(ContainElement("--race"))
+			Expect(call.Args).NotTo(ContainElement("./acceptance"))
+			workers, err := strconv.Atoi(sourceGateOperand(call.Args, "--procs"))
+			Expect(err).NotTo(HaveOccurred())
+			if group == "installation" || group == "initialized-ci" || group == "ci-migration" || group == "local-upgrade-go" {
+				Expect(workers).To(Equal(1))
+			} else {
+				Expect(workers).To(Equal(2))
+			}
+			for _, kind := range []string{"json", "xml"} {
+				flag := "--json-report"
+				if kind == "xml" {
+					flag = "--junit-report"
+				}
+				path := filepath.Join(fixture.root, "reports", expected+"."+kind)
+				Expect(sourceGateOperand(call.Args, flag)).To(Equal(path))
+				_, err := os.Stat(path)
+				Expect(err).NotTo(HaveOccurred())
+			}
+		}
+	}
+	for _, missing := range []string{preparedQualificationSuitePath, preparedQualificationRunnerPath, preparedQualificationReceiptPath, "verification-refusal", "empty-selection"} {
+		fixture = sourceGateMakeFixture()
+		environment := append([]string{}, identity...)
+		switch missing {
+		case "verification-refusal":
+			environment = append(environment, "SOURCE_GATE_FAIL_GROUP=prepared-verify")
+		case "empty-selection":
+			writeFixture(filepath.Join(fixture.root, "cases.json"), []byte("[]"), 0600)
+		default:
+			Expect(os.Remove(filepath.Join(fixture.root, missing))).To(Succeed())
+		}
+		status, calls, quality = sourceGateRun(fixture, "make go-runtime-ci-acceptance GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=base-acceptance", environment)
+		Expect(status).NotTo(BeZero(), missing)
+		Expect(quality).To(BeEmpty())
+		if missing != "empty-selection" {
+			Expect(sourceGateTests(calls)).To(BeEmpty(), "refused material cannot start cached programs")
+		}
+	}
+	for _, group := range []string{"all", "base", "packages", "unrecognized", ""} {
+		fixture = sourceGateMakeFixture()
+		status, calls, quality = sourceGateRun(fixture, "make go-runtime-ci-acceptance GO_RUNTIME_TEST_GROUP="+group, identity)
+		Expect(status).NotTo(BeZero(), group)
+		Expect(sourceGateTests(calls)).To(BeEmpty())
+		Expect(quality).To(BeEmpty())
 	}
 }
 
@@ -556,8 +735,67 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
 	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	It("executes disjoint feature partitions while retaining every source quality stage", func() {
+		sourceGatePreparedExecutionProof()
+		// per docs/adr/0148-transactional-installed-ci-migration.md:671
+		for _, group := range []string{"packages", "base-acceptance"} {
+			for _, failure := range []string{"", "selected", "empty"} {
+				fixture := sourceGateMakeFixture()
+				environment := []string{}
+				selectedGroup := "base"
+				if group == "packages" {
+					selectedGroup = "internal"
+				}
+				if failure == "selected" {
+					environment = append(environment, "SOURCE_GATE_FAIL_GROUP="+selectedGroup)
+				}
+				if failure == "empty" {
+					remaining := []any{}
+					for _, row := range sourceGateCases {
+						selected := row.Package != "./acceptance"
+						if group == "base-acceptance" {
+							selected = row.Package == "./acceptance" && row.Group == "base"
+						}
+						if !selected {
+							remaining = append(remaining, row)
+						}
+					}
+					data, err := json.Marshal(remaining)
+					Expect(err).NotTo(HaveOccurred())
+					writeFixture(filepath.Join(fixture.root, "cases.json"), data, 0600)
+				}
+				status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, environment)
+				sourceGateAssertWorkerPlan(calls, "auto", "4")
+				if failure == "" {
+					Expect(status).To(BeZero(), group)
+					Expect(quality).To(ContainElements("gofmt", "dialect", "golangci-lint", "gosec", "govulncheck"))
+					commands := []string{}
+					for _, call := range calls {
+						commands = append(commands, call.Args[0])
+					}
+					Expect(commands).To(ContainElements("list", "vet", "build"))
+				} else {
+					Expect(status).NotTo(BeZero(), "%s must reject %s qualification", group, failure)
+					Expect(quality).NotTo(ContainElement("golangci-lint"), "failed qualification cannot proceed as a passing gate")
+				}
+				tests := sourceGateTests(calls)
+				if group == "packages" {
+					Expect(tests).To(BeEmpty(), "package-only selection cannot also launch acceptance")
+					if failure != "empty" {
+						sourceGateAssertInternal(calls, true)
+					}
+				} else {
+					sourceGateAssertInternal(calls, false)
+					Expect(tests).To(HaveLen(1), "acceptance-only selection must launch its actual runner")
+					if failure == "empty" {
+						Expect(tests[0].Selected).To(BeEmpty())
+					} else {
+						sourceGateAssertPartition(tests[0], "base")
+					}
+				}
+			}
+		}
 		callsByGroup := map[string]sourceGateCall{}
-		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			fixture := sourceGateMakeFixture()
 			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP="+group, nil)
 			Expect(status).To(Equal(0))
@@ -572,13 +810,17 @@ var _ = Describe("Go source qualification scheduling", func() {
 			sourceGateAssertInternal(calls, group == "base")
 			sourceGateAssertWorkerPlan(calls, "auto", "4")
 			callsByGroup[group] = tests[0]
+			// per docs/adr/0148-transactional-installed-ci-migration.md:741
+			if group == "release-retention" {
+				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Whole installation upgrade release candidate handoff backup retention( |$)"))
+			}
 			// per docs/adr/0148-transactional-installed-ci-migration.md:488
 			if group == "release-ci" {
 				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Whole installation upgrade release candidate handoff CI checkout preparation( |$)"))
 			}
 			if group == "initialized-ci" {
 				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI( |$)"))
-				Expect(callsByGroup["release-handoff"].Skip).To(Equal(tests[0].Focus+"|"+callsByGroup["release-ci"].Focus), "release handoff must exclude precisely both separately selected CI families")
+				Expect(callsByGroup["release-handoff"].Skip).To(Equal(tests[0].Focus+"|"+callsByGroup["release-ci"].Focus+"|"+callsByGroup["release-retention"].Focus), "release handoff must exclude precisely the separately selected CI and retention families")
 			}
 			if group == "ci-migration" {
 				Expect(tests[0].Focus).To(Equal("^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction( |$)"))
@@ -611,7 +853,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(commands).To(ContainElements("list", "vet", "build"))
 		}
 		// per docs/adr/0121-local-upgrade-readiness-boundary.md:134
-		for _, negativeGroup := range []string{"release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints"} {
+		for _, negativeGroup := range []string{"release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints"} {
 			for _, empty := range []bool{false, true} {
 				fixture := sourceGateMakeFixture()
 				environment := []string{"SOURCE_GATE_FAIL_GROUP=" + negativeGroup}
@@ -655,7 +897,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 					continue
 				}
 				expected := workers
-				if (call.Group == "release-handoff" || call.Group == "release-ci" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" || call.Group == "local-recovery" || call.Group == "default-init" || call.Group == "default-upgrade") && workers == "3" {
+				if (call.Group == "release-handoff" || call.Group == "release-retention" || call.Group == "release-ci" || call.Group == "historical-recipe" || call.Group == "local-init" || call.Group == "local-upgrade" || call.Group == "local-recovery" || call.Group == "default-init" || call.Group == "default-upgrade") && workers == "3" {
 					expected = "2"
 				}
 				if call.Group == "initialized-ci" || call.Group == "ci-migration" || call.Group == "local-upgrade-go" {
@@ -721,11 +963,11 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0148-transactional-installed-ci-migration.md:325
 		// Ninety-three strict provenance criteria and one real historical rebootstrap join discovery.
 		// per docs/adr/0149-compiler-provenance-and-security-patches.md:76
-		Expect(negativeTotal).To(Equal(3459))
+		Expect(negativeTotal).To(Equal(3467))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3459))
+		Expect(allTotal).To(Equal(3467))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -736,13 +978,26 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
-		expectedCounts := map[string]int{"base": 3092, "installation": 101, "release-handoff": 44, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 9, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 3100, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 19, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 9, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
-		for _, group := range []string{"base", "installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
+		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
 			Expect(status).To(Equal(0), group)
 			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
 			Expect(total).To(Equal(allTotal))
+			if group == "release-retention" {
+				expected, actual := []string{}, []string{}
+				for _, name := range sourceGateRetentionNames {
+					expected = append(expected, "Go factory command acceptance Whole installation upgrade release candidate handoff backup retention "+name)
+				}
+				for _, identity := range identities {
+					name, location, found := strings.Cut(identity, " :: ")
+					Expect(found).To(BeTrue())
+					Expect(location).To(MatchRegexp(`^installation_retention_test\.go:[1-9][0-9]*$`))
+					actual = append(actual, name)
+				}
+				Expect(actual).To(ConsistOf(expected), "retention must preserve every independently retained criterion identity")
+			}
 			if group == "initialized-ci" || group == "ci-migration" {
 				expected := []string{}
 				names := sourceGateInitializedCINames
@@ -801,10 +1056,10 @@ var _ = Describe("Go source qualification scheduling", func() {
 	DescribeTable("attempts the complete qualification union and propagates every group failure", func(selection, failing string) {
 		failures := []string{failing}
 		if selection == "all" && failing == "" {
-			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints")
+			failures = append(failures, "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints")
 		}
 		if selection == "default" && failing == "" {
-			failures = append(failures, "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints")
+			failures = append(failures, "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-upgrade-go", "local-recovery", "default-upgrade", "source-entrypoints")
 		}
 		for _, failing := range failures {
 			fixture := sourceGateMakeFixture()
@@ -815,7 +1070,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			status, calls, _ := sourceGateRun(fixture, script, []string{"SOURCE_GATE_FAIL_GROUP=" + failing})
 			sourceGateAssertWorkerPlan(calls, "auto", "4")
 			tests := sourceGateTests(calls)
-			Expect(tests).To(HaveLen(14), "all must attempt every qualification partition even after any earlier failure")
+			Expect(tests).To(HaveLen(15), "all must attempt every qualification partition even after any earlier failure")
 			sourceGateAssertInternal(calls, true)
 			seen, union, expected := map[string]bool{}, []string{}, []string{}
 			for _, call := range tests {
@@ -828,6 +1083,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 			Expect(seen).To(HaveKey("base"))
 			Expect(seen).To(HaveKey("installation"))
 			Expect(seen).To(HaveKey("release-handoff"))
+			Expect(seen).To(HaveKey("release-retention"))
 			Expect(seen).To(HaveKey("release-ci"))
 			Expect(seen).To(HaveKey("initialized-ci"))
 			Expect(seen).To(HaveKey("ci-migration"))
@@ -923,31 +1179,19 @@ type sourceGateWorkflowJob struct {
 }
 
 var _ = Describe("Go source qualification workflow partition", func() {
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:530
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:535
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:562
-	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:587
-	// per docs/adr/0101-go-release-handoff.md:560
-	// per docs/DECISION_LOG.md:4529
-	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343
-	// per docs/adr/0135-go-source-review-entrypoints.md:78
-	// per docs/adr/0146-initialized-installed-ci.md:293
-	// per docs/adr/0149-compiler-provenance-and-security-patches.md:69
-	// per docs/adr/0148-transactional-installed-ci-migration.md:488
-	// per docs/adr/0148-transactional-installed-ci-migration.md:515
+	// per docs/adr/0151-reliable-ci-qualification.md:35
+	// per docs/adr/0151-reliable-ci-qualification.md:79
+	// per docs/adr/0151-reliable-ci-qualification.md:85
+	// per docs/adr/0151-reliable-ci-qualification.md:98
 	It("preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", func() {
-		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- fixed independently identified immutable source workflow.
+		baselineCommand := exec.Command("git", "show", sourceGateBaselineCommit+":.github/workflows/go-runtime.yml") // #nosec G204 -- immutable independently identified workflow.
 		baselineCommand.Dir = ".."
 		baselineBytes, err := baselineCommand.Output()
 		Expect(err).NotTo(HaveOccurred())
 		candidateBytes, err := os.ReadFile("../.github/workflows/go-runtime.yml")
 		Expect(err).NotTo(HaveOccurred())
 		var baseline, candidate struct {
-			Jobs        map[string]sourceGateWorkflowJob `yaml:"jobs"`
-			Concurrency struct {
-				Group  string `yaml:"group"`
-				Cancel string `yaml:"cancel-in-progress"`
-			} `yaml:"concurrency"`
+			Jobs map[string]sourceGateWorkflowJob `yaml:"jobs"`
 		}
 		Expect(yaml.Unmarshal(baselineBytes, &baseline)).To(Succeed())
 		Expect(yaml.Unmarshal(candidateBytes, &candidate)).To(Succeed())
@@ -962,112 +1206,68 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				} `yaml:"concurrency"`
 			}
 			Expect(yaml.Unmarshal(body, &workflow)).To(Succeed())
-			Expect(workflow.Concurrency.Group).To(Equal("${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"), "only PRs may share a workflow/ref concurrency key")
-			Expect(workflow.Concurrency.Cancel).To(Equal("${{ github.event_name == 'pull_request' }}"), "main and called releases must never be canceled")
+			Expect(workflow.Concurrency.Group).To(Equal("${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"))
+			Expect(workflow.Concurrency.Cancel).To(Equal("${{ github.event_name == 'pull_request' }}"))
 		}
-		Expect(baseline.Jobs).To(HaveKey("go-runtime"))
-		Expect(candidate.Jobs).To(HaveKey("go-runtime"), "existing required matrix check names must retain their job identifier")
-		Expect(candidate.Jobs).To(HaveLen(2), "installation needs its own parallel OS matrix rather than the exhausted single job")
 		original := baseline.Jobs["go-runtime"]
-		// Apply only the reviewed compiler/analyzer and action-reference exceptions
-		// to the historical baseline; all other setup operands still compare exactly.
-		// per docs/DECISION_LOG.md:4548
+		Expect(candidate.Jobs).To(HaveLen(2))
+		Expect(candidate.Jobs).To(HaveKey("go-runtime"))
+		Expect(candidate.Jobs).To(HaveKey("go-runtime-installation"))
 		Expect(original.Steps[0].Uses).To(Equal("actions/checkout@v7.0.1"))
 		Expect(original.Steps[1].Uses).To(Equal("actions/setup-go@v7.0.0"))
 		original.Steps[0].Uses = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 		original.Steps[1].Uses = "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"
-		Expect(original.Steps[1].With["go-version"]).To(Equal("1.27.1"))
 		original.Steps[1].With["go-version"] = "1.27.4"
-		// per docs/adr/0101-go-release-handoff.md:606
 		original.Steps[1].With["cache-dependency-path"] = "go.sum\ntools/security/go.sum\n"
-		Expect(original.Steps[4].Name).To(Equal("Install pinned quality tools"))
-		oldLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2"
-		newLinter := "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"
-		oldSecurity := "go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0"
-		newSecurity := "go -C tools/security install -mod=readonly github.com/securego/gosec/v2/cmd/gosec"
-		Expect(strings.Count(original.Steps[4].Run, oldLinter)).To(Equal(1))
-		Expect(strings.Count(original.Steps[4].Run, oldSecurity)).To(Equal(1))
-		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldLinter, newLinter, 1)
-		original.Steps[4].Run = strings.Replace(original.Steps[4].Run, oldSecurity, newSecurity, 1)
+		cachePin := "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+		imageKey := "factory-prepared-v1-${{ github.run_id }}-${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-go1.27.4-race-${{ hashFiles('go.mod', 'go.sum') }}"
+		imagePaths := "acceptance/qualification.test\n.factory/qualification/prepared-v1/ginkgo\n.factory/qualification/prepared-v1/receipt.json\n"
+		qualityKey := "factory-quality-v2-${{ runner.os }}-${{ runner.arch }}-go1.27.4-golangci-v2.14.0-govuln-v1.7.0-${{ hashFiles('tools/security/go.mod', 'tools/security/go.sum') }}"
+		groups := []string{"base-acceptance", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"}
 		for identifier, job := range candidate.Jobs {
+			producer := identifier == "go-runtime"
 			Expect(job.RunsOn).To(Equal(original.RunsOn))
 			Expect(job.Timeout).To(Equal(30))
 			Expect(job.Strategy.FailFast).To(Equal(original.Strategy.FailFast))
 			Expect(job.Strategy.Matrix.OS).To(Equal(original.Strategy.Matrix.OS))
 			Expect(job.Strategy.Matrix.Include).To(BeEmpty())
-			Expect(job.Strategy.Matrix.Exclude).To(BeEmpty(), "no platform/group pair may be silently skipped")
-			Expect(job.Needs).To(BeNil(), "matrix partitions must be independently scheduled")
-			groups := []string{"base"}
-			if identifier == "go-runtime" {
-				Expect(job.Name).To(Equal(original.Name), "existing display/check names cannot change")
+			Expect(job.Strategy.Matrix.Exclude).To(BeEmpty())
+			if producer {
+				Expect(job.Name).To(Equal(original.Name))
+				Expect(job.Needs).To(BeNil())
 				Expect(job.Strategy.Matrix.Group).To(BeEmpty())
 			} else {
-				Expect(identifier).To(Equal("go-runtime-installation"))
 				Expect(job.Name).To(Equal("go-runtime-${{ matrix.group }} (${{ matrix.os }})"))
-				Expect(job.Strategy.Matrix.Group).To(ConsistOf("installation", "release-handoff", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"))
-				groups = job.Strategy.Matrix.Group
+				Expect(job.Needs).To(Equal("go-runtime"))
+				Expect(job.Strategy.Matrix.Group).To(ConsistOf(groups))
 			}
-			// per docs/adr/0101-go-release-handoff.md:597
-			extraSetup := 3
-			if identifier == "go-runtime-installation" {
-				extraSetup += 3
+			Expect(job.Env).To(HaveKeyWithValue("GO_RUNTIME_TEST_MAX_PROCS", "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}"))
+			Expect(job.Env).To(HaveKeyWithValue("GO_RUNTIME_REVISION", "${{ github.sha }}"))
+			Expect(job.Env).To(HaveKeyWithValue("GO_RUNTIME_RUN_ID", "${{ github.run_id }}"))
+			if producer {
+				Expect(job.Env).To(HaveKeyWithValue("GO_RUNTIME_PRODUCER_ATTEMPT", "${{ github.run_attempt }}"))
 			}
-			Expect(job.Steps).To(HaveLen(len(original.Steps) + extraSetup))
-			cache, pathStep, install, artifact := sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}, sourceGateWorkflowStep{}
-			moduleSetup, moduleIndex, runnerIndex := sourceGateWorkflowStep{}, -1, -1
-			historicalSetupIndex, historicalCaptureIndex, currentSetupIndex := -1, -1, -1
-			historicalCapture := sourceGateWorkflowStep{}
-			normalized := []sourceGateWorkflowStep{}
+			byName := map[string]sourceGateWorkflowStep{}
+			positions := map[string]int{}
 			for index, step := range job.Steps {
-				if step.Name == original.Steps[len(original.Steps)-1].Name {
-					runnerIndex = index
+				if step.Name == "" {
+					continue
 				}
-				switch {
-				// Historical compiler provenance is explicit and cannot replace the active compiler.
-				// per docs/adr/0148-transactional-installed-ci-migration.md:319
-				// per docs/adr/0149-compiler-provenance-and-security-patches.md:63
-				case step.Name == "Set up the historical fixture compiler":
-					Expect(identifier).To(Equal("go-runtime-installation"))
-					Expect(historicalSetupIndex).To(Equal(-1))
-					historicalSetupIndex = index
-					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Set up the historical fixture compiler", If: "matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'", Uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", With: map[string]any{"go-version": "1.27.3", "cache": false}, Env: map[string]string{"GOTOOLCHAIN": "local", "GOENV": "off"}}))
-				case step.Name == "Retain the historical fixture compiler path":
-					Expect(identifier).To(Equal("go-runtime-installation"))
-					Expect(historicalCaptureIndex).To(Equal(-1))
-					historicalCapture, historicalCaptureIndex = step, index
-					shell := "bash"
-					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Retain the historical fixture compiler path", If: "matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'", Shell: &shell, Run: "historical_go=\"$(command -v go)\"\ncase \"$historical_go\" in\n  /*) ;;\n  *) echo \"Historical Go compiler must have an absolute path\" >&2; exit 1 ;;\nesac\nprintf 'FACTORY_HISTORICAL_GO=%s\\n' \"$historical_go\" >> \"$GITHUB_ENV\"\n"}))
-				// per docs/adr/0135-go-source-review-entrypoints.md:81
-				case step.Name == "Provision locked modules for source workflow qualification":
-					Expect(moduleIndex).To(Equal(-1), "source module setup must occur exactly once")
-					moduleSetup, moduleIndex = step, index
-					Expect(step).To(Equal(sourceGateWorkflowStep{Name: "Provision locked modules for source workflow qualification", If: "matrix.group == 'source-entrypoints'", Run: "GOTOOLCHAIN=local go mod download\ngit diff --exit-code -- go.mod go.sum\n"}))
-				// per docs/adr/0102-parallel-go-qualification.md:44
-				case strings.HasPrefix(step.Uses, "actions/upload-artifact@"):
-					Expect(artifact.Uses).To(BeEmpty())
-					artifact = step
-				case strings.HasPrefix(step.Uses, "actions/cache@"):
-					Expect(cache.Uses).To(BeEmpty())
-					cache = step
-				case strings.Contains(step.Run, "$GITHUB_PATH"):
-					Expect(pathStep.Run).To(BeEmpty())
-					pathStep = step
-				default:
-					if strings.HasPrefix(step.Uses, "actions/setup-go@") {
-						Expect(currentSetupIndex).To(Equal(-1))
-						currentSetupIndex = index
-					}
-					if step.Name == "Install pinned quality tools" {
-						install = step
-						step.If, step.Env = "", nil
-					}
-					normalized = append(normalized, step)
-				}
+				Expect(byName).NotTo(HaveKey(step.Name), "duplicate workflow step %q", step.Name)
+				byName[step.Name] = step
+				positions[step.Name] = index
 			}
-			if identifier == "go-runtime-installation" {
-				Expect(historicalSetupIndex).To(Equal(1), "capture the old compiler before current setup replaces PATH")
-				Expect(historicalCaptureIndex).To(Equal(historicalSetupIndex + 1))
-				Expect(currentSetupIndex).To(Equal(historicalCaptureIndex + 1))
+			Expect(job.Steps[0]).To(Equal(original.Steps[0]))
+			currentIndex := 1
+			if !producer {
+				historical := byName["Set up the historical fixture compiler"]
+				capture := byName["Retain the historical fixture compiler path"]
+				Expect(historical).To(Equal(sourceGateWorkflowStep{Name: "Set up the historical fixture compiler", If: "matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'", Uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", With: map[string]any{"go-version": "1.27.3", "cache": false}, Env: map[string]string{"GOTOOLCHAIN": "local", "GOENV": "off"}}))
+				shell := "bash"
+				Expect(capture).To(Equal(sourceGateWorkflowStep{Name: "Retain the historical fixture compiler path", If: historical.If, Shell: &shell, Run: "historical_go=\"$(command -v go)\"\ncase \"$historical_go\" in\n  /*) ;;\n  *) echo \"Historical Go compiler must have an absolute path\" >&2; exit 1 ;;\nesac\nprintf 'FACTORY_HISTORICAL_GO=%s\\n' \"$historical_go\" >> \"$GITHUB_ENV\"\n"}))
+				Expect(positions[historical.Name]).To(Equal(1))
+				Expect(positions[capture.Name]).To(Equal(2))
+				currentIndex = 3
 				for _, relative := range []bool{false, true} {
 					fixture := sourceGateMakeFixture()
 					envFile := filepath.Join(fixture.root, "github-env")
@@ -1075,8 +1275,8 @@ var _ = Describe("Go source qualification workflow partition", func() {
 					if relative {
 						environment = append(environment, "PATH=tools:/usr/bin:/bin")
 					}
-					status, calls, _ := sourceGateRun(fixture, historicalCapture.Run, environment)
-					Expect(calls).To(BeEmpty(), "path capture cannot execute the compiler or launch qualification")
+					status, calls, _ := sourceGateRun(fixture, capture.Run, environment)
+					Expect(calls).To(BeEmpty())
 					if relative {
 						Expect(status).NotTo(BeZero())
 						_, err := os.Lstat(envFile)
@@ -1086,144 +1286,173 @@ var _ = Describe("Go source qualification workflow partition", func() {
 						Expect(os.ReadFile(envFile)).To(Equal([]byte("FACTORY_HISTORICAL_GO=" + filepath.Join(fixture.root, "tools/go") + "\n")))
 					}
 				}
-				Expect(moduleIndex).To(BeNumerically(">", 1), "locked acquisition must follow the pinned compiler setup")
-				Expect(moduleIndex).To(BeNumerically("<", runnerIndex), "source fixtures need their complete module proxy before qualification")
-			} else {
-				Expect(historicalSetupIndex).To(Equal(-1))
-				Expect(historicalCaptureIndex).To(Equal(-1))
-				Expect(currentSetupIndex).To(Equal(1))
-				Expect(moduleIndex).To(Equal(-1), "non-source base qualification does not need extra module acquisition")
 			}
+			Expect(job.Steps[currentIndex:currentIndex+3]).To(Equal(original.Steps[1:4]), "current Go and actual Python qualification remain unchanged")
+			var imageCache, qualityCache, pathStep, install, artifact sourceGateWorkflowStep
+			for _, step := range job.Steps {
+				switch {
+				case strings.HasPrefix(step.Uses, "actions/cache/save@"), strings.HasPrefix(step.Uses, "actions/cache/restore@"):
+					Expect(imageCache.Uses).To(BeEmpty())
+					imageCache = step
+				case strings.HasPrefix(step.Uses, "actions/cache@"):
+					Expect(qualityCache.Uses).To(BeEmpty())
+					qualityCache = step
+				case strings.Contains(step.Run, "$GITHUB_PATH"):
+					Expect(pathStep.Run).To(BeEmpty())
+					pathStep = step
+				case step.Name == "Install pinned quality tools":
+					install = step
+				case strings.HasPrefix(step.Uses, "actions/upload-artifact@"):
+					Expect(artifact.Uses).To(BeEmpty())
+					artifact = step
+				}
+			}
+			Expect(imageCache.With["key"]).To(Equal(imageKey))
+			Expect(imageCache.With["path"]).To(Equal(imagePaths))
+			Expect(imageCache.With).NotTo(HaveKey("restore-keys"))
+			Expect(imageCache.With["key"]).NotTo(ContainSubstring("run_attempt"))
+			Expect(imageCache.With["key"]).NotTo(ContainSubstring("head.sha"))
 			Expect(artifact.Uses).To(Equal("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"))
-			Expect(artifact).To(Equal(job.Steps[len(job.Steps)-1]), "report retention must follow the attempted source runner")
-			artifactName, artifactIf := "go-runtime-base-${{ runner.os }}-${{ runner.arch }}", "always()"
-			if identifier != "go-runtime" {
-				artifactName, artifactIf = "go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}", "always() && matrix.group != 'installation'"
-			}
-			Expect(artifact.If).To(Equal(artifactIf), "failed base and handoff runs still attempt artifact publication")
-			Expect(artifact.With).To(Equal(map[string]any{"name": artifactName, "path": "${{ runner.temp }}/factory-go-reports/", "if-no-files-found": "warn", "retention-days": 7}))
-			Expect(cache.Uses).To(Equal("actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"))
-			Expect(cache.ID).To(Equal("quality-tools"))
-			Expect(cache.If).To(BeEmpty())
-			Expect(cache.With).To(HaveLen(2), "no broad restore prefix may impersonate an exact qualified cache hit")
-			Expect(cache.With["path"]).To(Equal("${{ runner.temp }}/factory-quality-tools"))
-			Expect(cache.With["key"]).To(Equal("factory-quality-v1-${{ runner.os }}-${{ runner.arch }}-go1.27.4-${{ hashFiles('.github/workflows/go-runtime.yml', 'tools/security/go.mod', 'tools/security/go.sum') }}"))
-			Expect(pathStep.If).To(BeEmpty(), "PATH must be configured on cold and warm runs")
-			Expect(pathStep.Run).NotTo(BeEmpty())
-			Expect(install.If).To(Equal("steps.quality-tools.outputs.cache-hit != 'true'"))
-			Expect(install.Env).To(Equal(map[string]string{"GOBIN": "${{ runner.temp }}/factory-quality-tools"}))
-			Expect(normalized).To(HaveLen(len(original.Steps)))
-			Expect(normalized[:len(normalized)-1]).To(Equal(original.Steps[:len(original.Steps)-1]), "only reviewed cache setup exceptions may change checkout, Go/Python setup, interpreter qualification and exact tool pins")
-			runner := normalized[len(normalized)-1]
-			Expect(runner.If).To(BeEmpty(), "a cache hit never skips source qualification")
-			Expect(runner.Name).To(Equal(original.Steps[len(original.Steps)-1].Name))
-			if moduleIndex >= 0 {
+			Expect(artifact.If).To(Equal("always()"))
+			Expect(artifact).To(Equal(job.Steps[len(job.Steps)-1]))
+			Expect(artifact.With["retention-days"]).To(Equal(7))
+			Expect(artifact.With["if-no-files-found"]).To(Equal("warn"))
+			if producer {
+				runner := byName["Qualify packages and prepare race acceptance"]
+				Expect(runner.Run).To(ContainSubstring("make go-runtime-ci-prepare"))
+				Expect(runner.If).To(BeEmpty())
+				Expect(runner.Run).To(ContainSubstring("GO_RUNTIME_TEST_TIMEOUT=25m"))
+				Expect(imageCache.Uses).To(Equal("actions/cache/save@" + cachePin))
+				Expect(imageCache.With).To(HaveLen(2))
+				Expect(positions[imageCache.Name]).To(BeNumerically(">", positions[runner.Name]))
+				Expect(imageCache.If).To(Or(BeEmpty(), Equal("success()")))
+				Expect(qualityCache.Uses).To(Equal("actions/cache@" + cachePin))
+				Expect(qualityCache.ID).To(Equal("quality-tools"))
+				Expect(qualityCache.If).To(BeEmpty())
+				Expect(qualityCache.With).To(Equal(map[string]any{"path": "${{ runner.temp }}/factory-quality-tools", "key": qualityKey}))
+				Expect(pathStep.If).To(BeEmpty())
+				Expect(install.If).To(Equal("steps.quality-tools.outputs.cache-hit != 'true'"))
+				Expect(install.Env).To(Equal(map[string]string{"GOBIN": "${{ runner.temp }}/factory-quality-tools"}))
+				Expect(artifact.With["name"]).To(Equal("go-runtime-preparation-${{ runner.os }}-${{ runner.arch }}"))
+				Expect(artifact.With["include-hidden-files"]).To(Equal(true))
+				Expect(artifact.With["path"]).To(Equal(".factory/qualification/prepared-v1/prepare.log\n.factory/qualification/prepared-v1/receipt.json\n"))
+				for _, warm := range []bool{false, true} {
+					fixture := sourceGateMakeFixture()
+					toolDirectory := filepath.Join(fixture.root, "factory-quality-tools")
+					pathFile := filepath.Join(fixture.root, "github-path")
+					expand := func(value string) string {
+						value = strings.ReplaceAll(value, "${{ runner.temp }}", fixture.root)
+						return strings.ReplaceAll(value, "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}", "4")
+					}
+					environment := []string{"RUNNER_TEMP=" + fixture.root, "GITHUB_PATH=" + pathFile, "GO_RUNTIME_REVISION=" + strings.Repeat("a", 40), "GO_RUNTIME_RUN_ID=12345", "GO_RUNTIME_PRODUCER_ATTEMPT=1"}
+					for key, value := range job.Env {
+						if !strings.HasPrefix(key, "GO_RUNTIME_REVISION") && key != "GO_RUNTIME_RUN_ID" && key != "GO_RUNTIME_PRODUCER_ATTEMPT" {
+							environment = append(environment, key+"="+expand(value))
+						}
+					}
+					status, _, _ := sourceGateRun(fixture, pathStep.Run, environment)
+					Expect(status).To(BeZero())
+					Expect(os.ReadFile(pathFile)).To(Equal([]byte(toolDirectory + "\n")))
+					if warm {
+						for _, name := range []string{"golangci-lint", "gosec", "govulncheck"} {
+							writeFixture(filepath.Join(toolDirectory, name), []byte("#!/bin/sh\nprintf '%s\\n' 'cached:"+name+"' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"), 0700)
+						}
+					} else {
+						installEnv := append(append([]string{}, environment...), "GOBIN="+toolDirectory)
+						status, _, _ = sourceGateRun(fixture, install.Run, installEnv)
+						Expect(status).To(BeZero())
+					}
+					environment = append(environment, "PATH="+toolDirectory+":"+filepath.Join(fixture.root, "tools")+":"+os.Getenv("PATH"))
+					status, calls, quality := sourceGateRun(fixture, expand(runner.Run), environment)
+					Expect(status).To(BeZero())
+					sourceGateAssertInternal(calls, true)
+					Expect(sourceGateTests(calls)).To(BeEmpty())
+					Expect(quality).To(ContainElements("gofmt", "dialect", "cached:golangci-lint", "cached:gosec", "cached:govulncheck"))
+					installations := [][]string{}
+					preparations := 0
+					for _, call := range calls {
+						if len(call.Args) > 0 && (call.Args[0] == "install" || call.Args[0] == "-C") {
+							installations = append(installations, call.Args)
+						}
+						if call.Group == "prepared-prepare" {
+							preparations++
+						}
+					}
+					Expect(preparations).To(Equal(1))
+					if warm {
+						Expect(installations).To(BeEmpty())
+					} else {
+						Expect(installations).To(Equal([][]string{{"install", "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"}, {"-C", "tools/security", "install", "-mod=readonly", "github.com/securego/gosec/v2/cmd/gosec"}, {"install", "golang.org/x/vuln/cmd/govulncheck@v1.7.0"}}))
+					}
+				}
+			} else {
+				Expect(qualityCache.Uses).To(BeEmpty())
+				Expect(pathStep.Run).To(BeEmpty())
+				Expect(install.Run).To(BeEmpty())
+				runner := byName["Run prepared acceptance qualification"]
+				Expect(runner.Run).To(ContainSubstring("make go-runtime-ci-acceptance"))
+				Expect(runner.Run).To(ContainSubstring("GO_RUNTIME_TEST_GROUP=${{ matrix.group }}"))
+				Expect(runner.Run).To(ContainSubstring("GO_RUNTIME_TEST_TIMEOUT=25m"))
+				Expect(runner.If).To(BeEmpty())
+				Expect(imageCache.Uses).To(Equal("actions/cache/restore@" + cachePin))
+				Expect(imageCache.ID).To(Equal("prepared-suite"))
+				Expect(imageCache.With).To(HaveLen(3))
+				Expect(imageCache.With["fail-on-cache-miss"]).To(Equal(true))
+				Expect(imageCache.If).To(BeEmpty())
+				exact := byName["Require exact prepared suite cache"]
+				Expect(exact.Run).NotTo(BeEmpty())
+				Expect(exact.If).To(BeEmpty())
+				Expect(exact.Env).To(Equal(map[string]string{"CACHE_HIT": "${{ steps.prepared-suite.outputs.cache-hit }}"}))
+				Expect(positions[imageCache.Name]).To(BeNumerically("<", positions[exact.Name]))
+				Expect(positions[exact.Name]).To(BeNumerically("<", positions[runner.Name]))
+				module := byName["Provision locked modules for source workflow qualification"]
+				Expect(module).To(Equal(sourceGateWorkflowStep{Name: "Provision locked modules for source workflow qualification", If: "matrix.group == 'source-entrypoints'", Run: "GOTOOLCHAIN=local go mod download\ngit diff --exit-code -- go.mod go.sum\n"}))
+				Expect(positions[module.Name]).To(BeNumerically("<", positions[runner.Name]))
+				Expect(artifact.With).To(Equal(map[string]any{"name": "go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}", "path": "${{ runner.temp }}/factory-go-reports/", "if-no-files-found": "warn", "retention-days": 7}))
+				for _, hit := range []string{"true", "false", ""} {
+					fixture := sourceGateMakeFixture()
+					script := "set -e\n" + exact.Run + "\n" + strings.ReplaceAll(runner.Run, "${{ matrix.group }}", "installation")
+					environment := []string{"CACHE_HIT=" + hit, "RUNNER_TEMP=" + fixture.root, "GO_RUNTIME_REVISION=" + strings.Repeat("a", 40), "GO_RUNTIME_RUN_ID=12345", "GITHUB_RUN_ATTEMPT=2"}
+					status, calls, quality := sourceGateRun(fixture, script, environment)
+					Expect(quality).To(BeEmpty())
+					if hit == "true" {
+						Expect(status).To(BeZero())
+						tests := sourceGateTests(calls)
+						Expect(tests).To(HaveLen(1))
+						Expect(tests[0].Prepared).To(BeTrue())
+						Expect(sourceGateOperand(tests[0].Args, "--procs")).To(Equal("1"))
+						Expect(tests[0].Selected).To(ConsistOf(sourceGateExpected("installation")))
+					} else {
+						Expect(status).NotTo(BeZero())
+						Expect(calls).To(BeEmpty(), "partial or missing cache cannot compile, verify or execute any cached program")
+					}
+				}
+				// The repository variable must reach a nonserial prepared runner,
+				// not merely an installation group that is always forced to one.
+				// per docs/adr/0151-reliable-ci-qualification.md:42
+				limited := sourceGateMakeFixture()
+				capExpression := strings.ReplaceAll(job.Env["GO_RUNTIME_TEST_MAX_PROCS"], "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}", "1")
+				status, calls, quality := sourceGateRun(limited, strings.ReplaceAll(runner.Run, "${{ matrix.group }}", "base-acceptance"), []string{"GO_RUNTIME_TEST_MAX_PROCS=" + capExpression, "RUNNER_TEMP=" + limited.root, "GO_RUNTIME_REVISION=" + strings.Repeat("a", 40), "GO_RUNTIME_RUN_ID=12345"})
+				Expect(status).To(BeZero())
+				Expect(quality).To(BeEmpty())
+				sourceGateAssertWorkerPlan(calls, "auto", "1")
+				tests := sourceGateTests(calls)
+				Expect(tests).To(HaveLen(1))
+				Expect(tests[0].Prepared).To(BeTrue())
+				Expect(sourceGateOperand(tests[0].Args, "--procs")).To(Equal("1"))
+				Expect(tests[0].Selected).To(ConsistOf(sourceGateExpected("base")))
 				for _, refusal := range []string{"download", "go.mod", "go.sum"} {
 					fixture := sourceGateMakeFixture()
 					environment := []string{"SOURCE_GATE_MUTATE_LOCK=" + refusal}
 					if refusal == "download" {
 						environment = []string{"SOURCE_GATE_FAIL_GROUP=module-setup"}
 					}
-					script := "set -e\n" + moduleSetup.Run + strings.ReplaceAll(runner.Run, "${{ matrix.group }}", "source-entrypoints")
-					status, calls, quality := sourceGateRun(fixture, script, environment)
-					Expect(status).NotTo(BeZero(), "failed module setup must prevent source qualification: %s", refusal)
-					Expect(calls).To(HaveLen(1), "neither a worker plan nor tests may start after failed preparation")
+					status, calls, quality := sourceGateRun(fixture, "set -e\n"+module.Run+strings.ReplaceAll(runner.Run, "${{ matrix.group }}", "source-entrypoints"), environment)
+					Expect(status).NotTo(BeZero())
+					Expect(calls).To(HaveLen(1))
 					Expect(calls[0].Args).To(Equal([]string{"mod", "download"}))
 					Expect(calls[0].Toolchain).To(Equal("local"))
 					Expect(quality).To(BeEmpty())
-				}
-			}
-			for _, group := range groups {
-				for _, warm := range []bool{false, true} {
-					fixture := sourceGateMakeFixture()
-					toolDirectory, pathFile := filepath.Join(fixture.root, "factory-quality-tools"), filepath.Join(fixture.root, "github-path")
-					environment := []string{"RUNNER_TEMP=" + fixture.root, "GITHUB_PATH=" + pathFile}
-					// per docs/adr/0104-adaptive-qualification-workers.md:54
-					workerLimit := "4"
-					if warm {
-						workerLimit = "1"
-					}
-					expand := func(value string) string {
-						value = strings.ReplaceAll(value, "${{ matrix.group }}", group)
-						value = strings.ReplaceAll(value, "${{ vars.GO_RUNTIME_TEST_MAX_PROCS || '4' }}", workerLimit)
-						return strings.ReplaceAll(value, "${{ runner.temp }}", fixture.root)
-					}
-					for key, value := range job.Env {
-						environment = append(environment, key+"="+expand(value))
-					}
-					status, _, _ := sourceGateRun(fixture, pathStep.Run, environment)
-					Expect(status).To(Equal(0))
-					pathReceipt, err := os.ReadFile(pathFile)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(string(pathReceipt)).To(Equal(toolDirectory+"\n"), "actual PATH step must select the dedicated directory on both cache outcomes")
-					if warm {
-						for _, name := range []string{"golangci-lint", "gosec", "govulncheck"} {
-							writeFixture(filepath.Join(toolDirectory, name), []byte("#!/bin/sh\nprintf '%s\\n' 'cached:"+name+"' >> \"$SOURCE_GATE_QUALITY_LOG\"\n"), 0700)
-						}
-					} else {
-						installEnvironment := append([]string{}, environment...)
-						for key, value := range install.Env {
-							installEnvironment = append(installEnvironment, key+"="+expand(value))
-						}
-						status, _, _ := sourceGateRun(fixture, install.Run, installEnvironment)
-						Expect(status).To(Equal(0))
-					}
-					for key, value := range runner.Env {
-						environment = append(environment, key+"="+expand(value))
-					}
-					environment = append(environment, "PATH="+toolDirectory+string(os.PathListSeparator)+filepath.Join(fixture.root, "tools")+string(os.PathListSeparator)+os.Getenv("PATH"))
-					if moduleSetup.If == "matrix.group == 'source-entrypoints'" && group == "source-entrypoints" {
-						status, _, _ := sourceGateRun(fixture, "set -e\n"+moduleSetup.Run, environment)
-						Expect(status).To(BeZero(), "source module acquisition and lockfile check must run on both cache outcomes")
-					}
-					status, calls, quality := sourceGateRun(fixture, expand(runner.Run), environment)
-					Expect(status).To(Equal(0), "actual %s/%s workflow recipe failed with warm=%t", identifier, group, warm)
-					moduleCalls, planIndex := []sourceGateCall{}, -1
-					for index, call := range calls {
-						if call.Group == "module-setup" {
-							Expect(planIndex).To(Equal(-1), "module setup must precede the worker plan")
-							Expect(call.Args).To(Equal([]string{"mod", "download"}))
-							Expect(call.Toolchain).To(Equal("local"))
-							moduleCalls = append(moduleCalls, call)
-						}
-						if call.Group == "worker-plan" {
-							planIndex = index
-						}
-					}
-					if group == "source-entrypoints" {
-						Expect(moduleCalls).To(HaveLen(1))
-					} else {
-						Expect(moduleCalls).To(BeEmpty(), "the source-only condition must not acquire modules for %s", group)
-					}
-					sourceGateAssertWorkerPlan(calls, "auto", workerLimit)
-					tests := sourceGateTests(calls)
-					Expect(tests).To(HaveLen(1))
-					sourceGateAssertPartition(tests[0], group)
-					sourceGateAssertInternal(calls, group == "base")
-					if group != "installation" {
-						workers, err := strconv.Atoi(sourceGateOperand(tests[0].Args, "--procs"))
-						Expect(err).NotTo(HaveOccurred())
-						limit, err := strconv.Atoi(workerLimit)
-						Expect(err).NotTo(HaveOccurred())
-						Expect(workers).To(BeNumerically("<=", limit), "both CI platforms use automatic selection under the repository cap")
-						if warm {
-							Expect(workers).To(Equal(1), "repository cap one must reach the actual CI runner")
-						}
-						Expect(sourceGateOperand(tests[0].Args, "--json-report")).To(Equal(filepath.Join(fixture.root, "factory-go-reports", group+".json")))
-						Expect(sourceGateOperand(tests[0].Args, "--junit-report")).To(Equal(filepath.Join(fixture.root, "factory-go-reports", group+".xml")))
-					}
-					Expect(quality).To(ContainElements("gofmt", "dialect", "cached:golangci-lint", "cached:gosec", "cached:govulncheck"), "restored executables must still perform every qualification stage")
-					installCalls := [][]string{}
-					for _, call := range calls {
-						if len(call.Args) > 0 && (call.Args[0] == "install" || call.Args[0] == "-C") {
-							installCalls = append(installCalls, call.Args)
-						}
-					}
-					if warm {
-						Expect(installCalls).To(BeEmpty())
-					} else {
-						Expect(installCalls).To(Equal([][]string{{"install", "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0"}, {"-C", "tools/security", "install", "-mod=readonly", "github.com/securego/gosec/v2/cmd/gosec"}, {"install", "golang.org/x/vuln/cmd/govulncheck@v1.7.0"}}))
-					}
 				}
 			}
 		}

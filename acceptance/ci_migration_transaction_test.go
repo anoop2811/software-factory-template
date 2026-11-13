@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -46,38 +48,56 @@ func ciTransactionInterrupt(p defaultUpgradeProject, selected defaultInitImage, 
 }
 
 // per docs/adr/0148-transactional-installed-ci-migration.md:103
-func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args []string, id, direction string, expectedWorkflow []byte) {
+func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args []string, id, direction string, expectedWorkflow []byte, borrowedRoots ...string) {
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := handoffCommand(ctx, p.root, p.f.environment, "", program, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.WaitDelay = time.Second
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	Expect(cmd.Start()).To(Succeed())
-	finished := make(chan error, 1)
-	go func() { finished <- cmd.Wait() }()
-	waited := false
-	DeferCleanup(func() {
-		if !waited {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			<-finished
+	// Regular captures remain safe evidence even if bounded joining fails.
+	// per docs/adr/0151-reliable-ci-qualification.md:196
+	captureRoot, err := os.MkdirTemp("", "factory-ci-interruption-")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(cleanupFixtureDirectory, captureRoot)
+	stdout, err := os.OpenFile(filepath.Join(captureRoot, "stdout"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(stdout.Close)
+	stderr, err := os.OpenFile(filepath.Join(captureRoot, "stderr"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(stderr.Close)
+	owner, err := startCIInterruptionOwner(ctx, func(commandContext context.Context) *exec.Cmd {
+		cmd := handoffCommand(commandContext, p.root, p.f.environment, "", program, args...)
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		return cmd
+	})
+	Expect(err).NotTo(HaveOccurred())
+	finish := func() ciInterruptionResult {
+		result := owner.TerminateAndWait()
+		if !result.Joined || result.SignalError != nil {
+			for _, root := range append([]string{captureRoot, p.root, p.f.root}, borrowedRoots...) {
+				holdFixtureCleanup(root, "CI interruption owner termination could not be confirmed")
+			}
 		}
+		return result
+	}
+	DeferCleanup(func() {
+		result := finish()
+		Expect(result.SignalError).NotTo(HaveOccurred())
+		Expect(result.Joined).To(BeTrue(), "CI interruption owner must join within its bounded cleanup")
 	})
 	path := filepath.Join(p.root, ".factory/installation-transactions", id+".json")
 	witness := map[string]any{}
 	observe := func() bool {
-		select {
-		case err := <-finished:
-			waited = true
-			StopTrying(fmt.Sprintf("owner exited before workflow publication witness: %v; stdout=%q stderr=%q", err, stdout.String(), stderr.String())).Now()
-		default:
+		exited, err := owner.Exited()
+		if exited || errors.Is(err, os.ErrProcessDone) {
+			result := finish()
+			out, outErr := os.ReadFile(stdout.Name())
+			errout, errErr := os.ReadFile(stderr.Name())
+			StopTrying(fmt.Sprintf("owner exited before workflow publication witness: wait=%v signal=%v joined=%t; stdout=%q (%v) stderr=%q (%v)", result.WaitError, result.SignalError, result.Joined, out, outErr, errout, errErr)).Now()
 		}
+		Expect(err).NotTo(HaveOccurred())
 		body, err := os.ReadFile(path)
 		var record map[string]any
 		decodeErr := json.Unmarshal(body, &record)
-		witness = map[string]any{"owner_pid": cmd.Process.Pid, "requested_direction": direction, "journal_error": fmt.Sprint(err), "decode_error": fmt.Sprint(decodeErr), "phase": record["phase"], "direction": record["direction"]}
+		witness = map[string]any{"owner_pid": owner.PID(), "requested_direction": direction, "journal_error": fmt.Sprint(err), "decode_error": fmt.Sprint(decodeErr), "phase": record["phase"], "direction": record["direction"]}
 		// per docs/adr/0148-transactional-installed-ci-migration.md:441
 		// Publication remains interruptible through validation and metadata preparation.
 		// A committed record is never an interruption witness.
@@ -118,9 +138,9 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 	}
 	Eventually(observe, 80*time.Second, time.Millisecond).Should(BeTrue(), "witness the actual workflow publication under pending intent")
 	beforeStop := witness
-	Expect(syscall.Kill(cmd.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+	Expect(owner.Signal(syscall.SIGSTOP)).To(Succeed())
 	Eventually(func() bool {
-		stopped, err := installationProcessStopped(cmd.Process.Pid)
+		stopped, err := installationProcessStopped(owner.PID())
 		Expect(err).NotTo(HaveOccurred())
 		return stopped
 	}, 5*time.Second, time.Millisecond).Should(BeTrue())
@@ -130,10 +150,12 @@ func ciTransactionInterruptOwner(p defaultUpgradeProject, program string, args [
 	Expect(stillPublished).To(BeTrue(), "stopped owner must still retain the published workflow and pending transaction in the required direction")
 	stopped, err := os.ReadFile(path)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)).To(Succeed())
-	Expect(<-finished).To(HaveOccurred())
-	waited = true
-	status, ok := cmd.ProcessState.Sys().(syscall.WaitStatus)
+	result := finish()
+	Expect(result.SignalError).NotTo(HaveOccurred())
+	Expect(result.Joined).To(BeTrue())
+	Expect(result.WaitError).To(HaveOccurred())
+	Expect(result.State).NotTo(BeNil())
+	status, ok := result.State.Sys().(syscall.WaitStatus)
 	Expect(ok).To(BeTrue())
 	Expect(status.Signaled()).To(BeTrue())
 	Expect(status.Signal()).To(Equal(syscall.SIGKILL), "actual transaction owner was stopped and killed")
@@ -532,7 +554,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		recovery := handoffProposal(handoffNativeProcess(p.root, p.f.environment, "", p.driver, append(append([]string{}, args...), "--dry-run", "--json")...))
 		advice := ciTransactionRecoveryArguments(recovery)
 		if direction == "reverse" {
-			ciTransactionInterruptOwner(p, p.driver, append(append([]string{}, advice...), "--confirm", recovery["proposal_digest"].(string), "--quiescent"), id, "reverse", old)
+			ciTransactionInterruptOwner(p, p.driver, append(append([]string{}, advice...), "--confirm", recovery["proposal_digest"].(string), "--quiescent"), id, "reverse", old, fixtures.invoker.work)
 			fresh := handoffProposal(handoffNativeProcess(p.root, p.f.environment, "", p.driver, append(append([]string{}, args...), "--dry-run", "--json")...))
 			Expect(fresh["proposal_digest"]).NotTo(Equal(recovery["proposal_digest"]), "actual reverse publication requires fresh recovery consent")
 			recovery, advice = fresh, ciTransactionRecoveryArguments(fresh)

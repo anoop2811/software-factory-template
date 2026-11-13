@@ -8514,3 +8514,29 @@ subprocess ownership, and preserve the full scenario union. Keep free-host
 resource limits and existing deadlines; do not infer complete reliability from
 targeted passes or unmeasured scheduling estimates. Final-head platform results
 and review closure remain mandatory before human merge.
+
+Decision 167 interruption-fixture review follow-up (2026-11-13 UTC): the
+complete seven-batch review of checkpoint `8f8bbe8` exposed a test-only ownership
+race. A concurrent `Cmd.Wait` could reap the transaction owner before a later
+numeric PID or process-group signal. Preserve the direct child unreaped until
+all interruption and cleanup signals are complete, then irreversibly begin its
+single bounded wait. Use non-reaping terminal observation for prompt early-exit
+diagnostics. A channel poll or process-liveness snapshot is not an identity
+reservation. Cover early exit, stopped interruption, cancellation and repeated
+cleanup independently; keep the genuine publication/recovery assertions and
+all existing operation deadlines. No PID reuse or collateral signal was observed;
+this correction follows the verified source-level race, not a claimed incident.
+
+Decision 167 local-upgrade fixture-owner isolation (2026-11-13 UTC): hosted run
+`43426935557` passed 31 of 32 Go jobs. The remaining macOS local-upgrade case
+reached the selected transaction and exhausted its 90-second call allowance;
+cooperative cancellation confirmed exit and retained recovery inputs. The nine
+criteria's two concurrent fixture owners accumulated 1,468.916 seconds, while
+earlier successful runs accumulated 1,487.235 and 1,553.701 seconds. Neither a
+single 25-minute serial job nor unchanged overlapping owners has adequate
+measured headroom. Give the existing two predecessor-integrity criteria their
+own `local-upgrade-predecessor` consumer and keep the seven routing/compiler
+criteria in `local-upgrade`; run both with one worker. Preserve every exact
+criterion, real compiler invocation, public installed local-upgrade path and
+existing deadline. This removes observed workload overlap without asserting
+unmeasured CPU contention or a particular internal transaction bottleneck.

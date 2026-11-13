@@ -17,3 +17,11 @@ func installationProcessStopped(pid int) (bool, error) {
 	}
 	return information.Code != 0, err
 }
+
+// Observe a terminal direct child without freeing its numeric identity.
+// per docs/adr/0151-reliable-ci-qualification.md:193
+func installationProcessExited(pid int) (bool, error) {
+	var information unix.Siginfo
+	err := unix.Waitid(unix.P_PID, pid, &information, unix.WEXITED|unix.WNOHANG|unix.WNOWAIT, nil)
+	return information.Code != 0, err
+}

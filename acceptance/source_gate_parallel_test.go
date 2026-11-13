@@ -57,6 +57,12 @@ var _=Describe("Whole installation upgrade release candidate handoff",func(){
 var _=Describe("Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity",func(){
  for i:=0;i<4;i++ { name:=fmt.Sprintf("local-go-%d",i);It(name,func(){proof(name)}) }
 })
+var _=Describe("Go explicit local source upgrade",func(){
+ for i:=0;i<4;i++ { name:=fmt.Sprintf("local-%d",i);It(name,func(){proof(name)}) }
+})
+var _=Describe("Go explicit local source upgrade upgrades a genuine legacy installation with fresh consent and restores exact originals through rollback",func(){
+ for i:=0;i<4;i++ { name:=fmt.Sprintf("local-predecessor-%d",i);It(name,func(){proof(name)}) }
+})
 `
 
 // Three small retention owners exercise scheduling without splitting Ordered fixtures.
@@ -483,6 +489,7 @@ var _ = Describe("Go source qualification worker execution", func() {
 	// per docs/adr/0104-adaptive-qualification-workers.md:62
 	// per docs/adr/0146-initialized-installed-ci.md:293
 	// per docs/adr/0148-transactional-installed-ci-migration.md:520
+	// per docs/adr/0151-reliable-ci-qualification.md:219
 	It("executes one and two actual workers with exact-once reports and propagates a real worker failure", func() {
 		// per docs/adr/0104-adaptive-qualification-workers.md:42
 		// Exercise the compiled detector in children, without mutating this worker's runtime.
@@ -536,7 +543,7 @@ var _ = Describe("Go source qualification worker execution", func() {
 		writeFixture(filepath.Join(root, "acceptance/worker_test.go"), []byte(sourceGateWorkerSuite), 0600)
 		for _, run := range []struct {
 			group, requested, workers, failure string
-		}{{"base", "1", "1", ""}, {"base", "3", "3", ""}, {"release-handoff", "3", "2", ""}, {"release-handoff", "2", "2", "handoff-0"}, {"local-upgrade-go", "2", "1", ""}, {"local-upgrade-go", "3", "1", ""}, {"local-upgrade-go", "2", "1", "local-go-0"}} {
+		}{{"base", "1", "1", ""}, {"base", "3", "3", ""}, {"release-handoff", "3", "2", ""}, {"release-handoff", "2", "2", "handoff-0"}, {"local-upgrade", "2", "1", ""}, {"local-upgrade", "3", "1", "local-0"}, {"local-upgrade-predecessor", "2", "1", ""}, {"local-upgrade-predecessor", "3", "1", "local-predecessor-0"}, {"local-upgrade-go", "2", "1", ""}, {"local-upgrade-go", "3", "1", ""}, {"local-upgrade-go", "2", "1", "local-go-0"}} {
 			fixture := sourceGateMakeFixture()
 			reportDirectory := filepath.Join(fixture.root, "reports")
 			status, calls, _ := sourceGateRun(fixture, "make go-runtime-source-check", []string{"GO_RUNTIME_TEST_GROUP=" + run.group, "GO_RUNTIME_TEST_PROCS=" + run.requested, "GO_RUNTIME_REPORT_DIR=" + reportDirectory})
@@ -582,6 +589,13 @@ var _ = Describe("Go source qualification worker execution", func() {
 			prefix, container := "base", "Parallel runner proof"
 			if run.group == "release-handoff" {
 				prefix, container = "handoff", "Whole installation upgrade release candidate handoff"
+			}
+			// per docs/adr/0151-reliable-ci-qualification.md:219
+			if run.group == "local-upgrade" {
+				prefix, container = "local", "Go explicit local source upgrade"
+			}
+			if run.group == "local-upgrade-predecessor" {
+				prefix, container = "local-predecessor", "Go explicit local source upgrade upgrades a genuine legacy installation with fresh consent and restores exact originals through rollback"
 			}
 			// per docs/adr/0148-transactional-installed-ci-migration.md:520
 			if run.group == "local-upgrade-go" {

@@ -181,3 +181,62 @@ Fetched on 2026-11-13 UTC:
 
 These sources establish interfaces and constraints; measured repository outcomes
 remain the evidence for performance and reliability claims.
+
+## Interruption-fixture child identity
+
+The final-head model review of checkpoint `8f8bbe8` identified a separate
+test-only race in the deliberate CI transaction interruption helper. Its
+concurrent `Cmd.Wait` could reap the owner between a publication witness and a
+numeric PID/group signal. A buffered exit notification is not a reservation of
+that identity, and a fresh liveness probe would retain the same race.
+
+Keep the freshly started direct child unreaped while any interruption or
+cleanup signal remains possible. Observe terminal state without consuming exit
+status, using the existing platform-specific observation boundary. Complete
+group termination before irreversibly entering the one-shot bounded wait;
+repeated cleanup must never signal after reaping has begun. Preserve early-exit
+diagnostics, cancellation cleanup, actual stopped-state observation, journal
+immutability after termination and the existing 90-second operation deadline.
+Independent controls must exercise early exit, a stopped live child, cancellation
+and repeated cleanup. This is a confirmed source-level ownership race; no
+recycled PID or collateral signal was observed during qualification.
+
+## Remaining local-upgrade fixture owners
+
+Hosted run `43426935557` qualified 31 of 32 Go jobs at checkpoint `8f8bbe8`.
+The macOS direct-installed exclusive-admission criterion reached the selected
+transaction, then exhausted its 90-second allowance. Its report confirmed child
+exit, no ownership uncertainty, and retained reverse-recovery advice. The
+transaction's exact internal phase was not captured; do not claim a diagnosed
+lock deadlock, compiler failure or measured CPU contention.
+
+The nine local-upgrade criteria already have two independent ordered fixture
+owners: two legacy/predecessor-integrity criteria and seven routing/compiler/
+admission criteria. Their worker chains took 795.105 and 673.811 seconds during
+that run. Prior successful runs accumulated 1,487.235 and 1,553.701 seconds;
+serializing the combined family would leave no reliable 25-minute headroom.
+
+Select the existing two-criterion owner as `local-upgrade-predecessor`; keep the
+other seven in `local-upgrade`. Run both consumers with one worker and preserve
+the existing isolated two-case `local-upgrade-go` family. No new scenario or
+fixture setup is duplicated by this split. Preserve exact criterion names and
+the full `all` union, the real public installed `upgrade --local` route, all
+compiler-count assertions and existing 90-second/25-minute/30-minute limits.
+Update positive, negative, empty-selection and workflow scheduling controls
+together. The independent interruption-control criterion raises the total
+census from 3467 to 3468; the partition change does not change that total.
+
+## Interruption-control platform evidence
+
+Fetched on 2026-11-13 UTC: [Go's Darwin wait implementation](https://go.dev/src/os/wait_unimp.go)
+documents the signal/reap identity race, and [Apple's process states](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/proc.h#L164)
+define the unreaped zombie state as `SZOMB = 5`. The retained-child boundary
+avoids relying on a concurrent `Process.Signal`/`Wait` pair for numeric identity.
+
+The independent natural-exit control observed Darwin returning `EPERM` for the
+group signal while the owned child was still unreaped; the subsequent join
+returned its original status 23. Preserve that error in the helper result and
+retain borrowed inputs at the transaction caller. Only this natural-exit
+Darwin control permits that specific error; stopped and canceled live-owner
+controls still require successful group termination. Do not convert an
+unconfirmed signal into a claimed cleanup success.

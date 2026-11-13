@@ -116,7 +116,8 @@ jobs:
         # docs/adr/0148-transactional-installed-ci-migration.md:515.
         # docs/adr/0148-transactional-installed-ci-migration.md:656.
         # docs/adr/0151-reliable-ci-qualification.md:40 -- execute every disjoint acceptance family.
-        group: [base-acceptance, installation, release-handoff, release-retention, release-ci, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-upgrade-go, local-recovery, default-init, default-upgrade, source-entrypoints]
+        # docs/adr/0151-reliable-ci-qualification.md:219 -- separate serial local-upgrade fixture owners.
+        group: [base-acceptance, installation, release-handoff, release-retention, release-ci, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-upgrade-predecessor, local-upgrade-go, local-recovery, default-init, default-upgrade, source-entrypoints]
     runs-on: ${{ matrix.os }}
     # docs/adr/0101-go-release-handoff.md:559 — disjoint qualification with headroom.
     timeout-minutes: 30

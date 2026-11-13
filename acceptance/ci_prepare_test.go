@@ -153,6 +153,9 @@ func ciPrepareProjectCustomized(customize func(string, []byte, map[string]string
 		customize(repository, initializedMakefile, f.environment)
 	}
 	imageGit(repository, "init", "--quiet")
+	// per docs/adr/0148-transactional-installed-ci-migration.md:544
+	imageGit(repository, "config", "--local", "gc.auto", "0")
+	imageGit(repository, "config", "--local", "maintenance.auto", "false")
 	imageGit(repository, "add", "--all")
 	imageGit(repository, "commit", "--quiet", "-m", "test: commit public initialized project")
 	tracked := strings.Split(strings.TrimSuffix(imageGit(repository, "ls-files"), "\n"), "\n")
@@ -168,7 +171,7 @@ func (p ciPrepareProject) checkout() (handoffBootstrapFixture, string, string) {
 	GinkgoHelper()
 	f, driver := handoffNativeFixture(p.image)
 	root := filepath.Join(f.cwd, "fresh checkout")
-	imageGit(f.cwd, "clone", "--quiet", "--no-local", p.repository, root)
+	imageGit(f.cwd, "clone", "--quiet", "--no-local", "--config=gc.auto=0", "--config=maintenance.auto=false", p.repository, root)
 	imageGit(root, "update-ref", "refs/remotes/origin/main", "HEAD")
 	for _, path := range []string{".factory/bin", ".factory/assets", ".factory/installation.current", ".factory/runtime-publication.pending"} {
 		_, err := os.Lstat(filepath.Join(root, path))
@@ -179,6 +182,14 @@ func (p ciPrepareProject) checkout() (handoffBootstrapFixture, string, string) {
 	writeFixture(filepath.Join(root, "notes/operator-note"), []byte("keep untracked application data\n"), 0600)
 	writeFixture(filepath.Join(root, ".factory/operator-note"), []byte("keep unknown private data\n"), 0600)
 	return f, driver, root
+}
+
+// Keep complete Git snapshots deterministic without ignoring maintenance artifacts.
+// per docs/adr/0148-transactional-installed-ci-migration.md:544
+func ciPrepareRequireQuiescentGit(root string) {
+	GinkgoHelper()
+	Expect(strings.TrimSpace(imageGit(root, "config", "--local", "--get", "gc.auto"))).To(Equal("0"))
+	Expect(strings.TrimSpace(imageGit(root, "config", "--local", "--get", "maintenance.auto"))).To(Equal("false"))
 }
 
 func ciPrepareArguments(target string) []string {
@@ -357,8 +368,10 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 	// per docs/adr/0143-ci-checkout-preparation.md:64
 	// per docs/adr/0143-ci-checkout-preparation.md:72
 	It("preserves customized, dirty, unsafe and already-owned checkout inputs on refusal", func() {
+		ciPrepareRequireQuiescentGit(project.repository)
 		for _, kind := range []string{"customized", "missing", "nonexecutable", "symlink", "hardlink", "dirty worktree", "dirty index", "private bin", "private assets", "private backup", "private transaction", "descriptor", "pending", "metadata ambiguity"} {
 			f, driver, root := project.checkout()
+			ciPrepareRequireQuiescentGit(root)
 			gate := filepath.Join(root, "scripts/hooks/direct-main-push-block.sh")
 			switch kind {
 			case "customized":

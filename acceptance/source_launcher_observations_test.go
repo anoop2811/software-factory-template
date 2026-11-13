@@ -24,6 +24,13 @@ func sourceDelayedCleanupSleeps(launcher []byte, function, receipt string, delay
 	end := bytes.Index(launcher[start:], []byte("\n}\n"))
 	Expect(end).To(BeNumerically(">", 0))
 	end += start
+	if function == "source_stop_build" {
+		// Delay the original signal-cleanup polls, preserving the new read-only window.
+		// per docs/adr/0150-bounded-source-group-reobservation.md:30
+		loop := []byte("  for source_signal in \"$1\" KILL; do\n")
+		Expect(bytes.Count(launcher[start:end], loop)).To(Equal(1))
+		start += bytes.Index(launcher[start:end], loop)
+	}
 	var delayed strings.Builder
 	polls := 0
 	for _, line := range strings.SplitAfter(string(launcher[start:end]), "\n") {

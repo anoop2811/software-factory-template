@@ -305,6 +305,8 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
 		sourceEntrypointAutomaticCopy(f)
 		sourceEntrypointCompilerRefusals()
+		// per docs/adr/0150-bounded-source-group-reobservation.md:54
+		sourceEntrypointGroupObservationCases()
 	})
 
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:67

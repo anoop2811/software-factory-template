@@ -532,3 +532,52 @@ supervised selected child may still own its output handles. Do not reinterpret
 that message as successful exit or change cancellation semantics without an
 owned-child negative control. Production batching of Git blob reads is a separate
 performance boundary requiring its own strict size, framing and ownership proof.
+
+## Quiesce Git maintenance in disposable checkout fixtures
+
+Run `43320430957` at `2eb4feb` passed 38 checks, including both isolated Go
+upgrade jobs. Its macOS release-CI job `131539372041` reported 18 passes and
+one snapshot error: `.git/objects/maintenance.lock` disappeared between directory
+enumeration and `lstat` while checking refusal preservation. This is a concurrent
+Git maintenance artifact, not evidence that the command changed project assets.
+
+Disable automatic maintenance and garbage collection in these disposable fixture
+repositories before their first commit. Pass the same repository-local settings
+through `git clone --config` before fetching and checkout, rather than configuring
+the clone after it can already start maintenance. Keep the full filesystem
+snapshots, including `.git`, and every existing refusal assertion unchanged.
+Do not add snapshot retries, ignore disappearing files or alter user repositories.
+
+The official [maintenance documentation](https://git-scm.com/docs/git-maintenance)
+states that `maintenance.auto` controls automatic invocation and that maintenance
+can detach. The official [clone documentation](https://git-scm.com/docs/git-clone)
+states that clone configuration applies before fetch and checkout. The
+[garbage collection documentation](https://git-scm.com/docs/git-gc) confirms that
+`gc.auto=0` disables automatic collection heuristics. All three were fetched on
+2026-11-13 UTC. Check the local fixture settings and rerun the actual
+refusal criteria and full release-CI group; preserve the 3459-criterion census.
+
+The added local-setting assertion failed before the fixture correction:
+`go test -race -count=1 -v -timeout=10m ./acceptance
+-ginkgo.focus='preserves customized, dirty, unsafe and already-owned checkout inputs on refusal'
+-ginkgo.fail-on-empty -ginkgo.no-color
+-ginkgo.json-report=../.factory/ci-mode-evidence/maintenance-red.json`
+reported `0 Passed | 1 Failed | 3458 Skipped` in 54.942 seconds. Its missing
+local `gc.auto` read returned 1. This proves the missing setup control; it is
+not a local reproduction of the disappearing maintenance process.
+
+After configuring the disposable repositories, the full
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=release-ci
+GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_PROCS=auto` behavioral run reported
+`19 Passed | 0 Failed | 3440 Skipped` in 276.964 seconds, including the unchanged
+full-checkout refusal witnesses. Its following lint stage reported two
+`ifElseChain` style findings in the new source-observation tests. The complete
+Make gate therefore exited nonzero; finish lint/security after the mechanical
+test cleanup rather than treating the behavioral result as a passing whole gate.
+
+After the switch-only assertion cleanup and its passing native-entrypoint rerun,
+standalone `golangci-lint run --config packs/go/.golangci.yml ./...` reported
+`0 issues.`, `gosec ./...` reported `Issues : 0`, and `govulncheck ./...` reported
+`Your code is affected by 0 vulnerabilities.` All three commands exited 0. The
+vulnerability scan retained ten module-only advisories, with none in imported
+packages or called symbols. These local results do not replace final-head CI.

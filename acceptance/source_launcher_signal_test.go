@@ -560,6 +560,11 @@ var _ = Describe("Go source launcher signal ownership", func() {
 		Expect(retained).To(Equal(1), "uncertain cleanup must retain the private build")
 		Expect(held).To(Equal(before), "preserve the prior developer binary and all other source")
 		publicNoPoison(marker)
+		if reapDelay == 0 {
+			// per docs/adr/0150-bounded-source-group-reobservation.md:58
+			sourceUncertainLiveChild(false)
+			sourceUncertainLiveChild(true)
+		}
 	}, Entry("ordinary scheduling", time.Duration(0)), Entry("delayed reap scheduling", 120*time.Millisecond))
 
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:34

@@ -8446,3 +8446,22 @@ on one worker, omit their unused legacy setup, and retain the nine ordinary and
 two recovery cases in their existing boundaries. ADR 0148 records unchanged
 deadlines, exact coverage and improved diagnostics; individual stage timings and
 any broader production packaging optimization are not claimed by this decision.
+
+## Decision 166 (2026-11-12 UTC): bound uncertain source compiler-group observations
+
+Adopt [ADR 0150](adr/0150-bounded-source-group-reobservation.md) before code.
+PR #180's source-entrypoint job returned ownership refusal 125; fifty diagnostic
+replays did not reproduce it, so the native errno remains unidentified. Permit
+bounded read-only re-observation after an initially unknown group probe, with
+cleanup allowed only after confirmed absence and terminal-child reaping. Never
+signal from this uncertainty path; persistent uncertainty, a later present group
+or an unproved terminal child must preserve private evidence and refuse. Require
+independent transient/persistent/present and real-child controls, preserving the
+existing publication guards and all current acceptance criteria.
+
+Decision 164 disposable-checkout qualification follow-up (2026-11-13 UTC):
+the macOS release-CI snapshot in run `43320430957` observed a disappearing
+`.git/objects/maintenance.lock`. Configure the disposable initialized project
+and its clones to disable automatic maintenance before commit/fetch. ADR 0148
+records the evidence and scope. Keep complete `.git` snapshots and all refusal
+assertions; do not mask filesystem errors or change adopter Git configuration.

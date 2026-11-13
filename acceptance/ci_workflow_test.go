@@ -208,7 +208,7 @@ exit "${CI_PREPARE_CHECK_STATUS:-0}"
 			preserved[path] = data
 		}
 		head, index, paths := imageGit(root, "rev-parse", "HEAD"), imageGit(root, "ls-files", "--stage", "-z"), ciPreparePublicPaths(root)
-		prepared := ciWorkflowRunStep(f, root, preparation)
+		prepared := handoffCooperativeProcess(root, ciWorkflowStepEnvironment(f, preparation), "", []string{f.root, root}, "/bin/bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", preparation.Run)
 		Expect(prepared.status).To(BeZero(), "%+v", prepared)
 		privatePublished()
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
@@ -331,6 +331,13 @@ esac
 // per docs/adr/0145-installed-ci-workflow-rendering.md:72
 func ciWorkflowRunStep(f handoffBootstrapFixture, root string, step ciWorkflowStep) cliResult {
 	GinkgoHelper()
+	return handoffNativeProcess(root, ciWorkflowStepEnvironment(f, step), "", "/bin/bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step.Run)
+}
+
+// Preserve emitted-step environment translation for both observation policies.
+// per docs/adr/0151-reliable-ci-qualification.md:132
+func ciWorkflowStepEnvironment(f handoffBootstrapFixture, step ciWorkflowStep) map[string]string {
+	GinkgoHelper()
 	Expect(step.Shell).To(Equal("bash"))
 	environment := map[string]string{}
 	for key, value := range f.environment {
@@ -343,7 +350,7 @@ func ciWorkflowRunStep(f handoffBootstrapFixture, root string, step ciWorkflowSt
 		}
 		environment[key] = value
 	}
-	return handoffNativeProcess(root, environment, "", "/bin/bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step.Run)
+	return environment
 }
 
 // per docs/adr/0145-installed-ci-workflow-rendering.md:66

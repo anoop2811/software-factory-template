@@ -110,12 +110,25 @@ func qualifyRetentionSet(ctx context.Context, tree *installationfs.Tree, snapsho
 	if err != nil {
 		return conflict("backup generation recipe is unsupported")
 	}
+	history, ciTarget, err := qualifyCIProjection(ctx, snapshot.Record.CIWorkflow, request, afterImage, baseline.Runtime)
+	if err != nil {
+		return err
+	}
+	if snapshot.Record.CIWorkflow != nil {
+		if err := qualifyCIRows(ctx, snapshot.Manifest.Entries, history, ciTarget); err != nil {
+			return err
+		}
+		baseline.CI = history.bytes
+	}
 	targets, err := canonicalSelection(ctx, afterImage, inputs)
 	if err != nil {
 		return err
 	}
-	recipe := rolesForImage(afterImage)
-	if !matchesRoleEntries(snapshot.Manifest.Entries, recipe) {
+	recipe := transactionRecipe(afterImage, snapshot.Record.CIWorkflow)
+	if snapshot.Record.CIWorkflow != nil {
+		targets[".github/workflows/factory.yml"] = bytesImage(ciTarget, 0644)
+	}
+	if !matchesTransactionEntries(snapshot.Manifest.Entries, rolesForImage(afterImage), snapshot.Record.CIWorkflow) {
 		return conflict("backup inventory disagrees with freshly qualified source generation")
 	}
 	if completePredecessor {
@@ -144,7 +157,7 @@ func qualifyRetentionSet(ctx context.Context, tree *installationfs.Tree, snapsho
 			if !matched {
 				return conflict("backup contains an unqualified predecessor selection")
 			}
-		} else if completePredecessor && known && expectedBefore != nil {
+		} else if completePredecessor && known && expectedBefore != nil && !ciWorkflowPath(row.Path) {
 			return conflict("alternate recovery omits a predecessor asset")
 		}
 		expectedAfter := targets[row.Path]

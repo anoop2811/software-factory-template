@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/anoop2811/software-factory-template/internal/packaging"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -264,7 +263,7 @@ var _ = Describe("Go explicit local source initialization", Ordered, ContinueOnF
 			f, driver := localInitSurface(image)
 			localInitPoisonCompiler(f)
 			dirty := filepath.Join(f.root, "dirty source")
-			imageGit(image.work, "clone", "--quiet", "--shared", source, dirty)
+			imageGit(image.work, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--shared", source, dirty)
 			if tracked {
 				path := filepath.Join(dirty, "go.mod")
 				body, err := os.ReadFile(path)
@@ -399,16 +398,14 @@ var _ = Describe("Go explicit local source initialization", Ordered, ContinueOnF
 	// per docs/adr/0116-explicit-go-local-initialization.md:54
 	// per docs/adr/0116-explicit-go-local-initialization.md:96
 	It("accepts the exact private local image handoff and refuses malformed or mismatched custody without rebuild or foreign-cache removal", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
 		cache := filepath.Join(image.work, "evaluator local cache")
 		Expect(os.MkdirAll(cache, 0700)).To(Succeed())
 		var physicalErr error
 		cache, physicalErr = filepath.EvalSymlinks(cache)
 		Expect(physicalErr).NotTo(HaveOccurred())
 		writeFixture(filepath.Join(cache, "operator-witness"), []byte("caller-owned cache witness\n"), 0600)
-		built, err := packaging.Build(ctx, packaging.Options{Source: source, Revision: revision, Target: runtime.GOOS + "/" + runtime.GOARCH, Output: filepath.Join(cache, "package"), Version: "local-" + revision, Compiler: compiler, Installation: true})
-		Expect(err).NotTo(HaveOccurred())
+		// per docs/adr/0151-reliable-ci-qualification.md:104
+		built := fixtureNativeInstallationImage(source, revision, "local-"+revision, runtime.GOOS+"/"+runtime.GOARCH, filepath.Join(cache, "package"), compiler)
 		archive, err := os.ReadFile(built.Archive)
 		Expect(err).NotTo(HaveOccurred())
 		entries, _ := imageDecodeArchive(archive)

@@ -43,6 +43,9 @@ func (owner *transaction) completeRecoveryReplay(ctx context.Context) error {
 }
 
 func (owner *transaction) validateCompletedRecovery(ctx context.Context) error {
+	if err := owner.validateCIResult(ctx); err != nil {
+		return err
+	}
 	if owner.record.Direction == "reverse" {
 		if err := owner.validateLegacy(ctx); err != nil {
 			return err

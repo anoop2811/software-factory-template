@@ -161,7 +161,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 			Expect(err).NotTo(HaveOccurred())
 			preserved[path] = data
 		}
-		out := handoffNativeProcess(root, f.environment, "", "/bin/sh", append([]string{f.installer}, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)...)
+		out := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root}, "/bin/sh", append([]string{f.installer}, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)...)
 		AddReportEntry("ci-bootstrap.actual-result", map[string]any{"status": out.status, "stdout": out.stdout, "stderr": out.stderr}, ReportEntryVisibilityAlways)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		privatePublished()

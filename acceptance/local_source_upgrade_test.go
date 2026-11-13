@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"debug/buildinfo"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/anoop2811/software-factory-template/internal/packaging"
+	"github.com/anoop2811/software-factory-template/internal/qualification"
 	"github.com/anoop2811/software-factory-template/internal/transition"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +34,8 @@ type localUpgradeFixture struct {
 // A source-only proposal marker proves the selected compiled planner runs; the
 // invoker was built before that marker. No supplied predecessor code executes.
 // per docs/adr/0117-explicit-go-local-upgrade.md:10
-func localUpgradePrepare() localUpgradeFixture {
+// per docs/adr/0148-transactional-installed-ci-migration.md:519
+func localUpgradePrepareSource() localUpgradeFixture {
 	GinkgoHelper()
 	image := handoffBuildImage()
 	Expect(string(image.binary)).NotTo(ContainSubstring(localUpgradePlanMarker))
@@ -47,7 +50,7 @@ func localUpgradePrepare() localUpgradeFixture {
 	Expect(err).NotTo(HaveOccurred())
 	imageGit(before, "fetch", "--quiet", "--no-tags", repository, "b71ecc32e07ecd87eb330ba8e497c86612f92acd", "76952eaa63aebd1ecd282f5ab51dd7c3627cb497")
 	source := filepath.Join(image.work, "selected source 'quoted' $(not-code)")
-	imageGit(image.work, "clone", "--quiet", "--shared", before, source)
+	imageGit(image.work, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--shared", before, source)
 	source, err = filepath.EvalSymlinks(source)
 	Expect(err).NotTo(HaveOccurred())
 	imageGit(source, "config", "gc.auto", "0")
@@ -70,6 +73,18 @@ func localUpgradePrepare() localUpgradeFixture {
 	publication := "\tnewPending := owner.pending == nil"
 	admitted := strings.Replace(paused, publication, "\tif err := owner.independentLocalUpgradeAdmission(ctx); err != nil { return err }\n"+publication, 1)
 	Expect(admitted).NotTo(Equal(paused))
+	// Coarse diagnostics cannot satisfy admission/READY or alter a product result.
+	// per docs/adr/0151-reliable-ci-qualification.md:283
+	for _, phase := range []struct{ before, after string }{
+		{"	owner := &transaction{root: root", "	independentLocalUpgradeTiming(root, \"begin\")\n	owner := &transaction{root: root"},
+		{"	options := request.Source", "	independentLocalUpgradeTiming(root, \"plan-complete\")\n	options := request.Source"},
+		{"	staged, err := staging.Stage(ctx, options)", "	independentLocalUpgradeTiming(root, \"target-stage-start\")\n	staged, err := staging.Stage(ctx, options)\n	independentLocalUpgradeTiming(root, \"target-stage-end\")"},
+		{"		qualified, err := staging.Stage(ctx, before)", "		independentLocalUpgradeTiming(root, \"before-stage-start\")\n		qualified, err := staging.Stage(ctx, before)\n		independentLocalUpgradeTiming(root, \"before-stage-end\")"},
+		{"owner.materializeCandidate(ctx)", "owner.independentLocalUpgradeMaterialize(ctx)"},
+	} {
+		Expect(strings.Count(admitted, phase.before)).To(Equal(1), "diagnostic phase must identify one exact existing operation")
+		admitted = strings.Replace(admitted, phase.before, phase.after, 1)
+	}
 	writeFixture(transaction, []byte(admitted), 0644)
 	hook := strings.ReplaceAll(localUpgradePauseSource, "INDEPENDENT_CONTROL_PATH", fmt.Sprintf("%q", control))
 	writeFixture(filepath.Join(source, "internal/installation/independent_local_upgrade_fixture.go"), []byte(hook), 0644)
@@ -78,14 +93,22 @@ func localUpgradePrepare() localUpgradeFixture {
 	revision := strings.TrimSpace(imageGit(source, "rev-parse", "HEAD"))
 	Expect(revision).NotTo(Equal(image.revision))
 	Expect(imageGit(source, "status", "--porcelain", "--untracked-files=all")).To(BeEmpty())
-	legacy := installationLegacyFixture(image.binary, image.references["v0.1.6"], image.archivePath, image.revision)
 	AddReportEntry("local-upgrade.source", map[string]string{"before_source": before, "source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
+	return localUpgradeFixture{image: image, beforeSource: before, source: source, revision: revision, control: control}
+}
+
+// Legacy-consuming groups add their own initialized predecessor to the shared source setup.
+// per docs/adr/0148-transactional-installed-ci-migration.md:519
+func localUpgradePrepare() localUpgradeFixture {
+	GinkgoHelper()
+	fixture := localUpgradePrepareSource()
+	image := fixture.image
+	fixture.legacy = installationLegacyFixture(image.binary, image.references["v0.1.6"], image.archivePath, image.revision)
 	// Commit-triggered detached Git maintenance changes loose-object storage while
-	// a preview runs. Disable it before any adopter commit; keep the complete
-	// .git byte/mode preservation witness rather than dropping its paths.
-	imageGit(legacy.root, "config", "gc.auto", "0")
-	imageGit(legacy.root, "config", "maintenance.auto", "false")
-	return localUpgradeFixture{image, before, source, revision, control, legacy}
+	// a preview runs. Keep the complete .git byte/mode preservation witness.
+	imageGit(fixture.legacy.root, "config", "gc.auto", "0")
+	imageGit(fixture.legacy.root, "config", "maintenance.auto", "false")
+	return fixture
 }
 
 func localUpgradeArgs(source, before string) []string {
@@ -99,20 +122,10 @@ func localUpgradeArgs(source, before string) []string {
 	return args
 }
 
+// per docs/adr/0151-reliable-ci-qualification.md:104
 func localUpgradeBundle(source, revision, version, output string, selectedCompiler ...string) packaging.Result {
 	GinkgoHelper()
-	compiler, err := exec.LookPath("go")
-	Expect(err).NotTo(HaveOccurred())
-	if len(selectedCompiler) == 1 {
-		compiler = selectedCompiler[0]
-	}
-	compiler, err = filepath.EvalSymlinks(compiler)
-	Expect(err).NotTo(HaveOccurred())
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-	bundle, err := packaging.Build(ctx, packaging.Options{Source: source, Revision: revision, Version: version, Target: runtime.GOOS + "/" + runtime.GOARCH, Output: output, Compiler: compiler, Installation: true})
-	Expect(err).NotTo(HaveOccurred())
-	return bundle
+	return fixtureNativeInstallationImage(source, revision, version, runtime.GOOS+"/"+runtime.GOARCH, output, selectedCompiler...)
 }
 
 func localUpgradeWholeArgs(image packaging.Result, profile string) []string {
@@ -149,6 +162,13 @@ func (fixture localUpgradeFixture) goPredecessor(versioned bool, alternateCompil
 		compiler = []string{filepath.Join(setup.root, "host tools/go")}
 	}
 	before := localUpgradeBundle(fixture.beforeSource, fixture.image.revision, version, filepath.Join(cache, "package"), compiler...)
+	return fixture.initializeGoPredecessor(before, cache, versioned)
+}
+
+// The initialized adopter remains fresh even when its immutable image is reused.
+// per docs/adr/0148-transactional-installed-ci-migration.md:603
+func (fixture localUpgradeFixture) initializeGoPredecessor(before packaging.Result, cache string, versioned bool) localUpgradeGoFixture {
+	GinkgoHelper()
 	archive, err := os.ReadFile(before.Archive)
 	Expect(err).NotTo(HaveOccurred())
 	entries, _ := imageDecodeArchive(archive)
@@ -168,7 +188,7 @@ func (fixture localUpgradeFixture) goPredecessor(versioned bool, alternateCompil
 	if !versioned {
 		args = []string{"--factory-local-init", "1", cache, fixture.beforeSource, fixture.image.revision, before.SHA256, "--", root, "--pack", "none"}
 	}
-	initialized := handoffNativeProcess(transport.cwd, transport.environment, localUpgradeAnswers, program, args...)
+	initialized := handoffCooperativeProcess(transport.cwd, transport.environment, localUpgradeAnswers, []string{transport.root, fixture.image.work, cache}, program, args...)
 	Expect(initialized.status).To(Equal(0), "%+v", initialized)
 	f, driver := localInitSurface(fixture.image)
 	return localUpgradeGoFixture{f, driver, root, before, executable}
@@ -211,6 +231,18 @@ func localUpgradeCompiler(f handoffBootstrapFixture, image handoffReleaseImage, 
 // per docs/adr/0117-explicit-go-local-upgrade.md:78
 const localUpgradePauseSource = `package installation
 import("context";"encoding/json";"os";"syscall";"time")
+func independentLocalUpgradeTiming(root,phase string){
+ data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if err!=nil{return}
+ var c struct{Root,Ready string};if json.Unmarshal(data,&c)!=nil||root!=c.Root||c.Ready==""{return}
+ file,err:=os.OpenFile(c.Ready+".timing",os.O_CREATE|os.O_WRONLY|os.O_APPEND,0600);if err!=nil{return}
+ _=json.NewEncoder(file).Encode(map[string]any{"phase":phase,"pid":os.Getpid(),"root":root,"at":time.Now().UTC().Format(time.RFC3339Nano)});_=file.Close()
+}
+func(owner *transaction)independentLocalUpgradeMaterialize(ctx context.Context)error{
+ independentLocalUpgradeTiming(owner.root,"materialize-start")
+ err:=owner.materializeCandidate(ctx)
+ independentLocalUpgradeTiming(owner.root,"materialize-end")
+ return err
+}
 func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)error{
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
  var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
@@ -301,7 +333,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		refused := handoffNativeProcess(root, f.environment, "", driver, confirmed...)
 		Expect(refused.status).To(Equal(2), "%+v", refused)
 		Expect(installationSnapshot(root)).To(Equal(before))
-		applied := handoffNativeProcess(root, f.environment, "", driver, append(confirmed, "--quiescent")...)
+		applied := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(confirmed, "--quiescent")...)
 		Expect(applied.status).To(Equal(0), "%+v", applied)
 		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
 		localInitDescriptor(root, fixture.revision)
@@ -335,7 +367,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		pythonLink := filepath.Join(f.root, "host tools/python3")
 		Expect(os.Remove(pythonLink)).To(Succeed())
 		Expect(os.Symlink(python, pythonLink)).To(Succeed())
-		restored := handoffNativeProcess(root, f.environment, "", driver, append(reverse, "--confirm", rollback["proposal_digest"].(string), "--quiescent")...)
+		restored := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(reverse, "--confirm", rollback["proposal_digest"].(string), "--quiescent")...)
 		Expect(restored.status).To(Equal(0), "%+v", restored)
 		Expect(os.ReadFile(filepath.Join(root, "factory"))).To(Equal(original))
 		Expect(os.ReadFile(filepath.Join(root, "factory.yaml"))).To(Equal(config))
@@ -345,44 +377,6 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(installationSnapshot(f.environment["FACTORY_RELEASE_DIR"])).To(Equal(cache))
 		localInitNoAcquisition(f)
 	})
-	// per docs/adr/0117-explicit-go-local-upgrade.md:34
-	DescribeTable("upgrades an exact Go predecessor and restores its original native identity", func(versioned bool) {
-		before := fixture.goPredecessor(versioned)
-		f, driver, root := before.f, before.driver, before.root
-		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve Go history\"}\n")
-		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
-		writeFixture(filepath.Join(root, "docs/operator-go-note.md"), []byte("operator Go content\n"), 0600)
-		writeFixture(filepath.Join(root, ".factory/backups/operator-held/witness"), []byte("do not advance release retention\n"), 0600)
-		original, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
-		Expect(err).NotTo(HaveOccurred())
-		snapshot := installationSnapshot(root)
-		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json", "--")...))
-		Expect(preview["profile"]).To(Equal("go-hybrid-v1"))
-		Expect(preview["authentication"]).To(Equal("local-source"))
-		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
-		Expect(preview["blockers"]).To(BeEmpty())
-		Expect(installationSnapshot(root)).To(Equal(snapshot))
-		applied := handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
-		Expect(applied.status).To(Equal(0), "%+v", applied)
-		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
-		localInitDescriptor(root, fixture.revision)
-		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
-		after := localUpgradeBundle(fixture.source, fixture.revision, "local-"+fixture.revision, filepath.Join(f.root, "original after image"))
-		reverse := localUpgradeBefore(localUpgradeWholeArgs(after, "go-hybrid-v1"), before.before)
-		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
-		localInitPoisonCompiler(f)
-		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
-		restored := handoffNativeProcess(root, f.environment, "", driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
-		Expect(restored.status).To(Equal(0), "%+v", restored)
-		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
-		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
-		healthy := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "selftest")
-		Expect(healthy.status).To(Equal(0), "%+v", healthy)
-		localInitNoAcquisition(f)
-	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:34
 	// per docs/adr/0119-minimal-qualified-initializer-inventory.md:171
@@ -410,7 +404,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(installationSnapshot(root)).To(Equal(literalSnapshot))
 		Expect(os.Remove(literalBefore)).To(Succeed())
 		dirtyBefore := filepath.Join(f.root, "dirty predecessor source")
-		imageGit(f.root, "clone", "--quiet", "--shared", fixture.beforeSource, dirtyBefore)
+		imageGit(f.root, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--shared", fixture.beforeSource, dirtyBefore)
 		writeFixture(filepath.Join(dirtyBefore, "untracked-before-witness"), []byte("dirty before checkout\n"), 0600)
 		dirtySnapshot := installationSnapshot(dirtyBefore)
 		beforeDirty := handoffNativeProcess(root, f.environment, "", driver, append(localUpgradeArgs(fixture.source, dirtyBefore), "--dry-run", "--json")...)
@@ -472,6 +466,53 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(extra.status).To(Equal(2), "%+v", extra)
 		Expect(installationSnapshot(legacy.root)).To(Equal(legacyBefore))
 	})
+
+})
+
+// The separately selected Go predecessor family owns no unused legacy installation.
+// per docs/adr/0148-transactional-installed-ci-migration.md:515
+var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure, func() {
+	var fixture localUpgradeFixture
+	BeforeAll(func() { fixture = localUpgradePrepareSource() })
+
+	// per docs/adr/0117-explicit-go-local-upgrade.md:34
+	DescribeTable("upgrades an exact Go predecessor and restores its original native identity", func(versioned bool) {
+		before := fixture.goPredecessor(versioned)
+		f, driver, root := before.f, before.driver, before.root
+		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"preserve Go history\"}\n")
+		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
+		writeFixture(filepath.Join(root, "docs/operator-go-note.md"), []byte("operator Go content\n"), 0600)
+		writeFixture(filepath.Join(root, ".factory/backups/operator-held/witness"), []byte("do not advance release retention\n"), 0600)
+		original, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
+		Expect(err).NotTo(HaveOccurred())
+		snapshot := installationSnapshot(root)
+		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
+		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json", "--")...))
+		Expect(preview["profile"]).To(Equal("go-hybrid-v1"))
+		Expect(preview["authentication"]).To(Equal("local-source"))
+		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
+		Expect(preview["blockers"]).To(BeEmpty())
+		Expect(installationSnapshot(root)).To(Equal(snapshot))
+		applied := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
+		Expect(applied.status).To(Equal(0), "%+v", applied)
+		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
+		localInitDescriptor(root, fixture.revision)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
+		after := localUpgradeBundle(fixture.source, fixture.revision, "local-"+fixture.revision, filepath.Join(f.root, "original after image"))
+		reverse := localUpgradeBefore(localUpgradeWholeArgs(after, "go-hybrid-v1"), before.before)
+		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
+		localInitPoisonCompiler(f)
+		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
+		restored := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work, filepath.Dir(before.before.Archive)}, driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+		Expect(restored.status).To(Equal(0), "%+v", restored)
+		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
+		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
+		healthy := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "selftest")
+		Expect(healthy.status).To(Equal(0), "%+v", healthy)
+		localInitNoAcquisition(f)
+	}, Entry("versioned Go image", true), Entry("local Go image", false))
 
 })
 
@@ -564,7 +605,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			source := fixture.source
 			if kind != "compiler" {
 				source = filepath.Join(f.root, "dirty selected source")
-				imageGit(f.root, "clone", "--quiet", "--shared", fixture.source, source)
+				imageGit(f.root, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--shared", fixture.source, source)
 				if kind == "tracked" {
 					path := filepath.Join(source, "go.mod")
 					body, err := os.ReadFile(path)
@@ -665,7 +706,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(refused.status).To(Equal(2), "competing reader must prevent publication: %+v", refused)
 		Expect(installationSnapshot(root)).To(Equal(snapshot))
 		Expect(lease.Close(context.Background())).To(Succeed())
-		applied := handoffNativeProcess(root, f.environment, "", installed, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
+		applied := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, installed, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
 		Expect(applied.status).To(Equal(0), "installed upgrade must not retain its own shared lease: %+v", applied)
 		localInitPoisonCompiler(f)
 		noSource := handoffNativeProcess(root, f.environment, "", installed, "upgrade", "--local", "--dry-run", "--json")
@@ -680,43 +721,138 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 	})
 
 	// per docs/adr/0117-explicit-go-local-upgrade.md:78
+	It("retains replayable qualified inputs after a genuine preparation-only publication refusal", func() {
+		f, driver := localInitSurface(fixture.image)
+		legacy := installationCloneLegacyFixture(fixture.image.binary, fixture.legacy)
+		root := legacy.root
+		path := filepath.Join(root, ".gitignore")
+		data, err := os.ReadFile(path)
+		Expect(err).NotTo(HaveOccurred())
+		exposed := "\n!/.factory/\n/.factory/bin/\n/.factory/assets/\n/.factory/installation.current\n/.factory/installation-transactions/\n/.factory/backups/\n!/.factory/bin/\n"
+		writeFixture(path, append(data, []byte(exposed)...), 0600)
+		Expect(imageProcess(root, nil, "git", "check-ignore", "--no-index", "-q", "--", ".factory/bin/factory-runtime").status).To(Equal(1))
+		args := localUpgradeArgs(fixture.source, "")
+		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
+		Expect(preview["blockers"]).To(BeEmpty())
+		refused := handoffNativeProcess(root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
+		Expect(refused.status).To(Equal(2), "%+v", refused)
+		Expect(refused.stderr).To(ContainSubstring("not effectively ignored"))
+		id := localUpgradeMigration(root)
+		data, err = os.ReadFile(filepath.Join(root, ".factory/installation-transactions", id+".json"))
+		Expect(err).NotTo(HaveOccurred())
+		var record map[string]any
+		Expect(json.Unmarshal(data, &record)).To(Succeed())
+		Expect(record["phase"]).To(Equal("prepared"))
+		replay := localUpgradeRecoveryArgs(refused.stderr)
+		localInitPoisonCompiler(f)
+		unchanged := installationSnapshot(root)
+		out := handoffNativeProcess(root, f.environment, "", replay[0], append(append([]string{}, replay[1:]...), "--json")...)
+		Expect(out.status).To(Equal(0), "%+v", out)
+		handoffProposal(out)
+		Expect(installationSnapshot(root)).To(Equal(unchanged))
+		localInitNoAcquisition(f)
+		AddReportEntry("local-upgrade.preparation-recovery", map[string]any{"phase": record["phase"], "emitted_argv": replay, "preview_status": out.status}, ReportEntryVisibilityNever)
+	})
+
+})
+
+// Recovery owns only source and immutable image setup; every entry initializes its own adopter.
+// per docs/adr/0148-transactional-installed-ci-migration.md:603
+var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure, func() {
+	var fixture localUpgradeFixture
+	var producer defaultInitFixtures
+	BeforeAll(func() {
+		started := time.Now()
+		fixture = localUpgradePrepareSource()
+		producer = defaultInitFixtures{
+			invoker: fixture.image, source: fixture.beforeSource, revision: fixture.image.revision,
+			cache: filepath.Join(fixture.image.work, "qualified recovery images"), images: map[string]defaultInitImage{},
+		}
+		Expect(os.MkdirAll(producer.cache, 0700)).To(Succeed())
+		producing := time.Now()
+		image := producer.image("local-" + fixture.image.revision)
+		AddReportEntry("local-recovery.image-setup", map[string]any{
+			"producer": producer.packager, "source": producer.source, "revision": producer.revision,
+			"archive": image.result.Archive, "sha256": image.result.SHA256,
+			"producer_seconds": time.Since(producing).Seconds(), "setup_seconds": time.Since(started).Seconds(),
+		}, ReportEntryVisibilityNever)
+	})
+
+	// per docs/adr/0117-explicit-go-local-upgrade.md:78
 	DescribeTable("recovers from a durably interrupted selected worker with retained exact images and no compiler", func(direction string) {
-		before := fixture.goPredecessor(false)
+		// per docs/adr/0148-transactional-installed-ci-migration.md:603
+		started := time.Now()
+		image := producer.image("local-" + fixture.image.revision)
+		Expect(producer.images).To(HaveLen(1))
+		Expect(os.ReadFile(image.result.Archive)).To(Equal(image.archive))
+		cache, err := os.MkdirTemp(fixture.image.work, "recovery-predecessor-cache-")
+		Expect(err).NotTo(HaveOccurred())
+		cache, err = filepath.EvalSymlinks(cache)
+		Expect(err).NotTo(HaveOccurred())
+		result := image.result
+		result.Archive = filepath.Join(cache, "package/factory-runtime.tar.gz")
+		Expect(os.Mkdir(filepath.Join(cache, "package"), 0750)).To(Succeed())
+		writeFixture(result.Archive, image.archive, 0600)
+		Expect(os.ReadFile(result.Archive)).To(Equal(image.archive))
+		before := fixture.initializeGoPredecessor(result, cache, false)
+		AddReportEntry("local-recovery.fresh-predecessor", map[string]any{
+			"producer": producer.packager, "shared_archive": image.result.Archive,
+			"sha256": result.SHA256, "revision": result.Revision, "version": result.Version, "target": result.Target,
+			"cache": cache, "archive": result.Archive, "adopter": before.root,
+			"initialization_seconds": time.Since(started).Seconds(),
+		}, ReportEntryVisibilityNever)
 		f, driver, root := before.f, before.driver, before.root
+		build, buildErr := buildinfo.ReadFile(driver)
+		driverBuild := map[string]any{"path": driver, "build_info_error": fmt.Sprint(buildErr), "race_selector": os.Getenv("FACTORY_CLI_TEST_RACE")}
+		if buildErr == nil {
+			driverBuild["go_version"] = build.GoVersion
+			driverBuild["settings"] = build.Settings
+		}
+		AddReportEntry("local-recovery.invoker-build", driverBuild, ReportEntryVisibilityNever)
 		modern := []byte("{\"schema\":1,\"runs\":[],\"note\":\"interrupt witness\"}\n")
 		writeFixture(filepath.Join(root, ".factory/loops.json"), modern, 0600)
 		originalDescriptor, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
 		Expect(err).NotTo(HaveOccurred())
 		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
+		limits := qualification.LocalRecoveryLimits()
+		previewContext, stopPreview := limits.PreviewContext(context.Background())
+		defer stopPreview()
+		previewStarted := time.Now()
+		preview := handoffProposal(handoffNativeProcessContext(previewContext, root, f.environment, false, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
+		stopPreview()
+		AddReportEntry("local-recovery.preview-seconds", time.Since(previewStarted).Seconds(), ReportEntryVisibilityNever)
 		ready := filepath.Join(f.root, "actual-selected-worker.json")
 		control, err := json.Marshal(map[string]string{"Root": root, "Ready": ready})
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(fixture.control, control, 0600)
 		DeferCleanup(func() { Expect(os.Remove(fixture.control)).To(Succeed()) })
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		ctx, cancel := limits.Context(context.Background())
 		defer cancel()
 		command := handoffCommand(ctx, root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
 		var stdout, stderr bytes.Buffer
 		command.Stdout, command.Stderr = &stdout, &stderr
 		command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }
 		Expect(command.Start()).To(Succeed())
-		// Acquisition and preflight share the unchanged whole-command deadline;
-		// publication gets its own unchanged allowance only after actual admission.
-		// per docs/adr/0121-local-upgrade-readiness-boundary.md:25
+		// Phase allowances inherit one command deadline; only the actual admission
+		// receipt starts the unchanged durable-publication allowance.
+		// per docs/adr/0152-phase-bounded-local-recovery-qualification.md:31
 		finished := make(chan struct{})
 		var returned error
 		go func() { returned = command.Wait(); close(finished) }()
 		phase := "awaiting publisher admission"
 		var admission, receipt localUpgradeWorkerReceipt
-		readReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+		readReceipt := func(path string, target *localUpgradeWorkerReceipt) (bool, error) {
 			data, err := os.ReadFile(path)
 			if os.IsNotExist(err) {
-				return false
+				return false, nil
 			}
-			Expect(err).NotTo(HaveOccurred())
-			Expect(json.Unmarshal(data, target)).To(Succeed())
-			return true
+			if err != nil {
+				return false, err
+			}
+			if err := json.Unmarshal(data, target); err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 		groupAbsent := func(value localUpgradeWorkerReceipt) (bool, error) {
 			if value.PID <= 0 || value.Group != value.PID {
@@ -782,6 +918,9 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 				"context_seconds_remaining_at_fixture_cleanup_entry": remaining, "caller_wait_confirmed": waited,
 			}
 			if waited {
+				timing, timingErr := os.ReadFile(ready + ".timing")
+				observation["phase_timing_json"] = string(timing)
+				observation["phase_timing_error"] = fmt.Sprint(timingErr)
 				observation["caller_wait"] = fmt.Sprint(returned)
 				observation["stdout_after_wait"] = stdout.String()
 				observation["stderr_after_wait"] = stderr.String()
@@ -791,17 +930,18 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			Expect(probeAfter).NotTo(HaveOccurred(), "selected process-group absence must be observable")
 			Expect(absentAfter).To(BeTrue(), "the whole recorded group must settle, including descendants of a reaped leader")
 		}()
-		waitForReceipt := func(path string, target *localUpgradeWorkerReceipt) bool {
+		callerExited := func() error {
 			select {
 			case <-finished:
-				StopTrying(fmt.Sprintf("caller exited before %s: %v stderr=%q", phase, returned, stderr.String())).Now()
+				if returned != nil {
+					return fmt.Errorf("caller exited before %s: %w stderr=%q", phase, returned, stderr.String())
+				}
+				return fmt.Errorf("caller exited successfully before %s: stderr=%q", phase, stderr.String())
 			default:
+				return nil
 			}
-			return readReceipt(path, target)
 		}
-		deadline, ok := ctx.Deadline()
-		Expect(ok).To(BeTrue())
-		Eventually(func() bool { return waitForReceipt(ready+".admitted", &admission) }, time.Until(deadline)).WithContext(ctx).Should(BeTrue())
+		Expect(limits.AwaitAdmission(ctx, func() (bool, error) { return readReceipt(ready+".admitted", &admission) }, callerExited)).To(Succeed())
 		Expect(admission.PID).NotTo(Equal(command.Process.Pid), "admission must belong to the selected worker")
 		Expect(admission.Group).To(Equal(admission.PID))
 		Expect(admission.Root).To(Equal(root))
@@ -809,7 +949,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(admission.Source).To(BeAnExistingFile())
 		Expect(admission.Before).To(BeAnExistingFile())
 		phase = "awaiting selected worker durable READY"
-		Eventually(func() bool { return waitForReceipt(ready, &receipt) }, 60*time.Second).WithContext(ctx).Should(BeTrue())
+		Expect(limits.AwaitPublication(ctx, func() (bool, error) { return readReceipt(ready, &receipt) }, callerExited)).To(Succeed())
 		Expect(receipt.PID).To(Equal(admission.PID), "the admitted publisher must produce the durable witness")
 		Expect(receipt.Group).To(Equal(admission.Group))
 		Expect(receipt.Migration).To(Equal(admission.Migration))
@@ -869,7 +1009,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		recovery := handoffProposal(handoffNativeProcess(root, f.environment, "", replay[0], append(append([]string{}, replay[1:]...), "--json")...))
 		Expect(installationSnapshot(root)).To(Equal(unchanged))
 		fresh := localUpgradeWithoutPreview(replay[1:])
-		complete := handoffNativeProcess(root, f.environment, "", replay[0], append(fresh, "--confirm", recovery["proposal_digest"].(string), "--quiescent")...)
+		complete := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, replay[0], append(fresh, "--confirm", recovery["proposal_digest"].(string), "--quiescent")...)
 		Expect(complete.status).To(Equal(0), "%+v", complete)
 		if direction == "forward" {
 			localInitDescriptor(root, fixture.revision)
@@ -885,39 +1025,4 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		localInitNoAcquisition(f)
 		AddReportEntry("local-upgrade.selected-worker-recovery", map[string]any{"receipt": receipt, "signal": "SIGTERM to selected worker only", "direction": direction, "emitted_argv": localUpgradeRecoveryArgs(stderr.String()), "status": complete.status, "compiler": "poisoned during all recovery"}, ReportEntryVisibilityNever)
 	}, Entry("forward", "forward"), Entry("reverse", "reverse"))
-
-	// per docs/adr/0117-explicit-go-local-upgrade.md:78
-	It("retains replayable qualified inputs after a genuine preparation-only publication refusal", func() {
-		f, driver := localInitSurface(fixture.image)
-		legacy := installationCloneLegacyFixture(fixture.image.binary, fixture.legacy)
-		root := legacy.root
-		path := filepath.Join(root, ".gitignore")
-		data, err := os.ReadFile(path)
-		Expect(err).NotTo(HaveOccurred())
-		exposed := "\n!/.factory/\n/.factory/bin/\n/.factory/assets/\n/.factory/installation.current\n/.factory/installation-transactions/\n/.factory/backups/\n!/.factory/bin/\n"
-		writeFixture(path, append(data, []byte(exposed)...), 0600)
-		Expect(imageProcess(root, nil, "git", "check-ignore", "--no-index", "-q", "--", ".factory/bin/factory-runtime").status).To(Equal(1))
-		args := localUpgradeArgs(fixture.source, "")
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
-		Expect(preview["blockers"]).To(BeEmpty())
-		refused := handoffNativeProcess(root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)
-		Expect(refused.status).To(Equal(2), "%+v", refused)
-		Expect(refused.stderr).To(ContainSubstring("not effectively ignored"))
-		id := localUpgradeMigration(root)
-		data, err = os.ReadFile(filepath.Join(root, ".factory/installation-transactions", id+".json"))
-		Expect(err).NotTo(HaveOccurred())
-		var record map[string]any
-		Expect(json.Unmarshal(data, &record)).To(Succeed())
-		Expect(record["phase"]).To(Equal("prepared"))
-		replay := localUpgradeRecoveryArgs(refused.stderr)
-		localInitPoisonCompiler(f)
-		unchanged := installationSnapshot(root)
-		out := handoffNativeProcess(root, f.environment, "", replay[0], append(append([]string{}, replay[1:]...), "--json")...)
-		Expect(out.status).To(Equal(0), "%+v", out)
-		handoffProposal(out)
-		Expect(installationSnapshot(root)).To(Equal(unchanged))
-		localInitNoAcquisition(f)
-		AddReportEntry("local-upgrade.preparation-recovery", map[string]any{"phase": record["phase"], "emitted_argv": replay, "preview_status": out.status}, ReportEntryVisibilityNever)
-	})
-
 })

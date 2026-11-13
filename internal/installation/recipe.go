@@ -69,6 +69,8 @@ func historicalRoles(image staging.Inspection) ([]role, bool) {
 		return rolesV1, true
 	case isRecipeV3(image):
 		return rolesV3, true
+	case matchesRecipe(image, recipeV4):
+		return rolesV4, true
 	default:
 		return nil, false
 	}
@@ -76,11 +78,11 @@ func historicalRoles(image staging.Inspection) ([]role, bool) {
 
 func predecessorSelection(ctx context.Context, before, after staging.Inspection, inputs map[string]string) ([]SelectedAsset, error) {
 	current := true
-	paths := make([]string, 0, len(recipeV1)+2)
+	paths := make([]string, 0, len(recipeV1)+3)
 	for path := range recipeV1 {
 		paths = append(paths, path)
 	}
-	paths = append(paths, "internal/installation/recipe.go", "internal/installation/roles_v1.go")
+	paths = append(paths, "internal/installation/recipe.go", "internal/installation/roles_v1.go", "internal/installation/recipe_v4.go")
 	for _, path := range paths {
 		old, oldOK := before.Assets[path]
 		present, presentOK := after.Assets[path]
@@ -145,7 +147,7 @@ func matchesRoleEntries(entries []journalEntry, recipe []role) bool {
 }
 
 func knownRoleEntries(entries []journalEntry) bool {
-	return matchesRoleEntries(entries, roles) || matchesRoleEntries(entries, rolesV1) || matchesRoleEntries(entries, rolesV3)
+	return matchesRoleEntries(entries, roles) || matchesRoleEntries(entries, rolesV1) || matchesRoleEntries(entries, rolesV3) || matchesRoleEntries(entries, rolesV4)
 }
 
 func rolePath(recipe []role, path string) bool {

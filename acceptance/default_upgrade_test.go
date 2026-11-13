@@ -27,7 +27,7 @@ const defaultUpgradeApplyMarker = "INDEPENDENT_SELECTED_DEFAULT_UPGRADER_APPLY_2
 // production implementation as a behavioral oracle.
 // per docs/adr/0122-default-packaged-go-upgrade.md:15
 func prepareDefaultUpgrade() *defaultInitFixtures {
-	return prepareDefaultInit(func(source string) []string {
+	return prepareDefaultInitWithWitness(false, func(source string) []string {
 		path := filepath.Join(source, "internal/installation/proposal.go")
 		data, err := os.ReadFile(path)
 		Expect(err).NotTo(HaveOccurred())

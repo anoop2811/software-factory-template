@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -17,8 +16,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/anoop2811/software-factory-template/internal/packaging"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -104,7 +101,7 @@ func ciPrepareProjectCustomized(customize func(string, []byte, map[string]string
 	image.binary, image.archive, image.archivePath = entries[0].body, data, bundle.Archive
 	f, driver := handoffNativeFixture(image)
 	repository := filepath.Join(f.cwd, "initialized public project")
-	out := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), driver, "init", repository, "--go-candidate", handoffVersion, "--pack", "none")
+	out := handoffCooperativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), []string{f.root}, driver, "init", repository, "--go-candidate", handoffVersion, "--pack", "none")
 	Expect(out.status).To(BeZero(), "actual packaged initialization must establish the source of the committed public assets: %+v", out)
 	var initializedMakefile []byte
 	if customize != nil {
@@ -153,6 +150,9 @@ func ciPrepareProjectCustomized(customize func(string, []byte, map[string]string
 		customize(repository, initializedMakefile, f.environment)
 	}
 	imageGit(repository, "init", "--quiet")
+	// per docs/adr/0148-transactional-installed-ci-migration.md:544
+	imageGit(repository, "config", "--local", "gc.auto", "0")
+	imageGit(repository, "config", "--local", "maintenance.auto", "false")
 	imageGit(repository, "add", "--all")
 	imageGit(repository, "commit", "--quiet", "-m", "test: commit public initialized project")
 	tracked := strings.Split(strings.TrimSuffix(imageGit(repository, "ls-files"), "\n"), "\n")
@@ -168,7 +168,7 @@ func (p ciPrepareProject) checkout() (handoffBootstrapFixture, string, string) {
 	GinkgoHelper()
 	f, driver := handoffNativeFixture(p.image)
 	root := filepath.Join(f.cwd, "fresh checkout")
-	imageGit(f.cwd, "clone", "--quiet", "--no-local", p.repository, root)
+	imageGit(f.cwd, "clone", "--quiet", "--no-local", "--config=gc.auto=0", "--config=maintenance.auto=false", p.repository, root)
 	imageGit(root, "update-ref", "refs/remotes/origin/main", "HEAD")
 	for _, path := range []string{".factory/bin", ".factory/assets", ".factory/installation.current", ".factory/runtime-publication.pending"} {
 		_, err := os.Lstat(filepath.Join(root, path))
@@ -179,6 +179,14 @@ func (p ciPrepareProject) checkout() (handoffBootstrapFixture, string, string) {
 	writeFixture(filepath.Join(root, "notes/operator-note"), []byte("keep untracked application data\n"), 0600)
 	writeFixture(filepath.Join(root, ".factory/operator-note"), []byte("keep unknown private data\n"), 0600)
 	return f, driver, root
+}
+
+// Keep complete Git snapshots deterministic without ignoring maintenance artifacts.
+// per docs/adr/0148-transactional-installed-ci-migration.md:544
+func ciPrepareRequireQuiescentGit(root string) {
+	GinkgoHelper()
+	Expect(strings.TrimSpace(imageGit(root, "config", "--local", "--get", "gc.auto"))).To(Equal("0"))
+	Expect(strings.TrimSpace(imageGit(root, "config", "--local", "--get", "maintenance.auto"))).To(Equal("false"))
 }
 
 func ciPrepareArguments(target string) []string {
@@ -278,7 +286,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		}
 		missing := handoffNativeProcess(root, f.environment, "", filepath.Join(root, "factory"), "help")
 		Expect(missing.status).NotTo(BeZero(), "a plain clone must not already have private runtime custody")
-		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+		out := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root}, driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
 		AddReportEntry("ci-prepare.actual-result", map[string]any{"status": out.status, "stdout": out.stdout, "stderr": out.stderr}, ReportEntryVisibilityNever)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		privatePublished()
@@ -357,8 +365,10 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 	// per docs/adr/0143-ci-checkout-preparation.md:64
 	// per docs/adr/0143-ci-checkout-preparation.md:72
 	It("preserves customized, dirty, unsafe and already-owned checkout inputs on refusal", func() {
+		ciPrepareRequireQuiescentGit(project.repository)
 		for _, kind := range []string{"customized", "missing", "nonexecutable", "symlink", "hardlink", "dirty worktree", "dirty index", "private bin", "private assets", "private backup", "private transaction", "descriptor", "pending", "metadata ambiguity"} {
 			f, driver, root := project.checkout()
+			ciPrepareRequireQuiescentGit(root)
 			gate := filepath.Join(root, "scripts/hooks/direct-main-push-block.sh")
 			switch kind {
 			case "customized":
@@ -476,7 +486,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 			}
 			if kind == "clean" {
 				head, index := imageGit(root, "rev-parse", "HEAD"), imageGit(root, "ls-files", "--stage", "-z")
-				out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+				out := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root}, driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
 				Expect(out.status).To(BeZero(), "%+v", out)
 				defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
 				Expect(imageGit(root, "rev-parse", "HEAD")).To(Equal(head))
@@ -499,14 +509,17 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 			foreignOS = "darwin"
 		}
 		foreignTarget := foreignOS + "/" + runtime.GOARCH
-		compiler, err := exec.LookPath("go")
-		Expect(err).NotTo(HaveOccurred())
-		compiler, err = filepath.EvalSymlinks(compiler)
-		Expect(err).NotTo(HaveOccurred())
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		bundle, err := packaging.Build(ctx, packaging.Options{Source: filepath.Join(project.image.work, "exact-source"), Revision: project.image.revision, Version: handoffVersion, Target: foreignTarget, Output: filepath.Join(project.image.work, "foreign-origin-image"), Compiler: compiler, Installation: true})
-		Expect(err).NotTo(HaveOccurred())
+		// per docs/adr/0148-transactional-installed-ci-migration.md:643
+		producer := defaultInitFixtures{
+			invoker: project.image, source: filepath.Join(project.image.work, "exact-source"), revision: project.image.revision,
+		}
+		producing := time.Now()
+		bundle := producer.packageImage(handoffVersion, foreignTarget, filepath.Join(project.image.work, "foreign-origin-image"))
+		AddReportEntry("ci-prepare.foreign-image-setup", map[string]any{
+			"producer": producer.packager, "source": producer.source, "revision": bundle.Revision,
+			"version": bundle.Version, "target": bundle.Target, "archive": bundle.Archive,
+			"sha256": bundle.SHA256, "producer_seconds": time.Since(producing).Seconds(),
+		}, ReportEntryVisibilityNever)
 		archive, err := os.ReadFile(bundle.Archive)
 		Expect(err).NotTo(HaveOccurred())
 		foreign := []byte("#!/bin/sh\nprintf foreign-executed > \"$CI_PREPARE_FOREIGN_MARKER\"\nexit 91\n")
@@ -526,7 +539,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		head, index, paths := imageGit(root, "rev-parse", "HEAD"), imageGit(root, "ls-files", "--stage", "-z"), ciPreparePublicPaths(root)
 		config, err := os.ReadFile(filepath.Join(root, "factory.yaml"))
 		Expect(err).NotTo(HaveOccurred())
-		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(foreignTarget)...)
+		out := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root}, driver, ciPrepareArguments(foreignTarget)...)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		privatePublished()
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)
@@ -665,7 +678,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 		writeFixture(driver, candidateBinary, 0700)
 		receipt := filepath.Join(f.records, "selected-owner")
 		f.environment["CI_PREPARE_OWNER_RECEIPT"] = receipt
-		out := handoffNativeProcess(root, f.environment, "", driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+		out := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root}, driver, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
 		Expect(out.status).To(BeZero(), "%+v", out)
 		Expect(os.ReadFile(receipt)).To(Equal([]byte("selected authenticated CI owner\n")), "the independently compiled invoker cannot write this selected-owner receipt")
 		defaultInitDescriptor(root, handoffVersion, project.image.revision, project.image.binary)

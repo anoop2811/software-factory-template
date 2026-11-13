@@ -33,6 +33,10 @@ GO_RUNTIME_TEST_TIMEOUT ?= 25m
 # docs/adr/0122-default-packaged-go-upgrade.md:172 — isolate ordinary upgrades.
 # docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:140 — reuse measured historical headroom.
 # docs/adr/0146-initialized-installed-ci.md:293 — isolate initialized-CI qualification.
+# docs/adr/0148-transactional-installed-ci-migration.md:256 — isolate CI migration qualification.
+# docs/adr/0148-transactional-installed-ci-migration.md:488 — isolate CI checkout qualification.
+# docs/adr/0148-transactional-installed-ci-migration.md:515 — isolate local Go predecessor qualification.
+# docs/adr/0148-transactional-installed-ci-migration.md:656 — separate package and acceptance job budgets.
 GO_RUNTIME_TEST_GROUP ?= all
 # docs/adr/0104-adaptive-qualification-workers.md:22 — resource-aware workers.
 GO_RUNTIME_TEST_PROCS ?= auto
@@ -43,6 +47,15 @@ override GO_RUNTIME_TEST_MAX_PROCS := $(value GO_RUNTIME_TEST_MAX_PROCS)
 GO_RUNTIME_REPORT_DIR ?=
 export GO_RUNTIME_REPORT_DIR GO_RUNTIME_TEST_PROCS GO_RUNTIME_TEST_MAX_PROCS
 
+# docs/adr/0151-reliable-ci-qualification.md:61 -- literal workflow provenance.
+GO_RUNTIME_REVISION ?=
+GO_RUNTIME_RUN_ID ?=
+GO_RUNTIME_PRODUCER_ATTEMPT ?=
+override GO_RUNTIME_REVISION := $(value GO_RUNTIME_REVISION)
+override GO_RUNTIME_RUN_ID := $(value GO_RUNTIME_RUN_ID)
+override GO_RUNTIME_PRODUCER_ATTEMPT := $(value GO_RUNTIME_PRODUCER_ATTEMPT)
+export GO_RUNTIME_REVISION GO_RUNTIME_RUN_ID GO_RUNTIME_PRODUCER_ATTEMPT
+
 .PHONY: go-runtime-check go-runtime-source-check
 go-runtime-check:
 	@if [ -f .github/workflows/go-runtime.yml ] || \
@@ -50,11 +63,105 @@ go-runtime-check:
 		$(MAKE) go-runtime-source-check; \
 	else echo "go-runtime-check: factory Go sources not installed; adopter checks remain configured separately"; fi
 
+# docs/adr/0151-reliable-ci-qualification.md:40 -- one selection/status protocol for source and prepared suites.
+# docs/adr/0151-reliable-ci-qualification.md:219 -- isolate the two existing local-upgrade fixture owners.
+define go_runtime_dispatch
+GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
+	GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
+	GO_RELEASE_RETENTION_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff backup retention( |$$)'; \
+	GO_RELEASE_CI_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff CI checkout preparation( |$$)'; \
+	GO_INITIALIZED_CI_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI( |$$)'; \
+	GO_CI_MIGRATION_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction( |$$)'; \
+	GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance (Supported predecessor recipe compatibility|Qualified obsolete initializer cache retirement)( |$$)'; \
+	GO_LOCAL_INIT_FAMILY='^Go factory command acceptance Go explicit local source initialization( |$$)'; \
+	GO_LOCAL_UPGRADE_FAMILY='^Go factory command acceptance Go explicit local source upgrade( |$$)'; \
+	GO_LOCAL_UPGRADE_PREDECESSOR_FAMILY='^Go factory command acceptance Go explicit local source upgrade (upgrades a genuine legacy installation with fresh consent and restores exact originals through rollback|refuses missing or mismatched predecessor inputs and preserves required customized entries)( |$$)'; \
+	GO_LOCAL_UPGRADE_GO_FAMILY='^Go factory command acceptance Go explicit local source upgrade upgrades an exact Go predecessor and restores its original native identity( |$$)'; \
+	GO_LOCAL_RECOVERY_FAMILY='^Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler( |$$)'; \
+	GO_DEFAULT_INIT_FAMILY='^Go factory command acceptance Go default packaged initialization( |$$)'; \
+	GO_DEFAULT_UPGRADE_FAMILY='^Go factory command acceptance Go default packaged upgrade( |$$)'; \
+	GO_SOURCE_ENTRYPOINTS_FAMILY='^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$$)'; \
+	GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_RELEASE_RETENTION_TEST_STATUS=0; GO_RELEASE_CI_TEST_STATUS=0; GO_INITIALIZED_CI_TEST_STATUS=0; GO_CI_MIGRATION_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; GO_LOCAL_UPGRADE_TEST_STATUS=0; GO_LOCAL_UPGRADE_PREDECESSOR_TEST_STATUS=0; GO_LOCAL_UPGRADE_GO_TEST_STATUS=0; GO_LOCAL_RECOVERY_TEST_STATUS=0; GO_DEFAULT_INIT_TEST_STATUS=0; GO_DEFAULT_UPGRADE_TEST_STATUS=0; GO_SOURCE_ENTRYPOINTS_TEST_STATUS=0; \
+	run_acceptance() { \
+		GO_REPORT_GROUP="$$1"; shift; \
+		GO_ACCEPTANCE_PROCS="$$GO_BASE_TEST_PROCS"; \
+		case "$$GO_REPORT_GROUP" in installation|initialized-ci|ci-migration|local-upgrade|local-upgrade-predecessor|local-upgrade-go) GO_ACCEPTANCE_PROCS=1 ;; release-handoff|release-retention|release-ci|historical-recipe|local-init|local-recovery|default-init|default-upgrade) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
+		set -- --procs="$$GO_ACCEPTANCE_PROCS" --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
+			--keep-going --fail-on-empty --no-color "$$@"; \
+		if [ "$(1)" = prepared ]; then set -- "$$PWD/.factory/qualification/prepared-v1/ginkgo" "$$@"; \
+		else set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo --race "$$@"; fi; \
+		if [ -n "$$GO_RUNTIME_REPORT_DIR" ]; then \
+			mkdir -p "$$GO_RUNTIME_REPORT_DIR" || return 1; \
+			set -- "$$@" --json-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.json" \
+				--junit-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.xml"; \
+		fi; \
+		if [ "$(1)" = prepared ]; then set -- "$$@" ./acceptance/qualification.test; \
+		else set -- "$$@" ./acceptance; fi; \
+		"$$@" -- -test.count=1 -test.timeout="$(GO_RUNTIME_TEST_TIMEOUT)"; \
+	}; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|packages) \
+		GO_ALL_PACKAGES="$$(go list ./...)" || exit 1; \
+		GO_OTHER_PACKAGES="$$(printf '%s\n' "$$GO_ALL_PACKAGES" | sed '\|^github.com/anoop2811/software-factory-template/acceptance$$|d')"; \
+		if [ -n "$$GO_OTHER_PACKAGES" ]; then \
+			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) $$GO_OTHER_PACKAGES -ginkgo.fail-on-empty || GO_BASE_TEST_STATUS=$$?; \
+		else echo "go-runtime-check: expected non-acceptance Go packages" >&2; GO_BASE_TEST_STATUS=1; fi ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|base-acceptance) \
+		run_acceptance base --skip="$$GO_INSTALLATION_FAMILIES|$$GO_HISTORICAL_RECIPE_FAMILY|$$GO_LOCAL_INIT_FAMILY|$$GO_LOCAL_UPGRADE_FAMILY|$$GO_DEFAULT_INIT_FAMILY|$$GO_DEFAULT_UPGRADE_FAMILY|$$GO_SOURCE_ENTRYPOINTS_FAMILY" || GO_BASE_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|source-entrypoints) \
+		run_acceptance source-entrypoints --focus="$$GO_SOURCE_ENTRYPOINTS_FAMILY" || GO_SOURCE_ENTRYPOINTS_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
+		if [ "$(1)" = prepared ]; then \
+			run_acceptance installation --focus="$$GO_INSTALLATION_FAMILIES" --skip="$$GO_RELEASE_HANDOFF_FAMILY" || GO_INSTALLATION_TEST_STATUS=$$?; \
+		else go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.skip="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$?; fi ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|release-handoff) \
+		run_acceptance release-handoff --focus="$$GO_RELEASE_HANDOFF_FAMILY" --skip="$$GO_INITIALIZED_CI_FAMILY|$$GO_RELEASE_CI_FAMILY|$$GO_RELEASE_RETENTION_FAMILY" || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|release-retention) \
+		run_acceptance release-retention --focus="$$GO_RELEASE_RETENTION_FAMILY" || GO_RELEASE_RETENTION_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|release-ci) \
+		run_acceptance release-ci --focus="$$GO_RELEASE_CI_FAMILY" || GO_RELEASE_CI_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|initialized-ci) \
+		run_acceptance initialized-ci --focus="$$GO_INITIALIZED_CI_FAMILY" --skip="$$GO_CI_MIGRATION_FAMILY" || GO_INITIALIZED_CI_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|ci-migration) \
+		run_acceptance ci-migration --focus="$$GO_CI_MIGRATION_FAMILY" || GO_CI_MIGRATION_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|historical-recipe) \
+		run_acceptance historical-recipe --focus="$$GO_HISTORICAL_RECIPE_FAMILY" || GO_HISTORICAL_RECIPE_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|local-init) \
+		run_acceptance local-init --focus="$$GO_LOCAL_INIT_FAMILY" || GO_LOCAL_INIT_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|local-upgrade) \
+		run_acceptance local-upgrade --focus="$$GO_LOCAL_UPGRADE_FAMILY" --skip="$$GO_LOCAL_RECOVERY_FAMILY|$$GO_LOCAL_UPGRADE_GO_FAMILY|$$GO_LOCAL_UPGRADE_PREDECESSOR_FAMILY" || GO_LOCAL_UPGRADE_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|local-upgrade-predecessor) \
+		run_acceptance local-upgrade-predecessor --focus="$$GO_LOCAL_UPGRADE_PREDECESSOR_FAMILY" || GO_LOCAL_UPGRADE_PREDECESSOR_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|local-upgrade-go) \
+		run_acceptance local-upgrade-go --focus="$$GO_LOCAL_UPGRADE_GO_FAMILY" || GO_LOCAL_UPGRADE_GO_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|local-recovery) \
+		run_acceptance local-recovery --focus="$$GO_LOCAL_RECOVERY_FAMILY" || GO_LOCAL_RECOVERY_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|default-init) \
+		run_acceptance default-init --focus="$$GO_DEFAULT_INIT_FAMILY" || GO_DEFAULT_INIT_TEST_STATUS=$$? ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|default-upgrade) \
+		run_acceptance default-upgrade --focus="$$GO_DEFAULT_UPGRADE_FAMILY" || GO_DEFAULT_UPGRADE_TEST_STATUS=$$? ;; esac; \
+	if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
+	if [ "$$GO_INSTALLATION_TEST_STATUS" -ne 0 ]; then exit "$$GO_INSTALLATION_TEST_STATUS"; fi; \
+	if [ "$$GO_RELEASE_HANDOFF_TEST_STATUS" -ne 0 ]; then exit "$$GO_RELEASE_HANDOFF_TEST_STATUS"; fi; \
+	if [ "$$GO_RELEASE_RETENTION_TEST_STATUS" -ne 0 ]; then exit "$$GO_RELEASE_RETENTION_TEST_STATUS"; fi; \
+	if [ "$$GO_RELEASE_CI_TEST_STATUS" -ne 0 ]; then exit "$$GO_RELEASE_CI_TEST_STATUS"; fi; \
+	if [ "$$GO_INITIALIZED_CI_TEST_STATUS" -ne 0 ]; then exit "$$GO_INITIALIZED_CI_TEST_STATUS"; fi; \
+	if [ "$$GO_CI_MIGRATION_TEST_STATUS" -ne 0 ]; then exit "$$GO_CI_MIGRATION_TEST_STATUS"; fi; \
+	if [ "$$GO_HISTORICAL_RECIPE_TEST_STATUS" -ne 0 ]; then exit "$$GO_HISTORICAL_RECIPE_TEST_STATUS"; fi; \
+	if [ "$$GO_LOCAL_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_INIT_TEST_STATUS"; fi; \
+	if [ "$$GO_LOCAL_UPGRADE_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_UPGRADE_TEST_STATUS"; fi; \
+	if [ "$$GO_LOCAL_UPGRADE_PREDECESSOR_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_UPGRADE_PREDECESSOR_TEST_STATUS"; fi; \
+	if [ "$$GO_LOCAL_UPGRADE_GO_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_UPGRADE_GO_TEST_STATUS"; fi; \
+	if [ "$$GO_LOCAL_RECOVERY_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_RECOVERY_TEST_STATUS"; fi; \
+	if [ "$$GO_DEFAULT_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_DEFAULT_INIT_TEST_STATUS"; fi; \
+	if [ "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS" -ne 0 ]; then exit "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS"; fi; \
+	exit "$$GO_DEFAULT_UPGRADE_TEST_STATUS"
+endef
+
 # docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:343 -- disjoint source evidence.
 go-runtime-source-check:
 	@set -e; \
-	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|installation|release-handoff|initialized-ci|historical-recipe|local-init|local-upgrade|local-recovery|default-init|default-upgrade|source-entrypoints) ;; \
-		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, installation, release-handoff, initialized-ci, historical-recipe, local-init, local-upgrade, local-recovery, default-init, default-upgrade or source-entrypoints" >&2; exit 2 ;; esac; \
+	case "$(GO_RUNTIME_TEST_GROUP)" in all|base|packages|base-acceptance|installation|release-handoff|release-retention|release-ci|initialized-ci|ci-migration|historical-recipe|local-init|local-upgrade|local-upgrade-predecessor|local-upgrade-go|local-recovery|default-init|default-upgrade|source-entrypoints) ;; \
+		*) echo "go-runtime-check: GO_RUNTIME_TEST_GROUP must be all, base, packages, base-acceptance, installation, release-handoff, release-retention, release-ci, initialized-ci, ci-migration, historical-recipe, local-init, local-upgrade, local-upgrade-predecessor, local-upgrade-go, local-recovery, default-init, default-upgrade or source-entrypoints" >&2; exit 2 ;; esac; \
 	test -f go.mod && grep -q '^module github.com/anoop2811/software-factory-template$$' go.mod || \
 		{ echo "go-runtime-check: expected the factory Go module" >&2; exit 1; }; \
 	test -d cmd/factory && test -d acceptance && test -f runtime/shell/readers.sh && test -f runtime/shell/config.sh && test -f runtime/shell/helpers.sh && test -f runtime/shell/source.sh || \
@@ -73,74 +180,39 @@ go-runtime-source-check:
 		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }; \
 	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"; \
 	go vet ./...; \
-	GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upgrade|Installed runtime root separation|Installed hook-existence library and invocation modes)( |$$)'; \
-		GO_RELEASE_HANDOFF_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff( |$$)'; \
-		GO_INITIALIZED_CI_FAMILY='^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI( |$$)'; \
-		GO_HISTORICAL_RECIPE_FAMILY='^Go factory command acceptance (Supported predecessor recipe compatibility|Qualified obsolete initializer cache retirement)( |$$)'; \
-		GO_LOCAL_INIT_FAMILY='^Go factory command acceptance Go explicit local source initialization( |$$)'; \
-		GO_LOCAL_UPGRADE_FAMILY='^Go factory command acceptance Go explicit local source upgrade( |$$)'; \
-		GO_LOCAL_RECOVERY_FAMILY='^Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler( |$$)'; \
-		GO_DEFAULT_INIT_FAMILY='^Go factory command acceptance Go default packaged initialization( |$$)'; \
-		GO_DEFAULT_UPGRADE_FAMILY='^Go factory command acceptance Go default packaged upgrade( |$$)'; \
-		GO_SOURCE_ENTRYPOINTS_FAMILY='^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$$)'; \
-		GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_INITIALIZED_CI_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; GO_LOCAL_UPGRADE_TEST_STATUS=0; GO_LOCAL_RECOVERY_TEST_STATUS=0; GO_DEFAULT_INIT_TEST_STATUS=0; GO_DEFAULT_UPGRADE_TEST_STATUS=0; GO_SOURCE_ENTRYPOINTS_TEST_STATUS=0; \
-		run_acceptance() { \
-			GO_REPORT_GROUP="$$1"; shift; \
-			GO_ACCEPTANCE_PROCS="$$GO_BASE_TEST_PROCS"; \
-			case "$$GO_REPORT_GROUP" in initialized-ci) GO_ACCEPTANCE_PROCS=1 ;; release-handoff|historical-recipe|local-init|local-upgrade|local-recovery|default-init|default-upgrade) GO_ACCEPTANCE_PROCS="$$GO_HANDOFF_TEST_PROCS" ;; esac; \
-			set -- go run -mod=readonly github.com/onsi/ginkgo/v2/ginkgo \
-				--procs="$$GO_ACCEPTANCE_PROCS" --race --timeout="$(GO_RUNTIME_TEST_TIMEOUT)" \
-				--keep-going --fail-on-empty --no-color "$$@"; \
-			if [ -n "$$GO_RUNTIME_REPORT_DIR" ]; then \
-				mkdir -p "$$GO_RUNTIME_REPORT_DIR" || return 1; \
-				set -- "$$@" --json-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.json" \
-					--junit-report="$$GO_RUNTIME_REPORT_DIR/$$GO_REPORT_GROUP.xml"; \
-			fi; \
-			"$$@" ./acceptance -- -test.count=1 -test.timeout="$(GO_RUNTIME_TEST_TIMEOUT)"; \
-		}; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|base) \
-			GO_ALL_PACKAGES="$$(go list ./...)" || exit 1; \
-			GO_OTHER_PACKAGES="$$(printf '%s\n' "$$GO_ALL_PACKAGES" | sed '\|^github.com/anoop2811/software-factory-template/acceptance$$|d')"; \
-			if [ -n "$$GO_OTHER_PACKAGES" ]; then \
-				go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) $$GO_OTHER_PACKAGES -ginkgo.fail-on-empty || GO_BASE_TEST_STATUS=$$?; \
-			else echo "go-runtime-check: expected non-acceptance Go packages" >&2; GO_BASE_TEST_STATUS=1; fi; \
-			run_acceptance base --skip="$$GO_INSTALLATION_FAMILIES|$$GO_HISTORICAL_RECIPE_FAMILY|$$GO_LOCAL_INIT_FAMILY|$$GO_LOCAL_UPGRADE_FAMILY|$$GO_DEFAULT_INIT_FAMILY|$$GO_DEFAULT_UPGRADE_FAMILY|$$GO_SOURCE_ENTRYPOINTS_FAMILY" || GO_BASE_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|source-entrypoints) \
-			run_acceptance source-entrypoints --focus="$$GO_SOURCE_ENTRYPOINTS_FAMILY" || GO_SOURCE_ENTRYPOINTS_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|installation) \
-			go test -race -count=1 -timeout=$(GO_RUNTIME_TEST_TIMEOUT) ./acceptance -ginkgo.focus="$$GO_INSTALLATION_FAMILIES" -ginkgo.skip="$$GO_RELEASE_HANDOFF_FAMILY" -ginkgo.fail-on-empty || GO_INSTALLATION_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|release-handoff) \
-			run_acceptance release-handoff --focus="$$GO_RELEASE_HANDOFF_FAMILY" --skip="$$GO_INITIALIZED_CI_FAMILY" || GO_RELEASE_HANDOFF_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|initialized-ci) \
-			run_acceptance initialized-ci --focus="$$GO_INITIALIZED_CI_FAMILY" || GO_INITIALIZED_CI_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|historical-recipe) \
-			run_acceptance historical-recipe --focus="$$GO_HISTORICAL_RECIPE_FAMILY" || GO_HISTORICAL_RECIPE_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-init) \
-			run_acceptance local-init --focus="$$GO_LOCAL_INIT_FAMILY" || GO_LOCAL_INIT_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-upgrade) \
-			run_acceptance local-upgrade --focus="$$GO_LOCAL_UPGRADE_FAMILY" --skip="$$GO_LOCAL_RECOVERY_FAMILY" || GO_LOCAL_UPGRADE_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|local-recovery) \
-			run_acceptance local-recovery --focus="$$GO_LOCAL_RECOVERY_FAMILY" || GO_LOCAL_RECOVERY_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|default-init) \
-			run_acceptance default-init --focus="$$GO_DEFAULT_INIT_FAMILY" || GO_DEFAULT_INIT_TEST_STATUS=$$? ;; esac; \
-		case "$(GO_RUNTIME_TEST_GROUP)" in all|default-upgrade) \
-			run_acceptance default-upgrade --focus="$$GO_DEFAULT_UPGRADE_FAMILY" || GO_DEFAULT_UPGRADE_TEST_STATUS=$$? ;; esac; \
-		if [ "$$GO_BASE_TEST_STATUS" -ne 0 ]; then exit "$$GO_BASE_TEST_STATUS"; fi; \
-		if [ "$$GO_INSTALLATION_TEST_STATUS" -ne 0 ]; then exit "$$GO_INSTALLATION_TEST_STATUS"; fi; \
-		if [ "$$GO_RELEASE_HANDOFF_TEST_STATUS" -ne 0 ]; then exit "$$GO_RELEASE_HANDOFF_TEST_STATUS"; fi; \
-		if [ "$$GO_INITIALIZED_CI_TEST_STATUS" -ne 0 ]; then exit "$$GO_INITIALIZED_CI_TEST_STATUS"; fi; \
-		if [ "$$GO_HISTORICAL_RECIPE_TEST_STATUS" -ne 0 ]; then exit "$$GO_HISTORICAL_RECIPE_TEST_STATUS"; fi; \
-		if [ "$$GO_LOCAL_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_INIT_TEST_STATUS"; fi; \
-		if [ "$$GO_LOCAL_UPGRADE_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_UPGRADE_TEST_STATUS"; fi; \
-		if [ "$$GO_LOCAL_RECOVERY_TEST_STATUS" -ne 0 ]; then exit "$$GO_LOCAL_RECOVERY_TEST_STATUS"; fi; \
-		if [ "$$GO_DEFAULT_INIT_TEST_STATUS" -ne 0 ]; then exit "$$GO_DEFAULT_INIT_TEST_STATUS"; fi; \
-		if [ "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS" -ne 0 ]; then exit "$$GO_SOURCE_ENTRYPOINTS_TEST_STATUS"; fi; \
-		exit "$$GO_DEFAULT_UPGRADE_TEST_STATUS"
+	$(call go_runtime_dispatch,source)
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory
 	golangci-lint run --config packs/go/.golangci.yml ./...
 	gosec ./...
 	govulncheck ./...
+
+
+# docs/adr/0151-reliable-ci-qualification.md:35 -- checks always execute before image publication.
+.PHONY: go-runtime-ci-prepare go-runtime-ci-acceptance
+go-runtime-ci-prepare:
+	@set -e; \
+		: "$${GO_RUNTIME_REVISION:?GO_RUNTIME_REVISION is required}"; \
+		: "$${GO_RUNTIME_RUN_ID:?GO_RUNTIME_RUN_ID is required}"; \
+		: "$${GO_RUNTIME_PRODUCER_ATTEMPT:?GO_RUNTIME_PRODUCER_ATTEMPT is required}"; \
+		$(MAKE) go-runtime-source-check GO_RUNTIME_TEST_GROUP=packages; \
+		go run -mod=readonly ./internal/qualification/cmd/prepare-suite prepare \
+			--root "$$PWD" --revision "$$GO_RUNTIME_REVISION" --run-id "$$GO_RUNTIME_RUN_ID" \
+			--producer-attempt "$$GO_RUNTIME_PRODUCER_ATTEMPT"
+
+# docs/adr/0151-reliable-ci-qualification.md:40 -- no source rebuild or global-quality bypass switch.
+go-runtime-ci-acceptance:
+	@set -e; \
+		case "$(GO_RUNTIME_TEST_GROUP)" in base-acceptance|installation|release-handoff|release-retention|release-ci|initialized-ci|ci-migration|historical-recipe|local-init|local-upgrade|local-upgrade-predecessor|local-upgrade-go|local-recovery|default-init|default-upgrade|source-entrypoints) ;; \
+			*) echo "go-runtime-ci-acceptance: select one acceptance group" >&2; exit 2 ;; esac; \
+		: "$${GO_RUNTIME_REVISION:?GO_RUNTIME_REVISION is required}"; \
+		: "$${GO_RUNTIME_RUN_ID:?GO_RUNTIME_RUN_ID is required}"; \
+		go run -mod=readonly ./internal/qualification/cmd/prepare-suite verify \
+			--root "$$PWD" --revision "$$GO_RUNTIME_REVISION" --run-id "$$GO_RUNTIME_RUN_ID"; \
+		GO_WORKER_PLAN="$$(go run -mod=readonly ./internal/qualification/cmd/worker-count)" || exit $$?; \
+		set -- $$GO_WORKER_PLAN; test "$$#" -eq 2; \
+		GO_BASE_TEST_PROCS="$$1"; GO_HANDOFF_TEST_PROCS="$$2"; \
+		$(call go_runtime_dispatch,prepared)
 
 doctor:
 	./scripts/factory-doctor.sh

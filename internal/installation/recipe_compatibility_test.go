@@ -1,14 +1,22 @@
 package installation
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/anoop2811/software-factory-template/internal/artifact"
+	"github.com/anoop2811/software-factory-template/internal/installationimage"
+	"github.com/anoop2811/software-factory-template/internal/staging"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -114,6 +122,59 @@ func immutableRecipeHashes(revision string, paths []string) map[string]string {
 }
 
 var _ = Describe("Historical installation recipe integrity", func() {
+	// per docs/adr/0148-transactional-installed-ci-migration.md:81
+	It("refuses a predecessor whose only runtime recipe difference is the frozen generation source", func() {
+		command := exec.Command("git", "ls-files", "-z")
+		command.Dir = "../.."
+		paths, err := command.Output()
+		Expect(err).NotTo(HaveOccurred())
+		assets := map[string][]byte{}
+		for _, path := range append(strings.Split(strings.TrimSuffix(string(paths), "\x00"), "\x00"), "internal/installation/recipe_v4.go") {
+			body, err := os.ReadFile(filepath.Join("../..", path))
+			Expect(err).NotTo(HaveOccurred(), path)
+			assets[path] = body
+		}
+		image := staging.Inspection{Manifest: installationimage.Manifest{Version: "v0.3.1", SourceRevision: strings.Repeat("a", 40), Target: "linux/amd64"}, Runtime: artifact.Metadata{Version: "v0.3.1", Target: "linux/amd64", SHA256: strings.Repeat("b", 64)}, Assets: assets, RuntimeManifest: []byte("inert test manifest\n"), Source: []byte("{}"), BinaryBytes: 1}
+		inputs := map[string]string{"PROJECT_NAME": "Recipe", "PROJECT_SLUG": "recipe", "GITHUB_OWNER": "@recipe", "OPENCODE_USERNAME": "recipe", "PROTECTED_PATH": "internal", "DOCS_ROOT": "docs", "CITATION_PREFIX": ""}
+		selection, err := predecessorSelection(context.Background(), image, image, inputs)
+		Expect(err).NotTo(HaveOccurred(), "unchanged current generation is the positive control")
+		Expect(selection).NotTo(BeEmpty())
+		changed := image
+		changed.Assets = maps.Clone(assets)
+		changed.Assets["internal/installation/recipe_v4.go"] = append(append([]byte{}, assets["internal/installation/recipe_v4.go"]...), []byte("\n// unknown predecessor generation difference\n")...)
+		_, err = predecessorSelection(context.Background(), changed, image, inputs)
+		Expect(ErrorStatus(err)).To(Equal(2))
+		Expect(err).To(MatchError(ContainSubstring("unsupported Go predecessor generation")))
+	})
+
+	// per docs/adr/0148-transactional-installed-ci-migration.md:81
+	It("freezes the last runtime-only generation independently of the optional CI transaction component", func() {
+		const revision = "24712604cbe98dc2df087b73910141defb68f745"
+		paths := []string{"internal/installation/generate.go", "internal/installation/roles.go", "internal/installation/orchestration.go", "internal/installation/reference.go", "internal/installation/model.go", "internal/installation/observe.go", "internal/installation/selection.go", "internal/installedlayout/layout.go", "internal/installation/recipe.go", "internal/installation/roles_v1.go"}
+		Expect(recipeV4).To(Equal(immutableRecipeHashes(revision, paths)))
+		// The immutable predecessor uses a transformation, not a literal roles
+		// table. Independently apply its closed rule to the original frozen V1
+		// literals; never ask the current retirement function for the oracle.
+		const reason = "obsolete initializer cache; retirement requires independently qualified predecessor ownership"
+		Expect(string(immutableRecipeSource(revision, "internal/installation/roles.go"))).To(ContainSubstring("const obsoleteCacheReason = " + strconv.Quote(reason)))
+		expected, consumed := []role{}, []role{}
+		for _, original := range immutableRecipeRoles("9be9d0333d018c51dfccea18da966e6138e380ab", 141, 85) {
+			if original.Operation == "inert-data" {
+				if original.Source == "templates/metrics.html" || original.Source == "packs/review-lane/review-pr.yml" {
+					consumed = append(consumed, original)
+					continue
+				}
+				original = role{Path: original.Path, Operation: "retire", Reason: reason}
+			}
+			expected = append(expected, original)
+		}
+		Expect(consumed).To(HaveLen(2))
+		Expect(rolesV4).To(Equal(append(expected, consumed...)))
+		for _, row := range rolesV4 {
+			Expect(row.Path).NotTo(HavePrefix(".github/workflows/"), "project CI is outside runtime admission")
+		}
+	})
+
 	// per docs/adr/0115-frozen-rc3-recipe-compatibility.md:74
 	It("equals all original fingerprint bytes and every ordered literal role field independently of the current image", func() {
 		const revision = "95486ecdd3868a319a0e6362ee99cafd8f154200"

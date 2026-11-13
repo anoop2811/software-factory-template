@@ -228,6 +228,18 @@ var _ = Describe("Installed CI migration preview", func() {
 			Expect(rows[".github/workflows/factory.yml"]["after_sha256"]).To(MatchRegexp("^[a-f0-9]{64}$"))
 			_, err := os.Lstat(filepath.Join(root, ".github/workflows/factory.yml"))
 			Expect(os.IsNotExist(err)).To(BeTrue())
+			// per docs/adr/0148-transactional-installed-ci-migration.md:341
+			for path := range expected {
+				Expect(os.Chmod(filepath.Join(root, path), 0600)).To(Succeed())
+			}
+			changedMode := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, nil))
+			for path := range expected {
+				Expect(ciPreviewRows(changedMode)[path]["disposition"]).To(Equal("preserve"), path)
+				Expect(os.Chmod(filepath.Join(root, path), 0644)).To(Succeed())
+			}
+			Expect(changedMode["conflicts"]).NotTo(BeEmpty())
+			restored := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, nil))
+			Expect(restored["conflicts"]).To(BeEmpty())
 		}
 	}, Entry("v0.1.6", "v0.1.6", "b71ecc32e07ecd87eb330ba8e497c86612f92acd"), Entry("Bash baseline", "bash-baseline", "76952eaa63aebd1ecd282f5ab51dd7c3627cb497"))
 
@@ -421,6 +433,12 @@ var _ = Describe("Installed CI migration preview", func() {
 			Expect(row["after_sha256"]).To(Equal(fmt.Sprintf("%x", sha256.Sum256(target))))
 			Expect(report["conflicts"]).To(BeEmpty())
 			Expect(os.ReadFile(filepath.Join(root, ".github/workflows/factory.yml"))).To(Equal(body))
+			// per docs/adr/0148-transactional-installed-ci-migration.md:341
+			Expect(os.Chmod(filepath.Join(root, ".github/workflows/factory.yml"), 0600)).To(Succeed())
+			changedMode := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
+			Expect(ciPreviewRows(changedMode)[".github/workflows/factory.yml"]["disposition"]).To(Equal("preserve"))
+			Expect(changedMode["conflicts"]).NotTo(BeEmpty())
+			Expect(os.Chmod(filepath.Join(root, ".github/workflows/factory.yml"), 0644)).To(Succeed())
 			// A customization after an authentic header still cannot become ownership.
 			changed := append(append([]byte{}, body...), []byte("# adopter change\n")...)
 			ciPreviewWrite(root, ".github/workflows/factory.yml", changed, 0644)
@@ -462,20 +480,83 @@ var _ = Describe("Installed CI migration preview", func() {
 	}, Entry("changed qualified source", false), Entry("unexpected production source", true))
 	// per docs/adr/0147-installed-ci-migration-preview.md:63
 	It("recognizes copied workflows from the frozen pre-generated Go initializer recipe", func() {
-		const revision = "6b8f08c820c347a9c9d12c4afd00b3f7e6aca547"
-		old := ciworkflow.Release{Tag: "v0.2.9", OriginTarget: "linux/amd64", SourceRevision: revision, Repository: ciPreviewRelease.Repository}
-		before := ciPreviewOldImage(old)
-		variant := ciPreviewVariants[1]
-		root, request := ciPreviewFixture("go-hybrid-v1", variant)
-		request.Before = staging.Options{Version: old.Tag, Target: old.OriginTarget, Revision: old.SourceRevision}
-		ciPreviewWrite(root, ".github/workflows/ci.yml", ciPreviewLegacy(revision, ".github/workflows/ci.yml", variant), 0644)
-		ciPreviewWrite(root, ".github/workflows/go-pack.yml", ciPreviewLegacy(revision, "packs/go/workflows/ci.yml", variant), 0644)
-		report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
-		rows := ciPreviewRows(report)
-		Expect(rows[".github/workflows/ci.yml"]["disposition"]).To(Equal("retire"))
-		Expect(rows[".github/workflows/go-pack.yml"]["disposition"]).To(Equal("retire"))
-		Expect(rows[".github/workflows/factory.yml"]["disposition"]).To(Equal("create"))
-		Expect(report["conflicts"]).To(BeEmpty())
+		// per docs/adr/0148-transactional-installed-ci-migration.md:391
+		for _, revision := range []string{"95486ecdd3868a319a0e6362ee99cafd8f154200", "6b8f08c820c347a9c9d12c4afd00b3f7e6aca547"} {
+			By(revision)
+			old := ciworkflow.Release{Tag: "v0.2.9", OriginTarget: "linux/amd64", SourceRevision: revision, Repository: ciPreviewRelease.Repository}
+			before := ciPreviewOldImage(old)
+			variant := ciPreviewVariants[1]
+			root, request := ciPreviewFixture("go-hybrid-v1", variant)
+			request.Before = staging.Options{Version: old.Tag, Target: old.OriginTarget, Revision: old.SourceRevision}
+			// Actual authenticated copied Go initializers retain inert source-asset modes.
+			// per docs/adr/0148-transactional-installed-ci-migration.md:341
+			ciPreviewWrite(root, ".github/workflows/ci.yml", ciPreviewLegacy(revision, ".github/workflows/ci.yml", variant), 0600)
+			ciPreviewWrite(root, ".github/workflows/go-pack.yml", ciPreviewLegacy(revision, "packs/go/workflows/ci.yml", variant), 0600)
+			report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
+			rows := ciPreviewRows(report)
+			Expect(rows[".github/workflows/ci.yml"]["disposition"]).To(Equal("retire"))
+			Expect(rows[".github/workflows/go-pack.yml"]["disposition"]).To(Equal("retire"))
+			Expect(rows[".github/workflows/factory.yml"]["disposition"]).To(Equal("create"))
+			Expect(report["conflicts"]).To(BeEmpty())
+			for _, mode := range []os.FileMode{0644, 0700} {
+				for _, path := range []string{".github/workflows/ci.yml", ".github/workflows/go-pack.yml"} {
+					Expect(os.Chmod(filepath.Join(root, path), mode)).To(Succeed())
+				}
+				changedMode := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
+				for _, path := range []string{".github/workflows/ci.yml", ".github/workflows/go-pack.yml"} {
+					Expect(ciPreviewRows(changedMode)[path]["disposition"]).To(Equal("preserve"), path)
+					info, err := os.Stat(filepath.Join(root, path))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(info.Mode().Perm()).To(Equal(mode), "preview must not repair the operator's mode")
+					Expect(os.Chmod(filepath.Join(root, path), 0600)).To(Succeed())
+				}
+				Expect(changedMode["conflicts"]).NotTo(BeEmpty())
+				restored := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
+				Expect(restored["conflicts"]).To(BeEmpty())
+			}
+
+			// Structurally valid source catalogs still require every exact recipe member.
+			// per docs/adr/0148-transactional-installed-ci-migration.md:391
+			for _, mutation := range []string{"changed", "missing", "extra"} {
+				By(revision + " " + mutation + " initializer member")
+				damaged := ciPreviewOldImage(old)
+				path := "internal/initcmd/command.go"
+				Expect(damaged.Assets).To(HaveKey(path))
+				switch mutation {
+				case "changed":
+					damaged.Assets[path] = append(append([]byte{}, damaged.Assets[path]...), []byte("\n// unqualified initializer change\n")...)
+				case "missing":
+					delete(damaged.Assets, path)
+				case "extra":
+					path = "internal/initcmd/unqualified.go"
+					Expect(damaged.Assets).NotTo(HaveKey(path))
+					damaged.Assets[path] = []byte("package initcmd\n")
+				}
+				assets := []installationimage.Asset{}
+				for _, asset := range damaged.Manifest.Assets {
+					if asset.Path == path {
+						if mutation == "missing" {
+							continue
+						}
+						asset.SHA256 = fmt.Sprintf("%x", sha256.Sum256(damaged.Assets[path]))
+						asset.Bytes = int64(len(damaged.Assets[path]))
+					}
+					assets = append(assets, asset)
+				}
+				if mutation == "extra" {
+					assets = append(assets, installationimage.Asset{Path: path, Mode: "100644", SHA256: fmt.Sprintf("%x", sha256.Sum256(damaged.Assets[path])), Bytes: int64(len(damaged.Assets[path]))})
+				}
+				damaged.Manifest.Assets = assets
+				refused := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &damaged))
+				for _, workflow := range []string{".github/workflows/ci.yml", ".github/workflows/go-pack.yml"} {
+					Expect(ciPreviewRows(refused)[workflow]["disposition"]).To(Equal("preserve"), workflow)
+					info, err := os.Stat(filepath.Join(root, workflow))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(info.Mode().Perm()).To(Equal(os.FileMode(0600)))
+				}
+				Expect(refused["conflicts"]).NotTo(BeEmpty())
+			}
+		}
 	})
 
 	// per docs/adr/0147-installed-ci-migration-preview.md:43
@@ -597,7 +678,8 @@ var _ = Describe("Installed CI migration preview", func() {
 				body := []byte(strings.NewReplacer(marker, historicalValue, "__MUTATION_TARGET__", "./internal/...", "__PROTECTED_PATH__", "internal").Replace(pack))
 				Expect(string(body)).To(ContainSubstring(historicalValue))
 				path := ".github/workflows/go-pack.yml"
-				ciPreviewWrite(root, path, body, 0644)
+				// per docs/adr/0148-transactional-installed-ci-migration.md:341
+				ciPreviewWrite(root, path, body, 0600)
 				report := ciPreviewMap(PreviewCIWorkflow(context.Background(), root, request, &ciPreviewRelease, &before))
 				row := ciPreviewRows(report)[path]
 				if historicalValue == "old-value" {

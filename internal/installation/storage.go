@@ -33,27 +33,29 @@ type checkRecord struct {
 	OwnershipUnconfirmed bool   `json:"ownership_unconfirmed"`
 }
 type journal struct {
-	SchemaVersion    int            `json:"schema_version"`
-	Kind             string         `json:"kind"`
-	MigrationID      string         `json:"migration_id"`
-	Purpose          string         `json:"purpose"`
-	Direction        string         `json:"direction"`
-	Phase            string         `json:"phase"`
-	Profile          string         `json:"profile"`
-	Target           string         `json:"target"`
-	PlanDigest       string         `json:"plan_digest"`
-	Entries          []journalEntry `json:"entries"`
-	Checks           []checkRecord  `json:"checks"`
-	Outcome          string         `json:"outcome"`
-	Pending          *Image         `json:"pending"`
-	RetentionReceipt *Image         `json:"retention_receipt,omitempty"`
+	CIWorkflow       *ciWorkflowContext `json:"ci_workflow,omitempty"`
+	SchemaVersion    int                `json:"schema_version"`
+	Kind             string             `json:"kind"`
+	MigrationID      string             `json:"migration_id"`
+	Purpose          string             `json:"purpose"`
+	Direction        string             `json:"direction"`
+	Phase            string             `json:"phase"`
+	Profile          string             `json:"profile"`
+	Target           string             `json:"target"`
+	PlanDigest       string             `json:"plan_digest"`
+	Entries          []journalEntry     `json:"entries"`
+	Checks           []checkRecord      `json:"checks"`
+	Outcome          string             `json:"outcome"`
+	Pending          *Image             `json:"pending"`
+	RetentionReceipt *Image             `json:"retention_receipt,omitempty"`
 }
 type backupManifest struct {
-	SchemaVersion int            `json:"schema_version"`
-	Kind          string         `json:"kind"`
-	MigrationID   string         `json:"migration_id"`
-	Profile       string         `json:"profile"`
-	Entries       []journalEntry `json:"entries"`
+	CIWorkflow    *ciWorkflowContext `json:"ci_workflow,omitempty"`
+	SchemaVersion int                `json:"schema_version"`
+	Kind          string             `json:"kind"`
+	MigrationID   string             `json:"migration_id"`
+	Profile       string             `json:"profile"`
+	Entries       []journalEntry     `json:"entries"`
 }
 
 // Journal and before-images are descriptive evidence; fresh images confer authority.
@@ -118,7 +120,7 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 	}
 	seen := map[string]bool{}
 	for _, entry := range record.Entries {
-		if seen[entry.Path] || !selectedPath(entry.Path) {
+		if seen[entry.Path] || !selectedTransactionPath(entry.Path, record.CIWorkflow) {
 			return journal{}, conflict("invalid installation journal selection")
 		}
 		seen[entry.Path] = true
@@ -133,8 +135,11 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 			return journal{}, conflict("invalid installation row phase")
 		}
 	}
-	if !knownRoleEntries(record.Entries) {
+	if !knownTransactionEntries(record.Entries, record.CIWorkflow) {
 		return journal{}, conflict("installation journal omits complete reviewed selection")
+	}
+	if err := validateCIContext(ctx, record.CIWorkflow); err != nil {
+		return journal{}, err
 	}
 	for _, check := range record.Checks {
 		if check.Name != "candidate-help" && check.Name != "installed-assets" && check.Name != "native-gate-proof" && check.Name != "state-compatibility" {
@@ -153,7 +158,7 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 	return record, nil
 }
 func selectedPath(path string) bool {
-	return rolePath(roles, path) || rolePath(rolesV1, path) || rolePath(rolesV3, path)
+	return rolePath(roles, path) || rolePath(rolesV1, path) || rolePath(rolesV3, path) || rolePath(rolesV4, path)
 }
 func imageEqual(a, b *Image, identities bool) bool {
 	if a == nil || b == nil {

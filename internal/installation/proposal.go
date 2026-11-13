@@ -13,6 +13,8 @@ import (
 )
 
 type plan struct {
+	ci                *ciWorkflowContext
+	ciConfig          *Image
 	proposal          Proposal
 	image             staging.Inspection
 	payload           map[string][]byte
@@ -168,6 +170,12 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 			action.After = bytesImage(control, 0600)
 		}
 	}
+	if err := result.planCI(ctx, tree); err != nil {
+		return plan{}, err
+	}
+	for _, action := range result.proposal.Actions {
+		seen[action.Path] = true
+	}
 	preserved := append([]string{}, preservePaths...)
 	for _, asset := range image.Manifest.Assets {
 		if !seen[asset.Path] {
@@ -211,7 +219,9 @@ func buildPlan(ctx context.Context, path string, request Request) (result plan, 
 		Actions                      []Action
 		Parents                      []installationfs.Directory
 		State                        []stateObservation
-	}{path, id, request.Profile, request.Candidate, request.Inputs, image.ArchiveSHA256, reference.ArchiveSHA256, sourceBinding, beforeBinding, request.Rollback, request.Recover, request.Direction, result.proposal.Actions, parents, state}
+		CI                           *ciWorkflowContext `json:",omitempty"`
+		CIConfig                     *Image             `json:",omitempty"`
+	}{path, id, request.Profile, request.Candidate, request.Inputs, image.ArchiveSHA256, reference.ArchiveSHA256, sourceBinding, beforeBinding, request.Rollback, request.Recover, request.Direction, result.proposal.Actions, parents, state, result.ci, result.ciConfig}
 	encoded, err := json.Marshal(binding)
 	if err != nil {
 		return plan{}, err

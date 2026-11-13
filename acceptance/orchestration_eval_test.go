@@ -61,8 +61,16 @@ func orchestrationEvalFixture() (string, []string) {
 	// These fixtures are intentionally outside Git; own the ordinary nonzero
 	// discovery result instead of host Git startup. per docs/adr/0077-go-command-environment.md:92
 	bin := filepath.Join(root, "bin")
-	writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/sh\n[ \"$#\" -eq 2 ] && [ \"$1\" = rev-parse ] && [ \"$2\" = --show-toplevel ] || exit 99\nexit 128\n"), 0700)
+	orchestrationNonGitDiscovery(bin)
 	return root, []string{"PATH=" + bin + ":/bin:/usr/bin:/opt/homebrew/bin", "HOME=" + root, "FACTORY_CONFIG=" + filepath.Join(root, "factory.yaml"), "GORACE=atexit_sleep_ms=0"}
+}
+
+// Intended non-Git fixtures own only discovery; the evaluator and runners stay real.
+// per docs/adr/0077-go-command-environment.md:92
+// per docs/adr/0148-transactional-installed-ci-migration.md:693
+func orchestrationNonGitDiscovery(bin string) {
+	GinkgoHelper()
+	writeFixture(filepath.Join(bin, "git"), []byte("#!/bin/sh\n[ \"$#\" -eq 2 ] && [ \"$1\" = rev-parse ] && [ \"$2\" = --show-toplevel ] || exit 99\nexit 128\n"), 0700)
 }
 
 func orchestrationEval(root string, environment []string, args ...string) cliResult {

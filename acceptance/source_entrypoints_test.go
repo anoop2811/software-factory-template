@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -30,7 +31,7 @@ func newSourceEntrypointFixture() sourceEntrypointFixture {
 	root, caller := fixtureDirectories()
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
-	imageGit(repository, "clone", "--quiet", "--shared", "--no-checkout", repository, root)
+	imageGit(repository, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--shared", "--no-checkout", repository, root)
 	imageGit(root, "checkout", "--quiet", "--detach", sourceEntrypointBaseline)
 	imageGit(root, "config", "gc.auto", "0")
 	imageGit(root, "config", "gc.autoDetach", "false")
@@ -83,6 +84,17 @@ func newSourceEntrypointFixture() sourceEntrypointFixture {
 		"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.DevNull, "GIT_OPTIONAL_LOCKS": "0",
 		"FACTORY_BRIDGE_PROTOCOL": "", "GORACE": "atexit_sleep_ms=0", "BASH_ENV": "", "ENV": "",
 	}}
+}
+
+// Keep the real public initializer's exact effective environment and operands.
+// per docs/adr/0148-transactional-installed-ci-migration.md:706
+func sourceEntrypointNativeInit(f sourceEntrypointFixture, target, installerPath, branch string) cliResult {
+	GinkgoHelper()
+	base := filepath.Dir(f.root)
+	answers := nativeInitAnswers("y")
+	return cooperativeFixtureProcess(base, "source-entrypoint.native-init-owner", answers, []string{base}, func(ctx context.Context) *exec.Cmd {
+		return handoffCommand(ctx, target, f.environment, answers, "/bin/sh", installerPath, "init", "--ref", branch, "--pack", "none")
+	})
 }
 
 // Automatic protocol selection must still prove a real current Go input.
@@ -305,6 +317,8 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		Expect(installationSnapshot(f.caller)).To(Equal(callerBefore))
 		sourceEntrypointAutomaticCopy(f)
 		sourceEntrypointCompilerRefusals()
+		// per docs/adr/0150-bounded-source-group-reobservation.md:54
+		sourceEntrypointGroupObservationCases()
 	})
 
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:67
@@ -423,7 +437,7 @@ var _ = Describe("Go source runtime entrypoints", func() {
 			selectedRevision := strings.TrimSpace(imageGit(source, "rev-parse", branch+"^{commit}"))
 			var cacheBefore map[string]string
 			if strings.Contains(kind, "existing-cache") || kind == "mismatched-origin" || kind == "foreign-git-upgrade" || kind == "relative-subdir-upgrade" || kind == "refresh-then-init" {
-				imageGit(base, "clone", "--quiet", "--branch", branch, source, cache)
+				imageGit(base, "clone", "--quiet", "--config=gc.auto=0", "--config=maintenance.auto=false", "--branch", branch, source, cache)
 				imageGit(cache, "config", "gc.auto", "0")
 				imageGit(cache, "config", "maintenance.auto", "false")
 				if kind == "mismatched-existing-cache" {
@@ -625,7 +639,8 @@ var _ = Describe("Go source runtime entrypoints", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:60
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:155
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:171
-	It("initializes through the real local adapter then proves source installed and upgrade boundaries natively", func() {
+	// per docs/adr/0148-transactional-installed-ci-migration.md:697
+	It("initializes through the real local adapter then proves source installed and upgrade boundaries natively", Serial, func() {
 		f := newSourceEntrypointFixture()
 		// The real current source initializer must work without retired runtime data.
 		// per docs/adr/0140-go-source-loop-and-python-retirement.md:91
@@ -657,7 +672,7 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		writeFixture(filepath.Join(target, "README.md"), []byte("application-owned README\n"), 0600)
 		sourceBefore := sourceEntrypointSnapshot(f.root)
 		targetBefore := installationSnapshot(target)
-		initialized := handoffNativeProcess(target, f.environment, nativeInitAnswers("y"), "/bin/sh", installerPath, "init", "--ref", branch, "--pack", "none")
+		initialized := sourceEntrypointNativeInit(f, target, installerPath, branch)
 		shallow := strings.TrimSpace(imageGit(cache, "rev-parse", "--is-shallow-repository"))
 		AddReportEntry("source-entrypoint.real-native-init", map[string]any{"status": initialized.status, "stdout": initialized.stdout, "stderr": initialized.stderr, "revision": revision, "cache_shallow_after_handoff": shallow, "target_preserved_on_failure": initialized.status == 0 || maps.Equal(targetBefore, installationSnapshot(target)), "source_preserved": maps.Equal(sourceBefore, sourceEntrypointSnapshot(f.root)), "selected_file_uri": f.environment["FACTORY_REPO"]}, ReportEntryVisibilityNever)
 		if initialized.status != 0 {

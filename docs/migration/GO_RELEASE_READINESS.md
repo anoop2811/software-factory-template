@@ -201,10 +201,15 @@ preserved application workflows. It also preserves semantic OpenCode permission
 ordering so initialization does not need an extra repair synchronization. The
 four independent init-to-CI criteria and three ordering/scheduler criteria passed
 locally, and PR #177 merged after all 34 final-head hosted checks passed.
-Decision 163 / [ADR 0147](../adr/0147-installed-ci-migration-preview.md) implements
-read-only ownership planning for existing workflows. Its informational report
-does not apply CI changes. Transactional workflow reconciliation, privileged
-review-lane bootstrap and the integrated rehearsal remain open obligations.
+PR #178 merged Decision 163 / [ADR 0147](../adr/0147-installed-ci-migration-preview.md),
+which supplies read-only ownership planning for existing workflows. Decision 164 /
+[ADR 0148](../adr/0148-transactional-installed-ci-migration.md) adds the next bounded
+source change: authenticated upgrade includes those workflow changes in the same
+consent, ignored backup, publication, recovery, rollback and retention transaction.
+Customized selected workflows remain preserved blockers. That implementation is
+under qualification; its merge and hosted checks are not yet claimed here.
+Privileged review-lane bootstrap and the integrated rehearsal remain separate
+open obligations.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

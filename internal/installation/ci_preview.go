@@ -9,11 +9,10 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installationfs"
 	"github.com/anoop2811/software-factory-template/internal/staging"
 	"github.com/anoop2811/software-factory-template/internal/transition"
-	"golang.org/x/sys/unix"
 )
 
-// CIWorkflowPreview is informational and never participates in installation consent.
-// docs/adr/0147-installed-ci-migration-preview.md:30.
+// CIWorkflowPreview describes whether the caller has integrated CI into consent.
+// docs/adr/0148-transactional-installed-ci-migration.md:39.
 type CIWorkflowPreview struct {
 	SchemaVersion  int                `json:"schema_version"`
 	Mode           string             `json:"mode"`
@@ -38,7 +37,6 @@ const ciPreviewAdvice = "Confirmation applies only to the existing installation 
 // docs/adr/0147-installed-ci-migration-preview.md:23.
 // docs/adr/0147-installed-ci-migration-preview.md:49.
 func PreviewCIWorkflow(ctx context.Context, root string, request Request, release *ciworkflow.Release, before *staging.Inspection) (result CIWorkflowPreview, returned error) {
-	result = CIWorkflowPreview{SchemaVersion: 1, Mode: "ci-workflow-preview", Changes: []CIWorkflowChange{}, Conflicts: []Issue{}, Reason: ciPreviewAdvice}
 	lease, err := transition.ReadOnly(ctx, root)
 	if err != nil {
 		return result, err
@@ -49,6 +47,28 @@ func PreviewCIWorkflow(ctx context.Context, root string, request Request, releas
 		return result, err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
+	result, err = inspectCIWorkflow(ctx, tree, request, release, before, nil)
+	if err != nil {
+		return result, err
+	}
+	return result, lease.Check(ctx)
+}
+
+var ciWorkflowNames = []string{"ci.yml", "go-pack.yml", "typescript-pack.yml", "java-pack.yml", "factory.yml"}
+
+type ciWorkflowObservation struct {
+	config  *Image
+	inputs  ciPreviewInputs
+	current map[string]string
+	target  []byte
+	before  map[string]*Image
+	data    map[string][]byte
+}
+
+// Inspect on the caller's retained tree; transaction planning never nests a lease.
+// docs/adr/0148-transactional-installed-ci-migration.md:31.
+func inspectCIWorkflow(ctx context.Context, tree *installationfs.Tree, request Request, release *ciworkflow.Release, before *staging.Inspection, capture *ciWorkflowObservation) (result CIWorkflowPreview, returned error) {
+	result = CIWorkflowPreview{SchemaVersion: 1, Mode: "ci-workflow-preview", Changes: []CIWorkflowChange{}, Conflicts: []Issue{}, Reason: ciPreviewAdvice}
 	unavailable := ciReleaseUnavailable(request, release)
 	configImage, data, err := observe(ctx, tree, "factory.yaml", 1<<20)
 	if err != nil && ErrorStatus(err) == 1 {
@@ -83,10 +103,25 @@ func PreviewCIWorkflow(ctx context.Context, root string, request Request, releas
 			return result, err
 		}
 	}
-	for _, name := range []string{"ci.yml", "go-pack.yml", "typescript-pack.yml", "java-pack.yml", "factory.yml"} {
+	if capture != nil {
+		capture.config = configImage
+		capture.inputs = inputs
+		capture.target = target
+		if ready {
+			current, currentErr := ciReadInputs(ctx, data, nil)
+			if currentErr != nil {
+				return result, currentErr
+			}
+			capture.current = current.values
+		}
+	}
+	for _, name := range ciWorkflowNames {
 		path := ".github/workflows/" + name
 		row := CIWorkflowChange{Path: path, Disposition: "absent", Reason: "No workflow occupies this selected path"}
-		actual, _, readErr := observe(ctx, tree, path, 1<<20)
+		actual, data, readErr := observe(ctx, tree, path, 1<<20)
+		if capture != nil {
+			capture.before[path], capture.data[path] = actual, data
+		}
 		if readErr != nil && ErrorStatus(readErr) == 1 {
 			return result, readErr
 		}
@@ -103,15 +138,18 @@ func PreviewCIWorkflow(ctx context.Context, root string, request Request, releas
 			}
 		case !ready:
 			row.Disposition, row.Reason = "preserve", "CI proposal unavailable because authenticated release or project inputs could not be qualified"
-		case actual.Mode != unix.S_IFREG|0644:
-			row.Disposition, row.Reason = "preserve", "Workflow mode differs from the qualified initializer mode"
 		default:
 			row.Disposition, row.Reason = "preserve", history.reason
 			if strings.HasSuffix(name, "-pack.yml") && !inputs.packs[strings.TrimSuffix(name, "-pack.yml")] {
 				row.Reason = "Pack workflow is present but the pack is not selected; preserve it"
 			}
-			for _, body := range history.bytes[path] {
-				if imageEqual(actual, bytesImage(body, 0644), false) {
+			for _, candidate := range history.bytes[path] {
+				expected := bytesImage(candidate.data, candidate.mode)
+				if actual.Mode != expected.Mode {
+					row.Reason = "Workflow mode differs from the qualified initializer mode"
+					continue
+				}
+				if imageEqual(actual, expected, false) {
 					row.Disposition, row.Reason = "retire", "Exact qualified copied workflow; proposed retirement only"
 					if name == "factory.yml" {
 						row.Disposition, row.Reason = "replace", "Exact frozen generated workflow; proposed authenticated target refresh only"
@@ -129,10 +167,7 @@ func PreviewCIWorkflow(ctx context.Context, root string, request Request, releas
 	if len(result.Conflicts) > 0 {
 		result.Reason += " Unresolved CI conflicts prevent a whole-workflow migration proposal."
 	}
-	if err := tree.Check(ctx); err != nil {
-		return result, err
-	}
-	return result, lease.Check(ctx)
+	return result, tree.Check(ctx)
 }
 
 func ciReleaseUnavailable(request Request, release *ciworkflow.Release) string {

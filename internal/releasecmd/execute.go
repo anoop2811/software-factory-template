@@ -112,32 +112,35 @@ type upgradeOperation struct {
 
 func (operation upgradeOperation) run(ctx context.Context, option options, stdout, stderr io.Writer) int {
 	root, request := operation.root, operation.request
+	request.CIRelease = operation.release
 	proposal, err := installation.ProposeRetaining(ctx, root, request, operation.resolve)
 	if err != nil {
 		_ = writeDiagnostic(stderr, "%s: %s\n", operation.prefix, err)
 		return installation.ErrorStatus(err)
 	}
 	if option.dryRun || option.confirmation == "" {
-		// This informational snapshot is excluded from the installation consent digest.
-		// docs/adr/0147-installed-ci-migration-preview.md:40.
-		var before *staging.Inspection
-		if operation.previous != nil {
-			before = &operation.previous.image
-		}
-		ci, previewErr := installation.PreviewCIWorkflow(ctx, root, request, operation.release, before)
-		if previewErr != nil {
-			_ = writeDiagnostic(stderr, "%s: CI workflow preview: %s\n", operation.prefix, previewErr)
-			return installation.ErrorStatus(previewErr)
+		ci := proposal.CIWorkflow
+		if ci == nil {
+			var before *staging.Inspection
+			if operation.previous != nil {
+				before = &operation.previous.image
+			}
+			preview, previewErr := installation.PreviewCIWorkflow(ctx, root, request, operation.release, before)
+			if previewErr != nil {
+				_ = writeDiagnostic(stderr, "%s: CI workflow preview: %s\n", operation.prefix, previewErr)
+				return installation.ErrorStatus(previewErr)
+			}
+			ci = &preview
 		}
 		var data []byte
 		if option.json {
 			data, err = json.Marshal(struct {
 				installation.RetentionProposal
-				CIWorkflow installation.CIWorkflowPreview `json:"ci_workflow"`
+				CIWorkflow *installation.CIWorkflowPreview `json:"ci_workflow"`
 			}{proposal, ci})
 			data = append(data, '\n')
 		} else {
-			data = []byte(operation.preview(proposal) + ciWorkflowReport(ci))
+			data = []byte(operation.preview(proposal) + ciWorkflowReport(*ci))
 		}
 		if !option.json {
 			data = append(data, installation.RetentionDiagnosticReport(proposal.Retention)...)

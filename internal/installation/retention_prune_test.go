@@ -59,7 +59,7 @@ func newPruneComponentFixture() *pruneComponentFixture {
 	}
 	record := journal{SchemaVersion: 1, Kind: "installation-transaction", MigrationID: id, Purpose: "upgrade", Direction: "forward", Phase: "committed", Profile: "go-hybrid-v1", Target: runtime.GOOS + "/" + runtime.GOARCH, PlanDigest: strings.Repeat("a", 64), Entries: entries, Checks: []checkRecord{}, Outcome: "completed"}
 	for path, value := range map[string]any{
-		backupBase(id) + "/installation.manifest": backupManifest{1, "installation-before-images", id, record.Profile, entries},
+		backupBase(id) + "/installation.manifest": backupManifest{SchemaVersion: 1, Kind: "installation-before-images", MigrationID: id, Profile: record.Profile, Entries: entries},
 		journalPath(id): record,
 	} {
 		Expect(writeRecord(ctx, fixture.tree, path, value, nil)).To(Succeed())

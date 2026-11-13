@@ -72,5 +72,8 @@ func (owner *transaction) validateProvenTarget(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := owner.validateCIResult(ctx); err != nil {
+		return err
+	}
 	return owner.check(ctx)
 }

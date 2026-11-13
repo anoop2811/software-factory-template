@@ -8376,3 +8376,208 @@ qualify historical setup with its genuine Go 1.27.3 compiler. Already published
 experimental readers require the existing fresh authenticated installer route;
 new code cannot retroactively change their old metadata equality check. Stable
 v0.1.6 migration and public default activation remain separate release concerns.
+
+## Decision 164 (2026-11-11 UTC): transact installed CI migration
+
+PR #178 merged as `24712604cbe98dc2df087b73910141defb68f745`. Its head
+`440157803221cbd7ec660de5116dddb4f7dda57c` reached 34/34 successful hosted checks.
+The macOS default-upgrade job passed its unchanged-source second attempt after
+an installed wiki-lint proof timeout in the first attempt; this is not evidence
+of a permanent timeout correction. Adversarial run `42856588131` completed all
+18 files and 26 fragments in two batches in 1m41s. Findings received full-source
+verification and replies; no unresolved inline threads remained at merge.
+
+Adopt [ADR 0148](adr/0148-transactional-installed-ci-migration.md) before code.
+Include the finite workflow projection in the existing installation transaction
+and consent, with ignored inert before-images, interrupted recovery, rollback
+and later-release retention. Keep project workflows outside runtime admission
+and preserve frozen runtime recipes. Unknown/customized selected workflows block
+automatic combined migration; unrelated application workflows remain untouched.
+Independent RED precedes implementation. Review bootstrap and the integrated
+adopter rehearsal remain separate R4 boundaries.
+
+Decision 164 independent public RED: before production edits, the private race
+command `go test -race -count=1 -timeout=15m ./acceptance
+-ginkgo.focus="initialized CI migration transaction migrates exact legacy"
+-ginkgo.fail-on-empty -ginkgo.no-color` reached the authenticated preview and
+observed `apply_supported: false` where the new contract requires true. The
+retained report contains `Ran 1 of 3351 Specs in 107.263 seconds` and
+`FAIL! -- 0 Passed | 1 Failed | 0 Pending | 3350 Skipped`; package output is
+`108.935s`. This establishes the missing public integration before implementation;
+the remaining apply/recovery/retention assertions still require qualification.
+
+Decision 164 local qualification: all 83 installation and two presentation
+criteria passed under race instrumentation. Actual public migration, backup,
+rollback, forward/reverse interruption and retention behavior passed across
+focused runs. ADR 0148 records commands, failures, corrected evaluator assumptions
+and evidence limits. The original combined CI group exhausted its 25-minute
+allowance; split its fifteen migration criteria from the six existing initialized
+criteria with the same worker/time limits. Eleven actual scheduler/worker controls
+and the workflow-matrix criterion passed after an independent partition RED.
+Full split-group qualification remains pending. The fourteen existing upgrade
+criteria passed, but their later security scan found newly published
+`GO-2026-6859` in Go 1.27.3. Handle the corrected compiler and historical bundle
+compatibility as a separately bounded prerequisite; do not suppress the scan or
+claim the complete source gate passed.
+
+Decision 164 integration follow-up (2026-11-12 UTC): PR #179 merged as
+`64cd29f9e29a3f5bc3340b29877f41a2432d293f` after all 34 hosted checks passed.
+Resume the saved CI transaction on that security prerequisite. Keep the current
+Go 1.27.4 producer and truthful historical Go 1.27.3 fixtures. Provision the
+historical compiler for the new CI-migration partition as well as historical
+recipe qualification. Preserve both additions in the independent discovery
+census and rerun the transaction boundary on this combined source. Do not infer
+release readiness from the earlier Go 1.27.3 behavioral evidence.
+
+Decision 164 handoff qualification follow-up (2026-11-12 UTC): run
+`43259987561` passed Linux and macOS CI migration, but the macOS handoff suite
+exhausted its shared 25-minute budget. Remove unused cross-boundary fixture setup
+and separate the nineteen CI-checkout criteria from the forty-four original
+handoff criteria, as recorded in ADR 0148. Preserve all 3459 acceptance criteria,
+the existing worker/time limits, genuine initializer evidence and failure
+propagation. Six other macOS jobs never acquired runners; their GitHub annotations
+report hosted ARM64 capacity constraints, rather than assertion failures.
+
+Decision 164 local-source qualification follow-up (2026-11-12 UTC): the split
+handoff and CI-checkout gates passed on both platforms at `6d64d6d`. A separate
+macOS local-upgrade case exceeded its 90-second command watchdog while other
+compilation/proof work shared that runner. Isolate the two Go predecessor cases
+on one worker, omit their unused legacy setup, and retain the nine ordinary and
+two recovery cases in their existing boundaries. ADR 0148 records unchanged
+deadlines, exact coverage and improved diagnostics; individual stage timings and
+any broader production packaging optimization are not claimed by this decision.
+
+## Decision 166 (2026-11-12 UTC): bound uncertain source compiler-group observations
+
+Adopt [ADR 0150](adr/0150-bounded-source-group-reobservation.md) before code.
+PR #180's source-entrypoint job returned ownership refusal 125; fifty diagnostic
+replays did not reproduce it, so the native errno remains unidentified. Permit
+bounded read-only re-observation after an initially unknown group probe, with
+cleanup allowed only after confirmed absence and terminal-child reaping. Never
+signal from this uncertainty path; persistent uncertainty, a later present group
+or an unproved terminal child must preserve private evidence and refuse. Require
+independent transient/persistent/present and real-child controls, preserving the
+existing publication guards and all current acceptance criteria.
+
+Decision 164 disposable-checkout qualification follow-up (2026-11-13 UTC):
+the macOS release-CI snapshot in run `43320430957` observed a disappearing
+`.git/objects/maintenance.lock`. Configure the disposable initialized project
+and its clones to disable automatic maintenance before commit/fetch. ADR 0148
+records the evidence and scope. Keep complete `.git` snapshots and all refusal
+assertions; do not mask filesystem errors or change adopter Git configuration.
+
+Decision 164 local-recovery qualification follow-up (2026-11-13 UTC): job
+`131658583440` failed while producing predecessor archives, before recovery
+began. Preserve the 90-second setup deadline and reuse the existing supervised
+native image producer for these sequential recovery fixtures. ADR 0148 records
+the source-only setup owner, immutable-image reuse, fresh genuine adopters,
+required ownership checks and limits on the timing evidence. Production packaging
+and the actual interruption/recovery assertions remain outside this fixture fix.
+
+Decision 164 foreign-origin fixture follow-up (2026-11-13 UTC): macOS job
+`131658583983` exhausted a direct race-evaluator packaging context while
+preparing its foreign-origin archive. ADR 0148 records reuse of the supervised
+native producer with an explicit target and no cross-target cache reuse. Preserve
+the 90-second context, actual cross compilation and all reprojection assertions.
+
+Decision 164 base-job qualification follow-up (2026-11-13 UTC): macOS job
+`131658583119` completed its selected tests but exhausted the 30-minute job
+budget at the final quality stages. ADR 0148 records separate explicit package
+and base-acceptance selections for CI, preserving combined local selections,
+coverage, failure behavior and all existing time/resource limits. Require
+independent executable selection and workflow evidence before publication.
+
+Decision 164 source-entrypoint fixture follow-up (2026-11-13 UTC): macOS job
+`131658583969` exposed five pre-evaluation preparation refusals and a separate
+native local-installer watchdog. ADR 0148 records deterministic non-Git discovery
+for the evaluator fixtures, isolated scheduling of the real native journey, and
+cooperative watchdog diagnostics/retention. Preserve tested public paths and
+deadlines; the hosted stage cost and underlying host Git cause remain unmeasured.
+
+Decision 164 historical-writer and retention qualification follow-up
+(2026-11-13 UTC): final macOS handoff job `131658584067` exposed frozen
+Bash writer setup timeouts and an exhausted authenticated-retention schedule.
+ADR 0148 records the existing nested-upgrade guard only for historical marker
+preparation, preserved initial/restored gate proof, shared cooperative fixture
+ownership, and independent 26/18 handoff/retention selections. Retain all
+criteria, native journeys and time/resource limits; qualify the new scheduling
+controls independently before relying on hosted timing.
+
+## Decision 167 (2026-11-13 UTC): qualify CI as one execution system
+
+Adopt [ADR 0151](adr/0151-reliable-ci-qualification.md) before code after the
+user requested a comprehensive correction to recurring PR #180 CI failures.
+Run global checks and compile acceptance once per platform, then validate and
+execute exact-run cached binaries with explicit suite budgets. Complete the
+analogous fixture-production and non-Git corrections, independently qualify
+subprocess ownership, and preserve the full scenario union. Keep free-host
+resource limits and existing deadlines; do not infer complete reliability from
+targeted passes or unmeasured scheduling estimates. Final-head platform results
+and review closure remain mandatory before human merge.
+
+Decision 167 interruption-fixture review follow-up (2026-11-13 UTC): the
+complete seven-batch review of checkpoint `8f8bbe8` exposed a test-only ownership
+race. A concurrent `Cmd.Wait` could reap the transaction owner before a later
+numeric PID or process-group signal. Preserve the direct child unreaped until
+all interruption and cleanup signals are complete, then irreversibly begin its
+single bounded wait. Use non-reaping terminal observation for prompt early-exit
+diagnostics. A channel poll or process-liveness snapshot is not an identity
+reservation. Cover early exit, stopped interruption, cancellation and repeated
+cleanup independently; keep the genuine publication/recovery assertions and
+all existing operation deadlines. No PID reuse or collateral signal was observed;
+this correction follows the verified source-level race, not a claimed incident.
+
+Decision 167 local-upgrade fixture-owner isolation (2026-11-13 UTC): hosted run
+`43426935557` passed 31 of 32 Go jobs. The remaining macOS local-upgrade case
+reached the selected transaction and exhausted its 90-second call allowance;
+cooperative cancellation confirmed exit and retained recovery inputs. The nine
+criteria's two concurrent fixture owners accumulated 1,468.916 seconds, while
+earlier successful runs accumulated 1,487.235 and 1,553.701 seconds. Neither a
+single 25-minute serial job nor unchanged overlapping owners has adequate
+measured headroom. Give the existing two predecessor-integrity criteria their
+own `local-upgrade-predecessor` consumer and keep the seven routing/compiler
+criteria in `local-upgrade`; run both with one worker. Preserve every exact
+criterion, real compiler invocation, public installed local-upgrade path and
+existing deadline. This removes observed workload overlap without asserting
+unmeasured CPU contention or a particular internal transaction bottleneck.
+
+Decision 167 held-source-child review follow-up (2026-11-13 UTC): full-source
+verification of checkpoint `cb79827` exposed release-before-resume and concurrent
+launcher signal/reap hazards in a source uncertainty fixture. ADR 0151 records
+reuse of the child-identity owner with explicit direct-process signaling,
+terminal-only joining, signal-before-release ordering and conservative retention
+of every borrowed input. Preserve the borrowed process group, existing CI group
+semantics and deadlines. Clarify ADR 0148's public-command boundary and update
+its current census to 3468; keep historical qualification receipts unchanged.
+
+Decision 167 source-fixture family audit (2026-11-13 UTC): the same bounded
+source-file review identified four additional cancellation/compiler/background
+fixture paths with concurrent wait and late numeric signaling. Extend the shared
+direct-owner correction across all five affected paths in one change, with
+scenario-specific release ordering and unchanged product assertions. ADR 0151
+records the complete audit scope; no cross-repository process rewrite is implied.
+
+Decision 167 local-recovery diagnosis (2026-11-13 UTC): macOS job
+`131973875574` failed before publisher admission in both already sequential
+recovery entries. ADR 0151 records coarse test-fixture phase diagnostics and
+actual child build metadata, preserving the original invoker and all operation
+bounds. A race-enabled evaluator does not imply its compiled child uses race
+instrumentation; do not change invocation or authority checks on that assumption.
+
+## Decision 168 (2026-11-13 UTC): separate local recovery qualification budgets
+
+Adopt [ADR 0152](adr/0152-phase-bounded-local-recovery-qualification.md) before
+implementation. Measured legitimate acquisition and preflight leave inadequate
+margin in the two recovery criteria's old ninety-second test watchdog. Use
+120-second preview/admission allowances, the unchanged sixty-second publication
+allowance and one non-resettable 180-second outer command context. Preserve
+all runtime limits, original public routes, transaction authority and actual
+durable recovery assertions. Independent real-child controls must reject missing
+receipts, early exit and discarded outer bounds before hosted qualification.
+
+Decision 167 final review precision (2026-11-13 UTC): complete-source review of
+checkpoint `c9471b9` found no new behavioral defect. Correct exact pinned-module
+line pointers, narrow the recovery supersession wording, remove a duplicate
+source citation and describe the private helper copy precisely. Use exact
+environment-key comparison in the workflow fixture. These changes preserve
+all command behavior, budgets, criterion identities and process assertions.

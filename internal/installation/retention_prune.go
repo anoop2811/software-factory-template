@@ -35,12 +35,12 @@ type retentionProgress struct {
 }
 
 func retentionRows(snapshot retentionSnapshot) ([]retentionRemoval, error) {
-	if !ValidBackupID(snapshot.ID) || snapshot.Manifest.MigrationID != snapshot.ID || snapshot.Record.MigrationID != snapshot.ID || !knownRoleEntries(snapshot.Manifest.Entries) || !knownRoleEntries(snapshot.Record.Entries) || len(snapshot.Manifest.Entries) != len(snapshot.Record.Entries) || snapshot.JournalImage == nil {
+	if !ValidBackupID(snapshot.ID) || snapshot.Manifest.MigrationID != snapshot.ID || snapshot.Record.MigrationID != snapshot.ID || !knownTransactionEntries(snapshot.Manifest.Entries, snapshot.Manifest.CIWorkflow) || !knownTransactionEntries(snapshot.Record.Entries, snapshot.Record.CIWorkflow) || !ciContextEqual(snapshot.Manifest.CIWorkflow, snapshot.Record.CIWorkflow) || len(snapshot.Manifest.Entries) != len(snapshot.Record.Entries) || snapshot.JournalImage == nil {
 		return nil, conflict("invalid retention progress selection")
 	}
 	allowed := map[string]bool{"installation.manifest": true}
 	for _, entry := range snapshot.Manifest.Entries {
-		if !selectedPath(entry.Path) {
+		if !selectedTransactionPath(entry.Path, snapshot.Manifest.CIWorkflow) {
 			return nil, conflict("unrecognized retention progress role")
 		}
 		if entry.Action == "replace" || entry.Action == "retire" {

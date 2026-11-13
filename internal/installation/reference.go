@@ -23,14 +23,15 @@ import (
 var referenceData embed.FS
 
 type baseline struct {
-	Profile       string                    `json:"profile"`
-	Revision      string                    `json:"revision"`
-	Catalog       []installationimage.Asset `json:"catalog"`
-	Blobs         map[string][]byte         `json:"blobs"`
-	Substituted   []string                  `json:"substituted"`
-	Expected      map[string]*Image         `json:"-"`
-	ArchiveSHA256 string                    `json:"-"`
-	Runtime       *staging.Inspection       `json:"-"`
+	CI            map[string][]ciWorkflowCandidate `json:"-"`
+	Profile       string                           `json:"profile"`
+	Revision      string                           `json:"revision"`
+	Catalog       []installationimage.Asset        `json:"catalog"`
+	Blobs         map[string][]byte                `json:"blobs"`
+	Substituted   []string                         `json:"substituted"`
+	Expected      map[string]*Image                `json:"-"`
+	ArchiveSHA256 string                           `json:"-"`
+	Runtime       *staging.Inspection              `json:"-"`
 }
 
 // A predecessor uses a closed supported generation recipe, never saved code.
@@ -63,6 +64,14 @@ func predecessor(ctx context.Context, request Request, after staging.Inspection)
 }
 
 func (reference baseline) expected(ctx context.Context, path string, inputs map[string]string) (*Image, []byte, bool, error) {
+	if reference.CI != nil && ciWorkflowPath(path) {
+		candidates := reference.CI[path]
+		if len(candidates) == 0 {
+			return nil, nil, false, ctx.Err()
+		}
+		candidate := candidates[0]
+		return bytesImage(candidate.data, candidate.mode), candidate.data, true, ctx.Err()
+	}
 	if reference.Expected != nil {
 		image, known := reference.Expected[path]
 		return image, reference.Blobs[path], known, ctx.Err()
@@ -78,6 +87,10 @@ func (reference baseline) expected(ctx context.Context, path string, inputs map[
 // marker spellings. Marker matching alone never establishes profile ownership.
 // docs/adr/0101-go-release-handoff.md:465.
 func (reference baseline) matching(ctx context.Context, path string, observed *Image, inputs map[string]string) (*Image, bool, error) {
+	if reference.CI != nil && ciWorkflowPath(path) {
+		expected, matched := ciExpectedBefore(ciWorkflowHistory{bytes: reference.CI}, path, observed)
+		return expected, matched, ctx.Err()
+	}
 	expected, _, known, err := reference.expected(ctx, path, inputs)
 	if err != nil || !known {
 		return expected, false, err

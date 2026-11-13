@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,21 +12,21 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// per docs/adr/0147-installed-ci-migration-preview.md:30
+// per docs/adr/0148-transactional-installed-ci-migration.md:39
 func ciMigrationReport(proposal map[string]any) map[string]any {
 	GinkgoHelper()
-	Expect(proposal).To(HaveKey("ci_workflow"), "authenticated upgrade preview must expose its separate read-only CI proposal")
+	Expect(proposal).To(HaveKey("ci_workflow"), "authenticated upgrade preview must expose its integrated CI proposal")
 	report, ok := proposal["ci_workflow"].(map[string]any)
 	Expect(ok).To(BeTrue())
 	Expect(report).To(HaveKeyWithValue("schema_version", float64(1)))
 	Expect(report).To(HaveKeyWithValue("mode", "ci-workflow-preview"))
-	Expect(report).To(HaveKeyWithValue("apply_supported", false))
+	Expect(report).To(HaveKeyWithValue("apply_supported", true))
 	Expect(report["reason"]).To(BeAssignableToTypeOf(""))
 	Expect(report["reason"]).NotTo(BeEmpty())
 	reason := strings.ToLower(report["reason"].(string))
 	Expect(reason).To(ContainSubstring("confirmation"))
 	Expect(reason).To(ContainSubstring("installation"))
-	Expect(reason).To(ContainSubstring("does not"))
+	Expect(reason).To(ContainSubstring("workflow"))
 	Expect(report).To(HaveKey("conflicts"))
 	Expect(report["changes"]).To(HaveLen(5))
 	return report
@@ -44,6 +45,16 @@ func ciMigrationRows(report map[string]any) map[string]map[string]any {
 	}
 	Expect(rows).To(HaveLen(5))
 	return rows
+}
+
+// per docs/adr/0148-transactional-installed-ci-migration.md:55
+func ciMigrationProposal(out cliResult, status int) map[string]any {
+	GinkgoHelper()
+	Expect(out.status).To(Equal(status), "%+v", out)
+	var proposal map[string]any
+	Expect(json.Unmarshal([]byte(out.stdout), &proposal)).To(Succeed())
+	Expect(proposal["proposal_digest"]).To(MatchRegexp("^[a-f0-9]{64}$"))
+	return proposal
 }
 
 // per docs/adr/0147-installed-ci-migration-preview.md:106
@@ -66,7 +77,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		out := p.run("--dry-run", "--json")
 		AddReportEntry("ci-migration.public-json", map[string]any{"status": out.status, "stdout": out.stdout, "stderr": out.stderr}, ReportEntryVisibilityAlways)
 		Expect(out.status).To(BeZero(), "%+v", out)
-		proposal := handoffProposal(out)
+		proposal := ciMigrationProposal(out, 0)
 		report := ciMigrationReport(proposal)
 		rows := ciMigrationRows(report)
 		Expect(rows[".github/workflows/factory.yml"]["disposition"]).To(Equal("create"))
@@ -84,10 +95,9 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		defaultInitNoForbidden(p.f)
 	})
 
-	// per docs/adr/0147-installed-ci-migration-preview.md:15
-	// per docs/adr/0147-installed-ci-migration-preview.md:35
-	// per docs/adr/0147-installed-ci-migration-preview.md:49
-	It("keeps CI conflicts outside runtime consent and renders bounded confirmation advice", func() {
+	// per docs/adr/0148-transactional-installed-ci-migration.md:31
+	// per docs/adr/0148-transactional-installed-ci-migration.md:55
+	It("binds preserved CI conflicts into consent and renders bounded confirmation advice", func() {
 		p := fixtures.legacyProject()
 		imageGit(p.root, "-c", "core.hooksPath="+os.DevNull, "commit", "--quiet", "--allow-empty", "-m", "test: establish preview Git baseline")
 		baseline := p.preview()
@@ -98,11 +108,10 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		gitBefore := ciMigrationGit(p.root)
 		before := installationSnapshot(p.root)
 		out := p.run("--go-candidate", defaultUpgradeTag, "--dry-run", "--json")
-		Expect(out.status).To(BeZero(), "CI conflicts must not change runtime exit semantics: %+v", out)
-		proposal := handoffProposal(out)
-		for _, key := range []string{"actions", "proposal_digest", "conflicts", "blockers", "applicable", "checks_ready", "rollback_blockers"} {
-			Expect(proposal[key]).To(Equal(baseline[key]), key)
-		}
+		Expect(out.status).To(Equal(2), "CI conflicts block automatic combined migration: %+v", out)
+		proposal := ciMigrationProposal(out, 2)
+		Expect(proposal["proposal_digest"]).NotTo(Equal(baseline["proposal_digest"]))
+		Expect(proposal["blockers"]).NotTo(BeEmpty())
 		report := ciMigrationReport(proposal)
 		rows := ciMigrationRows(report)
 		Expect(rows[".github/workflows/ci.yml"]["disposition"]).To(Equal("preserve"))
@@ -115,7 +124,9 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		Expect(lower).To(ContainSubstring("ci workflow"))
 		Expect(lower).To(ContainSubstring("confirmation"))
 		Expect(lower).To(ContainSubstring("installation"))
-		Expect(lower).To(ContainSubstring("does not"))
+		Expect(lower).To(ContainSubstring("workflow"))
+		Expect(lower).NotTo(ContainSubstring("apply unsupported"))
+		Expect(lower).NotTo(ContainSubstring("read-only"))
 		Expect(text.stdout).To(ContainSubstring("'--confirm' '" + proposal["proposal_digest"].(string) + "'"))
 		Expect(lower).NotTo(ContainSubstring("ready for installed ci"))
 		Expect(lower).NotTo(ContainSubstring("ready for release"))

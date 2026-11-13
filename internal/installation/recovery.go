@@ -54,6 +54,16 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	if err != nil {
 		return result, err
 	}
+	history, ciTarget, err := qualifyCIProjection(ctx, record.CIWorkflow, request, image, reference.Runtime)
+	if err != nil {
+		return result, err
+	}
+	if record.CIWorkflow != nil {
+		if err := qualifyCIRows(ctx, record.Entries, history, ciTarget); err != nil {
+			return result, err
+		}
+		reference.CI = history.bytes
+	}
 	if record.Profile != request.Profile || record.Target != request.Source.Target {
 		return result, conflict("fresh installation identities disagree with transaction")
 	}
@@ -98,17 +108,17 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	if err := decodeRecord(ctx, manifestData, &manifest); err != nil {
 		return result, err
 	}
-	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != record.MigrationID || manifest.Profile != request.Profile || len(manifest.Entries) != len(record.Entries) {
+	if manifest.SchemaVersion != 1 || manifest.Kind != "installation-before-images" || manifest.MigrationID != record.MigrationID || manifest.Profile != request.Profile || len(manifest.Entries) != len(record.Entries) || !ciContextEqual(manifest.CIWorkflow, record.CIWorkflow) {
 		return result, conflict("whole installation before-image manifest disagrees")
 	}
 	originals := map[string]journalEntry{}
 	for _, entry := range manifest.Entries {
-		if originals[entry.Path].Path != "" || !selectedPath(entry.Path) {
+		if originals[entry.Path].Path != "" || !selectedTransactionPath(entry.Path, record.CIWorkflow) {
 			return result, conflict("invalid before-image manifest selection")
 		}
 		originals[entry.Path] = entry
 	}
-	result = plan{image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
+	result = plan{ci: record.CIWorkflow, image: image, request: request, payload: map[string][]byte{}, before: map[string][]byte{}, proposal: Proposal{SchemaVersion: 1, Mode: "installation-proposal", Profile: request.Profile, Target: request.Source.Target, Authentication: "not-verified", Actions: []Action{}, Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility"}, Conflicts: []Issue{}, Blockers: []Issue{}, RollbackBlockers: []Issue{}}}
 	result.reference = reference
 	// Historical pending identity is retained; absence can authorize only a freshly
 	// qualified completed no-op, never continuation of partial installation.
@@ -119,9 +129,17 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	}
 	targetActions := []Action{}
 	targetPayload := map[string][]byte{}
-	recipe := rolesForImage(image)
+	recipe := transactionRecipe(image, record.CIWorkflow)
 	for _, row := range recipe {
-		data, err := generate(ctx, row, image, request.Inputs)
+		var data []byte
+		var err error
+		if record.CIWorkflow != nil && ciWorkflowPath(row.Path) {
+			if row.Path == ".github/workflows/factory.yml" {
+				data = ciTarget
+			}
+		} else {
+			data, err = generate(ctx, row, image, request.Inputs)
+		}
 		if err != nil {
 			return result, err
 		}
@@ -148,7 +166,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		targets[action.Path] = action.After
 	}
-	if !matchesRoleEntries(record.Entries, recipe) {
+	if !matchesTransactionEntries(record.Entries, rolesForImage(image), record.CIWorkflow) {
 		return result, conflict("installation journal omits reviewed rows")
 	}
 	for _, row := range recipe {
@@ -179,6 +197,11 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		action := Action{Path: row.Path, SourcePath: row.Source, Action: "retain", Reason: "freshly qualified installation entry", Required: row.Required, Before: current, After: current}
 		if original.Action == "retain" {
+			if record.CIWorkflow != nil && ciWorkflowPath(row.Path) && !imageEqual(current, original.Before, true) {
+				issue := Issue{row.Path, "unchanged CI entry changed after transaction; preserved"}
+				result.proposal.Conflicts = append(result.proposal.Conflicts, issue)
+				result.proposal.Blockers = append(result.proposal.Blockers, issue)
+			}
 			result.proposal.Actions = append(result.proposal.Actions, action)
 			continue
 		}
@@ -304,7 +327,8 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		Parents       []installationfs.Directory
 		ObservedState []stateObservation
 		Pending       *Image
-	}{root, request, image.ArchiveSHA256, reference.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state, pending})
+		CIWorkflow    *ciWorkflowContext `json:",omitempty"`
+	}{root, request, image.ArchiveSHA256, reference.ArchiveSHA256, record.PlanDigest, manifestImage, result.proposal.Actions, result.proposal.RollbackBlockers, parents, state, pending, record.CIWorkflow})
 	if err != nil {
 		return result, err
 	}
@@ -420,7 +444,7 @@ func (owner *transaction) validateLegacy(ctx context.Context) error {
 		return err
 	}
 	for _, action := range owner.planned.proposal.Actions {
-		if action.Action == "retain" || action.Path == ".factory-version" {
+		if action.Action == "retain" || action.Path == ".factory-version" || owner.planned.ci != nil && ciWorkflowPath(action.Path) {
 			continue
 		}
 		actual, _, err := observe(ctx, owner.tree, action.Path, leafLimit(action.Path))

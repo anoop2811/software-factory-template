@@ -113,6 +113,8 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 	BeforeAll(func() { fixtures = prepareDefaultUpgradeJourneys(true) })
 	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:136
 	It("runs the authenticated selected initializer without executing a cached source initializer", func() {
+		// per docs/adr/0148-transactional-installed-ci-migration.md:369
+		fixtures := prepareDefaultInit()
 		f, driver := fixtures.surface(defaultInitTag)
 		legacy := filepath.Join(f.environment["FACTORY_HOME"], "scripts/factory-init.sh")
 		writeFixture(legacy, []byte("#!/bin/sh\nprintf executed > \"$HANDOFF_RECORD_DIR/legacy-source-executed\"\nexit 97\n"), 0700)

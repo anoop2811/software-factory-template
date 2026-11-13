@@ -55,6 +55,23 @@ func imageProcess(dir string, overrides map[string]string, program string, argv 
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	command := imageCommand(ctx, dir, overrides, program, argv...)
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	err := command.Run()
+	Expect(ctx.Err()).NotTo(HaveOccurred(), "subprocess timeout: %s", stderr.String())
+	status := 0
+	if err != nil {
+		var exit *exec.ExitError
+		Expect(errors.As(err, &exit)).To(BeTrue(), "subprocess could not start: %v", err)
+		status = exit.ExitCode()
+	}
+	return cliResult{stdout.String(), stderr.String(), status}
+}
+
+// Keep image-process environment selection shared without changing its execution policy.
+// per docs/adr/0148-transactional-installed-ci-migration.md:764
+func imageCommand(ctx context.Context, dir string, overrides map[string]string, program string, argv ...string) *exec.Cmd {
 	command := exec.CommandContext(ctx, program, argv...) // #nosec G204 G702 -- test-owned binaries or explicitly trusted developer/CI compiler selection; separate argv, no shell expansion.
 	command.Dir = dir
 	for _, entry := range os.Environ() {
@@ -69,17 +86,7 @@ func imageProcess(dir string, overrides map[string]string, program string, argv 
 	for key, value := range overrides {
 		command.Env = append(command.Env, key+"="+value)
 	}
-	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	err := command.Run()
-	Expect(ctx.Err()).NotTo(HaveOccurred(), "subprocess timeout: %s", stderr.String())
-	status := 0
-	if err != nil {
-		var exit *exec.ExitError
-		Expect(errors.As(err, &exit)).To(BeTrue(), "subprocess could not start: %v", err)
-		status = exit.ExitCode()
-	}
-	return cliResult{stdout.String(), stderr.String(), status}
+	return command
 }
 
 func imageGit(dir string, argv ...string) string {

@@ -1,6 +1,6 @@
 # ADR 0147: preview existing-project CI migration without mutation
 
-Status: implemented; independent local qualification passes. Hosted qualification is pending.
+Status: implemented and merged in PR #178 after 34 hosted checks passed; transactional extension specified in ADR 0148.
 Decision: 163. Continues R4 after merged PR #177.
 
 ## Boundary

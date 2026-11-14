@@ -16,7 +16,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/output"
 )
 
-const ciUsage = "Usage: factory ci prepare --go-candidate TAG --origin-target OS/ARCH --ephemeral\n       factory ci workflow --go-candidate TAG --origin-target OS/ARCH --installer-revision FULL_COMMIT_SHA\n\nPrepare authenticated runtime custody in a clean disposable checkout, or render an installed-factory workflow to stdout.\nUse a fresh checkout after any incomplete preparation; this is not repair.\n"
+const ciUsage = "Usage: factory ci prepare --go-candidate TAG --origin-target OS/ARCH --ephemeral\n       factory ci workflow --go-candidate TAG --origin-target OS/ARCH --installer-revision FULL_COMMIT_SHA\n       factory ci review-client --go-candidate TAG --expected-revision SHA --output DIR\n\nPrepare authenticated runtime custody in a clean disposable checkout, render an installed-factory workflow, or export a standalone review client.\nUse a fresh checkout after any incomplete preparation; this is not repair.\n"
 
 type ciOptions struct {
 	tag, origin string
@@ -26,6 +26,9 @@ type ciOptions struct {
 // RunCI owns explicit CI preparation and workflow rendering.
 // docs/adr/0143-ci-checkout-preparation.md:20.
 func RunCI(parent context.Context, args []string, environment map[string]string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "review-client" {
+		return runReviewClient(parent, args[1:], environment, stdin, stdout, stderr)
+	}
 	// Rendering has no project, environment-selection or acquisition boundary.
 	// docs/adr/0145-installed-ci-workflow-rendering.md:36.
 	if len(args) > 0 && args[0] == "workflow" {

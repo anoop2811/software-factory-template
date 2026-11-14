@@ -247,7 +247,7 @@ func sourceGateHandoffPriorityProof() {
 	Expect(err).NotTo(HaveOccurred(), "real CI-checkout priority metadata: %s", output)
 	Expect(readReport().SuiteSucceeded).To(BeTrue())
 	combinedMetadata := readMetadata()
-	Expect(combinedMetadata).To(HaveLen(63))
+	Expect(combinedMetadata).To(HaveLen(72))
 	for _, spec := range combinedMetadata[len(handoffMetadata)+len(retentionMetadata):] {
 		Expect(spec.Text).To(HavePrefix(checkoutPrefix))
 	}
@@ -291,6 +291,20 @@ func sourceGateHandoffPriorityProof() {
 			"prepares a real cloned project through the installer and runs installed checks without Go or Python",
 			"joins installer and native CI acquisition cancellation while preserving an unrelated process",
 		}},
+		// per docs/adr/0153-authenticated-review-client-bootstrap.md:105
+		"handoff-ci-review-client-surface": {false, 0, []string{
+			"owns review-client native and installer help and strict selectors before acquisition",
+			"hands authenticated review-client literal argv streams and selected-owner status through the installer",
+			"rejects a moved review-client tag before download chmod or first execution",
+			"refuses unauthenticated review-client installer selections without execution or publication",
+		}},
+		"handoff-ci-review-client-project": {true, 2, []string{
+			"exports authenticated native review clients and runs both standalone review routes without project tools",
+			"refuses review-client native revision authentication and raw image disagreement without publication",
+			"preserves foreign review-client destinations and rejects linked missing unsafe or project-local output",
+			"joins acknowledged review-client acquisition cancellation without disturbing unrelated processes",
+			"reports failed review-client receipt output while retaining only a complete private executable",
+		}},
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		"handoff-ci-workflow-surface": {false, 0, []string{
 			"renders explicit workflow selectors and help without project or acquisition effects",
@@ -332,7 +346,7 @@ func sourceGateHandoffPriorityProof() {
 		}
 		Expect(matched).To(Equal(1), "each selected criterion must belong to exactly one known whole group")
 	}
-	Expect(identities).To(HaveLen(63))
+	Expect(identities).To(HaveLen(72))
 	for label, group := range ciGroups {
 		expected := make([]string, 0, len(group.identities))
 		prefix := "Whole installation upgrade release candidate handoff CI checkout preparation "

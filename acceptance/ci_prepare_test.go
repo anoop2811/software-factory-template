@@ -774,9 +774,15 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 // per docs/adr/0144-ci-installer-bootstrap.md:106
 func ciPrepareCanceledProcess(f handoffBootstrapFixture, driver, root, ready, phase string, prefix ...string) {
 	GinkgoHelper()
+	args := append(append([]string{}, prefix...), ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
+	ciCanceledArgumentsProcess(f, driver, root, ready, phase, args)
+}
+
+// per docs/adr/0153-authenticated-review-client-bootstrap.md:122
+func ciCanceledArgumentsProcess(f handoffBootstrapFixture, driver, root, ready, phase string, args []string) {
+	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	args := append(append([]string{}, prefix...), ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH)...)
 	cmd := handoffCommand(ctx, root, f.environment, "", driver, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.WaitDelay = time.Second

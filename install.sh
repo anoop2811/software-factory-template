@@ -86,11 +86,12 @@ ci_exact_release() (
 # docs/adr/0144-ci-installer-bootstrap.md:33.
 ci_parse() {
   ci_tag='' ci_origin='' ci_ephemeral=0 ci_help=0 ci_seen=' '
+  ci_operation='' ci_expected_revision='' ci_output=''
   shift
   if [ "$#" -eq 1 ]; then
     case "$1" in --help|-h) ci_help=1; return 0 ;; esac
   fi
-  [ "${1-}" = prepare ] || return 1
+  case "${1-}" in prepare|review-client) ci_operation=$1 ;; *) return 1 ;; esac
   shift
   while [ "$#" -gt 0 ]; do
     ci_name=${1%%=*}
@@ -102,39 +103,63 @@ ci_parse() {
     case "$ci_name" in
       --help|--ephemeral)
         [ "$ci_supplied" -eq 0 ] || return 1
+        [ "$ci_name" != --ephemeral ] || [ "$ci_operation" = prepare ] || return 1
         case "$ci_name" in --help) ci_help=1 ;; *) ci_ephemeral=1 ;; esac ;;
-      --go-candidate|--origin-target)
+      --go-candidate|--origin-target|--expected-revision|--output)
         if [ "$ci_supplied" -eq 0 ]; then
           shift
           [ "$#" -gt 0 ] || return 1
           ci_value=$1
         fi
-        if [ "$ci_name" = --go-candidate ]; then
-          ci_exact_release "$ci_value" || return 1
-          ci_tag=$ci_value
-        else
-          case "$ci_value" in linux/amd64|linux/arm64|darwin/amd64|darwin/arm64) ;; *) return 1 ;; esac
-          ci_origin=$ci_value
-        fi ;;
+        case "$ci_name" in
+          --go-candidate)
+            ci_exact_release "$ci_value" || return 1
+            ci_tag=$ci_value ;;
+          --origin-target)
+            [ "$ci_operation" = prepare ] || return 1
+            case "$ci_value" in linux/amd64|linux/arm64|darwin/amd64|darwin/arm64) ;; *) return 1 ;; esac
+            ci_origin=$ci_value ;;
+          --expected-revision)
+            [ "$ci_operation" = review-client ] || return 1
+            case "$ci_value" in ''|*[!0123456789abcdef]*) return 1 ;; esac
+            [ "${#ci_value}" -eq 40 ] || return 1
+            ci_expected_revision=$ci_value ;;
+          --output)
+            [ "$ci_operation" = review-client ] || return 1
+            case "$ci_value" in /*) ;; *) return 1 ;; esac
+            case "$ci_value" in /|*/|*//*|*/./*|*/../*|*/.|*/..) return 1 ;; esac
+            ci_output=$ci_value ;;
+        esac ;;
       *) return 1 ;;
     esac
     shift
   done
-  [ "$ci_help" -eq 1 ] || { [ -n "$ci_tag" ] && [ -n "$ci_origin" ] && [ "$ci_ephemeral" -eq 1 ]; }
+  [ "$ci_help" -eq 1 ] && return 0
+  [ -n "$ci_tag" ] || return 1
+  if [ "$ci_operation" = review-client ]; then
+    [ -n "$ci_expected_revision" ] && [ -n "$ci_output" ]
+  else
+    [ -n "$ci_origin" ] && [ "$ci_ephemeral" -eq 1 ]
+  fi
 }
 ci_install() {
   if ! ci_parse "$@"; then
-    printf '%s\n' 'install ci: invalid prepare arguments; require an exact release, origin target and --ephemeral' >&2
+    printf '%s\n' 'install ci: invalid arguments; prepare requires an exact release, origin target and --ephemeral; review-client requires an exact release, expected revision and output' >&2
     exit 2
   fi
   if [ "$ci_help" -eq 1 ]; then
     printf '%s\n' 'Usage: install.sh ci prepare --go-candidate TAG --origin-target OS/ARCH --ephemeral'
+    printf '%s\n' '       install.sh ci review-client --go-candidate TAG --expected-revision SHA --output DIR'
     exit 0
   fi
   # Public CI cannot inherit the private sourceable bridge dispatch protocol.
   # docs/adr/0144-ci-installer-bootstrap.md:55.
   unset FACTORY_BRIDGE_PROTOCOL
-  packaged_install candidate "$ci_tag" "$@"
+  if [ "$ci_operation" = review-client ]; then
+    packaged_install review-client "$ci_tag" "$ci_expected_revision" "$@"
+  else
+    packaged_install candidate "$ci_tag" "$@"
+  fi
 }
 
 # Both selectors cross the same first-execution trust and ownership boundary.
@@ -143,6 +168,13 @@ ci_install() {
 packaged_install() {
   candidate_policy=$1 candidate_tag=$2
   shift 2
+  # Only the explicit operation passes this guard; inherited CI variables cannot
+  # change ordinary installation. docs/adr/0153-authenticated-review-client-bootstrap.md:49.
+  candidate_expected_revision=''
+  if [ "$candidate_policy" = review-client ]; then
+    candidate_expected_revision=$1
+    shift
+  fi
   umask 077
   command -v gh >/dev/null 2>&1 || { printf '%s\n' 'install: trusted GitHub CLI (gh) is required' >&2; exit 1; }
   candidate_verifier=$(command -v gh)
@@ -411,6 +443,10 @@ packaged_install() {
   candidate_revision=$(cat "$candidate_dir/command.stdout")
   case "$candidate_revision" in ''|*[!0-9a-f]*) printf '%s\n' 'install: invalid candidate revision' >&2; exit 1 ;; esac
   [ "${#candidate_revision}" -eq 40 ] || exit 1
+  if [ "$candidate_policy" = review-client ] && [ "$candidate_revision" != "$candidate_expected_revision" ]; then
+    printf '%s\n' 'install ci review-client: selected source revision does not match expected revision' >&2
+    exit 1
+  fi
   candidate_fields=tagName,isDraft
   candidate_query='[.tagName,.isDraft]|@tsv'
   candidate_expected=$(printf '%s\tfalse' "$candidate_tag")

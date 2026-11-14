@@ -117,3 +117,15 @@ Final hosted qualification of the complete 3097-criterion base and
 127-criterion source partitions on Linux/macOS, plus the remaining unchanged
 matrix and model review, remains required. The local source result is not a
 claim that the final hosted base timing has already improved.
+
+Hosted head `ce47772` subsequently passed all 127 source criteria on Linux in
+248.359 seconds and macOS in 354.870 seconds (Go run `43619019027`, jobs
+`132521677107` and `132521677372`). The macOS base selected 3097 criteria and
+completed inside the existing bound in 1154.223 seconds, but reported one
+installed-review provider-fixture failure; 25 selected criteria had existing
+platform/capability skips. This establishes completed bounded execution, not
+a passing base gate. The provider failure and diagnostic follow-up are recorded
+in [ADR 0154](0154-installed-review-workflow-migration.md). Exact-head acceptance
+still requires all checks to pass. Model review for this head completed in
+2m37s with all 31 files and 73 fragments covered, and all nineteen notes were
+answered after full-source verification.

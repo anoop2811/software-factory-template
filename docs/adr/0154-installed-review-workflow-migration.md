@@ -279,6 +279,51 @@ go test -race -count=1 -timeout=25m -v ./acceptance -run '^TestAcceptance$' \
   '-ginkgo.focus=^Go factory command acceptance Go default packaged initialization runs the exact authenticated prepared default without ambient source assets or compiler fallback$'
 ```
 
+## Provider fixture failure evidence
+
+After the partition correction, head `ce47772` completed the hosted macOS base
+suite in 1154.223 seconds instead of reaching its 25-minute bound. It selected
+3097 criteria, executed 3072 with 25 existing platform/capability skips, and
+reported one failure in the installed three-provider journey. Bootstrap exited
+0 in 0.309 seconds; the OpenRouter single-review step exited 1 in 5.272 seconds
+with empty outer streams. Its provider deadline was five seconds. This timing
+suggests that deadline, but the runner did not retain the workflow's private
+review error/report in its Ginkgo receipt, so the transport cause is unproven.
+
+Before changing behavior or limits, extend the failing journey's diagnostic
+receipt with its test-owned workflow error, status report and observed request
+count. Keep those diagnostics inside acceptance evidence; provider errors remain
+redacted in generated workflow comments. Reproduce the provider path with the
+same five-second setting and preserve all three provider assertions. Do not
+treat the outer status alone as evidence of a provider or product defect.
+
+Evidence: Go run `43619019027`, job `132521677383`, report artifact
+`14124538330`, observed 2026-11-14. The retained report is
+`.factory/ci-mode-evidence/installed-review/rebalanced-macos-base-report/base.json`.
+
+The unchanged five-second three-provider journey subsequently passed twelve
+local repetitions. That did not reproduce the hosted failure. Full-source
+inspection also found the independent five-second Git discovery bound before
+the HTTP context begins (`internal/commandenv/discovery.go:100`), so elapsed
+time alone cannot identify the failing stage.
+
+A temporary fixture-only HTTP 503 proved the new failure receipt executes:
+`go test -race -count=1 -timeout=5m -v ./acceptance
+'-ginkgo.focus=Installed review workflow execution runs the bootstrapped single-request client for all three providers without opting into batches'
+-ginkgo.no-color -ginkgo.fail-on-empty` reported `Ran 1 of 3495 Specs in 2.692
+seconds`, `0 Passed | 1 Failed`. The receipt recorded one provider request,
+`adversarial-review: HTTP request failed`, a failed status report, and a posted
+comment containing only the fixed classification. The temporary response fault
+was removed byte-for-byte before the complete workflow run:
+`go test -race -count=1 -timeout=5m -v ./acceptance
+'-ginkgo.focus=Installed review workflow execution' -ginkgo.no-color
+-ginkgo.fail-on-empty` exited 0 with `Ran 7 of 3495 Specs in 19.525 seconds`
+and `SUCCESS! -- 7 Passed | 0 Failed`. The log/report pairs are
+`provider-evidence-negative` and `provider-evidence-green` under the same ignored
+evidence directory. No production behavior, deadline or criterion count changed.
+The original hosted cause remains unproven; the diagnostic addition does not
+claim to correct that intermittent failure.
+
 ## References
 
 Existing contracts: [ADR 0153](0153-authenticated-review-client-bootstrap.md),

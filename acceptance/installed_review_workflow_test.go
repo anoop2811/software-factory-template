@@ -321,6 +321,21 @@ var _ = Describe("Installed review workflow execution", Label("installed-review-
 			Expect(service.observed()).To(BeEmpty())
 			before := installationSnapshot(f.cwd)
 			out := f.run(single, map[string]string{"REVIEW_INSTALLED_CLIENT": f.client, "REVIEW_GO_CLIENT": "/must-not-select-a-batch-client", "REVIEW_API_KEY": "PRIVATE_INSTALLED_REVIEW_KEY", "HTTPS_PROXY": service.proxy, "SSL_CERT_FILE": service.ca})
+			// Capture only evaluator-owned files and fake-credential traffic when
+			// this journey fails; generated public diagnostics remain unchanged.
+			// per docs/adr/0154-installed-review-workflow-migration.md:293
+			if out.status != 0 {
+				evidence := map[string]any{"provider": provider, "status": out.status, "provider_request_count": len(service.observed()), "review_timeout_seconds": f.environment["REVIEW_TIMEOUT_SECONDS"]}
+				for name, path := range map[string]string{
+					"private_review_error": filepath.Join(f.temporary, "factory-review-legacy.err"),
+					"status_report":        filepath.Join(f.temporary, "factory-review-output/report.json"),
+					"posted_comment":       filepath.Join(f.root, "comment"),
+				} {
+					data, err := os.ReadFile(path)
+					evidence[name], evidence[name+"_read_error"] = string(data), fmt.Sprint(err)
+				}
+				AddReportEntry("installed-review.provider-failure", evidence, ReportEntryVisibilityAlways)
+			}
 			Expect(out.status).To(BeZero(), "%s: %+v", provider, out)
 			requests := service.observed()
 			Expect(requests).To(HaveLen(1))

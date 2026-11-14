@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,31 @@ import (
 )
 
 const sourceGateBaselineCommit = "d60b200ac3a221520d183fca8c7738a5cf2bfdbb"
+
+// Independently captured from the actual pre-rebalance source-entrypoints
+// Ginkgo dry-run on 2026-11-14: /private/tmp/factory-r4-review-partitions/source-entrypoints.json.
+// Hash sorted FullText + " :: " + origin basename, newline-terminated; no locations.
+// per docs/adr/0155-rebalance-source-qualification.md:58
+const sourceGateOriginalSourceIdentitiesSHA256 = "bc4ae7453e4677c35774597eff99ef8293e08181828166cf46acc410354d6738"
+
+// Whole existing families move together; names and origin files are independent
+// of the selector, so an equal-count replacement cannot conceal lost controls.
+// per docs/adr/0155-rebalance-source-qualification.md:34
+// per docs/adr/0155-rebalance-source-qualification.md:58
+var sourceGateMovedQualification = []struct{ Name, File string }{
+	{"Go source qualification scheduling executes disjoint feature partitions while retaining every source quality stage", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure absent group defaults to the healthy complete union", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure base failure still attempts installation and fails", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure explicit all keeps the complete union", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure installation failure fails the default union", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure internal package failure still attempts every acceptance partition", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling attempts the complete qualification union and propagates every group failure release-handoff failure fails the complete union", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling refuses invalid worker selection before any qualification work", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling refuses an invalid explicit selection before any test process explicit empty group", "source_gate_selection_test.go"},
+	{"Go source qualification scheduling refuses an invalid explicit selection before any test process unknown group", "source_gate_selection_test.go"},
+	{"Go source qualification worker execution executes one and two actual workers with exact-once reports and propagates a real worker failure", "source_gate_parallel_test.go"},
+	{"Go source qualification workflow partition preserves OS check names and pinned setup while scheduling qualification groups independently on both platforms", "source_gate_selection_test.go"},
+}
 
 // per docs/adr/0146-initialized-installed-ci.md:293
 // per docs/adr/0147-installed-ci-migration-preview.md:113
@@ -176,6 +202,19 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Go source launcher signal ownership", "source-entrypoints"},
 	{"./acceptance", "Go factory command acceptance Go source launcher signal ownership-extra unrelated", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Go source launcher signal ownership", "base"},
+	// per docs/adr/0155-rebalance-source-qualification.md:56
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling retains exact qualification", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification scheduling-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification scheduling", "base"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution retains actual workers", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification worker execution-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification worker execution", "base"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition retains hosted wiring", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition", "source-entrypoints"},
+	{"./acceptance", "Go factory command acceptance Go source qualification workflow partition-extra unrelated", "base"},
+	{"./acceptance", "Go factory command acceptance Other suite mentions Go source qualification workflow partition", "base"},
 	{"./acceptance", "Go factory command acceptance Native Go report core renders events", "base"},
 	{"./acceptance", "Go factory command acceptance Other suite mentions Whole installation upgrade release candidate handoff", "base"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrades unrelated behavior", "base"},
@@ -858,7 +897,8 @@ var _ = Describe("Go source qualification scheduling", func() {
 			}
 
 			if group == "source-entrypoints" {
-				const family = "^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$)"
+				// per docs/adr/0155-rebalance-source-qualification.md:38
+				const family = "^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership|Go source qualification (scheduling|worker execution|workflow partition))( |$)"
 				Expect(tests[0].Focus).To(Equal(family))
 				Expect(callsByGroup["base"].Skip).To(ContainSubstring(tests[0].Focus), "one source-family expression must be reused by base exclusion")
 			}
@@ -1006,13 +1046,45 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
-		expectedCounts := map[string]int{"base": 3109, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 6, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		// per docs/adr/0155-rebalance-source-qualification.md:40
+		expectedCounts := map[string]int{"base": 3097, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 6, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 127}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-predecessor", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
 			Expect(status).To(Equal(0), group)
 			Expect(count).To(Equal(expectedCounts[group]), "actual pinned Ginkgo census for %s", group)
 			Expect(total).To(Equal(allTotal))
+			// per docs/adr/0155-rebalance-source-qualification.md:58
+			if group == "source-entrypoints" {
+				moved := map[string]string{}
+				for _, criterion := range sourceGateMovedQualification {
+					moved[criterion.Name] = criterion.File
+				}
+				actualMoved, original := []string{}, []string{}
+				for _, identity := range identities {
+					name, location, found := strings.Cut(identity, " :: ")
+					Expect(found).To(BeTrue())
+					name = strings.TrimPrefix(name, "Go factory command acceptance ")
+					file, _, found := strings.Cut(location, ":")
+					Expect(found).To(BeTrue())
+					if strings.HasPrefix(name, "Go source qualification ") {
+						Expect(moved).To(HaveKey(name), "unrecognized moved qualification criterion")
+						Expect(file).To(Equal(moved[name]), name)
+						actualMoved = append(actualMoved, name)
+					} else {
+						original = append(original, name+" :: "+file)
+					}
+				}
+				expectedMoved := []string{}
+				for _, criterion := range sourceGateMovedQualification {
+					expectedMoved = append(expectedMoved, criterion.Name)
+				}
+				Expect(actualMoved).To(ConsistOf(expectedMoved), "all twelve existing controls must move together")
+				Expect(original).To(HaveLen(115), "retain every original source criterion alongside the moved controls")
+				sort.Strings(original)
+				actualHash := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.Join(original, "\n")+"\n")))
+				Expect(actualHash).To(Equal(sourceGateOriginalSourceIdentitiesSHA256), "original source identities changed: %q", original)
+			}
 			if group == "release-retention" {
 				expected, actual := []string{}, []string{}
 				for _, name := range sourceGateRetentionNames {

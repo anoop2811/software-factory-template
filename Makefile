@@ -80,7 +80,7 @@ GO_INSTALLATION_FAMILIES='^Go factory command acceptance (Whole installation upg
 	GO_LOCAL_RECOVERY_FAMILY='^Go factory command acceptance Go explicit local source upgrade recovers from a durably interrupted selected worker with retained exact images and no compiler( |$$)'; \
 	GO_DEFAULT_INIT_FAMILY='^Go factory command acceptance Go default packaged initialization( |$$)'; \
 	GO_DEFAULT_UPGRADE_FAMILY='^Go factory command acceptance Go default packaged upgrade( |$$)'; \
-	GO_SOURCE_ENTRYPOINTS_FAMILY='^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership)( |$$)'; \
+	GO_SOURCE_ENTRYPOINTS_FAMILY='^Go factory command acceptance (Go source runtime entrypoints|Go source launcher signal ownership|Go source qualification (scheduling|worker execution|workflow partition))( |$$)'; \
 	GO_BASE_TEST_STATUS=0; GO_INSTALLATION_TEST_STATUS=0; GO_RELEASE_HANDOFF_TEST_STATUS=0; GO_RELEASE_RETENTION_TEST_STATUS=0; GO_RELEASE_CI_TEST_STATUS=0; GO_INITIALIZED_CI_TEST_STATUS=0; GO_CI_MIGRATION_TEST_STATUS=0; GO_HISTORICAL_RECIPE_TEST_STATUS=0; GO_LOCAL_INIT_TEST_STATUS=0; GO_LOCAL_UPGRADE_TEST_STATUS=0; GO_LOCAL_UPGRADE_PREDECESSOR_TEST_STATUS=0; GO_LOCAL_UPGRADE_GO_TEST_STATUS=0; GO_LOCAL_RECOVERY_TEST_STATUS=0; GO_DEFAULT_INIT_TEST_STATUS=0; GO_DEFAULT_UPGRADE_TEST_STATUS=0; GO_SOURCE_ENTRYPOINTS_TEST_STATUS=0; \
 	run_acceptance() { \
 		GO_REPORT_GROUP="$$1"; shift; \

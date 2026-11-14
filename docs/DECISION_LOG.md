@@ -8607,3 +8607,15 @@ choices. Migrate exact predecessor-owned enabled workflows in the existing
 installation backup/recovery transaction, preserving off/absent lanes, customized
 conflicts and schema-1 journal replay. This integration and the subsequent
 integrated rehearsal remain R4 work; the remaining release gates do not change.
+
+## Decision 171 (2026-11-14 UTC): rebalance source qualification within existing jobs
+
+After PR #182's macOS base partition reached its 25-minute bound, adopt
+[ADR 0155](adr/0155-rebalance-source-qualification.md) before code.
+Move the twelve existing scheduling, worker-execution and workflow-partition
+controls into the smaller existing source-entrypoints partition. Preserve all
+3495 criteria, sixteen partitions, worker counts, assertions and deadlines.
+Require independent selector failures before the Make correction and complete
+base/source qualification afterward. Measured workload supports the regrouping;
+the failed report does not establish an individual stuck test. This is current
+CI qualification work, not an additional release gate or an adopter change.

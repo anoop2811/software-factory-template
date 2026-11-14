@@ -1,6 +1,6 @@
 # Authenticated standalone review-client bootstrap
 
-Status: implemented; local qualification recorded below; hosted qualification and human review pending.
+Status: implemented; hosted qualification passed and PR #181 merged.
 Decision: 169. Continues R4 after merged PR #180.
 
 ## Scope
@@ -198,4 +198,14 @@ retained-leaf checks, non-reaping canary observation, cooperative test ownership
 and directory-inclusive project snapshots. Hosted qualification and model review
 must still run on the submitted head; this record does not claim release or
 adopter-pilot readiness.
+
+PR #181 merged on 2026-11-14 as
+3794e6cc8fa66eb02504e753b0ad11955f5cf85a. GitHub reports the final-head Go run
+43539623922 and adversarial run 43539623000 successful on
+2fc26e75fcc559f075e79b5462b47e8044f651af. The review job ran from 01:16:57 to
+01:19:48 UTC (2m51s). Its six notes were answered in
+[the review response](https://github.com/anoop2811/software-factory-template/pull/181#issuecomment-6869321495).
+These are the preceding PR's results, not evidence for later integration.
+[ADR 0154](0154-installed-review-workflow-migration.md) now governs the dependent
+generated workflow and transactional ownership integration.
 

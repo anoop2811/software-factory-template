@@ -3,6 +3,7 @@ package installation
 import (
 	"bytes"
 	"context"
+	"errors"
 	"maps"
 	"strings"
 	"unicode/utf8"
@@ -21,10 +22,46 @@ type ciWorkflowContext struct {
 	Before        ReleaseIdentity    `json:"before"`
 	Current       map[string]string  `json:"current"`
 	Historical    map[string]string  `json:"historical"`
+	Review        *ciReviewContext   `json:"review,omitempty"`
 }
 
+// Carry the failed component through qualification without changing its status.
+// docs/adr/0154-installed-review-workflow-migration.md:233.
+type ciProjectionError struct {
+	path  string
+	cause error
+}
+
+func (e *ciProjectionError) Error() string { return e.cause.Error() }
+func (e *ciProjectionError) Unwrap() error { return e.cause }
+
 func ciWorkflowPath(path string) bool {
+	if path == ciReviewPath {
+		return true
+	}
 	for _, name := range ciWorkflowNames {
+		if path == ".github/workflows/"+name {
+			return true
+		}
+	}
+	return false
+}
+
+// Schema one is permanently the original five rows. The new context adds one
+// finite review row without expanding ordinary installation/runtime authority.
+// docs/adr/0154-installed-review-workflow-migration.md:77.
+func ciTransactionNames(ci *ciWorkflowContext) []string {
+	if ci == nil {
+		return nil
+	}
+	if ci.SchemaVersion == 2 && ci.Review != nil {
+		return append(append([]string{}, ciWorkflowNames...), "adversarial-review.yml")
+	}
+	return ciWorkflowNames
+}
+
+func ciTransactionPath(path string, ci *ciWorkflowContext) bool {
+	for _, name := range ciTransactionNames(ci) {
 		if path == ".github/workflows/"+name {
 			return true
 		}
@@ -39,10 +76,10 @@ func transactionRecipe(image staging.Inspection, ci *ciWorkflowContext) []role {
 		return recipe
 	}
 	result := append([]role{}, recipe...)
-	for _, name := range ciWorkflowNames {
+	for _, name := range ciTransactionNames(ci) {
 		path := ".github/workflows/" + name
 		operation := "retire"
-		if name == "factory.yml" {
+		if name == "factory.yml" || path == ciReviewPath && ci.Review.Present {
 			operation = "generated-ci"
 		}
 		result = append(result, role{Path: path, Operation: operation, Mode: "0644", Required: true, Reason: "qualified CI transaction component"})
@@ -58,7 +95,7 @@ func transactionRuntimeEntries(entries []journalEntry, ci *ciWorkflowContext) ([
 	seen := map[string]bool{}
 	for _, entry := range entries {
 		if ciWorkflowPath(entry.Path) {
-			if seen[entry.Path] {
+			if seen[entry.Path] || !ciTransactionPath(entry.Path, ci) {
 				return nil, false
 			}
 			seen[entry.Path] = true
@@ -66,7 +103,7 @@ func transactionRuntimeEntries(entries []journalEntry, ci *ciWorkflowContext) ([
 			runtimeEntries = append(runtimeEntries, entry)
 		}
 	}
-	return runtimeEntries, len(seen) == len(ciWorkflowNames)
+	return runtimeEntries, len(seen) == len(ciTransactionNames(ci))
 }
 
 func matchesTransactionEntries(entries []journalEntry, recipe []role, ci *ciWorkflowContext) bool {
@@ -80,14 +117,15 @@ func knownTransactionEntries(entries []journalEntry, ci *ciWorkflowContext) bool
 }
 
 func selectedTransactionPath(path string, ci *ciWorkflowContext) bool {
-	return selectedPath(path) || ci != nil && ciWorkflowPath(path)
+	return selectedPath(path) || ciTransactionPath(path, ci)
 }
 
 func ciContextEqual(a, b *ciWorkflowContext) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.SchemaVersion == b.SchemaVersion && a.Release == b.Release && a.Before == b.Before && maps.Equal(a.Current, b.Current) && maps.Equal(a.Historical, b.Historical)
+	reviewEqual := a.Review == nil && b.Review == nil || a.Review != nil && b.Review != nil && *a.Review == *b.Review
+	return a.SchemaVersion == b.SchemaVersion && a.Release == b.Release && a.Before == b.Before && maps.Equal(a.Current, b.Current) && maps.Equal(a.Historical, b.Historical) && reviewEqual
 }
 
 func ciGenericInput(key string) bool {
@@ -103,8 +141,11 @@ func validateCIContext(ctx context.Context, ci *ciWorkflowContext) error {
 	if ci == nil {
 		return nil
 	}
-	if ci.SchemaVersion != 1 {
+	if ci.SchemaVersion != 1 && ci.SchemaVersion != 2 || ci.SchemaVersion == 1 && ci.Review != nil || ci.SchemaVersion == 2 && ci.Review == nil {
 		return conflict("unsupported CI transaction context")
+	}
+	if ci.Review != nil && !ciValidReviewSecret(ci.Review.Secret) {
+		return conflict("invalid review transaction context")
 	}
 	if _, err := ciInputsFromValues(ctx, ci.Current); err != nil {
 		return err
@@ -137,7 +178,7 @@ func validateCIContext(ctx context.Context, ci *ciWorkflowContext) error {
 
 // Replay is from the original qualified image, not today's renderer constants.
 // docs/adr/0148-transactional-installed-ci-migration.md:75.
-func qualifyCIProjection(ctx context.Context, ci *ciWorkflowContext, request Request, image staging.Inspection, before *staging.Inspection) (ciWorkflowHistory, []byte, error) {
+func qualifyCIProjection(ctx context.Context, ci *ciWorkflowContext, request Request, image staging.Inspection, before *staging.Inspection) (ciWorkflowHistory, map[string][]byte, error) {
 	if ci == nil {
 		return ciWorkflowHistory{}, nil, nil
 	}
@@ -167,7 +208,23 @@ func qualifyCIProjection(ctx context.Context, ci *ciWorkflowContext, request Req
 	}
 	inputs.values = maps.Clone(ci.Historical)
 	history, err := ciPredecessorBytes(ctx, request, ci.Release, before, inputs)
-	return history, target, err
+	if err != nil {
+		return history, nil, err
+	}
+	targets := map[string][]byte{".github/workflows/factory.yml": target}
+	if ci.Review != nil && ci.Review.Present {
+		candidates, _, err := ciReviewPredecessor(ctx, request, before, ci.Review.Secret)
+		if err != nil {
+			return history, nil, &ciProjectionError{path: ciReviewPath, cause: err}
+		}
+		history.bytes[ciReviewPath] = candidates
+		target, err := ciReviewTarget(ctx, image, ci.Release, ci.Review.Secret)
+		if err != nil {
+			return history, nil, &ciProjectionError{path: ciReviewPath, cause: err}
+		}
+		targets[ciReviewPath] = target
+	}
+	return history, targets, ctx.Err()
 }
 
 // Initial CI intent is supplied only by the authenticated release owner.
@@ -177,7 +234,7 @@ func (planned *plan) planCI(ctx context.Context, tree *installationfs.Tree) erro
 	if ciReleaseUnavailable(request, request.CIRelease) != "" {
 		return nil
 	}
-	observed := ciWorkflowObservation{before: map[string]*Image{}, data: map[string][]byte{}}
+	observed := ciWorkflowObservation{targetImage: &planned.image, before: map[string]*Image{}, data: map[string][]byte{}}
 	report, err := inspectCIWorkflow(ctx, tree, request, request.CIRelease, planned.reference.Runtime, &observed)
 	if err != nil {
 		return err
@@ -187,19 +244,30 @@ func (planned *plan) planCI(ctx context.Context, tree *installationfs.Tree) erro
 	planned.ciConfig = observed.config
 	if observed.current != nil {
 		ci := &ciWorkflowContext{SchemaVersion: 1, Release: *request.CIRelease, Current: maps.Clone(observed.current), Historical: maps.Clone(observed.inputs.values)}
+		if observed.review != nil {
+			ci.SchemaVersion, ci.Review = 2, observed.review
+		}
 		if request.Profile == "go-hybrid-v1" {
 			ci.Before = releaseIdentity(request.Before)
 		}
-		_, target, qualifyErr := qualifyCIProjection(ctx, ci, request, planned.image, planned.reference.Runtime)
+		_, targets, qualifyErr := qualifyCIProjection(ctx, ci, request, planned.image, planned.reference.Runtime)
 		switch {
 		case qualifyErr != nil:
 			if ErrorStatus(qualifyErr) == 1 {
 				return qualifyErr
 			}
-			report.Conflicts = append(report.Conflicts, Issue{Path: ".github/workflows/factory.yml", Reason: qualifyErr.Error()})
-		case !bytes.Equal(target, observed.target):
-			return conflict("current CI renderer differs from the qualified target projection")
+			path := ".github/workflows/factory.yml"
+			var projectionErr *ciProjectionError
+			if errors.As(qualifyErr, &projectionErr) {
+				path = projectionErr.path
+			}
+			report.Conflicts = append(report.Conflicts, Issue{Path: path, Reason: qualifyErr.Error()})
 		default:
+			for _, change := range report.Changes {
+				if (change.Disposition == "create" || change.Disposition == "replace") && !bytes.Equal(targets[change.Path], observed.targets[change.Path]) {
+					return conflict("current CI renderer differs from the qualified target projection")
+				}
+			}
 			planned.ci = ci
 		}
 	}
@@ -209,9 +277,9 @@ func (planned *plan) planCI(ctx context.Context, tree *installationfs.Tree) erro
 		switch change.Disposition {
 		case "create", "replace":
 			action.Action = change.Disposition
-			action.After = bytesImage(observed.target, 0644)
+			action.After = bytesImage(observed.targets[action.Path], 0644)
 			action.Reason = "qualified target CI workflow in installation transaction"
-			planned.payload[action.Path] = observed.target
+			planned.payload[action.Path] = observed.targets[action.Path]
 		case "retire":
 			action.Action, action.After = "retire", nil
 			action.Reason = "qualified copied CI workflow retirement in installation transaction"
@@ -243,8 +311,8 @@ func ciExpectedBefore(history ciWorkflowHistory, path string, before *Image) (*I
 }
 
 // Require complete, freshly reproduced delta labels before shared recovery logic.
-func qualifyCIRows(ctx context.Context, entries []journalEntry, history ciWorkflowHistory, target []byte) error {
-	for _, name := range ciWorkflowNames {
+func qualifyCIRows(ctx context.Context, entries []journalEntry, ci *ciWorkflowContext, history ciWorkflowHistory, targets map[string][]byte) error {
+	for _, name := range ciTransactionNames(ci) {
 		path := ".github/workflows/" + name
 		var original *journalEntry
 		for index := range entries {
@@ -256,11 +324,14 @@ func qualifyCIRows(ctx context.Context, entries []journalEntry, history ciWorkfl
 		if original == nil {
 			return conflict("CI transaction omits a selected workflow")
 		}
+		if path == ciReviewPath && ci.Review.Present != (original.Before != nil) {
+			return conflict("review transaction presence differs from its before-image")
+		}
 		if _, matched := ciExpectedBefore(history, path, original.Before); !matched {
 			return conflict("CI before-image is not a qualified historical workflow")
 		}
 		var after *Image
-		if name == "factory.yml" {
+		if target := targets[path]; target != nil {
 			after = bytesImage(target, 0644)
 		}
 		action := "retain"
@@ -300,7 +371,7 @@ func (owner *transaction) validateCIResult(ctx context.Context) error {
 		return nil
 	}
 	for _, action := range owner.planned.proposal.Actions {
-		if !ciWorkflowPath(action.Path) {
+		if !ciTransactionPath(action.Path, owner.planned.ci) {
 			continue
 		}
 		current, _, err := observe(ctx, owner.tree, action.Path, leafLimit(action.Path))

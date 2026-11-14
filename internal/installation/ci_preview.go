@@ -57,12 +57,14 @@ func PreviewCIWorkflow(ctx context.Context, root string, request Request, releas
 var ciWorkflowNames = []string{"ci.yml", "go-pack.yml", "typescript-pack.yml", "java-pack.yml", "factory.yml"}
 
 type ciWorkflowObservation struct {
-	config  *Image
-	inputs  ciPreviewInputs
-	current map[string]string
-	target  []byte
-	before  map[string]*Image
-	data    map[string][]byte
+	config      *Image
+	inputs      ciPreviewInputs
+	current     map[string]string
+	targets     map[string][]byte
+	targetImage *staging.Inspection
+	review      *ciReviewContext
+	before      map[string]*Image
+	data        map[string][]byte
 }
 
 // Inspect on the caller's retained tree; transaction planning never nests a lease.
@@ -106,7 +108,7 @@ func inspectCIWorkflow(ctx context.Context, tree *installationfs.Tree, request R
 	if capture != nil {
 		capture.config = configImage
 		capture.inputs = inputs
-		capture.target = target
+		capture.targets = map[string][]byte{".github/workflows/factory.yml": target}
 		if ready {
 			current, currentErr := ciReadInputs(ctx, data, nil)
 			if currentErr != nil {
@@ -163,6 +165,9 @@ func inspectCIWorkflow(ctx context.Context, tree *installationfs.Tree, request R
 			result.Conflicts = append(result.Conflicts, Issue{Path: path, Reason: row.Reason})
 		}
 		result.Changes = append(result.Changes, row)
+	}
+	if err := inspectCIReview(ctx, tree, request, release, before, data, ready, capture, &result); err != nil {
+		return result, err
 	}
 	if len(result.Conflicts) > 0 {
 		result.Reason += " Unresolved CI conflicts prevent a whole-workflow migration proposal."

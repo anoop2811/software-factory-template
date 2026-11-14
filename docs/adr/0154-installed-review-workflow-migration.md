@@ -261,6 +261,24 @@ race suite, `0 issues.` from golangci-lint, `Issues : 0` from gosec and
 `Your code is affected by 0 vulnerabilities.` from govulncheck. Independent
 source review confirmed error-message/status preservation and correct attribution.
 
+Fresh initialization's exact-output criterion must also inspect the generated
+workflow without following a symlink and require a regular file before checking
+0644 permissions. Reading matching bytes through a link is insufficient evidence
+for this published-file contract. A temporary symlink substitution must fail that
+assertion; normal staged publication must pass.
+
+The temporary same-content, same-permission symlink substitution failed the
+new regular-file assertion: `Ran 1 of 3495 Specs in 68.658 seconds`, `0 Passed |
+1 Failed`. After removing that substitution, the same focused race command
+reported `Ran 1 of 3495 Specs in 70.402 seconds` and `SUCCESS! -- 1 Passed |
+0 Failed | 0 Pending | 3494 Skipped`:
+
+```sh
+go test -race -count=1 -timeout=25m -v ./acceptance -run '^TestAcceptance$' \
+  -ginkgo.no-color -ginkgo.fail-on-empty \
+  '-ginkgo.focus=^Go factory command acceptance Go default packaged initialization runs the exact authenticated prepared default without ambient source assets or compiler fallback$'
+```
+
 ## References
 
 Existing contracts: [ADR 0153](0153-authenticated-review-client-bootstrap.md),

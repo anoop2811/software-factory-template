@@ -265,7 +265,9 @@ var _ = Describe("Installed review migration historical ownership", Ordered, Con
 
 	// per docs/adr/0154-installed-review-workflow-migration.md:233
 	// per docs/adr/0154-installed-review-workflow-migration.md:239
-	DescribeTable("attributes final projection failures to the responsible workflow", func(variant, expectedPath string) {
+	// per docs/adr/0154-installed-review-workflow-migration.md:336
+	// per docs/adr/0154-installed-review-workflow-migration.md:339
+	DescribeTable("attributes final projection failures to the responsible workflow", func(variant, expectedPath string, expectedIssues int) {
 		root, request := ciPreviewFixture("v0.1.6", ciPreviewVariants[0])
 		cfg := []byte(ciPreviewConfig(ciPreviewVariants[0]) + "review_lane: on\nreview_api_key_secret: TEAM_REVIEW_KEY\n")
 		ciPreviewWrite(root, "factory.yaml", cfg, 0644)
@@ -275,8 +277,12 @@ var _ = Describe("Installed review migration historical ownership", Ordered, Con
 		image.Assets = maps.Clone(target.Assets)
 		image.Manifest.Assets = append([]installationimage.Asset{}, target.Manifest.Assets...)
 		switch variant {
-		case "missing-marker":
+		case "missing-marker", "distinct-review-causes":
 			reviewMigrationSetAsset(&image, "packs/review-lane/review-pr.yml", []byte("name: Target review without a secret marker\n"))
+			if variant == "distinct-review-causes" {
+				original = append(original, []byte("\n# Independent operator customization\n")...)
+				ciPreviewWrite(root, reviewMigrationPath, original, 0644)
+			}
 		case "review-renderer":
 			reviewMigrationCorrupt(&image, "changed-renderer")
 		case "ordinary-renderer":
@@ -289,9 +295,12 @@ var _ = Describe("Installed review migration historical ownership", Ordered, Con
 		Expect(err).NotTo(HaveOccurred())
 		defer func() { Expect(tree.Close()).To(Succeed()) }()
 		Expect(planned.planCI(context.Background(), tree)).To(Succeed(), "qualification conflicts remain a proposal rather than an operational failure")
-		Expect(planned.proposal.Conflicts).NotTo(BeEmpty())
+		Expect(planned.proposal.Conflicts).To(HaveLen(expectedIssues))
 		Expect(planned.proposal.Blockers).To(Equal(planned.proposal.Conflicts))
 		Expect(planned.proposal.CIWorkflow.Conflicts).To(Equal(planned.proposal.Conflicts))
+		if expectedIssues == 2 {
+			Expect(planned.proposal.Conflicts[0].Reason).NotTo(Equal(planned.proposal.Conflicts[1].Reason), "different review causes sharing a path must remain visible")
+		}
 		for _, issue := range planned.proposal.Conflicts {
 			Expect(issue.Path).To(Equal(expectedPath), "a review failure must not be duplicated under ordinary factory.yml")
 		}
@@ -304,5 +313,5 @@ var _ = Describe("Installed review migration historical ownership", Ordered, Con
 			Expect(errors.Is(err, context.Canceled)).To(BeTrue())
 			Expect(ErrorStatus(err)).To(Equal(1), "cancellation remains an operational failure")
 		}
-	}, Entry("review template without marker", "missing-marker", reviewMigrationPath), Entry("unsupported review renderer", "review-renderer", reviewMigrationPath), Entry("ordinary renderer fallback", "ordinary-renderer", ".github/workflows/factory.yml"))
+	}, Entry("review template without marker", "missing-marker", reviewMigrationPath, 1), Entry("unsupported review renderer", "review-renderer", reviewMigrationPath, 1), Entry("ordinary renderer fallback", "ordinary-renderer", ".github/workflows/factory.yml", 1), Entry("different causes at the same review path", "distinct-review-causes", reviewMigrationPath, 2))
 })

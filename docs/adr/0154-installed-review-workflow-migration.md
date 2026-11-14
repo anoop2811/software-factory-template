@@ -324,6 +324,41 @@ evidence directory. No production behavior, deadline or criterion count changed.
 The original hosted cause remains unproven; the diagnostic addition does not
 claim to correct that intermittent failure.
 
+## Duplicate projection diagnostic correction
+
+The final-head review on `d939180` identified a narrow reporting defect: when
+inspection and final projection qualification reject the same malformed review
+target, both append an identical path/reason issue. Apply is safely blocked, but
+the public blocker count reports two copies of one cause. The suggested unknown
+predecessor example does not take that path; the existing missing-marker and
+changed-renderer fixtures do.
+
+Before the correction, strengthen those existing projection-attribution cases
+to require one matching issue in the CI report, proposal conflicts and blockers.
+Then avoid appending a projection issue already present with the identical
+path and reason. Preserve different reasons for the same path, ordinary workflow
+errors, cancellation/status propagation and all preservation assertions. This is
+a diagnostic correction within Decision 170, not a new migration behavior or
+release gate.
+
+The independent regression added a real customized-workflow plus malformed-target
+control to preserve distinct causes at the same path. The focused command
+`go test -race -count=1 -timeout=3m -v ./internal/installation
+'-ginkgo.focus=Installed review migration historical ownership attributes final projection failures'
+-ginkgo.no-color -ginkgo.fail-on-empty` first reported `Ran 4 of 99 Specs in
+11.222 seconds`, `2 Passed | 2 Failed`; both single-cause review cases contained
+two identical issues. After exact issue comparison, the same command reported
+`Ran 4 of 99 Specs in 4.456 seconds`, `SUCCESS! -- 4 Passed | 0 Failed`.
+The ordinary/cancellation and distinct-cause controls remained passing.
+
+`make go-runtime-source-check GO_RUNTIME_TEST_GROUP=packages` then exited 0,
+including the complete package race suite (`internal/installation 42.494s`),
+formatting, vet, CLI build, `0 issues.`, `Issues : 0`, and
+`Your code is affected by 0 vulnerabilities.` Evidence is retained in
+`duplicate-projection-red.log`, `duplicate-projection-green.log` and
+`packages-duplicate-followup.log` under the ignored installed-review evidence
+directory. The added internal criterion changes no acceptance partition count.
+
 ## References
 
 Existing contracts: [ADR 0153](0153-authenticated-review-client-bootstrap.md),

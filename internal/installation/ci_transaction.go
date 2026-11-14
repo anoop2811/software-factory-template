@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -261,7 +262,10 @@ func (planned *plan) planCI(ctx context.Context, tree *installationfs.Tree) erro
 			if errors.As(qualifyErr, &projectionErr) {
 				path = projectionErr.path
 			}
-			report.Conflicts = append(report.Conflicts, Issue{Path: path, Reason: qualifyErr.Error()})
+			issue := Issue{Path: path, Reason: qualifyErr.Error()}
+			if !slices.Contains(report.Conflicts, issue) {
+				report.Conflicts = append(report.Conflicts, issue)
+			}
 		default:
 			for _, change := range report.Changes {
 				if (change.Disposition == "create" || change.Disposition == "replace") && !bytes.Equal(targets[change.Path], observed.targets[change.Path]) {

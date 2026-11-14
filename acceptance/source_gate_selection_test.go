@@ -24,10 +24,10 @@ import (
 
 const sourceGateBaselineCommit = "d60b200ac3a221520d183fca8c7738a5cf2bfdbb"
 
-// Independently captured from the actual pre-rebalance source-entrypoints
-// Ginkgo dry-run on 2026-11-14: /private/tmp/factory-r4-review-partitions/source-entrypoints.json.
-// Hash sorted FullText + " :: " + origin basename, newline-terminated; no locations.
-// per docs/adr/0155-rebalance-source-qualification.md:58
+// SpecReport.FullText() excludes SuiteDescription. Hash sorted FullText plus
+// " :: " and origin basename, newline-terminated; omit absolute paths and line numbers.
+// Reproduce the original 115 identities from the source gate JSON report.
+// per docs/adr/0155-rebalance-source-qualification.md:133
 const sourceGateOriginalSourceIdentitiesSHA256 = "bc4ae7453e4677c35774597eff99ef8293e08181828166cf46acc410354d6738"
 
 // Whole existing families move together; names and origin files are independent

@@ -26,6 +26,14 @@ func cooperativeFixtureProcess(base, reportName, input string, retainedRoots []s
 // per docs/adr/0151-reliable-ci-qualification.md:139
 func cooperativeFixtureProcessContext(parent context.Context, base, reportName, input string, retainedRoots []string, buildCommand func(context.Context) *exec.Cmd) cliResult {
 	GinkgoHelper()
+	return cooperativeFixtureProcessContextWithOutput(parent, base, reportName, input, retainedRoots, nil, buildCommand)
+}
+
+// Receipt failure requires a real inherited non-writable descriptor while keeping
+// the same cooperative watchdog, settlement and conservative retention rules.
+// per docs/adr/0153-authenticated-review-client-bootstrap.md:96
+func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, reportName, input string, retainedRoots []string, stdoutOverride *os.File, buildCommand func(context.Context) *exec.Cmd) cliResult {
+	GinkgoHelper()
 	stream := func(name string) *os.File {
 		file, err := os.OpenFile(filepath.Join(base, reportName+"-"+name), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
 		Expect(err).NotTo(HaveOccurred())
@@ -50,7 +58,11 @@ func cooperativeFixtureProcessContext(parent context.Context, base, reportName, 
 	// PATH. Preserve that choice when the child PATH has fixture-only overrides.
 	argv := append([]string{command.Path}, command.Args[1:]...)
 	started := time.Now()
-	result, runErr := native.ExecuteInheritedCooperative(ctx, command.Dir, argv, environment, native.InheritedStreams{Stdin: stdin, Stdout: stdoutFile, Stderr: stderrFile}, 90*time.Second)
+	stdoutTarget := stdoutFile
+	if stdoutOverride != nil {
+		stdoutTarget = stdoutOverride
+	}
+	result, runErr := native.ExecuteInheritedCooperative(ctx, command.Dir, argv, environment, native.InheritedStreams{Stdin: stdin, Stdout: stdoutTarget, Stderr: stderrFile}, 90*time.Second)
 	elapsed, contextErr := time.Since(started), ctx.Err()
 	stdout, stdoutErr := os.ReadFile(stdoutFile.Name())
 	stderr, stderrErr := os.ReadFile(stderrFile.Name())

@@ -8581,3 +8581,17 @@ line pointers, narrow the recovery supersession wording, remove a duplicate
 source citation and describe the private helper copy precisely. Use exact
 environment-key comparison in the workflow fixture. These changes preserve
 all command behavior, budgets, criterion identities and process assertions.
+
+## Decision 169 (2026-11-13 UTC): bootstrap an authenticated standalone review client
+
+After human merge of PR #180 as 2a860fc0, adopt
+[ADR 0153](adr/0153-authenticated-review-client-bootstrap.md) before code.
+Add a native/installer CI operation that exports the exact authenticated host
+review executable into new private disposable scratch, binding both release tag
+and expected source revision. Reuse acquisition, ownership and publication;
+never execute project code, compile a client or expose provider credentials as
+part of preparation. Preserve default single-request provider compatibility and
+the separate explicit batch opt-in. Keep this PR to the bootstrap boundary; the
+dependent workflow/owned-migration integration will pin its reviewed merged
+installer commit. Both and the integrated adopter rehearsal remain under R4;
+R4-R7 are the fixed remaining release gates, not a PR-count percentage.

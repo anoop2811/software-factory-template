@@ -52,7 +52,7 @@ Usage: factory <command> [args]
   sync        Synchronize harness adapters (all, opencode, claude, codex)
   prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
-  ci          Prepare a CI checkout or render its workflow
+  ci          Prepare CI, render workflows or export a review client
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)

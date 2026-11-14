@@ -206,10 +206,20 @@ which supplies read-only ownership planning for existing workflows. Decision 164
 [ADR 0148](../adr/0148-transactional-installed-ci-migration.md) adds the next bounded
 source change: authenticated upgrade includes those workflow changes in the same
 consent, ignored backup, publication, recovery, rollback and retention transaction.
-Customized selected workflows remain preserved blockers. That implementation is
-under qualification; its merge and hosted checks are not yet claimed here.
-Privileged review-lane bootstrap and the integrated rehearsal remain separate
-open obligations.
+Customized selected workflows remain preserved blockers. PR #180 merged on
+2026-11-13 as `2a860fc0f6109f8fdb5e5c5f7a896008994931f3`, after all 46 checks
+passed on `a03a024316419d450aaa6f6e7fca8746406efa5e`. Final-head adversarial
+review covered all 88 files and 274 fragments in 2m58s, with all 67 notes answered.
+These are the observed prior PR results, not qualification of later changes.
+
+Decision 169 / [ADR 0153](../adr/0153-authenticated-review-client-bootstrap.md)
+defines the next bounded R4 delivery: authenticated standalone review-client
+acquisition. Its dependent workflow integration must pin the merged installer
+and update exact predecessor-owned enabled review workflows transactionally.
+Bootstrap alone does not qualify those installed workflows. The integrated
+fresh/migrated rehearsal remains open after that integration. All of this is
+within R4; R5 published qualification, R6 adopter pilot and R7 stable activation
+remain the other fixed release gates. A PR count is not release progress.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

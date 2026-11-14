@@ -47,6 +47,50 @@ and reports that hosted CI needs an authenticated release. The separate opt-in
 review lane's installed bootstrap is still pending; this ordinary job does not
 qualify that separate path.
 
+## Standalone review client
+
+Current Go source adds an explicit acquisition operation for privileged review
+jobs. It needs a separately trusted native executable or reviewed installer and
+an official published release that implements this operation; v0.1.6 and earlier
+candidates do not gain it retroactively. Generated review-workflow integration
+and owned workflow migration remain R4 work. This command alone does not enable
+reviews or change an already-enabled workflow.
+
+From the project checkout, choose disposable scratch outside that checkout:
+
+```sh
+factory_review_scratch=$(mktemp -d)
+factory_review_scratch=$(cd "$factory_review_scratch" && pwd -P)
+sh /path/to/reviewed/install.sh ci review-client \
+  --go-candidate TAG \
+  --expected-revision COMMIT \
+  --output "$factory_review_scratch/client" > "$factory_review_scratch/client.json"
+```
+
+Replace TAG with an exact release and COMMIT with its full lowercase source
+commit. The installer must be trusted separately from those runtime selectors.
+The expected commit is checked before the first downloaded executable runs and
+again by the native owner. The existing GitHub CLI and release-attestation
+requirements apply; acquisition does not require Go or Python.
+
+The output directory must be new, absolute and physical, with an existing safe
+parent outside the current working-directory tree. No linked path or occupied
+destination is reused. Success creates only `factory-review-client`, with private
+directory and executable permissions, then writes a JSON receipt containing
+`schema_version`, `version`, `revision`, `target`, `sha256` and `path`. It does not
+prepare project runtime custody, run project scripts, or call a model. The same
+arguments work with `/path/to/trusted/factory ci review-client`.
+Require both a valid receipt and final exit status 0 before using the client;
+an enclosing supervisor can report cleanup failure after forwarding child output.
+
+Keep the provider key out of acquisition. A future privileged workflow must
+select trusted base code, authenticate this client before review, and supply
+credentials only to the appropriate steps. Bootstrap does not change the
+single-request provider compatibility or opt an existing user into batch costs.
+The operator or disposable runner owns cleanup of the exported scratch. On an
+incomplete publication, preserve any reported evidence and use a new destination;
+the command never overwrites an earlier client.
+
 ## Render a workflow for review
 
 From an existing Go installation or separately provisioned native executable,

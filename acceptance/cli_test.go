@@ -31,6 +31,7 @@ var commandRoutes = []struct{ command, script string }{
 // per docs/adr/0100-batched-review.md:23
 // per docs/adr/0120-native-source-gate-proof.md:10
 // per docs/adr/0143-ci-checkout-preparation.md:14
+// per docs/adr/0153-authenticated-review-client-bootstrap.md:24
 const nativeCLIUsage = `factory — software factory control surface
 
 Usage: factory <command> [args]
@@ -46,7 +47,7 @@ Usage: factory <command> [args]
   sync        Synchronize harness adapters (all, opencode, claude, codex)
   prereq      Check required tools and configured Go minimum
   check       Run the full pre-push gate suite
-  ci          Prepare a CI checkout or render its workflow
+  ci          Prepare CI, render workflows or export a review client
   eval        Run structural or golden evaluation, or a selected harness runner
   review      Review a diff with the configured adversarial provider
   selftest    Run the break/fix self-test (watch every gate fire)

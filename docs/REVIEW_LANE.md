@@ -53,6 +53,9 @@ compatible binary and `REVIEW_GO_CLIENT` set to its absolute path, as described
 in [self-hosting](SELF_HOSTING.md#budgeted-batch-review). Canonical factory source
 checkouts retain their declared Go toolchain and locked dependency preparation.
 The workflow never builds an ordinary adopter application to obtain its client.
+Route selection rejects symlinked `factory` or `scripts/adversarial-review.sh`
+paths. Supported historical installations use regular scripts; custom symlinked
+layouts are outside that compatibility contract.
 
 `disable` **removes** the workflow file rather than leaving it inert: a dormant
 `pull_request_target` workflow sitting in a repository is an invitation to switch

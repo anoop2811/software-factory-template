@@ -3,6 +3,7 @@ package installation
 import (
 	"bytes"
 	"context"
+	"errors"
 	"maps"
 	"strings"
 	"unicode/utf8"
@@ -23,6 +24,16 @@ type ciWorkflowContext struct {
 	Historical    map[string]string  `json:"historical"`
 	Review        *ciReviewContext   `json:"review,omitempty"`
 }
+
+// Carry the failed component through qualification without changing its status.
+// docs/adr/0154-installed-review-workflow-migration.md:233.
+type ciProjectionError struct {
+	path  string
+	cause error
+}
+
+func (e *ciProjectionError) Error() string { return e.cause.Error() }
+func (e *ciProjectionError) Unwrap() error { return e.cause }
 
 func ciWorkflowPath(path string) bool {
 	if path == ciReviewPath {
@@ -204,12 +215,12 @@ func qualifyCIProjection(ctx context.Context, ci *ciWorkflowContext, request Req
 	if ci.Review != nil && ci.Review.Present {
 		candidates, _, err := ciReviewPredecessor(ctx, request, before, ci.Review.Secret)
 		if err != nil {
-			return history, nil, err
+			return history, nil, &ciProjectionError{path: ciReviewPath, cause: err}
 		}
 		history.bytes[ciReviewPath] = candidates
 		target, err := ciReviewTarget(ctx, image, ci.Release, ci.Review.Secret)
 		if err != nil {
-			return history, nil, err
+			return history, nil, &ciProjectionError{path: ciReviewPath, cause: err}
 		}
 		targets[ciReviewPath] = target
 	}
@@ -245,7 +256,12 @@ func (planned *plan) planCI(ctx context.Context, tree *installationfs.Tree) erro
 			if ErrorStatus(qualifyErr) == 1 {
 				return qualifyErr
 			}
-			report.Conflicts = append(report.Conflicts, Issue{Path: ".github/workflows/factory.yml", Reason: qualifyErr.Error()})
+			path := ".github/workflows/factory.yml"
+			var projectionErr *ciProjectionError
+			if errors.As(qualifyErr, &projectionErr) {
+				path = projectionErr.path
+			}
+			report.Conflicts = append(report.Conflicts, Issue{Path: path, Reason: qualifyErr.Error()})
 		default:
 			for _, change := range report.Changes {
 				if (change.Disposition == "create" || change.Disposition == "replace") && !bytes.Equal(targets[change.Path], observed.targets[change.Path]) {

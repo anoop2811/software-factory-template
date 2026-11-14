@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -261,4 +262,47 @@ var _ = Describe("Installed review migration historical ownership", Ordered, Con
 			Expect(os.ReadFile(filepath.Join(root, reviewMigrationPath))).To(Equal(original))
 		}
 	}, Entry("predecessor image", "before"), Entry("target image", "target"))
+
+	// per docs/adr/0154-installed-review-workflow-migration.md:233
+	// per docs/adr/0154-installed-review-workflow-migration.md:239
+	DescribeTable("attributes final projection failures to the responsible workflow", func(variant, expectedPath string) {
+		root, request := ciPreviewFixture("v0.1.6", ciPreviewVariants[0])
+		cfg := []byte(ciPreviewConfig(ciPreviewVariants[0]) + "review_lane: on\nreview_api_key_secret: TEAM_REVIEW_KEY\n")
+		ciPreviewWrite(root, "factory.yaml", cfg, 0644)
+		original := reviewMigrationRender(immutableRecipeSource("b71ecc32e07ecd87eb330ba8e497c86612f92acd", "packs/review-lane/review-pr.yml"), "TEAM_REVIEW_KEY")
+		ciPreviewWrite(root, reviewMigrationPath, original, 0644)
+		image := target
+		image.Assets = maps.Clone(target.Assets)
+		image.Manifest.Assets = append([]installationimage.Asset{}, target.Manifest.Assets...)
+		switch variant {
+		case "missing-marker":
+			reviewMigrationSetAsset(&image, "packs/review-lane/review-pr.yml", []byte("name: Target review without a secret marker\n"))
+		case "review-renderer":
+			reviewMigrationCorrupt(&image, "changed-renderer")
+		case "ordinary-renderer":
+			const path = "internal/ciworkflow/workflow.go"
+			reviewMigrationSetAsset(&image, path, append(append([]byte{}, image.Assets[path]...), []byte("\n// unqualified ordinary renderer\n")...))
+		}
+		request.CIRelease = &ciPreviewRelease
+		planned := plan{request: request, image: image, payload: map[string][]byte{}, before: map[string][]byte{}}
+		tree, err := installationfs.Open(context.Background(), root)
+		Expect(err).NotTo(HaveOccurred())
+		defer func() { Expect(tree.Close()).To(Succeed()) }()
+		Expect(planned.planCI(context.Background(), tree)).To(Succeed(), "qualification conflicts remain a proposal rather than an operational failure")
+		Expect(planned.proposal.Conflicts).NotTo(BeEmpty())
+		Expect(planned.proposal.Blockers).To(Equal(planned.proposal.Conflicts))
+		Expect(planned.proposal.CIWorkflow.Conflicts).To(Equal(planned.proposal.Conflicts))
+		for _, issue := range planned.proposal.Conflicts {
+			Expect(issue.Path).To(Equal(expectedPath), "a review failure must not be duplicated under ordinary factory.yml")
+		}
+		Expect(os.ReadFile(filepath.Join(root, reviewMigrationPath))).To(Equal(original))
+		Expect(os.ReadFile(filepath.Join(root, "factory.yaml"))).To(Equal(cfg))
+		if variant == "ordinary-renderer" {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			err := planned.planCI(ctx, tree)
+			Expect(errors.Is(err, context.Canceled)).To(BeTrue())
+			Expect(ErrorStatus(err)).To(Equal(1), "cancellation remains an operational failure")
+		}
+	}, Entry("review template without marker", "missing-marker", reviewMigrationPath), Entry("unsupported review renderer", "review-renderer", reviewMigrationPath), Entry("ordinary renderer fallback", "ordinary-renderer", ".github/workflows/factory.yml"))
 })

@@ -228,6 +228,39 @@ The shared-script, hook-existence, copy-manifest, gate-instrumentation, wiki and
 workflow checks exited 0. Citation lint reported its configured empty-prefix
 skip; `git diff --check` exited 0.
 
+## Review follow-up: projection diagnostics
+
+An invalid target review template already blocks the combined upgrade safely,
+but final projection qualification must attribute its conflict to
+.github/workflows/adversarial-review.yml. It must not add the same review failure
+under factory.yml. Preserve the existing error status and cancellation behavior;
+ordinary workflow failures keep their original path. Record typed component
+attribution at the review projection boundary and use it when reporting blockers.
+Add an independent regression for the review error path and ordinary fallback.
+
+The selector's rejection of symlinked launcher/adapter paths also applies to
+custom legacy layouts. Qualified Bash predecessors ship and copy regular files;
+arbitrary custom symlinks are outside the compatibility claim. The user guide
+states this boundary explicitly.
+
+The independent real-plan regression first reported `Ran 3 of 98 Specs in 2.109
+seconds` with `1 Passed | 2 Failed`: both review errors incorrectly named
+factory.yml, while the ordinary-error/cancellation control passed. After typed
+component attribution, the same command reported `Ran 3 of 98 Specs in 2.100
+seconds` and `SUCCESS! -- 3 Passed | 0 Failed | 0 Pending | 95 Skipped`:
+
+```sh
+go test -race -count=1 -timeout=3m -v ./internal/installation \
+  -ginkgo.no-color -ginkgo.fail-on-empty \
+  '-ginkgo.focus=Installed review migration historical ownership attributes final projection failures'
+```
+
+After that correction, `make go-runtime-source-check
+GO_RUNTIME_TEST_GROUP=packages` again exited 0 with the complete non-acceptance
+race suite, `0 issues.` from golangci-lint, `Issues : 0` from gosec and
+`Your code is affected by 0 vulnerabilities.` from govulncheck. Independent
+source review confirmed error-message/status preservation and correct attribution.
+
 ## References
 
 Existing contracts: [ADR 0153](0153-authenticated-review-client-bootstrap.md),

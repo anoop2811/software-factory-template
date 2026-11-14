@@ -257,6 +257,8 @@ func installationTargetSnapshot(repository, destination string, patches ...func(
 		// The reviewed orchestration role map is part of the exact target image.
 		// per docs/adr/0099-native-factory-orchestration.md:38
 		production = production || path == "docs/migration/INSTALLATION_ROLE_MAP.json"
+		// per docs/adr/0154-installed-review-workflow-migration.md:66
+		production = production || path == "packs/review-lane/review-pr.yml"
 		if path == "" || !production || strings.HasSuffix(path, "_test.go") {
 			continue
 		}

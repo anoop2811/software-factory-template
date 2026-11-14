@@ -260,6 +260,7 @@ var _ = Describe("Go default packaged initialization", Ordered, ContinueOnFailur
 	var fixtures *defaultInitFixtures
 	BeforeAll(func() { fixtures = prepareDefaultInit() })
 	// per docs/adr/0118-default-packaged-go-initialization.md:9
+	// per docs/adr/0154-installed-review-workflow-migration.md:104
 	It("runs the exact authenticated prepared default without ambient source assets or compiler fallback", func() {
 		f, driver := fixtures.surface(defaultInitTag)
 		target := filepath.Join(f.cwd, "new governed project")
@@ -279,6 +280,27 @@ var _ = Describe("Go default packaged initialization", Ordered, ContinueOnFailur
 		Expect(os.IsNotExist(err)).To(BeTrue())
 		healthy := handoffNativeProcess(target, f.environment, "", filepath.Join(target, "factory"), "selftest")
 		Expect(healthy.status).To(Equal(0), "%+v", healthy)
+		defaultInitNoForbidden(f)
+		_, err = os.Lstat(filepath.Join(target, ".github/workflows/adversarial-review.yml"))
+		Expect(os.IsNotExist(err)).To(BeTrue(), "ordinary off initialization must not create a review workflow")
+		// Share the same authenticated image while observing the explicit opt-in path.
+		// per docs/adr/0154-installed-review-workflow-migration.md:104
+		optedIn := filepath.Join(f.cwd, "new project with review enabled")
+		answers := nativeInitInput([]string{"Review Project", "review-project", "@example", "native-user", "", "", "", "openai", "standard", "y"}, nil, "y")
+		enabled := handoffCooperativeProcess(f.cwd, f.environment, answers, []string{f.root, fixtures.invoker.work}, driver, "init", optedIn, "--pack", "none")
+		Expect(enabled.status).To(BeZero(), "fresh opted-in initialization must deliver the installed review workflow: %+v", enabled)
+		defaultInitDescriptor(optedIn, defaultInitTag, fixtures.revision, fixtures.image(defaultInitTag).binary)
+		reviewPath := filepath.Join(optedIn, ".github/workflows/adversarial-review.yml")
+		workflow, err := os.ReadFile(reviewPath)
+		Expect(err).NotTo(HaveOccurred())
+		template, err := os.ReadFile("../packs/review-lane/review-pr.yml")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(workflow).To(Equal([]byte(reviewLaneHeader + "\n" + strings.ReplaceAll(string(template), "__REVIEW_API_KEY_SECRET__", "OPENAI_API_KEY"))))
+		Expect(string(workflow)).To(ContainSubstring(installedReviewInstallerRevision))
+		info, err := os.Stat(reviewPath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(info.Mode().Perm()).To(Equal(os.FileMode(0644)))
+		Expect(installationSnapshot(f.environment["FACTORY_HOME"])).To(Equal(foreign))
 		defaultInitNoForbidden(f)
 		fmt.Fprint(GinkgoWriter, "selected prepared Go initializer installed and qualified\n")
 	})

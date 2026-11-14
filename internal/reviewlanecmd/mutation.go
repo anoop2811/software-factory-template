@@ -2,7 +2,6 @@ package reviewlanecmd
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -101,16 +100,10 @@ func enable(ctx context.Context, root, template, path, secret string, s Settings
 	if err := writableConfig(path); err != nil {
 		return err
 	}
-	marker := []byte("__REVIEW_API_KEY_SECRET__")
-	count := bytes.Count(data, marker)
-	if count == 0 {
-		return errors.New("review lane: workflow template has no secret placeholder")
+	rendered, err := RenderWorkflow(ctx, data, secret)
+	if err != nil {
+		return err
 	}
-	size := int64(len(managedHeader)+1+len(data)) + int64(count)*int64(len(secret)-len(marker))
-	if size > fileLimit {
-		return errors.New("review lane: generated workflow exceeds 16 MiB")
-	}
-	rendered := append([]byte(managedHeader+"\n"), bytes.ReplaceAll(data, marker, []byte(secret))...)
 	directory, err := openWorkflow(ctx, root, true)
 	if err != nil {
 		return err

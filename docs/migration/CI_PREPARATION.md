@@ -44,17 +44,24 @@ reviewed deliberately. It does not rename or remove older jobs on your behalf.
 Explicit `--local` initialization cannot supply an authenticated downloadable
 release. It preserves existing workflows, omits the new ordinary factory job,
 and reports that hosted CI needs an authenticated release. The separate opt-in
-review lane's installed bootstrap is still pending; this ordinary job does not
-qualify that separate path.
+review lane also requires a published authenticated release for its installed
+client; a local-only installation cannot supply that downloadable identity.
 
 ## Standalone review client
 
 Current Go source adds an explicit acquisition operation for privileged review
 jobs. It needs a separately trusted native executable or reviewed installer and
 an official published release that implements this operation; v0.1.6 and earlier
-candidates do not gain it retroactively. Generated review-workflow integration
-and owned workflow migration remain R4 work. This command alone does not enable
-reviews or change an already-enabled workflow.
+candidates do not gain it retroactively. The generated opt-in workflow now uses
+this operation, with the installer pinned to reviewed merged commit
+`3794e6cc8fa66eb02504e753b0ad11955f5cf85a`. It reads matching tag/revision records
+from the committed launcher and `.factory-version`, validates the receipt and
+runner executable, then invokes single-request review. Exact predecessor-owned
+enabled workflows participate in the upgrade transaction; off/absent lanes stay
+unchanged and customized enabled workflows are conflicts. See
+[the integration contract](../adr/0154-installed-review-workflow-migration.md).
+Integrated rehearsal remains R4 work. The acquisition command itself does not
+enable reviews or change an already-enabled workflow.
 
 From the project checkout, choose disposable scratch outside that checkout:
 
@@ -83,8 +90,8 @@ arguments work with `/path/to/trusted/factory ci review-client`.
 Require both a valid receipt and final exit status 0 before using the client;
 an enclosing supervisor can report cleanup failure after forwarding child output.
 
-Keep the provider key out of acquisition. A future privileged workflow must
-select trusted base code, authenticate this client before review, and supply
+Keep the provider key out of acquisition. The generated privileged workflow
+selects trusted base code, authenticates this client before review, and supplies
 credentials only to the appropriate steps. Bootstrap does not change the
 single-request provider compatibility or opt an existing user into batch costs.
 The operator or disposable runner owns cleanup of the exported scratch. On an

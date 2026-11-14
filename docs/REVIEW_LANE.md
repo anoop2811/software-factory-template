@@ -37,14 +37,22 @@ Check any time with `./factory review-lane status`, or `./factory doctor`.
 
 ### Runner runtime
 
-The review job also needs a trusted factory runtime. Current canonical source
-checkouts prepare their declared Go toolchain and locked dependencies before
-the review step. Go-installed projects use a packaged runtime and do not need
-a compiler; provision that runtime on the runner, since Git checkout does not
-copy a developer's local installation. For explicit batched review, provision
-a compatible binary and set `REVIEW_GO_CLIENT` to its absolute path, as described
-in [self-hosting](SELF_HOSTING.md#budgeted-batch-review). The workflow never
-builds an ordinary adopter application to obtain its review client.
+The generated workflow in current source acquires the exact installed release's
+packaged review client using a separately pinned installer. Commit the generated
+`factory` launcher and `.factory-version` together: the job reads their matching
+release identity without running the launcher. It authenticates a client for the
+runner's platform into private temporary storage; Go and Python are unnecessary.
+The provider key is supplied only to review execution. Invalid identity or failed
+acquisition stops the job. This requires a published release containing the new
+bootstrap command; earlier candidates do not gain it retroactively. Integrated
+release qualification is tracked in [release readiness](migration/GO_RELEASE_READINESS.md).
+
+Default review keeps the single-request mode with your selected OpenRouter,
+Anthropic or OpenAI provider. Explicit batching still requires a separately provisioned
+compatible binary and `REVIEW_GO_CLIENT` set to its absolute path, as described
+in [self-hosting](SELF_HOSTING.md#budgeted-batch-review). Canonical factory source
+checkouts retain their declared Go toolchain and locked dependency preparation.
+The workflow never builds an ordinary adopter application to obtain its client.
 
 `disable` **removes** the workflow file rather than leaving it inert: a dormant
 `pull_request_target` workflow sitting in a repository is an invitation to switch
@@ -52,11 +60,16 @@ on something nobody read.
 
 ## If you already have the factory installed
 
-`factory upgrade` offers the lane once. Answer, and the choice is recorded in
-`factory.yaml` — a repository that declined is never asked again, and neither
-is one that enabled it. If the upgrade runs without a terminal (through a pipe),
-it prints how to enable and leaves the question open rather than recording an
-answer you did not give.
+The Go upgrade preserves your review choice. An enabled, present workflow that
+exactly matches its supported predecessor is refreshed in the same preview,
+backup and recovery transaction as the installation. Its existing secret name,
+provider, model and cost settings remain selected. Customized enabled workflows
+are preserved as conflicts for you to reconcile. An absent workflow stays absent;
+an off lane stays off. Use `./factory review-lane enable` when you choose to enable
+review. See [upgrade consent and recovery](UPGRADING.md#ordinary-go-upgrades).
+
+Older Bash upgraders may offer the lane interactively once. That historical prompt
+is separate from the Go migration's preservation behavior.
 
 ## What it costs
 

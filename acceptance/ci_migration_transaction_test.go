@@ -659,4 +659,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 			Expect(healthy.status).To(BeZero(), "healthy control after %s: %+v", scenario, healthy)
 		}
 	})
+
+	// per docs/adr/0154-installed-review-workflow-migration.md:136
+	installedReviewMigrationSpecs(func() *defaultUpgradeJourneyFixtures { return fixtures })
 })

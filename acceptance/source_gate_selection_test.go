@@ -36,6 +36,7 @@ var sourceGateInitializedCINames = []string{
 }
 
 // per docs/adr/0148-transactional-installed-ci-migration.md:256
+// per docs/adr/0154-installed-review-workflow-migration.md:111
 var sourceGateCIMigrationNames = []string{
 	"migration transaction migrates exact legacy workflows with ignored inert backups and complete public rollback",
 	"migration transaction rejects stale consent without changing active files workflow bytes",
@@ -52,6 +53,16 @@ var sourceGateCIMigrationNames = []string{
 	"migration transaction recovers actual interrupted workflow publication through emitted archive recovery arguments forward completion",
 	"migration transaction recovers actual interrupted workflow publication through emitted archive recovery arguments reverse restoration",
 	"migration transaction refuses partial or tampered workflow evidence without changing the active installation",
+	"migration transaction installed review previews exact enabled Bash review as one additional authenticated transaction row",
+	"migration transaction installed review applies review with ordinary CI in one backup and restores the exact enabled Bash original",
+	"migration transaction installed review preserves absent and explicitly off review lanes through ordinary upgrade",
+	"migration transaction installed review blocks customized unsafe and ambiguously configured enabled review without mutation",
+	"migration transaction installed review requires fresh consent after review bytes or relevant settings change",
+	"migration transaction installed review replays interrupted published review through the existing archive recovery owner forward completion",
+	"migration transaction installed review replays interrupted published review through the existing archive recovery owner reverse exact restoration",
+	"migration transaction installed review rejects missing forged or changed saved review evidence and leaves active files unchanged",
+	"migration transaction installed review refreshes a genuinely initialized Go predecessor and restores its exact 0644 review independently of ordinary CI mode",
+	"migration transaction installed review retires only eligible older review backups while keeping immediate predecessor restoration usable",
 }
 
 // Retained pre-change identities, independently captured from hosted run 43356159724.
@@ -979,11 +990,12 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0152-phase-bounded-local-recovery-qualification.md:61
 		// Nine standalone review-client criteria reuse the release CI partition.
 		// per docs/adr/0153-authenticated-review-client-bootstrap.md:108
-		Expect(negativeTotal).To(Equal(3478))
+		// per docs/adr/0154-installed-review-workflow-migration.md:95
+		Expect(negativeTotal).To(Equal(3495))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3478))
+		Expect(allTotal).To(Equal(3495))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -994,7 +1006,7 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:279
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
-		expectedCounts := map[string]int{"base": 3102, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 6, "ci-migration": 15, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
+		expectedCounts := map[string]int{"base": 3109, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 6, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 115}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-predecessor", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -1029,6 +1041,9 @@ var _ = Describe("Go source qualification scheduling", func() {
 					Expect(found).To(BeTrue())
 					if strings.Contains(name, "initialized CI migration preview ") {
 						Expect(location).To(MatchRegexp(`^ci_migration_preview_test\.go:[1-9][0-9]*$`))
+					} else if strings.HasPrefix(name, "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction installed review ") {
+						// per docs/adr/0154-installed-review-workflow-migration.md:95
+						Expect(location).To(MatchRegexp(`^installed_review_migration_test\.go:[1-9][0-9]*$`))
 					} else if strings.Contains(name, "initialized CI migration transaction ") {
 						Expect(location).To(MatchRegexp(`^ci_migration_transaction_test\.go:[1-9][0-9]*$`))
 					} else {

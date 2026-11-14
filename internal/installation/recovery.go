@@ -59,7 +59,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		return result, err
 	}
 	if record.CIWorkflow != nil {
-		if err := qualifyCIRows(ctx, record.Entries, history, ciTarget); err != nil {
+		if err := qualifyCIRows(ctx, record.Entries, record.CIWorkflow, history, ciTarget); err != nil {
 			return result, err
 		}
 		reference.CI = history.bytes
@@ -133,10 +133,8 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	for _, row := range recipe {
 		var data []byte
 		var err error
-		if record.CIWorkflow != nil && ciWorkflowPath(row.Path) {
-			if row.Path == ".github/workflows/factory.yml" {
-				data = ciTarget
-			}
+		if ciTransactionPath(row.Path, record.CIWorkflow) {
+			data = ciTarget[row.Path]
 		} else {
 			data, err = generate(ctx, row, image, request.Inputs)
 		}
@@ -197,7 +195,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		}
 		action := Action{Path: row.Path, SourcePath: row.Source, Action: "retain", Reason: "freshly qualified installation entry", Required: row.Required, Before: current, After: current}
 		if original.Action == "retain" {
-			if record.CIWorkflow != nil && ciWorkflowPath(row.Path) && !imageEqual(current, original.Before, true) {
+			if ciTransactionPath(row.Path, record.CIWorkflow) && !imageEqual(current, original.Before, true) {
 				issue := Issue{row.Path, "unchanged CI entry changed after transaction; preserved"}
 				result.proposal.Conflicts = append(result.proposal.Conflicts, issue)
 				result.proposal.Blockers = append(result.proposal.Blockers, issue)
@@ -444,7 +442,7 @@ func (owner *transaction) validateLegacy(ctx context.Context) error {
 		return err
 	}
 	for _, action := range owner.planned.proposal.Actions {
-		if action.Action == "retain" || action.Path == ".factory-version" || owner.planned.ci != nil && ciWorkflowPath(action.Path) {
+		if action.Action == "retain" || action.Path == ".factory-version" || ciTransactionPath(action.Path, owner.planned.ci) {
 			continue
 		}
 		actual, _, err := observe(ctx, owner.tree, action.Path, leafLimit(action.Path))

@@ -8595,3 +8595,15 @@ the separate explicit batch opt-in. Keep this PR to the bootstrap boundary; the
 dependent workflow/owned-migration integration will pin its reviewed merged
 installer commit. Both and the integrated adopter rehearsal remain under R4;
 R4-R7 are the fixed remaining release gates, not a PR-count percentage.
+
+## Decision 170 (2026-11-14 UTC): integrate installed review workflow migration
+
+After human merge of PR #181 as 3794e6cc, adopt
+[ADR 0154](adr/0154-installed-review-workflow-migration.md) before code.
+Pin that reviewed installer for generated installed single-request review and
+require matching committed release identity, successful acquisition and a valid
+receipt before execution. Preserve explicit batch opt-in and provider/cost
+choices. Migrate exact predecessor-owned enabled workflows in the existing
+installation backup/recovery transaction, preserving off/absent lanes, customized
+conflicts and schema-1 journal replay. This integration and the subsequent
+integrated rehearsal remain R4 work; the remaining release gates do not change.

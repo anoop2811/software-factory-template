@@ -46,8 +46,9 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
 
-      # A trusted absolute binary is an explicit adopter opt-in. Only a canonical
-      # factory source checkout prepares its own Go runtime below.
+      # A trusted absolute batch client remains an explicit adopter opt-in.
+      # Installed launchers are read as inert data; never execute them here.
+      # docs/adr/0154-installed-review-workflow-migration.md:33.
       - name: Select the explicitly configured review client
         id: client
         env:
@@ -55,7 +56,22 @@ jobs:
         run: |
           if [ -z "$REVIEW_GO_CLIENT" ]; then
             echo 'mode=legacy' >> "$GITHUB_OUTPUT"
-            if [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
+            installed=false
+            for identity in factory scripts/adversarial-review.sh; do
+              [ ! -L "$identity" ] || { echo 'Linked factory identity cannot select a review route.' >&2; exit 1; }
+              if [ -f "$identity" ] &&
+                 head -c 65537 "$identity" | LC_ALL=C grep -aE '^[[:blank:]]*#[[:blank:]]*Factory[[:blank:]]*installation' > /dev/null; then
+                installed=true
+              fi
+            done
+            if [ -f factory ] &&
+               head -c 65537 factory | grep -aF '.factory/bin/factory-runtime' > /dev/null &&
+               head -c 65537 factory | grep -aF -- '--installed' > /dev/null; then
+              installed=true
+            fi
+            if [ "$installed" = true ]; then
+              echo 'installed=true' >> "$GITHUB_OUTPUT"
+            elif [ -f cmd/factory/main.go ] && [ -f internal/sourcebootstrap/publish.go ] &&
                [ -f go.mod ] && [ -f go.sum ] &&
                grep -Fxq 'module github.com/anoop2811/software-factory-template' go.mod &&
                [ -f scripts/factory-init.sh ] &&
@@ -84,6 +100,119 @@ jobs:
           GOTOOLCHAIN=local go mod download
           git diff --exit-code -- go.mod go.sum
           ./factory --help > /dev/null
+
+      # Bootstrap has GitHub acquisition credentials, never the provider key.
+      # The origin launcher's digest is not the runner-native executable digest.
+      # docs/adr/0154-installed-review-workflow-migration.md:40.
+      - name: Acquire the installed review client
+        id: installed-client
+        if: steps.client.outputs.installed == 'true'
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          unset REVIEW_API_KEY REVIEW_GO_CLIENT FACTORY_BRIDGE_PROTOCOL
+          for identity in .factory-version factory; do
+            [ -f "$identity" ] && [ ! -L "$identity" ] || { echo 'Installed review requires regular, non-linked identity files.' >&2; exit 1; }
+          done
+          # Read bounded literal records. No source/eval or checkout execution.
+          if ! identity=$(head -c 4097 .factory-version | jq -Rse '
+            def release:
+              length <= 128 and test("^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$");
+            select(utf8bytelength <= 4096) | split("\n") |
+            select(length == 3 and .[2] == "" and (.[0] | startswith("ref=")) and (.[1] | startswith("commit="))) |
+            [.[0][4:], .[1][7:]] |
+            select((.[0] | release) and (.[1] | test("^[0-9a-f]{40}$")))
+          ' 2>/dev/null); then
+            echo 'Installed review identity is malformed or incomplete.' >&2
+            exit 1
+          fi
+          version=$(jq -r '.[0]' <<< "$identity")
+          revision=$(jq -r '.[1]' <<< "$identity")
+          if ! head -c 65537 factory | jq -Rse --arg version "$version" --arg revision "$revision" '
+            utf8bytelength <= 65536 and
+            (split("\n") | .[0] == "#!/bin/bash" and
+              (.[1] | split(" ") | length == 6 and .[0:3] == ["#", "Factory", "installation"] and
+                .[3] == $version and .[4] == $revision and (.[5] | test("^[0-9a-f]{64}$"))))
+          ' > /dev/null 2>&1; then
+            echo 'Installed launcher identity is malformed or disagrees with .factory-version.' >&2
+            exit 1
+          fi
+          platform=$(uname -s)
+          case "$platform/$(uname -m)" in
+            Linux/x86_64) target=linux/amd64 ;;
+            Linux/aarch64|Linux/arm64) target=linux/arm64 ;;
+            Darwin/x86_64) target=darwin/amd64 ;;
+            Darwin/arm64) target=darwin/arm64 ;;
+            *) echo 'Unsupported review runner target.' >&2; exit 1 ;;
+          esac
+          temporary=$(cd "$RUNNER_TEMP" && pwd -P)
+          checkout=$(pwd -P)
+          [ "$checkout" != / ] || { echo 'Review scratch must be outside the checkout.' >&2; exit 1; }
+          case "$temporary/" in "$checkout/"*) echo 'Review scratch must be outside the checkout.' >&2; exit 1 ;; esac
+          case "$temporary" in *$'\n'*|*$'\r'*) echo 'Review scratch cannot contain line breaks.' >&2; exit 1 ;; esac
+          client_directory="$temporary/factory-review-client"
+          client="$client_directory/factory-review-client"
+          [ ! -e "$client_directory" ] && [ ! -L "$client_directory" ] || { echo 'Review client output already exists; refusing reuse.' >&2; exit 1; }
+          scratch=$(mktemp -d "$temporary/factory-review-bootstrap.XXXXXXXX")
+          installer="$scratch/install.sh"
+          receipt="$scratch/receipt.json"
+          trap 'rm -f -- "$installer" "$receipt"; rmdir -- "$scratch"' EXIT
+          curl --fail --silent --show-error --location \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            --connect-timeout 15 --max-time 60 --max-filesize 1048576 \
+            --output "$installer" \
+            'https://raw.githubusercontent.com/anoop2811/software-factory-template/3794e6cc8fa66eb02504e753b0ad11955f5cf85a/install.sh'
+          [ -f "$installer" ] && [ ! -L "$installer" ] && [ -s "$installer" ] &&
+            [ "$(wc -c < "$installer")" -le 1048576 ] || { echo 'Review installer download is incomplete.' >&2; exit 1; }
+          # pipefail preserves the installer's final status even with a plausible
+          # receipt, while head bounds the captured output independently.
+          if ! sh "$installer" ci review-client --go-candidate "$version" \
+            --expected-revision "$revision" --output "$client_directory" |
+            head -c 16385 > "$receipt"; then
+            echo 'Installed review client bootstrap failed.' >&2
+            exit 1
+          fi
+          if [ "$(wc -c < "$receipt")" -gt 16384 ] ||
+             ! jq -es --arg version "$version" --arg revision "$revision" --arg target "$target" --arg path "$client" '
+               length == 1 and (.[0] |
+                 type == "object" and keys == ["path", "revision", "schema_version", "sha256", "target", "version"] and
+                 .schema_version == 1 and .version == $version and .revision == $revision and
+                 .target == $target and .path == $path and (.sha256 | type == "string" and test("^[0-9a-f]{64}$")))
+             ' "$receipt" > /dev/null 2>&1; then
+            echo 'Installed review client receipt is invalid.' >&2
+            exit 1
+          fi
+          [ -d "$client_directory" ] && [ ! -L "$client_directory" ] &&
+            [ -f "$client" ] && [ ! -L "$client" ] && [ -x "$client" ] || { echo 'Installed review client custody is invalid.' >&2; exit 1; }
+          metadata() {
+            case "$platform" in
+              Linux) stat -c '%a %h %u %s' -- "$1" ;;
+              Darwin) stat -f '%Lp %l %u %z' "$1" ;;
+            esac
+          }
+          owner=$(id -u)
+          read -r mode links user size <<< "$(metadata "$client_directory")"
+          [ "$mode" = 700 ] && [ "$user" = "$owner" ] || { echo 'Review client directory is not private.' >&2; exit 1; }
+          read -r mode links user size <<< "$(metadata "$client")"
+          [ "$mode" = 700 ] && [ "$links" = 1 ] && [ "$user" = "$owner" ] &&
+            [ "$size" -gt 0 ] && [ "$size" -le 268435456 ] || { echo 'Review client executable is not private or bounded.' >&2; exit 1; }
+          shopt -s nullglob dotglob
+          entries=("$client_directory"/*)
+          [ "${#entries[@]}" -eq 1 ] && [ "${entries[0]}" = "$client" ] || { echo 'Review client directory contains unexpected entries.' >&2; exit 1; }
+          if command -v sha256sum > /dev/null 2>&1; then
+            digest=$(sha256sum < "$client")
+          else
+            digest=$(shasum -a 256 < "$client")
+          fi
+          [ "${digest%% *}" = "$(jq -r '.sha256' "$receipt")" ] || { echo 'Installed review client digest does not match its receipt.' >&2; exit 1; }
+          rm -f -- "$installer" "$receipt"
+          rmdir -- "$scratch"
+          trap - EXIT
+          printf 'path=%s\n' "$client" >> "$GITHUB_OUTPUT"
 
       # Official https://github.com/actions/cache/releases/tag/v6.1.0
       - name: Restore authenticated completed batches
@@ -129,11 +258,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEW_API_KEY: ${{ secrets.__REVIEW_API_KEY_SECRET__ }}
           REVIEW_GO_CLIENT: ''
+          REVIEW_INSTALLED_CLIENT: ${{ steps.installed-client.outputs.path }}
           REVIEW_TIMEOUT_SECONDS: ${{ vars.REVIEW_TIMEOUT_SECONDS != '' && vars.REVIEW_TIMEOUT_SECONDS || '1080' }}
           REVIEW_HTTP_RETRIES: ${{ vars.REVIEW_HTTP_RETRIES != '' && vars.REVIEW_HTTP_RETRIES || '1' }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           MAX_DIFF_BYTES: 200000
         run: |
+          review_command=(./scripts/adversarial-review.sh)
+          if [ -n "${REVIEW_INSTALLED_CLIENT:-}" ]; then
+            case "$REVIEW_INSTALLED_CLIENT" in /*) ;; *) echo 'Installed review client path must be absolute.' >&2; exit 1 ;; esac
+            [ -f "$REVIEW_INSTALLED_CLIENT" ] && [ ! -L "$REVIEW_INSTALLED_CLIENT" ] && [ -x "$REVIEW_INSTALLED_CLIENT" ] || { echo 'Installed review client is unavailable.' >&2; exit 1; }
+            review_command=("$REVIEW_INSTALLED_CLIENT" review)
+          fi
           case "$PR" in ''|*[!0-9]*) echo 'Invalid pull request number.' >&2; exit 1 ;; esac
           gh api "repos/$REPO/pulls/$PR" > "$RUNNER_TEMP/factory-review-initial.json"
           jq -e --arg repo "$REPO" --arg branch "$DEFAULT_BRANCH" --arg base "$EXPECTED_BASE" --arg head "$EXPECTED_HEAD" \
@@ -151,7 +287,7 @@ jobs:
             printf 'Compatibility review skipped: %s bytes exceeds the %s-byte limit. Configure REVIEW_GO_CLIENT for budgeted batches.\n' "$size" "$MAX_DIFF_BYTES" > "$review"
           elif [ -z "$REVIEW_API_KEY" ]; then
             printf 'Model review did not run: repository secret __REVIEW_API_KEY_SECRET__ is missing.\n' > "$review"
-          elif ./scripts/adversarial-review.sh "$RUNNER_TEMP/factory-review.diff" > "$review" 2> "$RUNNER_TEMP/factory-review-legacy.err" && [ -s "$review" ]; then
+          elif FACTORY_BRIDGE_PROTOCOL='' REVIEW_GO_CLIENT='' "${review_command[@]}" "$RUNNER_TEMP/factory-review.diff" > "$review" 2> "$RUNNER_TEMP/factory-review-legacy.err" && [ -s "$review" ]; then
             status=complete
           else
             printf 'Compatibility model review failed; this pull request has not received a completed model review.\n' > "$review"

@@ -236,8 +236,9 @@ Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct
 obligations. The factory's source-development CI includes checks that are not
 shipped to adopters; copying it is not a complete installed CI solution. The
-integrated fresh-project and migrated-adopter rehearsal remains open until the
-actual job paths pass from clean checkouts without Go or Python for the factory.
+integrated fresh-project and migrated-adopter rehearsal exercised those actual
+job paths from clean checkouts without Go or Python for the factory. Published
+qualification and the adopter pilot remain separate obligations.
 
 ## Observable release rehearsal
 

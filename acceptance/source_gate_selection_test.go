@@ -461,16 +461,18 @@ func sourceGateExpected(group string) []string {
 	return expected
 }
 
-// Run the actual pinned Go/Ginkgo discovery path using selectors recorded from
-// the current Make recipe. Dry-run skips node execution, including BeforeSuite,
-// so none of the slow installation/gate/model work runs recursively.
+// Reuse the captured current evaluator with its original instrumentation.
+// Dry-run skips node execution, including BeforeSuite, while retaining actual
+// Ginkgo selection and reports without another compiler invocation.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:543
+// per docs/adr/0155-rebalance-source-qualification.md:168
 func sourceGateNativeDiscovery(call sourceGateCall) (status, selected, total int, identities []string) {
 	GinkgoHelper()
+	Expect(sourceCompilerHelperImage).NotTo(BeEmpty(), "BeforeSuite must capture the current evaluator before discovery")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	reportPath := filepath.Join(GinkgoT().TempDir(), "ginkgo-discovery.json")
-	args := []string{"test", "-race", "-count=1", "-timeout=25m", "-run=^TestAcceptance$", "./acceptance", "-ginkgo.dry-run", "-ginkgo.no-color", "-ginkgo.json-report=" + reportPath, "-v"}
+	args := []string{"-test.count=1", "-test.timeout=25m", "-test.run=^TestAcceptance$", "-test.v", "-ginkgo.dry-run", "-ginkgo.no-color", "-ginkgo.json-report=" + reportPath}
 	if call.Focus != "" {
 		args = append(args, "-ginkgo.focus="+call.Focus)
 	}
@@ -482,8 +484,7 @@ func sourceGateNativeDiscovery(call sourceGateCall) (status, selected, total int
 			args = append(args, "-ginkgo.fail-on-empty")
 		}
 	}
-	command := exec.CommandContext(ctx, "go", args...) // #nosec G204 -- fixed real acceptance dry-run; recorded selectors remain literal argv and execute no spec bodies.
-	command.Dir = ".."
+	command := exec.CommandContext(ctx, sourceCompilerHelperImage, args...) // #nosec G204 -- byte-identical captured evaluator; literal discovery argv executes no spec bodies.
 	output, err := command.CombinedOutput()
 	Expect(ctx.Err()).NotTo(HaveOccurred(), "native Ginkgo discovery exceeded its finite bound: %s", output)
 	if err != nil {

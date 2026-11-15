@@ -48,3 +48,12 @@ still pinned 3229 after native discovery increased to 3232. Comparing criterion
 names for additions/removals did not execute that pinned assertion. When adding
 criteria, update the affected family and total from actual discovery and run the
 scheduler's disjoint/exhaustive check as part of the same qualification.
+
+Observed 2026-11-14 in Go run `43641630212`, macOS job `132591046959`:
+a native-discovery child started in the final second of a one-minute deadline
+that also included `go test` compilation. That evidence does not identify the
+slow compiler/cache subphase. Metadata enumeration can reuse the existing
+byte-identical captured evaluator while retaining actual Ginkgo selection and
+reports; keep source/race compilation in its qualified build boundary. The
+decision and instrumentation limits are in
+docs/adr/0155-rebalance-source-qualification.md:155.

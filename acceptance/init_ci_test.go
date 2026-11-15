@@ -23,7 +23,17 @@ func initCIPackagedImage() handoffReleaseImage {
 	Expect(err).NotTo(HaveOccurred())
 	source := filepath.Join(image.work, "exact-source")
 	imageGit(source, "fetch", "--quiet", "--no-tags", repository, "b71ecc32e07ecd87eb330ba8e497c86612f92acd", "76952eaa63aebd1ecd282f5ab51dd7c3627cb497")
-	bundle := localUpgradeBundle(source, image.revision, handoffVersion, filepath.Join(image.work, "initialized-ci-image"))
+	return initCIPackagedVersion(image, handoffVersion, "initialized-ci-image")
+}
+
+// Reuse the exact unpatched source and supervised producer for a second fixture
+// release identity; neither archive metadata nor executable bytes are relabeled.
+// per docs/adr/0156-integrated-adopter-rehearsal.md:15
+// per docs/adr/0156-integrated-adopter-rehearsal.md:50
+func initCIPackagedVersion(image handoffReleaseImage, version, directory string) handoffReleaseImage {
+	GinkgoHelper()
+	source := filepath.Join(image.work, "exact-source")
+	bundle := localUpgradeBundle(source, image.revision, version, filepath.Join(image.work, directory))
 	archive, err := os.ReadFile(bundle.Archive)
 	Expect(err).NotTo(HaveOccurred())
 	entries, _ := imageDecodeArchive(archive)
@@ -502,6 +512,9 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		Expect(entries).To(BeEmpty())
 		AddReportEntry("init-ci.committed-workflow", rendered, ReportEntryVisibilityNever)
 	})
+
+	// per docs/adr/0156-integrated-adopter-rehearsal.md:50
+	integratedAdopterRehearsalSpecs(func() handoffReleaseImage { return image })
 })
 
 // per docs/adr/0146-initialized-installed-ci.md:118

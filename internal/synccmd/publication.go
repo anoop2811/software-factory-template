@@ -70,7 +70,7 @@ func (plan *publication) inspectFile(ctx context.Context, target *destination) e
 		return unsafe(fmt.Errorf("inspect destination %s: %w", target.path, err))
 	}
 	target.previous = previous
-	return nil
+	return target.preserveJSON(ctx)
 }
 
 func (plan *publication) inspectClaudeLink(ctx context.Context) error {

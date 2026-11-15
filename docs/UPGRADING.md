@@ -92,13 +92,18 @@ blocker. See [candidate handoff](migration/GO_CANDIDATE_HANDOFF.md).
 Read the `ci_workflow` section too. For an eligible authenticated upgrade,
 `apply_supported: true` means the listed workflow changes participate in the
 same confirmation, backup and recovery transaction as the runtime. The upgrader
-recognizes only exact supported factory copies at five known workflow paths;
-unrelated application and review workflows are outside its selection. Customized
-or unsafe occupants at selected paths are preserved blockers. Review and reconcile
+recognizes only exact supported factory copies at five ordinary workflow paths.
+When the review lane is enabled, it also considers
+`.github/workflows/adversarial-review.yml`: an exact predecessor-owned workflow
+is refreshed with its existing secret selection, while an absent workflow stays
+absent. An off lane is untouched. Other application workflows are outside its
+selection. Customized or unsafe occupants at selected paths are preserved
+blockers. Review and reconcile
 those conflicts deliberately; adding a new job alone does not repair old jobs.
 Local or unsupported release previews explain why automatic authenticated CI
 migration is unavailable. See the
-[transactional CI migration contract](adr/0148-transactional-installed-ci-migration.md).
+[transactional CI migration contract](adr/0148-transactional-installed-ci-migration.md)
+and [review workflow migration](adr/0154-installed-review-workflow-migration.md).
 
 ## 2. Confirm during a quiet maintenance window
 

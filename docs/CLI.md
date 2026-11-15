@@ -74,7 +74,8 @@ language-pack setup. Its ordinary PR evaluation is mock-only. Existing applicati
 workflows are preserved; an occupied `factory.yml` refuses initialization before
 publication. Local-source init cannot generate a downloadable release workflow.
 See [initialized CI](migration/CI_PREPARATION.md#ci-created-by-current-initialization)
-for the remaining existing-workflow and opt-in review-lane integration boundaries.
+and [the opt-in review lane](REVIEW_LANE.md#runner-runtime) for authenticated
+runtime preparation, workflow migration and remaining release qualification.
 
 ## Explicit model execution
 

@@ -148,7 +148,13 @@ var _ = Describe("Budgeted review workflow security and publication", func() {
 					Expect(step.With["persist-credentials"]).To(BeFalse())
 				}
 				if step.ID != "review" && !strings.Contains(strings.ToLower(step.Name), "review legacy") {
-					for _, value := range step.Env {
+					for key, value := range step.Env {
+						// Official acquisition may authenticate GitHub, but never the model provider.
+						// per docs/adr/0154-installed-review-workflow-migration.md:29
+						if step.ID == "installed-client" && key == "GH_TOKEN" {
+							Expect(value).To(Equal("${{ secrets.GITHUB_TOKEN }}"))
+							continue
+						}
 						Expect(value).NotTo(ContainSubstring("secrets."), "secret unexpectedly exposed to %s", step.Name)
 					}
 				}

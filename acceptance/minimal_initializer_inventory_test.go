@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -52,6 +53,14 @@ func minimalHistoricalImage(after handoffReleaseImage) handoffReleaseImage {
 // consumers qualify the resulting image; serialized generation counts do not.
 // per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:25
 func historicalInstallationImage(after handoffReleaseImage, revision, version string) handoffReleaseImage {
+	return immutableInstallationImage(after, revision, version, buildHistoricalRuntime)
+}
+
+// The caller explicitly selects a qualified compiler; the archive records the
+// compiler found in the executable rather than a presumed historical version.
+// per docs/adr/0154-installed-review-workflow-migration.md:131
+// per docs/adr/0154-installed-review-workflow-migration.md:133
+func immutableInstallationImage(after handoffReleaseImage, revision, version string, build func(string, string, ...string)) handoffReleaseImage {
 	GinkgoHelper()
 	repository, err := filepath.Abs("..")
 	Expect(err).NotTo(HaveOccurred())
@@ -63,8 +72,10 @@ func historicalInstallationImage(after handoffReleaseImage, revision, version st
 	if os.Getenv("FACTORY_CLI_TEST_RACE") == "1" {
 		args = append([]string{"build", "-race"}, args[1:]...)
 	}
-	buildHistoricalRuntime(source, binaryPath, args...)
+	build(source, binaryPath, args...)
 	binary, err := os.ReadFile(binaryPath)
+	Expect(err).NotTo(HaveOccurred())
+	provenance, err := buildinfo.ReadFile(binaryPath)
 	Expect(err).NotTo(HaveOccurred())
 	assets, payload := installationGitCatalog(repository, revision)
 	baselines := []imageBaselineOracle{}
@@ -73,7 +84,7 @@ func historicalInstallationImage(after handoffReleaseImage, revision, version st
 		baselines = append(baselines, imageBaselineOracle{profile, ref.revision, ref.assets})
 	}
 	manifest := imageManifestOracle{1, "installation_source_image", "committed_source_and_baseline_references", version, runtime.GOOS + "/" + runtime.GOARCH, revision, false, assets, baselines}
-	archive := stageArchive(imageFixtureEntriesWithCompiler(manifest, payload, binary, "go1.27.3"))
+	archive := stageArchive(imageFixtureEntriesWithCompiler(manifest, payload, binary, provenance.GoVersion))
 	archivePath := filepath.Join(after.work, "immutable-inventory-image-"+revision[:7]+".tar.gz")
 	writeFixture(archivePath, archive, 0600)
 	return handoffReleaseImage{binary, archive, archivePath, revision, after.work, after.references}

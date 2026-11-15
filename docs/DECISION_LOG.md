@@ -8619,3 +8619,16 @@ Require independent selector failures before the Make correction and complete
 base/source qualification afterward. Measured workload supports the regrouping;
 the failed report does not establish an individual stuck test. This is current
 CI qualification work, not an additional release gate or an adopter change.
+
+## Decision 172 (2026-11-15 UTC): rehearse the integrated installed adopter journey
+
+After human merge of PR #182 as 8772e919, adopt
+[ADR 0156](adr/0156-integrated-adopter-rehearsal.md) before implementation.
+Join genuine fresh initialization and supported v0.1.6 upgrade to committed
+clean-checkout ordinary CI and opt-in review using the real pinned installer
+and packaged native owners. Keep external transport/provider fixtures explicit,
+observe preservation and ignored retirement, and retain existing independent
+rollback/interruption/retention proofs. Qualify the documented full-check hook
+on disposable topic pushes. R4-R7 remain the fixed release gates; source
+rehearsal does not imply published RC4 qualification, adopter acceptance or
+stable activation. Keep primary checkout on the task branch and user files intact.

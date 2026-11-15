@@ -52,6 +52,7 @@ var sourceGateMovedQualification = []struct{ Name, File string }{
 // per docs/adr/0146-initialized-installed-ci.md:293
 // per docs/adr/0147-installed-ci-migration-preview.md:113
 // per docs/adr/0148-transactional-installed-ci-migration.md:141
+// per docs/adr/0156-integrated-adopter-rehearsal.md:55
 var sourceGateInitializedCINames = []string{
 	"creates an authenticated ordinary workflow with stable initial harnesses for every pack union",
 	"preserves application workflows while refusing every occupied generated destination before publication",
@@ -59,6 +60,8 @@ var sourceGateInitializedCINames = []string{
 	"runs the committed initialized workflow through clone preparation and real Makefile gates without repairing harnesses",
 	"migration preview adds a separate authenticated JSON CI proposal without mutation",
 	"migration preview binds preserved CI conflicts into consent and renders bounded confirmation advice",
+	"integrated adopter rehearsal rehearses ordinary stable initialization and both clean-checkout jobs with real factory owners",
+	"integrated adopter rehearsal rehearses genuine v0.1.6 adoption and clean-checkout jobs while preserving originals and rollback",
 }
 
 // per docs/adr/0148-transactional-installed-ci-migration.md:256
@@ -146,6 +149,9 @@ var sourceGateCases = []struct {
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI preserves application workflows while refusing every occupied generated destination before publication", "initialized-ci"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI omits active CI for ineligible authenticated tags and offline local initialization", "initialized-ci"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI runs the committed initialized workflow through clone preparation and real Makefile gates without repairing harnesses", "initialized-ci"},
+	// per docs/adr/0156-integrated-adopter-rehearsal.md:55
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI integrated adopter rehearsal rehearses ordinary stable initialization and both clean-checkout jobs with real factory owners", "initialized-ci"},
+	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI integrated adopter rehearsal rehearses genuine v0.1.6 adoption and clean-checkout jobs while preserving originals and rollback", "initialized-ci"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI", "initialized-ci"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction migrates owned workflows", "ci-migration"},
 	{"./acceptance", "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction", "ci-migration"},
@@ -1032,11 +1038,15 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// Nine standalone review-client criteria reuse the release CI partition.
 		// per docs/adr/0153-authenticated-review-client-bootstrap.md:108
 		// per docs/adr/0154-installed-review-workflow-migration.md:95
-		Expect(negativeTotal).To(Equal(3495))
+		// Two integrated adopter journeys and four strict JSON sync criteria join
+		// the exact existing partition union.
+		// per docs/adr/0156-integrated-adopter-rehearsal.md:55
+		// per docs/adr/0156-integrated-adopter-rehearsal.md:91
+		Expect(negativeTotal).To(Equal(3501))
 		allStatus, allCount, allTotal, allIdentities := sourceGateNativeDiscovery(sourceGateCall{Args: []string{"-ginkgo.fail-on-empty"}})
 		Expect(allStatus).To(Equal(0))
 		Expect(allCount).To(Equal(allTotal))
-		Expect(allTotal).To(Equal(3495))
+		Expect(allTotal).To(Equal(3501))
 		// Eight source configuration criteria preserve the existing native matrices.
 		// per docs/adr/0136-go-source-configuration-entrypoints.md:97
 		// Seven source helper criteria join the independently discovered census.
@@ -1048,7 +1058,8 @@ var _ = Describe("Go source qualification scheduling", func() {
 		// per docs/adr/0145-installed-ci-workflow-rendering.md:109
 		// per docs/adr/0148-transactional-installed-ci-migration.md:493
 		// per docs/adr/0155-rebalance-source-qualification.md:40
-		expectedCounts := map[string]int{"base": 3097, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 6, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 127}
+		// per docs/adr/0156-integrated-adopter-rehearsal.md:55
+		expectedCounts := map[string]int{"base": 3101, "installation": 101, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 8, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 127}
 		seen, union := map[string]bool{}, []string{}
 		for _, group := range []string{"base", "installation", "release-handoff", "release-retention", "release-ci", "initialized-ci", "ci-migration", "historical-recipe", "local-init", "local-upgrade", "local-upgrade-predecessor", "local-upgrade-go", "local-recovery", "default-init", "default-upgrade", "source-entrypoints"} {
 			status, count, total, identities := sourceGateNativeDiscovery(callsByGroup[group])
@@ -1112,7 +1123,10 @@ var _ = Describe("Go source qualification scheduling", func() {
 				for _, identity := range identities {
 					name, location, found := strings.Cut(identity, " :: ")
 					Expect(found).To(BeTrue())
-					if strings.Contains(name, "initialized CI migration preview ") {
+					if strings.Contains(name, "initialized CI integrated adopter rehearsal ") {
+						// per docs/adr/0156-integrated-adopter-rehearsal.md:55
+						Expect(location).To(MatchRegexp(`^integrated_adopter_rehearsal_test\.go:[1-9][0-9]*$`))
+					} else if strings.Contains(name, "initialized CI migration preview ") {
 						Expect(location).To(MatchRegexp(`^ci_migration_preview_test\.go:[1-9][0-9]*$`))
 					} else if strings.HasPrefix(name, "Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI migration transaction installed review ") {
 						// per docs/adr/0154-installed-review-workflow-migration.md:95

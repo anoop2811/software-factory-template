@@ -216,11 +216,13 @@ Decision 169 / [ADR 0153](../adr/0153-authenticated-review-client-bootstrap.md)
 implemented authenticated standalone review-client acquisition. PR #181 merged
 on 2026-11-14 as `3794e6cc8fa66eb02504e753b0ad11955f5cf85a`; its final-head Go
 and adversarial runs passed, with the review job taking 2m51s. Decision 170 /
-[ADR 0154](../adr/0154-installed-review-workflow-migration.md) governs the current
-dependent integration: pin that installer in generated installed review workflows
-and update exact predecessor-owned enabled workflows transactionally. Bootstrap
-alone does not qualify those installed workflows. The integrated fresh/migrated
-rehearsal remains open after that integration. All of this is within R4; R5
+[ADR 0154](../adr/0154-installed-review-workflow-migration.md) governs the dependent
+integration: pin that installer in generated installed review workflows and
+update exact predecessor-owned enabled workflows transactionally. PR #182 merged
+on 2026-11-15 as `8772e919a66d625085a1f69320f7dd0afc2e59eb`. Bootstrap
+alone does not qualify those installed workflows. Decision 172 /
+[ADR 0156](../adr/0156-integrated-adopter-rehearsal.md) connects the remaining
+fresh/migrated rehearsal; it remains open until its evidence passes. All of this is within R4; R5
 published qualification, R6 adopter pilot and R7 stable activation remain the
 other fixed release gates. A PR count is not release progress.
 

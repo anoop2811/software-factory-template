@@ -8632,3 +8632,67 @@ rollback/interruption/retention proofs. Qualify the documented full-check hook
 on disposable topic pushes. R4-R7 remain the fixed release gates; source
 rehearsal does not imply published RC4 qualification, adopter acceptance or
 stable activation. Keep primary checkout on the task branch and user files intact.
+
+## Decision 173 (2026-11-15 UTC): publish and qualify the fourth Go release candidate
+
+After human merge of PR #183 as
+`509d4bbc01743fa3900247273d082171e1bf3a18`, proceed with R5 using
+`v0.2.0-rc.4` at that exact source revision. Its tree is identical to reviewed
+head `678f3a13dee941f94de0474e7cba9c64d9c2bd72`, whose current checks passed
+46/46. R4's connected fresh and genuine v0.1.6 journeys passed on Linux and
+macOS. The initial separate Go-to-Go source watchdog timeout and passing
+unchanged repeat remain recorded in PR #183; its underlying cause is unproven.
+
+Reuse the existing attested release pipeline and
+[ADR 0107](adr/0107-published-release-qualification.md): native builds on Linux
+amd64/arm64 and macOS amd64/arm64, authentication of twelve subjects, publication
+of complete assets, then real installer/init/migration/rollback/recovery
+qualification. Keep Ubuntu 24.04 and macOS 15 as the approved native floors.
+Record actual source, harness, OS, asset digests, scenario counts and failures.
+Publication is not a passing qualification. Preserve the tag and signed assets
+if a failure requires a later correction; do not silently replace them.
+
+Create a prerelease with explicit `--latest=false`; v0.1.6 remains latest stable.
+Use the already reviewed Go 1.27.4 toolchain without changing dependencies.
+The [official Go release history](https://go.dev/doc/devel/release), fetched
+2026-11-15, confirms Go 1.27.4 was released 2026-11-10. The
+[GitHub CLI release contract](https://cli.github.com/manual/gh_release_create),
+fetched the same date, supports an exact `--target` source commit and separate
+prerelease/latest selection. The user authorized this next release-plan task
+after merging R4. R6 adopter pilot and R7 stable activation remain separate;
+this decision does not claim either complete or switch the public default.
+
+Decision 173 pre-publication inspection found the live interruption evaluator
+still starts a concurrent `Cmd.Wait` before later numeric PID/group signals
+(`acceptance/published_release_test.go:508`). Two independent source reviewers
+confirmed that a child can be reaped between the durable witness and SIGSTOP,
+or before deferred cleanup signals. This is an evaluator defect, not an
+observed customer incident or a defect in the signed migration runtime.
+
+Before cutting RC4, reuse the already qualified `ciInterruptionOwner` from
+[ADR 0151](adr/0151-reliable-ci-qualification.md): reserve the direct child until
+all signaling closes, observe exit without reaping, and use its sole bounded
+termination/wait result for both normal interruption and cleanup. Retain the
+five-minute operation deadline, three-minute journal observation, five-second
+stopped-state observation, applying/runtime-row/pending checks, exact stopped
+journal bytes, authenticated image identities and all five live scenarios.
+Keep the correction confined to the evaluator; do not change the product,
+release workflow, signature policy or scenario breadth. Qualify the existing
+owner controls plus the tagged evaluator and have the correction reviewed and
+merged before selecting the final RC4 source commit. The source revision above
+is the starting reviewed candidate, not a claim that RC4 has been published.
+
+Use regular output captures and the existing guarded fixture-directory cleanup
+for the authenticated release root as well. An uncertain join or signal result
+must retain the project, captures and borrowed authenticated inputs; a hold
+cannot protect a directory still owned by unconditional `GinkgoT().TempDir`
+cleanup. Successful ownership settlement continues normal temporary cleanup.
+
+The same evaluator's ordinary `publishedExecute` helper supplies a raw group
+kill callback to `exec.CommandContext`. Inspection of the pinned Go 1.27.4
+`os/exec` source confirms `Cmd.Wait` reaps before joining the context watcher;
+that custom callback can therefore signal after reap near its deadline. Apply
+the same existing owner to this helper with `AwaitExit`, preserving its
+three-minute command deadline, literal exit status and forbidden-tool checks.
+Use regular captures and retain all borrowed fixture roots on unconfirmed
+termination. No new process supervisor, runtime behavior or public API is needed.

@@ -8636,12 +8636,12 @@ stable activation. Keep primary checkout on the task branch and user files intac
 ## Decision 173 (2026-11-15 UTC): publish and qualify the fourth Go release candidate
 
 After human merge of PR #183 as
-`509d4bbc01743fa3900247273d082171e1bf3a18`, proceed with R5 using
-`v0.2.0-rc.4` at that exact source revision. Its tree is identical to reviewed
-head `678f3a13dee941f94de0474e7cba9c64d9c2bd72`, whose current checks passed
-46/46. R4's connected fresh and genuine v0.1.6 journeys passed on Linux and
-macOS. The initial separate Go-to-Go source watchdog timeout and passing
-unchanged repeat remain recorded in PR #183; its underlying cause is unproven.
+`509d4bbc01743fa3900247273d082171e1bf3a18`, begin R5 preflight from this base.
+Its tree is identical to reviewed head
+`678f3a13dee941f94de0474e7cba9c64d9c2bd72`, whose checks passed 46/46.
+RC4 must use a post-correction merge commit with its own passing checks.
+R4's fresh/v0.1.6 journeys passed on Linux/macOS. The separate Go-to-Go
+watchdog failure/passing repeat remain in PR #183; the cause is unproven.
 
 Reuse the existing attested release pipeline and
 [ADR 0107](adr/0107-published-release-qualification.md): native builds on Linux

@@ -38,3 +38,12 @@ buffer before its command writer had joined. Failure reporting needs the same
 capture ownership discipline as the successful path. An earlier sampled PID
 and an unset exit result are not late process evidence; Decision 173 requires
 fresh observations while preserving the original failure and timeout boundary.
+
+Observed 2026-11-16 via the owned-child `dash-fork-signal.go` ptrace diagnostic
+recorded in docs/DECISION_LOG.md:8806: native kill returned zero and SIGTERM was
+delivered, but a Dash child with an inherited caught handler survived its fork
+reset and executed Bash. Successful signal delivery is not a durable cancellation
+request. Preserve cancellation state across that startup boundary, and distinguish
+the Linux kernel observation from a portable modeled fault or an unproven macOS
+instruction sequence. Record publication errors remain explicit ownership
+refusals under docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:261.

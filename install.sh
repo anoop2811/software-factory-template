@@ -190,6 +190,18 @@ packaged_install() {
   candidate_child='' candidate_watchdog=''
   candidate_retain=0 candidate_guard=0 candidate_cancel_status=0
   candidate_signal_epoch=0 candidate_control_open=0 candidate_watch_serial=0
+  # Cancellation must survive a caught signal cleared before supervisor exec.
+  # docs/DECISION_LOG.md:8825.
+  candidate_publish_admission() {
+    if printf '%s\n' "$1" > "$candidate_dir/admission.next" &&
+      mv -f -- "$candidate_dir/admission.next" "$candidate_dir/admission" &&
+      [ -f "$candidate_dir/admission" ] && [ ! -L "$candidate_dir/admission" ]; then
+      return 0
+    fi
+    candidate_retain=1
+    printf '%s\n' 'install: verifier admission control publication failed' >&2
+    return 125
+  }
   candidate_cancel() {
     candidate_cancel_status=$1
     candidate_signal_epoch=$((candidate_signal_epoch + 1))
@@ -324,6 +336,7 @@ packaged_install() {
     candidate_guard=1
     candidate_stop_watch || candidate_retain=1
     if [ -n "$candidate_child" ]; then
+      candidate_publish_admission cancelled || candidate_retain=1
       kill "$candidate_child" 2>/dev/null || :
       if ! candidate_prepare_watch || ! candidate_cleanup_child 9<> "$candidate_control"; then
         candidate_retain=1
@@ -342,6 +355,7 @@ packaged_install() {
   trap candidate_cleanup 0
   trap 'candidate_cancel 130' INT
   trap 'candidate_cancel 143' TERM HUP
+  candidate_publish_admission ready || exit 125
   # Finite acquisition commands, bounded files, and no downloaded executable
   # probes. The authenticated Go owner supplies strict per-input bounds again.
   candidate_gh() {
@@ -381,6 +395,8 @@ packaged_install() {
     candidate_control_open=1
     (unset BASH_ENV ENV; ulimit -f 524288; exec /bin/bash --noprofile --norc -c '
       set -m
+      admission=$1
+      shift
       child= admission_guard=1 cancel_status=0
       stop_group() {
         trap "" INT TERM HUP
@@ -410,6 +426,20 @@ packaged_install() {
       }
       trap "cancel 143" TERM HUP
       trap "cancel 130" INT
+      admission_record= admission_status=125
+      if [ -f "$admission" ] && [ ! -L "$admission" ]; then
+        admission_status=0
+        IFS= read -r -n 11 -d "" admission_record < "$admission" || admission_status=$?
+      fi
+      [ "$cancel_status" -eq 0 ] || exit "$cancel_status"
+      [ "$admission_status" -eq 1 ] || exit 125
+      printf -v ready_record "ready\n"
+      printf -v cancelled_record "cancelled\n"
+      case "$admission_record" in
+        "$ready_record") ;;
+        "$cancelled_record") exit 143 ;;
+        *) exit 125 ;;
+      esac
       "$@" &
       child=$!
       admission_guard=0
@@ -418,7 +448,7 @@ packaged_install() {
       wait "$child" 2>/dev/null || status=$?
       stop_group || exit 125
       exit "$status"
-    ' factory-bootstrap "$candidate_verifier" "$@") 9>&- > "$candidate_dir/command.stdout" 2> "$candidate_dir/command.stderr" &
+    ' factory-bootstrap "$candidate_dir/admission" "$candidate_verifier" "$@") 9>&- > "$candidate_dir/command.stdout" 2> "$candidate_dir/command.stderr" &
     candidate_child=$!
     candidate_watch 120 "$candidate_child" TERM
     candidate_guard=0

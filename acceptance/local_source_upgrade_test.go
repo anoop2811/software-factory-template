@@ -69,18 +69,20 @@ func localUpgradePrepareSource() localUpgradeFixture {
 	needle = "owner.journalImage, err = saveJournal(ctx, owner.tree, owner.record, owner.journalImage)\n\treturn err"
 	paused := strings.Replace(string(transactionData), needle, "owner.journalImage, err = saveJournal(ctx, owner.tree, owner.record, owner.journalImage)\n\tif err == nil { err = owner.independentLocalUpgradePause(ctx) }\n\treturn err", 1)
 	Expect(paused).NotTo(Equal(string(transactionData)))
-	paused = strings.Replace(paused, "func (capability *Capability) Complete(ctx context.Context) error {", "func (capability *Capability) Complete(ctx context.Context) error {\n _, _ = os.Stderr.WriteString("+fmt.Sprintf("%q", localUpgradeApplyMarker+"\n")+")", 1)
+	paused = strings.Replace(paused, "func (capability *Capability) Complete(ctx context.Context) error {", "func (capability *Capability) Complete(ctx context.Context) error {\n _, _ = os.Stderr.WriteString("+fmt.Sprintf("%q", localUpgradeApplyMarker+"\n")+")\n if capability != nil && capability.state != nil { independentLocalUpgradeTiming(capability.state.root, \"complete-entry\") }", 1)
 	publication := "\tnewPending := owner.pending == nil"
 	admitted := strings.Replace(paused, publication, "\tif err := owner.independentLocalUpgradeAdmission(ctx); err != nil { return err }\n"+publication, 1)
 	Expect(admitted).NotTo(Equal(paused))
 	// Coarse diagnostics cannot satisfy admission/READY or alter a product result.
 	// per docs/adr/0151-reliable-ci-qualification.md:283
+	// per docs/DECISION_LOG.md:8797
 	for _, phase := range []struct{ before, after string }{
 		{"	owner := &transaction{root: root", "	independentLocalUpgradeTiming(root, \"begin\")\n	owner := &transaction{root: root"},
 		{"	options := request.Source", "	independentLocalUpgradeTiming(root, \"plan-complete\")\n	options := request.Source"},
 		{"	staged, err := staging.Stage(ctx, options)", "	independentLocalUpgradeTiming(root, \"target-stage-start\")\n	staged, err := staging.Stage(ctx, options)\n	independentLocalUpgradeTiming(root, \"target-stage-end\")"},
 		{"		qualified, err := staging.Stage(ctx, before)", "		independentLocalUpgradeTiming(root, \"before-stage-start\")\n		qualified, err := staging.Stage(ctx, before)\n		independentLocalUpgradeTiming(root, \"before-stage-end\")"},
 		{"owner.materializeCandidate(ctx)", "owner.independentLocalUpgradeMaterialize(ctx)"},
+		{"owner.preflightCandidate(ctx, reverse)", "owner.independentLocalUpgradePreflight(ctx, reverse)"},
 	} {
 		Expect(strings.Count(admitted, phase.before)).To(Equal(1), "diagnostic phase must identify one exact existing operation")
 		admitted = strings.Replace(admitted, phase.before, phase.after, 1)
@@ -229,11 +231,12 @@ func localUpgradeCompiler(f handoffBootstrapFixture, image handoffReleaseImage, 
 // The READY receipt follows a real durable journal save after two published rows;
 // cancellation targets that selected worker, not its outer inherited-stream waiter.
 // per docs/adr/0117-explicit-go-local-upgrade.md:78
+// per docs/DECISION_LOG.md:8797
 const localUpgradePauseSource = `package installation
 import("context";"encoding/json";"os";"syscall";"time")
 func independentLocalUpgradeTiming(root,phase string){
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if err!=nil{return}
- var c struct{Root,Ready string};if json.Unmarshal(data,&c)!=nil||root!=c.Root||c.Ready==""{return}
+ var c struct{Root,Ready string;TimingOnly bool};if json.Unmarshal(data,&c)!=nil||root!=c.Root||c.Ready==""{return}
  file,err:=os.OpenFile(c.Ready+".timing",os.O_CREATE|os.O_WRONLY|os.O_APPEND,0600);if err!=nil{return}
  _=json.NewEncoder(file).Encode(map[string]any{"phase":phase,"pid":os.Getpid(),"root":root,"at":time.Now().UTC().Format(time.RFC3339Nano)});_=file.Close()
 }
@@ -243,9 +246,15 @@ func(owner *transaction)independentLocalUpgradeMaterialize(ctx context.Context)e
  independentLocalUpgradeTiming(owner.root,"materialize-end")
  return err
 }
+func(owner *transaction)independentLocalUpgradePreflight(ctx context.Context,reverse bool)error{
+ independentLocalUpgradeTiming(owner.root,"preflight-start")
+ err:=owner.preflightCandidate(ctx,reverse)
+ independentLocalUpgradeTiming(owner.root,"preflight-end")
+ return err
+}
 func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)error{
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
- var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
+ var c struct{Root,Ready string;TimingOnly bool};if err=json.Unmarshal(data,&c);err!=nil{return err};if c.TimingOnly{return nil}
  if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""{return nil}
  group,err:=syscall.Getpgid(0);if err!=nil{return err}
  receipt:=map[string]any{"pid":os.Getpid(),"group":group,"root":owner.root,"migration":owner.record.MigrationID,"phase":"publisher-admitted","source":owner.request.Source.Archive,"before":owner.request.Before.Archive,"at":time.Now().UTC().Format(time.RFC3339Nano)}
@@ -253,7 +262,7 @@ func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)err
 }
 func(owner *transaction)independentLocalUpgradePause(ctx context.Context)error{
  data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
- var c struct{Root,Ready string};if err=json.Unmarshal(data,&c);err!=nil{return err}
+ var c struct{Root,Ready string;TimingOnly bool};if err=json.Unmarshal(data,&c);err!=nil{return err};if c.TimingOnly{return nil}
  if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""||owner.record.Phase!="applying"{return nil}
  applied:=0;for _,row:=range owner.record.Entries{if row.Phase=="applied"{applied++}};if applied<2{return nil}
  group,err:=syscall.Getpgid(0);if err!=nil{return err}
@@ -493,7 +502,60 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
 		Expect(preview["blockers"]).To(BeEmpty())
 		Expect(installationSnapshot(root)).To(Equal(snapshot))
+		// Register before the cooperative helper can fail its internal deadline
+		// assertion, and before the older project/image cleanups remove evidence.
+		// per docs/DECISION_LOG.md:8797
+		ready := filepath.Join(fixture.image.work, fmt.Sprintf("healthy-go-upgrade-%t", versioned))
+		control, err := os.OpenFile(fixture.control, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G703 -- evaluator-owned control path below the private source image, not request data.
+		Expect(err).NotTo(HaveOccurred(), "a retained control cannot be replaced by the next Ordered entry")
+		_, err = control.Write(imageMarshal(map[string]any{"Root": root, "Ready": ready, "TimingOnly": true}))
+		closed := control.Close()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(closed).To(Succeed())
+		controlSettled := false
+		DeferCleanup(func() {
+			if !controlSettled {
+				holdFixtureCleanup(fixture.control, "local Go timing control remains borrowed after an unconfirmed helper return")
+				return
+			}
+			Expect(os.Remove(fixture.control)).To(Succeed())
+		})
+		DeferCleanup(func() {
+			timing, timingErr := os.ReadFile(ready + ".timing")
+			observation := map[string]any{"root": root, "versioned": versioned, "timing_only": true, "phase_timing_json": string(timing), "phase_timing_error": fmt.Sprint(timingErr)}
+			if CurrentSpecReport().Failed() {
+				paths, globErr := filepath.Glob(filepath.Join(root, ".factory/installation-transactions/*.json"))
+				journals := map[string]any{}
+				for _, path := range paths {
+					var journal struct {
+						Phase     string `json:"phase"`
+						Direction string `json:"direction"`
+						Outcome   string `json:"outcome"`
+						Entries   []struct {
+							Path   string `json:"path"`
+							Action string `json:"action"`
+							Phase  string `json:"phase"`
+						} `json:"entries"`
+						Checks []struct {
+							Name                 string `json:"name"`
+							Phase                string `json:"phase"`
+							Outcome              string `json:"outcome"`
+							PID                  *int   `json:"pid"`
+							OwnershipUnconfirmed bool   `json:"ownership_unconfirmed"`
+						} `json:"checks"`
+					}
+					body, readErr := os.ReadFile(path)
+					decodeErr := json.Unmarshal(body, &journal)
+					journals[filepath.Base(path)] = map[string]any{"journal": journal, "read_error": fmt.Sprint(readErr), "decode_error": fmt.Sprint(decodeErr)}
+				}
+				_, pendingErr := os.Lstat(filepath.Join(root, ".factory/runtime-publication.pending"))
+				observation["journals"], observation["journal_glob_error"] = journals, fmt.Sprint(globErr)
+				observation["pending_present"], observation["pending_error"] = pendingErr == nil, fmt.Sprint(pendingErr)
+			}
+			AddReportEntry("local-upgrade.go-predecessor-phase-timing", observation, ReportEntryVisibilityNever)
+		})
 		applied := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
+		controlSettled = true
 		Expect(applied.status).To(Equal(0), "%+v", applied)
 		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
 		localInitDescriptor(root, fixture.revision)
@@ -504,7 +566,9 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
 		localInitPoisonCompiler(f)
 		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
+		controlSettled = false
 		restored := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work, filepath.Dir(before.before.Archive)}, driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+		controlSettled = true
 		Expect(restored.status).To(Equal(0), "%+v", restored)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))

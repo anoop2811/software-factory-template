@@ -230,7 +230,11 @@ records both platforms, review dispositions and the separate initial watchdog
 failure/passing repeat without claiming its cause is known. R4 is complete.
 R5 published qualification, R6 adopter pilot and R7 stable activation remain the
 three release gates. Decision 173 requires the live evaluator's child-ownership
-correction to be reviewed before cutting RC4. A PR count is not release progress.
+correction and the subsequent installer startup-cancellation correction to be
+reviewed before cutting RC4. The installed review workflow's immutable installer
+pin must then select the merged correction, with its consumer checks passing,
+before RC4 source selection. These are R5 prerequisites, not additional release
+gates. A PR count is not release progress.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

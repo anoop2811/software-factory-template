@@ -8766,3 +8766,151 @@ Provenance: macOS base
 `installed-review.provider-failure` and `release-handoff.resolved-git` receipts;
 fixture policy at docs/adr/0151-reliable-ci-qualification.md:115 and workflow
 criteria at docs/adr/0154-installed-review-workflow-migration.md:93.
+
+Decision 173 traced cancellation follow-up (2026-11-16 UTC): current-head
+`a790a39` macOS base
+[job 133060910843](https://github.com/anoop2811/software-factory-template/actions/runs/43794289841/job/133060910843)
+passed all seven installed-review criteria but reproduced the setup cancellation
+join failure under `/bin/dash`. The new trace shows the first watchdog joining
+with status zero, then cleanup arming its reaper while the Bash supervisor and
+its separate verifier group remain alive. The supervisor records startup but no
+cancellation-handler entry before the five-second observation. This localizes
+the missing join beyond watcher settlement; it does not by itself prove when
+the one-shot TERM was delivered or consumed.
+
+Before changing production, use a controlled private scheduling boundary around
+the asynchronous supervisor wrapper and trap installation to reproduce any lost
+startup cancellation. Preserve actual public installer execution, native signal
+delivery, literal argv, the blocked verifier, no-publication assertions and the
+existing limits. Do not weaken the five-second join or add blind retries.
+Keep test authors separate from any production correction; record the observed
+failing boundary before selecting the smallest fix for the proven behavior.
+
+The same head's independent macOS local-Go-upgrade job 133060911017 timed out
+the versioned predecessor's apply at 90.494 seconds, with confirmed exit and
+ownership settlement. Its selected-worker marker proves entry to
+`Capability.Complete` after building, staging and materialization; recovery output
+proves durable transaction evidence, but no completion substep or phase timing
+was retained. The sibling local-image case passed. Earlier successful applies
+do not identify the cause of this timeout.
+
+Before altering behavior, retain a failure-only snapshot of the fixture's real
+journal phase, row/check status and pending presence before cleanup. Register it
+before the cooperative helper, whose internal deadline assertion prevents later
+caller diagnostics. Permit the existing private timing hooks to run through an
+explicit diagnostics-only control that cannot activate admission or the two-row
+pause. Preserve actual compilation, upgrade/reverse assertions and the 90-second
+operation limit. Keep these observations in evaluator evidence; no production
+deadline, cache shortcut or new release gate follows from an unexplained timeout.
+
+Decision 173 startup-cancellation finding (2026-11-16 UTC): controlled native
+macOS TERM immediately before exec and immediately before Bash trap installation
+both terminated the supervisor. A separate owned-child Linux ptrace experiment
+with Debian Dash 0.5.12-2 then exposed the earlier fork/reset boundary. The tracer
+held the child at its real fork stop, let its parent execute native kill with
+status zero, observed SIGTERM's actual delivery stop and sender PID, and forwarded
+that signal unchanged. With no inherited TERM handler the child died from TERM;
+with the parent's caught TERM handler it survived and executed Bash. Both cases
+settled all owned children. This is a demonstrated Linux mechanism consistent
+with the hosted trace, not proof of the exact macOS instruction timing.
+
+Dash's forkreset removes inherited trap actions; an earlier caught signal can
+subsequently be cleared without executing the removed action. Sources fetched
+2026-11-16: https://github.com/herbertx/dash/blob/v0.5.12/src/trap.c and
+https://man7.org/linux/man-pages/man2/ptrace.2.html. The isolated diagnostic source
+and receipts are retained under `.factory/rc4-evidence/linux-watchdog/` as
+`dash-fork-signal.go` and `dash-fork-signal.log`; they are not shipped dependencies
+or native-floor qualification.
+
+Make cancellation survive this boundary using a private acquisition-directory
+marker written before the parent's TERM and checked by the supervisor after its
+real handlers are installed, before admitting the verifier. Keep the existing
+admission guard for cancellation during spawn/PID publication. Marker errors
+must retain evidence and fail closed, never report successful cleanup. Preserve
+literal argv, original exit status, existing limits and normal private-directory
+retirement; this introduces no persistent user file or additional dependency.
+
+An independent portable regression may model the proven caught-and-cleared
+signal at the private pre-exec boundary, while still delivering actual native
+TERM and requiring its receiver witness. Label that controlled fault explicitly;
+do not present it as an unmodified macOS fork-level reproduction. Observe its
+failure before production changes, then require original startup/publication,
+watcher, no-admission and cleanup assertions after correction. Production and
+test authors remain separate; the actual kernel-level Linux control remains
+additional mechanism evidence.
+
+Use an initialized private control record and atomic same-directory replacement
+for its cancellation state. A presence-only check cannot reliably distinguish
+absence from a metadata/read failure; an in-place overwrite can expose a partial
+record. The supervisor must refuse unreadable or invalid control data before
+admission. A failed parent publication sets retention and ultimately status 125,
+even if its later child settlement succeeds. Keep publication I/O catchable in
+POSIX shells; do not use a failing redirection on a special builtin as the error
+boundary. This private control is retired with its existing acquisition directory.
+
+Independent portable RED observed before production edits: `go test -race
+-count=1 -timeout=3m -v ./acceptance -ginkgo.focus='retains cancellation before
+verifier admission when a startup wrapper catches and clears TERM before exec'
+-ginkgo.fail-on-empty -ginkgo.no-color` reported `Ran 1 of 3502 Specs in 6.966
+seconds`, `0 Passed | 1 Failed`. The real native kill returned zero and its
+receiver wrote `TERM`, yet verifier PID 44636 was admitted; the explicit
+no-admission assertion failed. The report/log are retained as
+`watchdog-consumed-term-red` in `.factory/rc4-evidence/`. This is the labeled
+portable fault model, additional to the Linux kernel-level observation above.
+
+The publication-failure contract is explicit refusal with status 125 and retained
+acquisition evidence. If cancellation publication fails and the native TERM is
+also caught and cleared, the old ready record can still admit the trusted
+verifier. Do not claim settled ownership or successful cancellation in that
+compound case. Its evaluator must account for and settle any remaining verifier,
+prove that no downloaded owner executes, and retain the refusal evidence. This
+does not strengthen the existing cleanup-infrastructure-failure contract into a
+two-way admission protocol; see
+docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:261.
+
+The diagnostic-only local Go predecessor run then passed both existing entries:
+`go test -race -count=1 -timeout=15m -v ./acceptance
+-ginkgo.focus='^Go factory command acceptance Go explicit local source upgrade
+upgrades an exact Go predecessor and restores its original native identity'
+-ginkgo.fail-on-empty -ginkgo.no-color` reported `Ran 2 of 3502 Specs in 455.251
+seconds`, `2 Passed | 0 Failed`. Versioned/local apply took 67.202/68.112 seconds;
+reverse took 31.190/31.713 seconds, all with confirmed exit and ownership. Their
+preflight phases took 12.846/14.469 seconds. These successful local observations
+do not explain or close the hosted 90-second timeout. The phase diagnostics stay
+enabled for the next hosted run without changing that operation limit.
+
+The new record-error controls ran with `go test -race -count=1 -timeout=5m -v
+./acceptance -ginkgo.focus='refuses admission control publication or input
+failures|retains cancellation publication failure' -ginkgo.fail-on-empty
+-ginkgo.no-color`: `Ran 7 of 3509 Specs in 7.407 seconds`, `7 Passed | 0 Failed`.
+Both native shells exercised actual filesystem/record errors. In the compound
+fault each admitted trusted verifier was observed and settled by its test gate;
+the installer returned 125, retained its cache and never executed the downloaded
+owner. This is refusal evidence, not successful cancellation.
+
+Independent race-enabled Ginkgo dry-run reports measured 3509 total criteria and
+3109 in the exact Make base selection, with the remaining 400 excluded there.
+Update the three live census expectations for the eight new bootstrap criteria;
+all other partition counts and identity-union checks remain unchanged. Reports
+are `.factory/rc4-evidence/pr184-census-all.json` and `pr184-census-base.json`.
+
+The complete affected bootstrap families then ran with `go test -race -count=1
+-timeout=10m -v ./acceptance -ginkgo.focus='^Go factory command acceptance
+Authenticated (candidate shell bootstrap|ordinary Go installer bootstrap)'
+-ginkgo.fail-on-empty -ginkgo.no-color`: `35 Passed | 0 Failed` in 263.258 seconds.
+The ten startup/watcher/record-error criteria also passed on Linux arm64 in
+11.152 seconds using the existing official Go 1.27.4 Bookworm diagnostic image.
+The actual source-partition integration criterion passed in 143.645 seconds;
+its exhaustive union assertions were executed, not only its dry-run census.
+
+Private Go test overlays then demonstrated behavioral negative controls without
+changing tracked source. Removing retained evidence after initial publication
+failure made both corresponding criteria fail their actual directory assertion;
+bypassing record rejection made all four malformed/unavailable cases fail on
+actual status 0 instead of 125. The six-case run failed 6/6 in 7.010 seconds.
+Separately forgetting cancelled-publication retention made the compound control
+fail on actual status 143 instead of 125 (1/1 in 2.024 seconds), after its native
+TERM receiver witness. Neither run failed on fixture-anchor checks or compilation.
+The overlays and JSON reports are under
+`.factory/rc4-evidence/admission-negative-controls/`; the tracked installer and
+test hashes still match the preceding positive runs.

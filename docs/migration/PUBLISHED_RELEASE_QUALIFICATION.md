@@ -569,3 +569,11 @@ not a published RC4 result. The original hosted failure is retained under
 `.factory/rc4-evidence/pr184-historical-first/`; the local report and source patch
 are adjacent. The tested obsolete evaluator file SHA-256 is
 `0516a09921177378fdc58dffc7b987b79ae2318147f160f55f77127ff3c45639`.
+
+The later macOS source run exposed a bootstrap startup-cancellation failure.
+Decision 173 records the Linux fork/reset mechanism, the separately labeled
+portable regression and the production private cancellation-record correction.
+Those changes are additional to the RC3 evaluator receipts above; that earlier
+run does not qualify the new installer. Final source CI must pass before merge,
+and the installed review workflow must advance its immutable installer pin to
+the merged correction before RC4 selection. RC4 remains unpublished.

@@ -574,6 +574,9 @@ The later macOS source run exposed a bootstrap startup-cancellation failure.
 Decision 173 records the Linux fork/reset mechanism, the separately labeled
 portable regression and the production private cancellation-record correction.
 Those changes are additional to the RC3 evaluator receipts above; that earlier
-run does not qualify the new installer. Final source CI must pass before merge,
-and the installed review workflow must advance its immutable installer pin to
-the merged correction before RC4 selection. RC4 remains unpublished.
+run does not qualify the new installer. PR #184 merged on 2026-11-16 as
+`959ebbc2a661fe7911f2770b1c5746b54c287249`, with the same tree as its reviewed
+head and all 46 checks passing. Decision 174 advances the installed review
+workflow's immutable installer pin to that merged correction. The pin's consumer
+qualification, review and merge must finish before RC4 source selection.
+RC4 remains unpublished; no published RC4 native target is qualified yet.

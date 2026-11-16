@@ -19,7 +19,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-const installedReviewInstallerRevision = "3794e6cc8fa66eb02504e753b0ad11955f5cf85a"
+// per docs/DECISION_LOG.md:8935
+const installedReviewInstallerRevision = "959ebbc2a661fe7911f2770b1c5746b54c287249"
 
 type installedReviewFixture struct {
 	root, cwd, temporary, client, output, receipt string

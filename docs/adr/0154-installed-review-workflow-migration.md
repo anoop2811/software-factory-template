@@ -8,7 +8,7 @@ Decision: 170. Continues R4 after merged PR #181.
 Connect the authenticated standalone review-client operation to the generated
 adopter review workflow, and deliver that workflow to exact factory-owned enabled
 installations through the existing whole-installation transaction. The reviewed
-installer is pinned to merged commit
+installer was originally pinned to merged commit
 3794e6cc8fa66eb02504e753b0ad11955f5cf85a. No release activation occurs here.
 Fresh and migrated integrated rehearsal remains within R4; R5 published RC4
 qualification, R6 representative pilot and R7 stable activation remain the other
@@ -368,3 +368,48 @@ Existing contracts: [ADR 0153](0153-authenticated-review-client-bootstrap.md),
 GitHub guidance fetched 2026-11-14:
 - https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target
 - https://docs.github.com/en/actions/reference/security/secure-use
+
+## R5 installer pin follow-up
+
+Decision 174 advances the current template to PR #184's merged installer,
+`959ebbc2a661fe7911f2770b1c5746b54c287249`. The original installer revision above
+and the historical ownership fixtures remain immutable. Fresh initialization and
+exactly owned enabled migrations receive the current template; rollback retains
+the original workflow bytes and mode. The runtime renderer recipes are unchanged.
+
+On 2026-11-16 UTC, downloading the new public raw URL and extracting
+`git show 959ebbc2a661fe7911f2770b1c5746b54c287249:install.sh` produced the same
+SHA-256: `b0b58d88755445f8db9ac2580314a39af5b9bf6c71f829391f7e52df04d9e002`.
+The independent current-pin expectation was updated before production. The
+existing generated-workflow selector criterion failed at its recorded download
+URL: actual `3794e6cc8fa66eb02504e753b0ad11955f5cf85a`, expected the new revision.
+
+RAN in the qualified Go 1.27.4 darwin/arm64 environment with GOTOOLCHAIN=local,
+GOENV=off and GOMAXPROCS=3 after the one-line production URL update:
+
+```text
+go test -race -count=1 -timeout=5m -v ./acceptance -ginkgo.focus='^Go factory command acceptance Installed review workflow execution( |$)' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/rc4-evidence/installer-pin/workflow-green.json
+Ran 7 of 3509 Specs in 21.902 seconds
+SUCCESS! -- 7 Passed | 0 Failed | 0 Pending | 3502 Skipped
+```
+
+The existing workflow actionlint command, including its ShellCheck pass and the
+documented narrow cache-mode parser exception, exited 0 with no output. These
+local results qualify the current workflow; they do not publish or qualify RC4.
+
+RAN the two integrated fresh/v0.1.6 journeys and the two exact historical
+Bash/Go workflow-restoration criteria in the same qualified environment:
+
+```text
+go test -race -count=1 -timeout=20m -v ./acceptance -ginkgo.focus='^Go factory command acceptance Whole installation upgrade release candidate handoff initialized CI (integrated adopter rehearsal( |$)|migration transaction installed review (applies review with ordinary CI in one backup and restores the exact enabled Bash original|refreshes a genuinely initialized Go predecessor and restores its exact 0644 review independently of ordinary CI mode)$)' -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/rc4-evidence/installer-pin/integrated-migration.json
+Ran 4 of 3509 Specs in 582.667 seconds
+SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 3505 Skipped
+```
+
+The integrated consumers execute the actual pinned installer from Git, with
+recording release/attestation transports. They exercise real fresh initialization,
+migration, clean-checkout ordinary/review jobs and rollback, not live published
+assets or a paid model request. The restoration cases preserve their historical
+workflow bytes and permissions; the Go predecessor retains its original installer pin.
+Independent correctness, security and test reviews found no required change.
+Final-head hosted CI and PR review remain required before merge and RC4 selection.

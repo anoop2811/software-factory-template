@@ -8914,3 +8914,36 @@ TERM receiver witness. Neither run failed on fixture-anchor checks or compilatio
 The overlays and JSON reports are under
 `.factory/rc4-evidence/admission-negative-controls/`; the tracked installer and
 test hashes still match the preceding positive runs.
+
+## Decision 174 (2026-11-16 UTC): pin installed reviews to the merged cancellation correction
+
+The user merged PR #184 and requested the next bounded R5 step. GitHub records
+the merge at 2026-11-16T05:20:58Z as
+`959ebbc2a661fe7911f2770b1c5746b54c287249`; its tree
+`09425d0a5283e192fd8b2d96a4d8c4768df8f7da` equals reviewed head
+`c1f87507de77f1decf066015022ca2a9d59b997c`. That head completed all 46 checks;
+all 49 notes across five model reviews received replies. The final model review
+covered 13 files and 55 fragments in 2m58s. The Intel bundle's initial missing-Go
+provisioning failure and passing single-job rerun remain disclosed in PR #184.
+
+Update only the current installed-review template's immutable installer URL from
+`3794e6cc8fa66eb02504e753b0ad11955f5cf85a` to that merged correction. This carries
+Decision 173's startup-cancellation control into fresh and migrated opted-in
+review workflows. Preserve selection, authentication, receipts, credentials,
+provider/model/budget choices, the explicit batch opt-in and all deadlines.
+
+Update the independent current-pin expectation before production and observe
+the existing workflow criterion fail on the old download URL. Qualify the public
+raw URL against the merged Git blob, then run the actual generated workflow and
+the fresh/migrated integrated consumers. Keep immutable predecessor revisions,
+closed renderer recipes and historical receipts unchanged: migration must still
+recognize the original workflow and restore its exact bytes on rollback.
+This is a template-data update, not a new renderer or ownership schema.
+
+Separate test/spec and production authors. Use the existing Ginkgo/Gomega
+criteria, workflow lint and affected migration checks, followed by independent
+review and final-head CI. No additional criterion, CI job, dependency, release
+tag or public installer default is required. Source conversion remains 32/32;
+R5 publication/native qualification, R6 pilot and R7 stable activation remain
+the same three release gates. Select the final RC4 source only after this pin
+update is reviewed and merged.

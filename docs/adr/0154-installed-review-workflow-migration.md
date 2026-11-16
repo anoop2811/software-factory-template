@@ -409,7 +409,7 @@ SUCCESS! -- 4 Passed | 0 Failed | 0 Pending | 3505 Skipped
 The integrated consumers execute the actual pinned installer from Git, with
 recording release/attestation transports. They exercise real fresh initialization,
 migration, clean-checkout ordinary/review jobs and rollback, not live published
-assets or a paid model request. The restoration cases retain the historical
-installer pin and compare exact original workflow bytes and permissions.
+assets or a paid model request. The restoration cases preserve their historical
+workflow bytes and permissions; the Go predecessor retains its original installer pin.
 Independent correctness, security and test reviews found no required change.
 Final-head hosted CI and PR review remain required before merge and RC4 selection.

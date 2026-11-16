@@ -1,7 +1,6 @@
 package acceptance_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -346,9 +345,9 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 })
 
 var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, ContinueOnFailure, func() {
-	var image, before handoffReleaseImage
+	var image, minimal, before handoffReleaseImage
 	var prepared, control string
-	BeforeAll(func() { image, _, before, prepared, control = obsoleteRetirementPrepare() })
+	BeforeAll(func() { image, minimal, before, prepared, control = obsoleteRetirementPrepare() })
 	// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:148
 	It("preserves unsafe retained cache through completed replay terminal cleanup and preparation abandonment", func() {
 		type observation struct {
@@ -563,6 +562,7 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 	// Actual save completion, a live owned PID and an applied retirement row
 	// establish interruption; elapsed sleep never substitutes for that witness.
 	// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:98
+	// per docs/DECISION_LOG.md:8710
 	DescribeTable("recovers durably interrupted obsolete retirement with exact originals and no compiler", func(direction string) {
 		f, driver, root, args := minimalInventoryOldProject(before, image, prepared)
 		writeFixture(filepath.Join(root, "docs/interrupted-retirement-note"), []byte("preserve application history\n"), 0600)
@@ -572,78 +572,89 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 		localInitPoisonCompiler(f)
 		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
 		ready := filepath.Join(f.records, "actual-retirement-ready.json")
-		writeFixture(control, imageMarshal(map[string]string{"Root": root, "Mode": "applying", "Ready": ready}), 0600)
-		DeferCleanup(func() { Expect(os.Remove(control)).To(Succeed()) })
+		// A later direction cannot overwrite a pause retained by an uncertain owner.
+		// per docs/DECISION_LOG.md:8715
+		controlFile, err := os.OpenFile(control, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G703 -- fixed evaluator control path in the private image from obsoleteRetirementPrepare; no request selects it.
+		Expect(err).NotTo(HaveOccurred())
+		_, err = controlFile.Write(imageMarshal(map[string]string{"Root": root, "Mode": "applying", "Ready": ready}))
+		closed := controlFile.Close()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(closed).To(Succeed())
+		controlSettled := true
+		DeferCleanup(func() {
+			if !controlSettled {
+				holdFixtureCleanup(control, "obsolete retirement pause remains borrowed by an uncertain owner")
+				return
+			}
+			Expect(os.Remove(control)).To(Succeed())
+		})
 		id := "interrupted-retirement-" + direction
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		command := handoffCommand(ctx, root, f.environment, "", driver, append(append([]string{}, args...), "--migration-id", id, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
-		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		command.Cancel = func() error { return command.Process.Signal(syscall.SIGTERM) }
-		var stdout, stderr bytes.Buffer
-		command.Stdout, command.Stderr = &stdout, &stderr
-		Expect(command.Start()).To(Succeed())
-		finished := make(chan struct{})
-		var returned error
-		go func() { returned = command.Wait(); close(finished) }()
+		capture, err := os.MkdirTemp("", "factory-obsolete-interruption-")
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(cleanupFixtureDirectory, capture)
+		stdout, err := os.OpenFile(filepath.Join(capture, "stdout"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(stdout.Close)
+		stderr, err := os.OpenFile(filepath.Join(capture, "stderr"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(stderr.Close)
+		owner, err := startCIInterruptionOwner(ctx, func(commandContext context.Context) *exec.Cmd {
+			command := handoffCommand(commandContext, root, f.environment, "", driver, append(append([]string{}, args...), "--migration-id", id, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+			command.Stdout, command.Stderr = stdout, stderr
+			return command
+		})
+		Expect(err).NotTo(HaveOccurred())
+		controlSettled = false
 		type workerReceipt struct {
 			PID, Group, Retired    int
 			Root, Migration, Phase string
 		}
 		var receipt workerReceipt
 		groupAbsent := func() (bool, error) {
-			err := syscall.Kill(-command.Process.Pid, 0)
+			err := syscall.Kill(-owner.PID(), 0)
 			if errors.Is(err, syscall.ESRCH) {
 				return true, nil
 			}
 			return false, err
 		}
-		defer func() {
-			waited := false
-			select {
-			case <-finished:
-				waited = true
-			default:
-				_ = command.Process.Signal(syscall.SIGTERM)
-				select {
-				case <-finished:
-					waited = true
-				case <-time.After(10 * time.Second):
-					group, err := syscall.Getpgid(command.Process.Pid)
-					if err == nil && group == command.Process.Pid {
-						_ = syscall.Kill(-group, syscall.SIGKILL)
-					}
-					select {
-					case <-finished:
-						waited = true
-					case <-time.After(10 * time.Second):
-					}
-				}
-			}
+		finish := func() ciInterruptionResult {
+			result := owner.TerminateAndWait()
 			absent, probe := groupAbsent()
-			if !waited || !absent || probe != nil {
-				reason := fmt.Sprintf("obsolete retirement process custody uncertain: pid=%d waited=%t absent=%t probe=%v", command.Process.Pid, waited, absent, probe)
-				for _, path := range []string{root, f.root, image.work} {
+			controlSettled = result.Joined && result.SignalError == nil && absent && probe == nil
+			if !controlSettled {
+				reason := fmt.Sprintf("obsolete retirement process custody uncertain: pid=%d joined=%t signal=%v absent=%t probe=%v", owner.PID(), result.Joined, result.SignalError, absent, probe)
+				for _, path := range []string{capture, root, f.root, image.work, before.work, minimal.work} {
 					holdFixtureCleanup(path, reason)
 				}
 			}
-			observed := map[string]any{"receipt": receipt, "caller_pid": command.Process.Pid, "direction": direction, "waited": waited, "group_absent": absent, "group_probe": fmt.Sprint(probe)}
-			if waited {
-				observed["exit"] = command.ProcessState.ExitCode()
-				observed["wait_status"] = command.ProcessState.String()
-				observed["stderr"] = stderr.String()
+			return result
+		}
+		DeferCleanup(func() {
+			result := finish()
+			absent, probe := groupAbsent()
+			observed := map[string]any{"receipt": receipt, "caller_pid": owner.PID(), "direction": direction, "waited": result.Joined, "signal_error": fmt.Sprint(result.SignalError), "wait_error": fmt.Sprint(result.WaitError), "group_absent": absent, "group_probe": fmt.Sprint(probe)}
+			if result.Joined && result.State != nil {
+				observed["exit"] = result.State.ExitCode()
+				observed["wait_status"] = result.State.String()
+				body, readErr := os.ReadFile(stderr.Name())
+				observed["stderr"], observed["stderr_error"] = string(body), fmt.Sprint(readErr)
 			}
 			AddReportEntry("obsolete-cache.actual-interruption", observed, ReportEntryVisibilityNever)
-			Expect(waited).To(BeTrue(), "reap the owned caller before fixture disposal")
+			Expect(result.SignalError).NotTo(HaveOccurred())
+			Expect(result.Joined).To(BeTrue(), "reap the owned caller before fixture disposal")
 			Expect(probe).NotTo(HaveOccurred())
 			Expect(absent).To(BeTrue(), "whole recorded group must settle before fixture disposal")
-		}()
+		})
 		Eventually(func() bool {
-			select {
-			case <-finished:
-				StopTrying(fmt.Sprintf("caller exited before actual retirement receipt: %v stderr=%q", returned, stderr.String())).Now()
-			default:
+			exited, err := owner.Exited()
+			if exited || errors.Is(err, os.ErrProcessDone) {
+				result := finish()
+				body, readErr := os.ReadFile(stderr.Name())
+				StopTrying(fmt.Sprintf("caller exited before actual retirement receipt: wait=%v joined=%t signal=%v stderr=%q (%v)", result.WaitError, result.Joined, result.SignalError, body, readErr)).Now()
 			}
+			Expect(err).NotTo(HaveOccurred())
 			data, err := os.ReadFile(ready)
 			if os.IsNotExist(err) {
 				return false
@@ -652,13 +663,13 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 			Expect(json.Unmarshal(data, &receipt)).To(Succeed())
 			return true
 		}, 60*time.Second).WithContext(ctx).Should(BeTrue())
-		Expect(receipt.PID).To(Equal(command.Process.Pid))
+		Expect(receipt.PID).To(Equal(owner.PID()))
 		Expect(receipt.Group).To(Equal(receipt.PID))
 		Expect(receipt.Root).To(Equal(root))
 		Expect(receipt.Migration).To(Equal(id))
 		Expect(receipt.Phase).To(Equal("applying"))
 		Expect(receipt.Retired).To(BeNumerically(">", 0))
-		Expect(syscall.Kill(receipt.PID, 0)).To(Succeed(), "readiness belongs to a live actual publisher")
+		Expect(owner.Signal(0)).To(Succeed(), "readiness belongs to a live actual publisher")
 		journal := minimalInventoryJSON(filepath.Join(root, ".factory/installation-transactions", id+".json"))
 		Expect(journal["phase"]).To(Equal("applying"))
 		retired := 0
@@ -675,17 +686,19 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 		}
 		Expect(retired).To(Equal(receipt.Retired), "witness must match the actual persisted applied retirement rows")
 		Expect(filepath.Join(root, ".factory/runtime-publication.pending")).To(BeAnExistingFile())
-		Expect(command.Process.Signal(syscall.SIGTERM)).To(Succeed())
-		select {
-		case <-finished:
-		case <-time.After(10 * time.Second):
-			Fail("actual retirement SIGTERM did not return within the existing cleanup allowance")
+		Expect(owner.Signal(syscall.SIGTERM)).To(Succeed())
+		ended, joinErr := owner.AwaitExit(10 * time.Second)
+		if joinErr != nil || !ended.Joined || ended.SignalError != nil {
+			ended = finish()
 		}
-		Expect(returned).To(HaveOccurred())
+		Expect(joinErr).NotTo(HaveOccurred(), "actual retirement SIGTERM must return within the existing cleanup allowance")
+		Expect(ended.SignalError).NotTo(HaveOccurred())
+		Expect(ended.Joined).To(BeTrue())
+		Expect(ended.WaitError).To(HaveOccurred())
 		// The raw whole-installation owner retains ordinary OS signal behavior.
 		// per docs/adr/0123-owned-obsolete-initializer-cache-retirement.md:112
 		var terminated *exec.ExitError
-		Expect(errors.As(returned, &terminated)).To(BeTrue())
+		Expect(errors.As(ended.WaitError, &terminated)).To(BeTrue())
 		waitStatus, ok := terminated.Sys().(syscall.WaitStatus)
 		Expect(ok).To(BeTrue())
 		Expect(waitStatus.Signaled()).To(BeTrue())
@@ -722,6 +735,7 @@ var _ = Describe("Qualified obsolete initializer cache retirement", Ordered, Con
 // Evaluator-only source is compiled into a private, committed image. No shipping
 // flag or mutable production callback is introduced. Actual saves establish the
 // pending/preparation state; records are never fabricated for these controls.
+// per docs/DECISION_LOG.md:8710
 const obsoleteBoundarySource = `package installation
 import("context";"encoding/json";"errors";"os";"strings";"syscall";"time")
 func(owner *transaction)independentObsoleteBoundary(ctx context.Context)error{
@@ -736,6 +750,9 @@ func(owner *transaction)independentObsoleteBoundary(ctx context.Context)error{
  receipt:=map[string]any{"pid":os.Getpid(),"group":group,"root":owner.root,"migration":owner.record.MigrationID,"phase":owner.record.Phase,"retired":retired,"at":time.Now().UTC().Format(time.RFC3339Nano)}
  data,err=json.Marshal(receipt);if err!=nil{return err};if err=os.WriteFile(c.Ready+".tmp",data,0600);err!=nil{return err};if err=os.Rename(c.Ready+".tmp",c.Ready);err!=nil{return err}
  if c.Mode=="committed"{return errors.New("independent failure after actual committed save")}
- <-ctx.Done();return ctx.Err()
+ reader,writer,err:=os.Pipe();if err!=nil{return err};defer reader.Close();defer writer.Close()
+ stop:=context.AfterFunc(ctx,func(){_ = reader.Close()});defer stop()
+ var blocked [1]byte;_,err=reader.Read(blocked[:]);if ctx.Err()!=nil{return ctx.Err()}
+ return errors.Join(errors.New("independent obsolete boundary unexpectedly unblocked"),err)
 }
 `

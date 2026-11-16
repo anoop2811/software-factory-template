@@ -1,6 +1,6 @@
 # Integrated fresh and migrated adopter rehearsal
 
-Status: implemented; local qualification passed, hosted qualification pending.
+Status: merged in PR #183; local and hosted source qualification passed.
 Decision: 172. Continues R4 after merged PR #182.
 
 ## Purpose and release boundary

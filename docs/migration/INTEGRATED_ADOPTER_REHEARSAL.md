@@ -1,9 +1,9 @@
 # Integrated installed adopter rehearsal
 
 Contract: [ADR 0156](../adr/0156-integrated-adopter-rehearsal.md), Decision 172.
-R4 joins the installed boundaries after PR #182. The local connected rehearsal
-passes, including final focused source qualification; hosted qualification
-remains pending.
+R4 joins the installed boundaries after PR #182. Local and hosted source
+qualification passed; PR #183 merged on 2026-11-15 as
+`509d4bbc01743fa3900247273d082171e1bf3a18`.
 
 ## What this evidence covers
 
@@ -25,7 +25,7 @@ on GitHub or that a published asset has passed live authentication.
 | Clean ordinary CI | Generated preparation, real checks, three harness evaluations, mock golden evaluation and propagated application failure | Local PASS |
 | Clean enabled review | Generated selector, exact pinned installer, real standalone acquisition and public review with local provider transport | Local PASS |
 | Local full-check hook | Real topic push succeeds; application failure prevents remote update | Local PASS |
-| Recovery and retention | Exact rollback plus retained complete interruption/retention families | Local rollback PASS; supporting hosted families pending |
+| Recovery and retention | Exact rollback plus retained complete interruption/retention families | Local and hosted PASS; initial timeout/repeat noted below |
 
 The initialized-CI group owns the two connected journeys. Existing CI migration,
 release preparation, interruption and retention groups retain their detailed
@@ -83,8 +83,8 @@ go test -race -v -count=1 -timeout=25m ./acceptance \
 Output: `Ran 53 of 3501 Specs in 373.710 seconds`,
 `SUCCESS! -- 53 Passed | 0 Failed`. This includes every native synchronization
 criterion, exact discovery of all 3,501 criteria across disjoint CI partitions,
-and worker execution/workflow partition controls. Hosted checks on the final
-commit still need to qualify the full matrix and connected journeys.
+and worker execution/workflow partition controls. Subsequent hosted checks on
+the final commit qualified the full matrix and connected journeys, as recorded below.
 
 ## Reproduce source qualification
 
@@ -105,9 +105,30 @@ Hosted exact-head reports remain the cross-platform source qualification.
 
 ## Remaining release gates
 
-R4 remains open until the connected journeys and retained supporting checks pass
-and review findings are addressed. R5 then publishes and qualifies RC4 on the
+R4 closed with the reviewed merge and hosted evidence below. R5 publishes and qualifies RC4 on the
 four supported native targets, using actual release authenticity. R6 records the
 representative adopter pilot and operator acceptance. R7 performs stable
 activation with the final dependency/reference audit. This rehearsal does not
 change the public v0.1.6 default or create another release gate.
+
+## Final hosted evidence and merge
+
+[PR #183](https://github.com/anoop2811/software-factory-template/pull/183)
+head `678f3a13dee941f94de0474e7cba9c64d9c2bd72` passed 46 current checks.
+The merged revision above has the same tree. The
+[Go qualification run](https://github.com/anoop2811/software-factory-template/actions/runs/43757256788)
+ran all eight initialized-CI criteria successfully on Linux (221.064 seconds)
+and macOS (642.411 seconds). The two new fresh/v0.1.6 journeys passed on both
+platforms in the first attempt. The model review completed all eleven files and
+seventeen fragments in 2m25s; every finding has a
+[full-source response](https://github.com/anoop2811/software-factory-template/pull/183#issuecomment-6900760571).
+Copilot could not review because the account quota was exhausted.
+
+One separate existing macOS local Go-to-Go apply hit its 90-second fixture
+watchdog in the first matrix attempt. Its process confirmed exit and retained
+recovery evidence. The unchanged two-case local reproduction passed in
+504.123 seconds; a single hosted job repeat passed in 478.785 seconds without
+changing code or deadlines. The original overrun's underlying cause remains
+unproven. Commands, exact results and both artifact identities are retained in
+the [final qualification receipt](https://github.com/anoop2811/software-factory-template/pull/183#issuecomment-6901407780).
+These are source results, not published RC4 or adopter-pilot evidence.

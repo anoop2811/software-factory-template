@@ -222,16 +222,27 @@ update exact predecessor-owned enabled workflows transactionally. PR #182 merged
 on 2026-11-15 as `8772e919a66d625085a1f69320f7dd0afc2e59eb`. Bootstrap
 alone does not qualify those installed workflows. Decision 172 /
 [ADR 0156](../adr/0156-integrated-adopter-rehearsal.md) connects the remaining
-fresh/migrated rehearsal; it remains open until its evidence passes. All of this is within R4; R5
-published qualification, R6 adopter pilot and R7 stable activation remain the
-other fixed release gates. A PR count is not release progress.
+fresh/migrated rehearsal. PR #183 merged on 2026-11-15 as
+`509d4bbc01743fa3900247273d082171e1bf3a18`, with the same tree as its reviewed
+head and 46 passing current checks. The
+[integrated rehearsal report](INTEGRATED_ADOPTER_REHEARSAL.md#final-hosted-evidence-and-merge)
+records both platforms, review dispositions and the separate initial watchdog
+failure/passing repeat without claiming its cause is known. R4 is complete.
+R5 published qualification, R6 adopter pilot and R7 stable activation remain the
+three release gates. Decision 173 requires the live evaluator's child-ownership
+correction and the subsequent installer startup-cancellation correction to be
+reviewed before cutting RC4. The installed review workflow's immutable installer
+pin must then select the merged correction, with its consumer checks passing,
+before RC4 source selection. These are R5 prerequisites, not additional release
+gates. A PR count is not release progress.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct
 obligations. The factory's source-development CI includes checks that are not
 shipped to adopters; copying it is not a complete installed CI solution. The
-integrated fresh-project and migrated-adopter rehearsal remains open until the
-actual job paths pass from clean checkouts without Go or Python for the factory.
+integrated fresh-project and migrated-adopter rehearsal exercised those actual
+job paths from clean checkouts without Go or Python for the factory. Published
+qualification and the adopter pilot remain separate obligations.
 
 ## Observable release rehearsal
 

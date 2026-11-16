@@ -496,3 +496,84 @@ failed hosted report, with no additions or omissions. These controls establish
 selection and scheduling behavior. The complete real handoff run and final-head
 hosted timing remain separate outcomes; no speedup, published-release pass or
 minimum-OS qualification is inferred from the small scheduling proof.
+
+## RC4 evaluator preflight
+
+On 2026-11-15 UTC, Decision 173's source inspection found two raw group-signal
+paths that could run after their direct child was reaped: the live interruption
+case and the ordinary command helper's context cancellation callback. The
+correction reuses the existing owner from
+docs/adr/0151-reliable-ci-qualification.md:1, with one final wait after signaling
+closes. Guarded fixture cleanup retains captures and borrowed inputs when child
+settlement is uncertain. The five live scenarios, deadlines, authenticated
+source identities and runtime code are unchanged. RC4 publication is deferred
+until this evaluator correction is reviewed and merged.
+
+RAN against the existing signed `v0.2.0-rc.3` assets at source
+`95486ecdd3868a319a0e6362ee99cafd8f154200`, on darwin/arm64, macOS 26.6.2,
+using Go 1.27.4 and the existing qualified historical harness:
+
+```text
+FACTORY_PUBLISHED_TAG=v0.2.0-rc.3
+FACTORY_PUBLISHED_REVISION=95486ecdd3868a319a0e6362ee99cafd8f154200
+FACTORY_PUBLISHED_TARGET=darwin/arm64
+go test -tags=publishedrelease -race -count=1 -timeout=25m -v ./acceptance -ginkgo.focus="^Go factory command acceptance (Published release qualification (evaluator|live)|Interruption fixture child custody) " -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/rc4-evidence/rc3-live/ginkgo.json -ginkgo.junit-report=../.factory/rc4-evidence/rc3-live/junit.xml
+Ran 7 of 3507 Specs in 881.763 seconds
+SUCCESS! -- 7 Passed | 0 Failed | 0 Pending | 3500 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 885.697s
+```
+
+The selected checks were the two existing evaluator/child-custody controls and
+all five live cases: fresh initialization, v0.1.6 upgrade/rollback, immutable
+Bash-baseline upgrade/rollback, and actual interruption/recovery for each legacy
+baseline. Both interrupted journals were retained in the local evidence directory.
+The real GitHub verifier authenticated all three downloaded subjects:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `factory-bootstrap-v0.2.0-rc.3-darwin-arm64` | `ecf8b25e5962c534fd3ab27bf1db81c5185d8025de2729f5f6205a7bc914a6f6` |
+| `factory-runtime-v0.2.0-rc.3-darwin-arm64.tar.gz` | `97af47374c1dbbfd4779d26c6d99c70adbfb1b1814d46188bf76c4138de7fdb0` |
+| `factory-installation-v0.2.0-rc.3-darwin-arm64.tar.gz` | `48706cf55aa173da8e910d25fa2b5d98e7958306b42547fc6d1042cef6ed69a7` |
+
+The evaluator was the local correction on base
+`509d4bbc01743fa3900247273d082171e1bf3a18`, not that immutable base alone.
+`evaluator-source.json` records the tested file SHA-256
+`5eb9add21f070d1efbe46e2fdffd37fcb02682ca10ebd3f853fb08602e5bde50`
+and retained `evaluator.patch` SHA-256
+`2c09aded90dba08f89b705530da800e1e12941b28e6e38ccd90dd3e143ba1de7`.
+Reports and receipts are local under `.factory/rc4-evidence/rc3-live/`; they are
+not hosted release artifacts. This run qualifies the corrected evaluator against
+RC3 on this host. It does not qualify RC4, the macOS 15 floor, other native
+targets, or the separate adopter pilot.
+
+PR #184's subsequent hosted source run exposed a separate private evaluator
+pause in obsolete-cache recovery: its raw CLI background context has a nil
+`Done()` channel. The retained receipt showed exit 2 with a Go deadlock after
+the actual applying journal save, before the required SIGTERM. Decision 173's
+2026-11-16 follow-up replaces that pause with a pollable pipe, reuses the same
+child owner, and retains an uncertain owner's control file and inputs. The
+90/60/10-second bounds and both existing recovery scenarios are preserved.
+
+RAN locally on 2026-11-16 UTC in the same qualified environment:
+
+```text
+go test -race -count=1 -timeout=20m -v ./acceptance -ginkgo.focus="^Go factory command acceptance Qualified obsolete initializer cache retirement recovers durably interrupted obsolete retirement with exact originals and no compiler " -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/rc4-evidence/obsolete-recovery-green.json
+Ran 2 of 3501 Specs in 121.800 seconds
+SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 3499 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 124.559s
+```
+
+Both receipts record actual SIGTERM termination and a settled group, followed by
+successful forward/reverse recovery. This is source-evaluator qualification,
+not a published RC4 result. The original hosted failure is retained under
+`.factory/rc4-evidence/pr184-historical-first/`; the local report and source patch
+are adjacent. The tested obsolete evaluator file SHA-256 is
+`0516a09921177378fdc58dffc7b987b79ae2318147f160f55f77127ff3c45639`.
+
+The later macOS source run exposed a bootstrap startup-cancellation failure.
+Decision 173 records the Linux fork/reset mechanism, the separately labeled
+portable regression and the production private cancellation-record correction.
+Those changes are additional to the RC3 evaluator receipts above; that earlier
+run does not qualify the new installer. Final source CI must pass before merge,
+and the installed review workflow must advance its immutable installer pin to
+the merged correction before RC4 selection. RC4 remains unpublished.

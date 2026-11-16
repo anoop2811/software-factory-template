@@ -74,7 +74,12 @@ func publishedAcquire() *publishedFixture {
 	Expect(regexp.MustCompile(`^[a-f0-9]{40}$`).MatchString(revision)).To(BeTrue(), "explicit live qualification requires the full FACTORY_PUBLISHED_REVISION")
 	Expect(filepath.IsAbs(destination)).To(BeTrue(), "explicit live qualification requires an absolute FACTORY_PUBLISHED_EVIDENCE_DIR")
 	Expect(os.MkdirAll(destination, 0700)).To(Succeed()) // #nosec G703 -- explicit absolute evidence destination from the trusted qualification runner, not release content.
-	root, err := filepath.EvalSymlinks(GinkgoT().TempDir())
+	// Borrowed authenticated inputs must survive an uncertain interruption join.
+	// per docs/DECISION_LOG.md:8672
+	root, err := os.MkdirTemp("", "factory-published-release-")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(cleanupFixtureDirectory, root)
+	root, err = filepath.EvalSymlinks(root)
 	Expect(err).NotTo(HaveOccurred())
 	gh, err := exec.LookPath("gh")
 	Expect(err).NotTo(HaveOccurred(), "the live lane requires the real trusted GitHub CLI")
@@ -193,31 +198,76 @@ func publishedAssertNoForbiddenTool(cwd string, environment map[string]string, p
 	Expect(observed).To(BeNil(), "published Go dependency control observed a forbidden tool at this command boundary:\n%s", evidence)
 }
 
+// Absolute operands are evaluator-selected fixture inputs, including signed
+// bootstrap/archive/trust files outside the command's project cwd. A held leaf
+// also protects its owning fixture directory. The marker binds borrowed poison
+// tools even when an external program such as Git is selected.
+// per docs/DECISION_LOG.md:8691
+func publishedHoldCommandInputs(capture, cwd string, environment map[string]string, program string, args []string) {
+	paths := append([]string{capture, cwd, environment["PUBLISHED_FORBIDDEN"], program}, args...)
+	for _, path := range paths {
+		if filepath.IsAbs(path) {
+			holdFixtureCleanup(path, "published command owner termination could not be confirmed")
+		}
+	}
+}
+
+// Normal completion closes signaling before the sole wait, just as deliberate
+// interruption does. Preserve each command's original three-minute boundary.
+// per docs/DECISION_LOG.md:8691
+// per docs/adr/0151-reliable-ci-qualification.md:274
 func publishedExecute(cwd string, environment map[string]string, input, program string, args ...string) cliResult {
 	GinkgoHelper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	command := handoffCommand(ctx, cwd, environment, input, program, args...)
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	command.WaitDelay = time.Second
-	command.Cancel = func() error {
-		if command.Process == nil {
-			return nil
+	capture, err := os.MkdirTemp("", "factory-published-command-")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(cleanupFixtureDirectory, capture)
+	stdout, err := os.OpenFile(filepath.Join(capture, "stdout"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(stdout.Close)
+	stderr, err := os.OpenFile(filepath.Join(capture, "stderr"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(stderr.Close)
+	owner, err := startCIInterruptionOwner(ctx, func(commandContext context.Context) *exec.Cmd {
+		command := handoffCommand(commandContext, cwd, environment, input, program, args...)
+		command.Stdout, command.Stderr = stdout, stderr
+		return command
+	})
+	Expect(err).NotTo(HaveOccurred())
+	finish := func() ciInterruptionResult {
+		result := owner.TerminateAndWait()
+		if !result.Joined || result.SignalError != nil {
+			publishedHoldCommandInputs(capture, cwd, environment, program, args)
 		}
-		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		return result
 	}
-	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	err := command.Run()
+	DeferCleanup(func() {
+		result := finish()
+		Expect(result.SignalError).NotTo(HaveOccurred())
+		Expect(result.Joined).To(BeTrue(), "published command owner must join within bounded cleanup")
+	})
+	result, waitErr := owner.AwaitExit(3 * time.Minute)
+	if waitErr != nil || !result.Joined || result.SignalError != nil {
+		result = finish()
+	}
+	Expect(result.SignalError).NotTo(HaveOccurred())
+	Expect(result.Joined).To(BeTrue())
+	out, outErr := os.ReadFile(stdout.Name())
+	errout, errErr := os.ReadFile(stderr.Name())
+	Expect(outErr).NotTo(HaveOccurred())
+	Expect(errErr).NotTo(HaveOccurred())
 	publishedAssertNoForbiddenTool(cwd, environment, program, args)
-	Expect(ctx.Err()).NotTo(HaveOccurred(), "published command exceeded its deadline: %s", stderr.String())
+	Expect(ctx.Err()).NotTo(HaveOccurred(), "published command exceeded its deadline: %s", errout)
+	Expect(waitErr).NotTo(HaveOccurred())
+	Expect(result.State).NotTo(BeNil())
 	status := 0
-	if err != nil {
+	if result.WaitError != nil {
 		var exit *exec.ExitError
-		Expect(errors.As(err, &exit)).To(BeTrue(), "%v", err)
+		Expect(errors.As(result.WaitError, &exit)).To(BeTrue(), "%v", result.WaitError)
 		status = exit.ExitCode()
 	}
-	return cliResult{stdout.String(), stderr.String(), status}
+	return cliResult{string(out), string(errout), status}
 }
 
 func (fixture *publishedFixture) preview(root string) map[string]any {
@@ -483,6 +533,7 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 	}, Entry("v0.1.6", "v0.1.6"), Entry("immutable Bash baseline", "bash-baseline"))
 
 	// per docs/adr/0107-published-release-qualification.md:109
+	// per docs/DECISION_LOG.md:8672
 	DescribeTable("recovers a witnessed interrupted published upgrade without changing signed inputs", func(profile string) {
 		legacy := installationCloneLegacyFixture(candidateBinary, release.prepared[profile])
 		values := publishedUserData(legacy.root, profile)
@@ -492,36 +543,56 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		proposal := release.preview(legacy.root)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		command := handoffCommand(ctx, legacy.root, release.environment, "", release.bootstrap, []string{"upgrade", "--go-candidate", release.evidence.Tag, "--confirm", proposal["proposal_digest"].(string), "--quiescent"}...)
-		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-		command.WaitDelay = time.Second
-		command.Cancel = func() error {
-			if command.Process == nil {
-				return nil
-			}
-			return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-		}
-		var stdout, stderr bytes.Buffer
-		command.Stdout, command.Stderr = &stdout, &stderr
-		Expect(command.Start()).To(Succeed())
-		finished := make(chan error, 1)
-		go func() { finished <- command.Wait() }()
-		waited := false
-		DeferCleanup(func() {
-			if !waited {
-				_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
-				<-finished
-			}
+		// Regular captures can be inspected after bounded settlement without
+		// racing an exec writer or losing evidence on an uncertain join.
+		// per docs/adr/0151-reliable-ci-qualification.md:196
+		captureRoot, err := os.MkdirTemp("", "factory-published-interruption-")
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(cleanupFixtureDirectory, captureRoot)
+		stdout, err := os.OpenFile(filepath.Join(captureRoot, "stdout"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(stdout.Close)
+		stderr, err := os.OpenFile(filepath.Join(captureRoot, "stderr"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(stderr.Close)
+		upgradeArgs := []string{"upgrade", "--go-candidate", release.evidence.Tag, "--confirm", proposal["proposal_digest"].(string), "--quiescent"}
+		owner, err := startCIInterruptionOwner(ctx, func(commandContext context.Context) *exec.Cmd {
+			command := handoffCommand(commandContext, legacy.root, release.environment, "", release.bootstrap, upgradeArgs...)
+			command.Stdout, command.Stderr = stdout, stderr
+			return command
 		})
+		Expect(err).NotTo(HaveOccurred())
+		finish := func() ciInterruptionResult {
+			result := owner.TerminateAndWait()
+			if !result.Joined || result.SignalError != nil {
+				for _, root := range []string{captureRoot, legacy.root, release.root} {
+					holdFixtureCleanup(root, "published interruption owner termination could not be confirmed")
+				}
+			}
+			return result
+		}
+		DeferCleanup(func() {
+			result := finish()
+			Expect(result.SignalError).NotTo(HaveOccurred())
+			Expect(result.Joined).To(BeTrue(), "published interruption owner must join within bounded cleanup")
+		})
+		// Exited observes without reaping; finish closes signaling before its
+		// sole wait. Even healthy early completion cannot pass a crash witness.
+		// per docs/adr/0151-reliable-ci-qualification.md:193
+		observeExit := func(boundary string) {
+			exited, err := owner.Exited()
+			if exited || errors.Is(err, os.ErrProcessDone) {
+				result := finish()
+				out, outErr := os.ReadFile(stdout.Name())
+				errout, errErr := os.ReadFile(stderr.Name())
+				StopTrying(fmt.Sprintf("published candidate exited before %s: wait=%v signal=%v joined=%t; stdout=%q (%v) stderr=%q (%v)", boundary, result.WaitError, result.SignalError, result.Joined, out, outErr, errout, errErr)).Now()
+			}
+			Expect(err).NotTo(HaveOccurred())
+		}
 		pending := filepath.Join(legacy.root, ".factory/runtime-publication.pending")
 		var migration string
 		observe := func() bool {
-			select {
-			case err := <-finished:
-				waited = true
-				StopTrying(fmt.Sprintf("published candidate exited before durable crash witness: %v", err)).Now()
-			default:
-			}
+			observeExit("durable crash witness")
 			paths, err := filepath.Glob(filepath.Join(legacy.root, ".factory/installation-transactions/candidate-*.json"))
 			if err != nil || len(paths) != 1 {
 				return false
@@ -557,17 +628,12 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 			return true
 		}
 		Eventually(observe, 3*time.Minute, time.Millisecond).Should(BeTrue(), "must observe durable applied rows under pending, not perform a timed kill")
-		Expect(syscall.Kill(command.Process.Pid, syscall.SIGSTOP)).To(Succeed())
+		Expect(owner.Signal(syscall.SIGSTOP)).To(Succeed())
 		// A signal acknowledgement is not the stopped-process witness.
 		// per docs/DECISION_LOG.md:4695.
 		Eventually(func() bool {
-			select {
-			case err := <-finished:
-				waited = true
-				StopTrying(fmt.Sprintf("published candidate exited before observed stop: %v", err)).Now()
-			default:
-			}
-			stopped, stopErr := installationProcessStopped(command.Process.Pid)
+			observeExit("observed stop")
+			stopped, stopErr := installationProcessStopped(owner.PID())
 			Expect(stopErr).NotTo(HaveOccurred(), "observe actual published candidate stop before reading crash evidence")
 			return stopped
 		}, 5*time.Second, time.Millisecond).Should(BeTrue(), "must observe the actual process stopped before accepting its durable witness")
@@ -597,10 +663,16 @@ var _ = Describe("Published release qualification live", Ordered, ContinueOnFail
 		Expect(stoppedRuntime).To(BeTrue())
 		_, err = os.Lstat(pending)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(syscall.Kill(-command.Process.Pid, syscall.SIGKILL)).To(Succeed())
-		Expect(<-finished).To(HaveOccurred())
-		waited = true
-		publishedAssertNoForbiddenTool(legacy.root, release.environment, command.Args[0], command.Args[1:])
+		terminated := finish()
+		Expect(terminated.SignalError).NotTo(HaveOccurred())
+		Expect(terminated.Joined).To(BeTrue())
+		Expect(terminated.WaitError).To(HaveOccurred())
+		Expect(terminated.State).NotTo(BeNil())
+		status, ok := terminated.State.Sys().(syscall.WaitStatus)
+		Expect(ok).To(BeTrue())
+		Expect(status.Signaled()).To(BeTrue())
+		Expect(status.Signal()).To(Equal(syscall.SIGKILL), "the actual published transaction owner was stopped and killed")
+		publishedAssertNoForbiddenTool(legacy.root, release.environment, release.bootstrap, upgradeArgs)
 		journal, err := os.ReadFile(filepath.Join(legacy.root, ".factory/installation-transactions", migration+".json"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(journal).To(Equal(stoppedBytes), "the killed transaction cannot advance its recorded witness")

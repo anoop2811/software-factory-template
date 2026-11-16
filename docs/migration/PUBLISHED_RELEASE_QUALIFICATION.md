@@ -545,3 +545,27 @@ Reports and receipts are local under `.factory/rc4-evidence/rc3-live/`; they are
 not hosted release artifacts. This run qualifies the corrected evaluator against
 RC3 on this host. It does not qualify RC4, the macOS 15 floor, other native
 targets, or the separate adopter pilot.
+
+PR #184's subsequent hosted source run exposed a separate private evaluator
+pause in obsolete-cache recovery: its raw CLI background context has a nil
+`Done()` channel. The retained receipt showed exit 2 with a Go deadlock after
+the actual applying journal save, before the required SIGTERM. Decision 173's
+2026-11-16 follow-up replaces that pause with a pollable pipe, reuses the same
+child owner, and retains an uncertain owner's control file and inputs. The
+90/60/10-second bounds and both existing recovery scenarios are preserved.
+
+RAN locally on 2026-11-16 UTC in the same qualified environment:
+
+```text
+go test -race -count=1 -timeout=20m -v ./acceptance -ginkgo.focus="^Go factory command acceptance Qualified obsolete initializer cache retirement recovers durably interrupted obsolete retirement with exact originals and no compiler " -ginkgo.fail-on-empty -ginkgo.no-color -ginkgo.json-report=../.factory/rc4-evidence/obsolete-recovery-green.json
+Ran 2 of 3501 Specs in 121.800 seconds
+SUCCESS! -- 2 Passed | 0 Failed | 0 Pending | 3499 Skipped
+ok github.com/anoop2811/software-factory-template/acceptance 124.559s
+```
+
+Both receipts record actual SIGTERM termination and a settled group, followed by
+successful forward/reverse recovery. This is source-evaluator qualification,
+not a published RC4 result. The original hosted failure is retained under
+`.factory/rc4-evidence/pr184-historical-first/`; the local report and source patch
+are adjacent. The tested obsolete evaluator file SHA-256 is
+`0516a09921177378fdc58dffc7b987b79ae2318147f160f55f77127ff3c45639`.

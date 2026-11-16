@@ -8696,3 +8696,27 @@ the same existing owner to this helper with `AwaitExit`, preserving its
 three-minute command deadline, literal exit status and forbidden-tool checks.
 Use regular captures and retain all borrowed fixture roots on unconfirmed
 termination. No new process supervisor, runtime behavior or public API is needed.
+
+Decision 173 hosted follow-up (2026-11-16 UTC): PR #184's first final-head run
+passed 45 checks but failed the existing reverse obsolete-cache interruption
+case. The retained `obsolete-cache.actual-interruption` receipt from
+[run 43775569321](https://github.com/anoop2811/software-factory-template/actions/runs/43775569321/job/133002624455)
+records exit 2 and `fatal error: all goroutines are asleep - deadlock!` at the
+injected `independentObsoleteBoundary` nil-channel receive. This private
+evaluator uses the raw CLI's background context, so `ctx.Done()` is nil; the
+runtime can exit before the test sends its required SIGTERM. The readiness
+receipt had recorded an actual saved applying journal and one retired row.
+
+Correct this evaluator boundary before merge: use a real pollable blocked input
+that remains alive without a cancellable context, and closes on cancellation
+when one is supplied. Preserve default SIGTERM behavior and never resume the
+transaction after an unexpected unblock. Use the existing direct-child owner
+for this interruption family so observation does not reap before signals and
+cleanup closes signaling before the sole wait. Retain regular captures and
+borrowed fixture roots if settlement is uncertain. Preserve the 90-second
+operation, 60-second readiness and 10-second signal-join bounds, actual durable
+receipt, SIGTERM exit assertion, group absence, both recovery directions and
+all original-byte/compiler-isolation assertions. The hosted deadlock is the
+observed failure; run both unchanged recovery scenarios after correction.
+Keep this correction in test-only source and the existing R5 PR, with no
+production hooks, time-limit increases, retries or new release gate.

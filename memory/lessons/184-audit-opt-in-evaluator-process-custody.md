@@ -21,3 +21,13 @@ release qualification distinct from compilation, selection and helper proofs.
 The contract and bounded correction are in Decision 173 in
 [the decision log](../../docs/DECISION_LOG.md); the shared ownership contract
 remains [ADR 0151](../../docs/adr/0151-reliable-ci-qualification.md).
+
+Observed 2026-11-16 in PR #184's
+[macOS historical-recipe job](https://github.com/anoop2811/software-factory-template/actions/runs/43775569321/job/133002624455):
+the retained `obsolete-cache.actual-interruption` entry records a real applying
+journal receipt, then exit 2 with `fatal error: all goroutines are asleep - deadlock!`
+at the injected `independentObsoleteBoundary` nil-channel receive. The raw
+installation route uses a background context; its `Done()` channel cannot serve
+as an external wait. A test pause must keep a real pollable wait alive while
+preserving the signal behavior it intends to measure. Decision 173 records this
+evaluator correction separately from the production migration contract.

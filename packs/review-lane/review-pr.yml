@@ -165,7 +165,7 @@ jobs:
             --proto '=https' --proto-redir '=https' --tlsv1.2 \
             --connect-timeout 15 --max-time 60 --max-filesize 1048576 \
             --output "$installer" \
-            'https://raw.githubusercontent.com/anoop2811/software-factory-template/3794e6cc8fa66eb02504e753b0ad11955f5cf85a/install.sh'
+            'https://raw.githubusercontent.com/anoop2811/software-factory-template/959ebbc2a661fe7911f2770b1c5746b54c287249/install.sh'
           [ -f "$installer" ] && [ ! -L "$installer" ] && [ -s "$installer" ] &&
             [ "$(wc -c < "$installer")" -le 1048576 ] || { echo 'Review installer download is incomplete.' >&2; exit 1; }
           # pipefail preserves the installer's final status even with a plausible

@@ -229,12 +229,13 @@ head and 46 passing current checks. The
 records both platforms, review dispositions and the separate initial watchdog
 failure/passing repeat without claiming its cause is known. R4 is complete.
 R5 published qualification, R6 adopter pilot and R7 stable activation remain the
-three release gates. Decision 173 requires the live evaluator's child-ownership
-correction and the subsequent installer startup-cancellation correction to be
-reviewed before cutting RC4. The installed review workflow's immutable installer
-pin must then select the merged correction, with its consumer checks passing,
-before RC4 source selection. These are R5 prerequisites, not additional release
-gates. A PR count is not release progress.
+three release gates. Decision 173's live-evaluator child-ownership and installer
+startup-cancellation corrections merged in PR #184 on 2026-11-16 as
+`959ebbc2a661fe7911f2770b1c5746b54c287249`, with the same tree as the reviewed
+head and 46 passing checks. Decision 174 advances the installed review workflow's
+immutable installer pin to that correction. Its consumer qualification, review
+and merge must finish before RC4 source selection. These are R5 prerequisites,
+not additional release gates. A PR count is not release progress.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct

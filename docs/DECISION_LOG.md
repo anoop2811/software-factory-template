@@ -8720,3 +8720,49 @@ all original-byte/compiler-isolation assertions. The hosted deadlock is the
 observed failure; run both unchanged recovery scenarios after correction.
 Keep this correction in test-only source and the existing R5 PR, with no
 production hooks, time-limit increases, retries or new release gate.
+
+Decision 173 additional hosted evidence (2026-11-16 UTC): the final-head Linux
+base run at `b8b15e4` failed the existing bootstrap watcher setup cancellation
+criterion in
+[job 133046685278](https://github.com/anoop2811/software-factory-template/actions/runs/43789776871/job/133046685278).
+Its retained report records no join within five seconds and a verifier still
+blocked on the private API gate. It also records a real Go race: failure
+diagnostics read `bytes.Buffer` while the command writer is still active.
+The earlier watcher PID and unset exit status in that receipt are not late
+process observations. The initial local unchanged focused run passed; it does
+not explain the hosted overrun.
+
+Before changing installer behavior, replace the watcher evaluator's asynchronous
+buffer captures with regular fixture-owned files and record private trace
+observations at the existing cancellation, watcher-join and supervisor-cleanup
+boundaries, including late process states before releasing either fixture gate.
+Preserve all stage schedules, signal/absence assertions, five-second join and
+existing cleanup limits. Keep traces confined to the patched disposable
+installer fixture. The diagnostic race is confirmed; the original missing join
+remains unexplained until a trace or controlled reproduction identifies it.
+
+Decision 173 installed-review fixture follow-up (2026-11-16 UTC): the same
+head's macOS base report records two review journeys failing before any provider
+request, with `cannot prepare review configuration`. This is the independent
+five-second Git-discovery boundary in `commandenv.Base`, before the configured
+HTTP timeout. The fixture's isolated PATH selects `/usr/bin/git`; the hosted
+native evaluator records a different resolved Git. The receipt cannot distinguish
+a nested discovery timeout from residual-process refusal, so neither the host
+launcher's delay nor its cause is claimed proven.
+
+Apply ADR 0151's existing deterministic non-Git boundary only to
+`installedReviewSetup`: reuse `orchestrationNonGitDiscovery` in its private tools
+directory. Its deliberately non-Git working directory does not test Git identity
+or source-build metadata. The actual emitted workflow, compiled public client,
+configuration fallback, HTTP requests, three providers, compiler poisons, failure
+redaction and both five-second deadlines remain unchanged. Real Git remains in
+the separate integrated fresh/migrated rehearsal. Do not add a new Git wrapper,
+relax a deadline or claim to repair the unrelated host-Git implementation.
+The existing strict helper rejects unexpected Git argv and returns the ordinary
+non-Git status only for the exact discovery command.
+
+Provenance: macOS base
+[job 133046685349](https://github.com/anoop2811/software-factory-template/actions/runs/43789776871/job/133046685349),
+`installed-review.provider-failure` and `release-handoff.resolved-git` receipts;
+fixture policy at docs/adr/0151-reliable-ci-qualification.md:115 and workflow
+criteria at docs/adr/0154-installed-review-workflow-migration.md:93.

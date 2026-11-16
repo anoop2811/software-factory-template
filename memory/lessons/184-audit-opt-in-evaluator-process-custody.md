@@ -31,3 +31,10 @@ installation route uses a background context; its `Done()` channel cannot serve
 as an external wait. A test pause must keep a real pollable wait alive while
 preserving the signal behavior it intends to measure. Decision 173 records this
 evaluator correction separately from the production migration contract.
+
+The later [Linux base job](https://github.com/anoop2811/software-factory-template/actions/runs/43789776871/job/133046685278)
+recorded a race in timeout diagnostics: `bootstrapWatcherCase` read a shared
+buffer before its command writer had joined. Failure reporting needs the same
+capture ownership discipline as the successful path. An earlier sampled PID
+and an unset exit result are not late process evidence; Decision 173 requires
+fresh observations while preserving the original failure and timeout boundary.

@@ -26,8 +26,9 @@ type installedReviewFixture struct {
 	environment                                   map[string]string
 }
 
-// The emitted scripts execute unchanged. Only acquisition and GitHub transport
-// are recording fixtures; the exported executable is the real compiled CLI.
+// The emitted scripts execute unchanged. Acquisition and GitHub transport are
+// recording fixtures; discovery supplies the declared non-Git result. The
+// exported executable is the real compiled CLI.
 // per docs/adr/0154-installed-review-workflow-migration.md:97
 func installedReviewSetup() installedReviewFixture {
 	GinkgoHelper()
@@ -45,6 +46,9 @@ func installedReviewSetup() installedReviewFixture {
 	for _, name := range []string{"go", "python", "python3"} {
 		writeFixture(filepath.Join(root, "tools", name), []byte("#!/bin/sh\nprintf compiler > \"$IW_ROOT/forbidden\"\nexit 97\n"), 0700)
 	}
+	// This bare fixture tests workflow/provider behavior, not host Git selection.
+	// per docs/DECISION_LOG.md:8753
+	orchestrationNonGitDiscovery(filepath.Join(root, "tools"))
 	jq, err := exec.LookPath("jq")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(os.Symlink(jq, filepath.Join(root, "tools/jq"))).To(Succeed())

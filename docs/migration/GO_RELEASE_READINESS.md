@@ -84,6 +84,23 @@ Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDA
 
 ## Current release candidate
 
+[v0.2.0-rc.4](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.4)
+was published on 2026-11-16 UTC from PR #185's reviewed merge
+`c51e0ae520839076c7245f2de7e396e4c3e546fe`. The PR passed all 46 checks;
+the merged source passed all 47 reported checks, including four native bundles.
+The release remains a prerelease and v0.1.6 remains Latest stable.
+
+R5 is complete: live published-asset qualification passed all twenty scenarios
+across four native targets in
+[release run 43958890935](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935).
+Each report confirms the approved minimum OS and authenticates its three release
+subjects against the selected source. The
+[RC4 evidence record](PUBLISHED_RELEASE_QUALIFICATION.md#fourth-published-candidate-result)
+records those actual outcomes separately from source CI. **Two release gates
+remain: R6 adopter pilot/signoff and R7 stable activation/publication.**
+
+### Earlier RC3 qualification (historical)
+
 [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
 was published on 2026-10-26 UTC from reviewed merge
 `95486ecdd3868a319a0e6362ee99cafd8f154200`. Its tree matches PR #138's reviewed
@@ -95,10 +112,9 @@ See [the exact RC3 results](PUBLISHED_RELEASE_QUALIFICATION.md#third-published-c
 The observed systems are Ubuntu 24.04.5 on both architectures, macOS 14.8.9
 arm64 and macOS 15.7.9 amd64, under the then-approved macOS 14 floor. Decision
 128 (2026-10-30) now sets macOS 15+ on both architectures; macOS 14 is no longer
-supported. The next candidate needs fresh native qualification at the revised
-minimums, so the platform gate remains open. Operator pilot, default selection,
-classified retirement and final audit also remain requirements. v0.1.6 remains
-latest stable.
+supported. At that checkpoint, a new candidate needed native qualification at
+the revised minimums. RC4 supplies that evidence above; RC3's original evidence
+and immutable assets remain historical. v0.1.6 remains latest stable.
 
 RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
 their recorded failures; its passing published results are separate evidence.
@@ -152,8 +168,10 @@ later binary; its source, tag and assets remain unchanged.
       Source implementation and qualification are in [PR #132](https://github.com/anoop2811/software-factory-template/pull/132)
       and [BACKUP_RETENTION.md](BACKUP_RETENTION.md). This source gate does not claim
       human merge, default selection or release publication.
-- [ ] Packaged acceptance passes natively on Linux amd64/arm64 and macOS amd64/arm64
+- [x] Packaged acceptance passes natively on Linux amd64/arm64 and macOS amd64/arm64
       at the approved minimum operating systems, including actual release authenticity.
+      RC4 run 43958890935 passed five live criteria per target, twenty in total,
+      with all four `minimum_os_qualified` records true.
 - [ ] Complete the mandatory manual adopter pilot and record its project,
       execution evidence and agreed exit criteria before default cutover.
 - [ ] Publish the Go replacement release only after the above gates pass and the
@@ -228,14 +246,14 @@ head and 46 passing current checks. The
 [integrated rehearsal report](INTEGRATED_ADOPTER_REHEARSAL.md#final-hosted-evidence-and-merge)
 records both platforms, review dispositions and the separate initial watchdog
 failure/passing repeat without claiming its cause is known. R4 is complete.
-R5 published qualification, R6 adopter pilot and R7 stable activation remain the
-three release gates. Decision 173's live-evaluator child-ownership and installer
-startup-cancellation corrections merged in PR #184 on 2026-11-16 as
+R5 published qualification is now complete; R6 adopter pilot and R7 stable
+activation remain the two release gates. Decision 173's live-evaluator
+child-ownership and installer startup-cancellation corrections merged in PR #184 on 2026-11-16 as
 `959ebbc2a661fe7911f2770b1c5746b54c287249`, with the same tree as the reviewed
-head and 46 passing checks. Decision 174 advances the installed review workflow's
-immutable installer pin to that correction. Its consumer qualification, review
-and merge must finish before RC4 source selection. These are R5 prerequisites,
-not additional release gates. A PR count is not release progress.
+head and 46 passing checks. Decision 174 advanced the installed review workflow's
+immutable installer pin to that correction. PR #185 completed its consumer
+qualification and review, and merged before RC4 source selection. These were R5
+prerequisites, not additional release gates. A PR count is not release progress.
 
 Runtime preparation, installer/bootstrap integration, adopter-specific workflow
 generation and preservation-aware existing-workflow integration are distinct
@@ -272,8 +290,9 @@ pass. See [the anonymized factory evidence](ADOPTER_REHEARSAL.md).
 
 PR #137 merged after all eighteen exact-head checks passed. Its merged tree is
 identical to the reviewed head used for RC2. The new published outcomes above
-remain distinct from that source qualification. Minimum-OS coverage, the mandatory
-operator pilot, default cutover and final audit remain open requirements.
+remain distinct from that source qualification. RC4 now supplies the minimum-OS
+evidence; the mandatory operator pilot, default cutover and final audit remain
+open requirements within R6 and R7.
 
 ## Pending operator input
 

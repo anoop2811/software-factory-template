@@ -85,13 +85,14 @@ Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDA
 ## Current release candidate
 
 [v0.2.0-rc.4](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.4)
-was published on 2026-11-16 UTC from PR #185's reviewed merge
+was published on 2026-11-16 UTC from
+[PR #185's reviewed merge](https://github.com/anoop2811/software-factory-template/pull/185)
 `c51e0ae520839076c7245f2de7e396e4c3e546fe`. The PR passed all 46 checks;
 the merged source passed all 47 reported checks, including four native bundles.
 The release remains a prerelease and v0.1.6 remains Latest stable.
 
-R5 is complete: live published-asset qualification passed all twenty scenarios
-across four native targets in
+R5 is complete: live published-asset qualification passed five criteria on each
+of four native targets, twenty criterion executions in total, in
 [release run 43958890935](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935).
 Each report confirms the approved minimum OS and authenticates its three release
 subjects against the selected source. The

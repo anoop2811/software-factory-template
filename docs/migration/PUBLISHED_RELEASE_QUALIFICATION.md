@@ -578,5 +578,108 @@ run does not qualify the new installer. PR #184 merged on 2026-11-16 as
 `959ebbc2a661fe7911f2770b1c5746b54c287249`, with the same tree as its reviewed
 head and all 46 checks passing. Decision 174 advances the installed review
 workflow's immutable installer pin to that merged correction. The pin's consumer
-qualification, review and merge must finish before RC4 source selection.
-RC4 remains unpublished; no published RC4 native target is qualified yet.
+qualification, review and merge were required before RC4 source selection.
+At that preflight checkpoint RC4 was unpublished and no RC4 target was qualified.
+
+## Fourth published candidate result
+
+On 2026-11-16 at 21:19:22 UTC,
+[v0.2.0-rc.4](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.4)
+was published from `c51e0ae520839076c7245f2de7e396e4c3e546fe`,
+[PR #185's merge](https://github.com/anoop2811/software-factory-template/pull/185).
+Its tree `729203e6d41333d4c5ef6803c939889494b8ced6` matches reviewed head
+`61ab9775578983f2b68eda09f85d73f671d790cd`. That PR passed
+[all 46 checks](https://github.com/anoop2811/software-factory-template/pull/185/checks),
+including adversarial coverage of six files and seven fragments in a
+[47-second review job](https://github.com/anoop2811/software-factory-template/actions/runs/43811831743/job/133114978868);
+[all four notes received a source/evidence-based response](https://github.com/anoop2811/software-factory-template/pull/185#issuecomment-6908610730).
+[Copilot's own review notice](https://github.com/anoop2811/software-factory-template/pull/185#pullrequestreview-5915503504)
+reported insufficient requester quota; no Copilot approval is claimed. The merged source
+subsequently passed all 47 reported checks, including four native bundles.
+
+The exact tag was read back from GitHub as the selected merge; the release is
+non-draft and marked prerelease, and the Latest endpoint still resolves v0.1.6.
+The existing [release run 43958890935](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935)
+builds four native bundles, authenticates and uploads twelve subjects with shared
+checksums/attestations, then qualifies actual published installation and migration.
+
+All four native builds, attestation/upload and the qualification guard passed.
+The workflow published fourteen release assets. The twelve subject names/digests agree across
+the release metadata, checksum file and attestation statement, whose source is
+the selected commit and `refs/tags/v0.2.0-rc.4`.
+
+| Target | Observed OS | Actual live criteria | Minimum OS established |
+| --- | --- | --- | --- |
+| Linux amd64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
+| Linux arm64 | Ubuntu 24.04.5 LTS | 5 passed, 0 failed | Yes |
+| macOS amd64 | 15.7.9 | 5 passed, 0 failed | Yes |
+| macOS arm64 | 15.8.2 | 5 passed, 0 failed | Yes |
+
+All four downloaded `release.json` records bind candidate and harness to the
+selected source, release ID 447629103, run 43958890935 and attempt 1. Each records
+successful authentication of its three native subjects and five passing live
+criteria. All twelve authenticated subject digests match the published release
+metadata, checksum file and attestation statement. All four records set
+`minimum_os_qualified: true`; qualification is not inferred from runner labels.
+
+The downloaded Ginkgo reports independently show `SuiteSucceeded: true`,
+`DryRun: false`, `FailOnEmpty: true` and five selected, executed, passing live
+criteria per target. Eight saved interruption journals, two per target, retain
+the witnessed `applying` phase. The five focused criterion titles, each prefixed
+by `Published release qualification live`, are:
+
+1. `initializes and runs the authenticated published Go selection without compiler interpreter or model clients`
+2. `upgrades a genuinely initialized predecessor and rolls back from its ignored inert recovery v0.1.6`
+3. `upgrades a genuinely initialized predecessor and rolls back from its ignored inert recovery immutable Bash baseline`
+4. `recovers a witnessed interrupted published upgrade without changing signed inputs v0.1.6`
+5. `recovers a witnessed interrupted published upgrade without changing signed inputs immutable Bash baseline`
+
+Each criterion executes once per target: five criteria times four targets gives
+twenty criterion executions. Journals are evidence from the two recovery criteria
+on each target, not extra criteria.
+
+The workflow executed this command on each native target:
+
+```sh
+go test -tags=publishedrelease -race -count=1 -timeout=25m -v ./acceptance \
+  -ginkgo.focus='^Go factory command acceptance Published release qualification live ' -ginkgo.fail-on-empty -ginkgo.no-color \
+  -ginkgo.json-report="$FACTORY_PUBLISHED_EVIDENCE_DIR/ginkgo.json" \
+  -ginkgo.junit-report="$FACTORY_PUBLISHED_EVIDENCE_DIR/junit.xml"
+```
+
+Each job's actual output includes:
+
+```text
+SUCCESS! -- 5 Passed | 0 Failed | 0 Pending | 3510 Skipped
+PASS
+```
+
+The 3510 other registered criteria are deliberately outside this live focus;
+none of the five live criteria was skipped. Suite times were 259.037 seconds
+(Linux amd64), 272.881 seconds (Linux arm64), 827.570 seconds (macOS amd64) and
+470.247 seconds (macOS arm64). The complete release run succeeded on its first
+attempt without changing the published source, assets or timeout limits.
+
+Per-target reports and interruption journals are retained as workflow artifacts
+for fourteen days:
+[Linux amd64](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935/artifacts/14273466986),
+[Linux arm64](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935/artifacts/14274575888),
+[macOS amd64](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935/artifacts/14273398941),
+[macOS arm64](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935/artifacts/14273647531).
+To retain the evidence beyond that expiry, the release also carries a
+[supplementary qualification archive](https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0-rc.4/factory-qualification-v0.2.0-rc.4-43958890935.tar.gz).
+It preserves byte-for-byte copies of all twenty downloaded files: four release
+records, four Ginkgo reports, four JUnit reports and eight interruption journals.
+Its manifest records the original artifact identities and per-file SHA-256
+digests. The archive SHA-256 is
+`1dfdb6fc73e5ffa5c29a977d7bd1c9125012a731d4e744555cab91dc33d15d30`.
+
+This additional informational asset makes fifteen release assets in total.
+It is unsigned, is not an installation input, and is outside the original
+`SHA256SUMS` and runtime attestation subjects. The original fourteen assets and
+tag remain unchanged; the archive preserves their qualification observations
+without claiming a new signed attestation.
+
+**R5 is complete.** R6 adopter pilot/signoff and R7 stable activation/publication
+remain pending. These live qualification results do not constitute operator
+acceptance of a representative adopter project or enable the stable default.

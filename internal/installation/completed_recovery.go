@@ -38,6 +38,9 @@ func (owner *transaction) completeRecoveryReplay(ctx context.Context) error {
 	if err := owner.validateCompletedRecovery(ctx); err != nil {
 		return err
 	}
+	if err := owner.finalizePreparedPending(ctx, nil); err != nil {
+		return err
+	}
 	owner.completed = true
 	return owner.check(ctx)
 }

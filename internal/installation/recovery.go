@@ -83,7 +83,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 	if pendingErr != nil {
 		return result, pendingErr
 	}
-	if terminalCleanup && (record.Pending == nil || pending != nil && !imageEqual(pending, record.Pending, true)) {
+	if terminalCleanup && (record.Pending == nil || pending != nil && !terminalPendingEqual(record, pending)) {
 		return result, conflict("terminal pending observation differs from current marker")
 	}
 	if request.Recover != "" && pending == nil && !terminalCleanup {

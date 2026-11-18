@@ -954,6 +954,7 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 	fixture := func(profile string) installationFixtureData {
 		return installationCloneLegacyFixture(binary, prepared[profile])
 	}
+	installationRollbackPreflightSpecs(fixture)
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:90
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:117

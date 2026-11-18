@@ -47,6 +47,7 @@ type journal struct {
 	Checks           []checkRecord      `json:"checks"`
 	Outcome          string             `json:"outcome"`
 	Pending          *Image             `json:"pending"`
+	PreparedPending  *Image             `json:"prepared_pending,omitempty"`
 	RetentionReceipt *Image             `json:"retention_receipt,omitempty"`
 }
 type backupManifest struct {
@@ -115,8 +116,11 @@ func readJournalEvidence(ctx context.Context, tree *installationfs.Tree, id stri
 	default:
 		return journal{}, conflict("unsupported installation phase")
 	}
-	if record.Pending != nil && (record.Pending.Type != "regular" || record.Pending.Mode != 0100600 || record.Pending.Bytes != 0 || record.Pending.Identity == nil) {
+	if record.Pending != nil && !validPendingObservation(record.Pending) {
 		return journal{}, conflict("invalid installation pending observation")
+	}
+	if record.PreparedPending != nil && (!preparedPendingState(record) || !validPendingObservation(record.PreparedPending)) {
+		return journal{}, conflict("invalid completed rollback pending preparation")
 	}
 	seen := map[string]bool{}
 	for _, entry := range record.Entries {

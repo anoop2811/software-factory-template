@@ -655,3 +655,53 @@ API sources inspected 2026-10-17 before implementation:
 https://pkg.go.dev/syscall#SysProcAttr
 Existing golang.org/x/sys v0.46.0 ioctl declarations and generated OS constants
 were inspected in the pinned local module source; no version pin changes.
+
+## Completed rollback preparation custody
+
+Decision 176 (2026-11-17) follows a published-candidate pilot in which failed
+reverse health overwrote a committed forward journal before a new pending marker
+existed. A subsequent rollback could not use the demoted journal, and recovery
+correctly refused the absent marker. Settled failure and abrupt owner exit must
+both leave a supported recovery route; restoring bytes only in an error defer
+does not meet the latter requirement.
+
+Before completed-rollback preflight launches its first check or replaces prior
+check evidence, reserve the pending barrier with the existing no-replace native
+publication protocol. Keep the journal committed/forward and preserve its rows,
+checks and historical Pending observation while the marker is prepared. Record
+an optional `prepared_pending` observation of the private regular zero-byte 0600
+native object before publication. This optional observation is valid only in
+that committed forward state; old records without it keep their existing meaning.
+
+After publication, observe the actual pending entry, store that strict identity
+in Pending, and clear `prepared_pending` before changing phase to `checking`.
+Never infer ownership from matching bytes, a path name, an old PID or elapsed
+time. A crash before marker publication may use terminal forward recovery as a
+freshly confirmed no-op on the unchanged installation. A crash after publication
+but before final observation may use only terminal forward cleanup, qualifying
+the current marker against the prepared native object with the established
+prepared-object comparison. That comparison accounts for rename ctime changes
+while requiring the same object and all other recorded identity/content fields.
+Foreign or replaced markers remain conflicts. Ordinary Pending identity checks
+retain their strict comparison.
+
+Terminal recovery clears the optional observation only after freshly validating
+the completed installation. With no marker, retain the historical Pending receipt.
+With a matching prepared marker, durably adopt its actual observed identity as
+Pending and clear `prepared_pending` before unlinking it, so another interruption
+uses the existing strict terminal-cleanup path. Ordinary terminal replays without
+preparation evidence remain no-write operations.
+
+Once reverse checks begin, the matching barrier and journal describe a recoverable
+operation. If a check has definitely exited and refuses activation, the operator
+may explicitly recover forward and then retry rollback with restored prerequisites
+and fresh consent. Unknown child/group ownership still requires reconciliation
+and must prevent overlapping work. Successful ordinary records omit the optional
+preparation field. Do not add a general missing-marker recovery exception.
+
+Acceptance must exercise actual completed predecessor migration, failed legacy
+health, restored prerequisites and successful public recovery/rollback; preserve
+application and active installation data before reversal. Also qualify witnessed
+reverse-preflight interruption and both sides of pending publication, including
+replaced-marker refusal. New preparation evidence cannot be used to legitimize
+an unrelated marker or silently repair an older already-stranded journal.

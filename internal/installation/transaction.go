@@ -273,6 +273,11 @@ func (capability *Capability) Complete(ctx context.Context) error {
 		}
 		owner.record = journal{CIWorkflow: owner.planned.ci, SchemaVersion: 1, Kind: "installation-transaction", MigrationID: operationID(owner.request), Purpose: "upgrade", Direction: "forward", Phase: "prepared", Profile: owner.request.Profile, Target: owner.request.Source.Target, PlanDigest: owner.request.Confirmation, Entries: entries, Checks: []checkRecord{}, Outcome: "pending"}
 	}
+	if owner.request.Rollback != "" {
+		if err := owner.prepareRollbackPending(ctx); err != nil {
+			return err
+		}
+	}
 	if err := owner.preflightCandidate(ctx, reverse); err != nil {
 		cleanupErr := owner.discardPreparation(context.WithoutCancel(ctx))
 		if cleanupErr != nil {

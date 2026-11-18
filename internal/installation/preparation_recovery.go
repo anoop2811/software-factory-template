@@ -195,8 +195,14 @@ func (owner *transaction) completePendingCleanup(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !imageEqual(pending, owner.record.Pending, true) {
+	if !terminalPendingEqual(owner.record, pending) {
 		return conflict("terminal pending entry changed after consent")
+	}
+	if err := owner.pending.Check(ctx); err != nil {
+		return err
+	}
+	if err := owner.finalizePreparedPending(ctx, pending); err != nil {
+		return err
 	}
 	if err := owner.pending.Check(ctx); err != nil {
 		return err

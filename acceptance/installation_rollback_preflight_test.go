@@ -82,11 +82,11 @@ func installationRetryCompletedRollback(installed installationFixtureData, migra
 	rollback := append(installed.arguments(), "--rollback", migration)
 	fresh := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, rollback...), "--dry-run", "--json")...)
 	if fresh.status != 0 {
-		recover := append(installed.arguments(), "--recover", migration, "--direction", "forward")
-		preview := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, recover...), "--dry-run", "--json")...)
+		recoveryArgs := append(installed.arguments(), "--recover", migration, "--direction", "forward")
+		preview := installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, recoveryArgs...), "--dry-run", "--json")...)
 		Expect(preview.status).To(Equal(0), "failed reverse preparation must retain a supported recovery route; rollback=%+v recovery=%+v", fresh, preview)
 		proposal := installationDecodeProposal(preview)
-		out := installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(recover, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
+		out := installationMutationCommand(installed.driver, installed.root, installed.sentinel, append(recoveryArgs, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
 		Expect(out.status).To(Equal(0), "fresh public recovery failed: %+v", out)
 		fresh = installationCommand(installed.driver, installed.root, installed.sentinel, append(append([]string{}, rollback...), "--dry-run", "--json")...)
 	}

@@ -8,18 +8,18 @@ func (owner *transaction) prepareRollbackPending(ctx context.Context) error {
 	if owner.request.Rollback == "" || owner.pending != nil || !preparedPendingState(owner.record) {
 		return conflict("completed rollback preparation grant unavailable")
 	}
-	if err := publishBytesWith(ctx, owner.tree, ".factory/runtime-publication.pending", nil, 0600, nil, func(ctx context.Context, prepared *Image) error {
+	if err := publishBytesWith(ctx, owner.tree, pendingMarkerPath, nil, 0600, nil, func(ctx context.Context, prepared *Image) error {
 		owner.record.PreparedPending = prepared
 		return owner.save(ctx)
 	}); err != nil {
 		return err
 	}
 	var err error
-	owner.pending, err = owner.tree.OpenFile(ctx, ".factory/runtime-publication.pending", 0)
+	owner.pending, err = owner.tree.OpenFile(ctx, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}
-	actual, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	actual, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (owner *transaction) finalizePreparedPending(ctx context.Context, actual *I
 	if !preparedPendingState(owner.record) || actual != nil && !terminalPendingEqual(owner.record, actual) {
 		return conflict("prepared pending observation differs from current marker")
 	}
-	current, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	current, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}

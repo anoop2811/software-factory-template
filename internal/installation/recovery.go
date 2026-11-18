@@ -79,7 +79,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		return result, err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
-	pending, _, pendingErr := observe(ctx, tree, ".factory/runtime-publication.pending", 0)
+	pending, _, pendingErr := observe(ctx, tree, pendingMarkerPath, 0)
 	if pendingErr != nil {
 		return result, pendingErr
 	}

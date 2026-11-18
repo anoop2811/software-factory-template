@@ -75,7 +75,7 @@ func beginWithRetention(ctx context.Context, root string, request Request, opera
 		if err != nil {
 			return nil, err
 		}
-		pending, _, observationErr := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+		pending, _, observationErr := observe(ctx, owner.tree, pendingMarkerPath, 0)
 		if observationErr != nil {
 			return nil, observationErr
 		}
@@ -211,12 +211,12 @@ func beginWithRetention(ctx context.Context, root string, request Request, opera
 		return nil, &Failure{Code: 1, Reason: "candidate installation preparation failed", cause: err}
 	}
 	if request.Recover != "" {
-		pending, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+		pending, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 		if err != nil {
 			return nil, err
 		}
 		if pending != nil {
-			owner.pending, err = owner.tree.OpenFile(ctx, ".factory/runtime-publication.pending", 0)
+			owner.pending, err = owner.tree.OpenFile(ctx, pendingMarkerPath, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -302,16 +302,16 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	}
 	newPending := owner.pending == nil
 	if newPending {
-		if err := publishBytes(ctx, owner.tree, ".factory/runtime-publication.pending", nil, 0600, nil); err != nil {
+		if err := publishBytes(ctx, owner.tree, pendingMarkerPath, nil, 0600, nil); err != nil {
 			return err
 		}
 		var err error
-		owner.pending, err = owner.tree.OpenFile(ctx, ".factory/runtime-publication.pending", 0)
+		owner.pending, err = owner.tree.OpenFile(ctx, pendingMarkerPath, 0)
 		if err != nil {
 			return err
 		}
 	}
-	observedPending, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	observedPending, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}
@@ -416,7 +416,7 @@ func (capability *Capability) Complete(ctx context.Context) error {
 	if err := parent.Sync(ctx); err != nil {
 		return &Uncertainty{Operation: "pending cleanup durability", cause: err}
 	}
-	image, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	image, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}

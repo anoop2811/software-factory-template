@@ -299,7 +299,7 @@ func proposeTransition(ctx context.Context, root string, request Request) (resul
 		if err != nil {
 			return result, err
 		}
-		pending, _, readErr := observe(ctx, inspection, ".factory/runtime-publication.pending", 0)
+		pending, _, readErr := observe(ctx, inspection, pendingMarkerPath, 0)
 		if err := errors.Join(readErr, inspection.Close()); err != nil {
 			return result, err
 		}

@@ -15,6 +15,7 @@ import (
 )
 
 const journalLimit = 2 << 20
+const pendingMarkerPath = ".factory/runtime-publication.pending"
 
 type journalEntry struct {
 	Path          string `json:"path"`

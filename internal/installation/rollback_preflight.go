@@ -26,7 +26,10 @@ func (owner *transaction) prepareRollbackPending(ctx context.Context) error {
 	if err := owner.pending.Check(ctx); err != nil {
 		return err
 	}
-	return owner.finalizePreparedPending(ctx, actual)
+	if err := owner.finalizePreparedPending(ctx, actual); err != nil {
+		return err
+	}
+	return owner.pending.Check(ctx)
 }
 
 func preparedPendingState(record journal) bool {

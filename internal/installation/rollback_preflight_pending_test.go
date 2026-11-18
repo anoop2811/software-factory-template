@@ -13,9 +13,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// This is a local publication/recovery component, not an archive-authentication
-// or public installation grant. File identities come from real native objects;
-// the reviewed role-map document supplies the journal's inert selection names.
+// The fixture uses real files for marker identities and the current recipe for
+// the entry names needed to construct a readable installation journal.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:702
 func rollbackPendingComponent() *transaction {
 	GinkgoHelper()
@@ -26,18 +25,7 @@ func rollbackPendingComponent() *transaction {
 	owner.request = Request{Recover: "rollback-pending-component", Direction: "forward", Profile: "v0.1.6", Confirmation: strings.Repeat("a", 64)}
 	owner.terminalCleanup = true
 	owner.record = journal{SchemaVersion: 1, Kind: "installation-transaction", MigrationID: owner.request.Recover, Purpose: "upgrade", Direction: "forward", Phase: "committed", Profile: "v0.1.6", Target: runtime.GOOS + "/" + runtime.GOARCH, PlanDigest: owner.request.Confirmation, Outcome: "completed", Checks: []checkRecord{{Name: "native-gate-proof", Phase: "complete", Outcome: "completed"}}}
-	var catalog struct {
-		Roles []struct {
-			Path string `json:"path"`
-		} `json:"roles"`
-		Canonical []struct {
-			Path string `json:"path"`
-		} `json:"canonical_source_assets"`
-	}
-	body, err := os.ReadFile("../../docs/migration/INSTALLATION_ROLE_MAP.json")
-	Expect(err).NotTo(HaveOccurred())
-	Expect(json.Unmarshal(body, &catalog)).To(Succeed())
-	for _, row := range append(catalog.Roles, catalog.Canonical...) {
+	for _, row := range roles {
 		owner.record.Entries = append(owner.record.Entries, journalEntry{Path: row.Path, Action: "retain", Phase: "applied"})
 	}
 	for path, image := range images {
@@ -142,7 +130,8 @@ var _ = Describe("Completed rollback pending preparation", func() {
 		adopted, _, _ := rollbackPersistedJournal(owner)
 		Expect(adopted.PreparedPending).To(BeNil())
 		Expect(adopted.Pending).To(Equal(actual))
-		Expect(os.Lstat(filepath.Join(owner.root, ".factory/runtime-publication.pending"))).NotTo(BeNil(), "the durable adoption boundary precedes unlink")
+		_, statErr := os.Lstat(filepath.Join(owner.root, ".factory/runtime-publication.pending"))
+		Expect(statErr).NotTo(HaveOccurred(), "the durable adoption boundary precedes unlink")
 		Expect(owner.completePendingCleanup(ctx)).To(Succeed())
 		_, err := os.Lstat(filepath.Join(owner.root, ".factory/runtime-publication.pending"))
 		Expect(os.IsNotExist(err)).To(BeTrue())
@@ -183,9 +172,14 @@ var _ = Describe("Completed rollback pending preparation", func() {
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:685
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:690
-	It("preserves a marker replaced during durable pending adoption before unlink", func() {
+	DescribeTable("refuses marker replacement during durable pending adoption", func(reserving bool) {
 		owner := rollbackPendingComponent()
-		actual := rollbackPreparedMarker(owner, true)
+		historical := owner.record.Pending
+		if reserving {
+			owner.request.Rollback, owner.request.Recover = owner.record.MigrationID, ""
+		} else {
+			rollbackPreparedMarker(owner, true)
+		}
 		path := filepath.Join(owner.root, ".factory/runtime-publication.pending")
 		journalFile := filepath.Join(owner.root, journalPath(owner.record.MigrationID))
 		var mutex sync.Mutex
@@ -208,7 +202,7 @@ var _ = Describe("Completed rollback pending preparation", func() {
 				replacementErr = err
 				return
 			}
-			if saved.PreparedPending != nil || saved.Pending == nil || saved.Pending.Identity == nil || *saved.Pending.Identity != *actual.Identity {
+			if saved.PreparedPending != nil || saved.Pending == nil || saved.Pending.Identity == nil || imageEqual(saved.Pending, historical, true) {
 				return
 			}
 			replaced = true
@@ -220,7 +214,12 @@ var _ = Describe("Completed rollback pending preparation", func() {
 			}
 			foreign, replacementErr = os.Lstat(path)
 		}}
-		err := owner.completePendingCleanup(ctx)
+		var err error
+		if reserving {
+			err = owner.prepareRollbackPending(ctx)
+		} else {
+			err = owner.completePendingCleanup(ctx)
+		}
 		Expect(replacementErr).NotTo(HaveOccurred())
 		Expect(replaced).To(BeTrue(), "must witness the actual adopted journal before replacing the marker")
 		Expect(ErrorStatus(err)).To(Equal(2), "the foreign same-byte leaf must be rechecked after the journal save")
@@ -231,9 +230,9 @@ var _ = Describe("Completed rollback pending preparation", func() {
 		Expect(statErr).NotTo(HaveOccurred())
 		Expect(os.SameFile(owned, after)).To(BeFalse(), "the independent actor must create a distinct native object")
 		persisted, _, _ := rollbackPersistedJournal(owner)
-		Expect(persisted.Pending).To(Equal(actual))
+		Expect(persisted.Pending.Identity.Inode).To(Equal(installationComponentImage(owner.root, ".factory/runtime-publication.pending.owned-original", nil).Identity.Inode))
 		Expect(persisted.PreparedPending).To(BeNil())
-	})
+	}, Entry("before launching rollback checks", true), Entry("before terminal unlink", false))
 
 	// per docs/adr/0098-whole-installation-upgrade-and-rollback.md:685
 	It("retains strict observed-marker identity after preparation is finalized", func() {
@@ -249,7 +248,8 @@ var _ = Describe("Completed rollback pending preparation", func() {
 		Expect(changed.Identity.Inode).To(Equal(actual.Identity.Inode))
 		Expect(changed.Identity).NotTo(Equal(actual.Identity), "the control must actually alter native observation")
 		Expect(ErrorStatus(owner.completePendingCleanup(ctx))).To(Equal(2))
-		Expect(os.Stat(path)).NotTo(BeNil())
+		_, statErr := os.Stat(path)
+		Expect(statErr).NotTo(HaveOccurred())
 		_, after, afterIdentity := rollbackPersistedJournal(owner)
 		Expect(after).To(Equal(before))
 		Expect(os.SameFile(identity, afterIdentity)).To(BeTrue())

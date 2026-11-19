@@ -25,6 +25,14 @@ func CheckTransitionLockIndex(ctx context.Context, root string, environment map[
 	child, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	result, err := native.ExecuteCommandBounded(child, root, argv, environment, 64<<10, 16<<10)
+	if result.Outcome == "output_limit" {
+		limit := conflict("transition lock index inspection exceeded its output limit")
+		var ownership *native.OwnershipError
+		if result.OwnershipUnconfirmed || !result.ExitConfirmed || errors.As(err, &ownership) {
+			return errors.Join(limit, child.Err(), err)
+		}
+		return errors.Join(limit, child.Err())
+	}
 	if err != nil || !result.ExitConfirmed || result.OwnershipUnconfirmed || result.ExitCode == nil || *result.ExitCode != 0 {
 		return errors.Join(errors.New("cannot inspect tracked transition lock"), err)
 	}

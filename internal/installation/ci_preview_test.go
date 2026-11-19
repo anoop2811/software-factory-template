@@ -206,6 +206,7 @@ func checkTransitionLockRecipePairs(old ciworkflow.Release) {
 		original[path] = before.Assets[path]
 		data, err := os.ReadFile(filepath.Join("../..", path))
 		Expect(err).NotTo(HaveOccurred())
+		Expect(fmt.Sprintf("%x", sha256.Sum256(data))).To(Equal(ciLockIgnoreRecipe[path]), "transition lock recipe pin for %s", path)
 		Expect(data).NotTo(Equal(original[path]), path)
 		current[path] = data
 	}

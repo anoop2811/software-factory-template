@@ -139,7 +139,7 @@ func MergePrivateIgnoreRules(data []byte) ([]byte, error) {
 }
 
 func (owner *transaction) ensurePrivateIgnore(ctx context.Context) error {
-	image, data, err := observe(ctx, owner.tree, ".gitignore", 1<<20)
+	image, data, err := observe(ctx, owner.tree, ".gitignore", leafLimit(".gitignore"))
 	if err != nil {
 		return err
 	}

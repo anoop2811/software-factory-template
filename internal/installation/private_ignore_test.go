@@ -3,11 +3,14 @@ package installation
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/anoop2811/software-factory-template/internal/native"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -74,6 +77,50 @@ var _ = Describe("Installation private ignore policy", func() {
 		Entry("Unicode long s", ".factory/runtime-tranſition.lock"),
 		Entry("Unicode Kelvin sign", ".factory/runtime-transition.locK"),
 		Entry("alternate parent spelling with an independently group-writable application directory", ".FACTORY/runtime-transition.lock"))
+
+	// per docs/DECISION_LOG.md:9050
+	// per docs/adr/0097-installation-source-image-bundles.md:223
+	It("refuses an oversized transition lock index inspection and preserves process uncertainty", func() {
+		root, owner := project()
+		ignore := []byte(rules + "/" + lock + "\n")
+		installationComponentWrite(root, ".gitignore", ignore, 0644)
+		blob := strings.TrimSpace(git(root, "hash-object", "-w", "--", ".gitignore"))
+		var rows strings.Builder
+		for i := range 512 {
+			path := fmt.Sprintf(".factory/runtime-tran%04dition.loc%s", i, strings.Repeat("x", 128))
+			_, _ = fmt.Fprintf(&rows, "100644 %s\t%s\n", blob, path)
+		}
+		cmd := exec.Command("git", "update-index", "--index-info")
+		cmd.Dir, cmd.Stdin = root, strings.NewReader(rows.String())
+		out, err := cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred(), "load test index: %s", out)
+		Expect(len(git(root, "ls-files", "-z"))).To(BeNumerically(">", 64<<10))
+		indexPath := filepath.Join(root, ".git/index")
+		index, err := os.ReadFile(indexPath)
+		Expect(err).NotTo(HaveOccurred())
+		before, err := os.Lstat(filepath.Join(root, lock))
+		Expect(err).NotTo(HaveOccurred())
+		err = owner.ensurePrivateIgnore(context.Background())
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("transition lock index inspection exceeded its output limit"))
+		var uncertainty *native.OwnershipError
+		if errors.As(err, &uncertainty) {
+			Expect(uncertainty.ProcessPID).To(BeNumerically(">", 0))
+			Expect(ErrorStatus(err)).To(Equal(1))
+		} else {
+			Expect(ErrorStatus(err)).To(Equal(2), "a settled inspection that exceeded its limit is a policy conflict")
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		canceled := CheckTransitionLockIndex(ctx, root, operationEnvironment(), nil)
+		Expect(errors.Is(canceled, context.Canceled)).To(BeTrue())
+		Expect(ErrorStatus(canceled)).To(Equal(1))
+		Expect(os.ReadFile(indexPath)).To(Equal(index))
+		Expect(os.ReadFile(filepath.Join(root, ".gitignore"))).To(Equal(ignore))
+		after, err := os.Lstat(filepath.Join(root, lock))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, after)).To(BeTrue())
+	})
 
 	// per docs/DECISION_LOG.md:9059
 	It("refuses an indexed alternate spelling whose deleted file cannot be distinguished from a future lock", func() {

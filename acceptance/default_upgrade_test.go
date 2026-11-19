@@ -129,7 +129,7 @@ var _ = Describe("Go default packaged upgrade", Ordered, ContinueOnFailure, func
 		updatedIgnore, err := os.ReadFile(ignorePath)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(string(updatedIgnore)).To(HavePrefix(string(customIgnore)))
-		Expect(addable()).To(ConsistOf(sibling), "a v0.1.6 upgrade must keep only the transition lock out of Git")
+		Expect(addable()).To(ConsistOf(sibling), "after the v0.1.6 upgrade, Git must ignore %s and keep %s addable", lock, sibling)
 		Expect(imageProcess(p.root, nil, "git", "ls-files", "--stage", "-z")).To(Equal(index))
 		defaultInitDescriptor(p.root, defaultUpgradeTag, fixtures.revision, fixtures.image(defaultUpgradeTag).binary)
 		ids := retentionBackupIDs(p.root)

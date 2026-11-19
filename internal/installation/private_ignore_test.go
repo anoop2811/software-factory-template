@@ -79,6 +79,36 @@ var _ = Describe("Installation private ignore policy", func() {
 		Entry("alternate parent spelling with an independently group-writable application directory", ".FACTORY/runtime-transition.lock"))
 
 	// per docs/DECISION_LOG.md:9050
+	It("refuses a transition lock hardlinked to a tracked operator file before acquiring the transition guard", func() {
+		root, err := filepath.EvalSymlinks(GinkgoT().TempDir())
+		Expect(err).NotTo(HaveOccurred())
+		git(root, "init", "--quiet")
+		installationComponentWrite(root, lock, nil, 0600)
+		canonical, alias := filepath.Join(root, lock), filepath.Join(root, "operator-note")
+		Expect(os.Link(canonical, alias)).To(Succeed())
+		git(root, "add", "--", "operator-note")
+		Expect(git(root, "ls-files", "-z")).To(Equal("operator-note\x00"))
+		indexPath := filepath.Join(root, ".git/index")
+		index, err := os.ReadFile(indexPath)
+		Expect(err).NotTo(HaveOccurred())
+		before, err := os.Lstat(canonical)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = CheckTransitionLockIndex(context.Background(), root, operationEnvironment(), nil)
+		var policy *Failure
+		Expect(errors.As(err, &policy)).To(BeTrue(), "a tracked hard link must refuse lock admission: %v", err)
+		Expect(ErrorStatus(err)).To(Equal(2))
+		for _, path := range []string{canonical, alias} {
+			after, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(before, after)).To(BeTrue(), path)
+			Expect(after.Mode()).To(Equal(before.Mode()), path)
+			Expect(after.Size()).To(BeZero(), path)
+		}
+		Expect(os.ReadFile(indexPath)).To(Equal(index))
+	})
+
+	// per docs/DECISION_LOG.md:9050
 	// per docs/adr/0097-installation-source-image-bundles.md:223
 	It("refuses an oversized transition lock index inspection and preserves process uncertainty", func() {
 		root, owner := project()

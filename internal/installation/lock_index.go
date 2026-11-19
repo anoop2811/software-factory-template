@@ -36,13 +36,10 @@ func CheckTransitionLockIndex(ctx context.Context, root string, environment map[
 	if err != nil || !result.ExitConfirmed || result.OwnershipUnconfirmed || result.ExitCode == nil || *result.ExitCode != 0 {
 		return errors.Join(errors.New("cannot inspect tracked transition lock"), err)
 	}
-	if len(result.Stdout) == 0 {
-		return ctx.Err()
-	}
-	if result.Stdout[len(result.Stdout)-1] != 0 {
+	if len(result.Stdout) > 0 && result.Stdout[len(result.Stdout)-1] != 0 {
 		return errors.New("invalid tracked transition lock response")
 	}
-	names := bytes.Split(result.Stdout[:len(result.Stdout)-1], []byte{0})
+	names := bytes.Split(result.Stdout, []byte{0})
 	aliases := names[:0]
 	for _, name := range names {
 		if string(name) == transition.LockPath {
@@ -51,9 +48,6 @@ func CheckTransitionLockIndex(ctx context.Context, root string, environment map[
 		if strings.EqualFold(string(name), transition.LockPath) {
 			aliases = append(aliases, name)
 		}
-	}
-	if len(aliases) == 0 {
-		return ctx.Err()
 	}
 	tree, err := installationfs.Open(ctx, root)
 	if err != nil {
@@ -64,6 +58,10 @@ func CheckTransitionLockIndex(ctx context.Context, root string, environment map[
 	missingLock := errors.Is(err, os.ErrNotExist)
 	if err != nil && !missingLock {
 		return err
+	}
+	// Another hard link can have any index name, outside the pathspec above.
+	if !missingLock && lock.Links != 1 {
+		return conflict("private transition lock must have exactly one hard link")
 	}
 	parent, _, _ := strings.Cut(transition.LockPath, "/")
 	for _, name := range aliases {

@@ -23,7 +23,7 @@ func RecoveryPreview(ctx context.Context, root, id string) (args []string, retur
 	if err != nil {
 		return nil, err
 	}
-	pending, _, err := observe(ctx, tree, ".factory/runtime-publication.pending", 0)
+	pending, _, err := observe(ctx, tree, pendingMarkerPath, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -8947,3 +8947,95 @@ tag or public installer default is required. Source conversion remains 32/32;
 R5 publication/native qualification, R6 pilot and R7 stable activation remain
 the same three release gates. Select the final RC4 source only after this pin
 update is reviewed and merged.
+
+## Decision 175 (2026-11-17 UTC): qualify the published candidate in the adopter pilot
+
+PR #186 merged as `50b76e2816645ddcc37089607a24ffc4b3141d0d` after all
+46 final-head checks passed. R5 published `v0.2.0-rc.4` from
+`c51e0ae520839076c7245f2de7e396e4c3e546fe`; its twenty live criterion
+executions passed across the four approved native targets. The user requested
+the next task, R6. R7 stable activation remains separate.
+
+Reuse Decision 111's isolated representative Go/TypeScript adopter, with its
+unchanged product revision retained in private evidence. First preview the actual
+older customized installation and preserve any ownership blockers. Separately
+initialize the supported v0.1.6 predecessor around identical application code;
+do not mislabel that fixture as migration of the unsupported original checkout.
+
+Use the actual RC4 public installer, GitHub release assets and attestation policy.
+Record exact source/asset identities, original and final file/mode/Git snapshots,
+preview/apply results, private ignored legacy recovery, preserved configuration
+and application code, normal product checks and three harness boundaries.
+Exercise generated CI from a clean disposable checkout, a development/check
+failure and recovery cycle, and supported rollback/interrupted recovery. Use
+dedicated temporary services, explicit no-model checks and existing qualified
+toolchains. Do not copy application credentials or publish private adopter code.
+
+Retain detailed adopter evidence locally and a concise public report describing
+commands, outcomes, limitations and cleanup. Reuse already-qualified behavior;
+if a real defect appears, establish independent outside-in Ginkgo/Gomega evidence
+before a bounded production correction. Do not alter signed candidate assets,
+weaken ownership checks or add release gates to manufacture success.
+
+Q5's proposed exit is completed current-candidate pilot evidence and explicit
+operator acceptance, without a fixed calendar wait. The evidence period/exit
+criteria question has been presented to the operator; it remains pending until
+answered. Execution is authorized, but R6 completion is not inferred from that
+authorization or from automated checks alone. No stable default changes here.
+
+## Decision 176 (2026-11-17 UTC): keep failed rollback preparation recoverable
+
+The published RC4 adopter pilot completed a supported upgrade, all installed
+project checks, doctor and the three structural harness evaluations. A deliberately
+unavailable legacy Python prerequisite then exposed a completed-rollback defect:
+fresh reverse health failed before publication, but preflight had already changed
+the previously committed journal to `checking`. Retrying rollback required a
+committed forward journal, while interrupted recovery required a pending marker
+that had not yet been created. Application files were not reversed; supported
+rollback/recovery of that transaction was stranded. Independent review confirmed
+the same ordering risk for an interrupted reverse preflight.
+
+Correct this transaction boundary before closing R6. Preserve the committed
+installation evidence or establish durable, recoverable preparation custody
+before replacing it. A settled preflight failure must permit a fresh supported
+retry after prerequisites are restored, possibly through explicit recovery.
+A crash during preparation must also have a supported recovery path. Preserve
+uncertain-child ownership and fail-closed admission; never erase evidence, invent
+a pending marker or restore journal bytes manually to make the pilot pass.
+
+Use independent outside-in Ginkgo/Gomega regressions for a completed predecessor
+upgrade followed by failed and interrupted reverse preparation. Assert unchanged
+application/selected installation files before reversal and recovery/retry through
+the public CLI. Reuse the existing filesystem and process-custody primitives.
+This is a bounded rollback-preparation correction, with no new dependency or
+change to immutable published RC4 assets. Source-test success is not published
+candidate qualification.
+
+The pilot also found omitted ignore coverage for the private transition lock when
+an adopter has a customized `.gitignore`. Keep that separate bounded correction
+within R6 after this PR is resolved. Existing nested application CI setup remains
+operator-owned, as it was in v0.1.6. R6 and R7 remain the two release gates.
+
+PR #187 qualification follow-up, 2026-11-18 UTC. The Linux source-entrypoint
+job reported 3,512 discovered criteria against an expected 3,509. Its three new
+rollback cases belong to installation, bringing that partition from 101 to 104.
+Use the sum of the independently specified partition sizes as the expected
+total and continue checking every partition and the exact union of identities.
+
+The same job's first worker replay reported four passing fixture specs in 5ms
+and a Ginkgo duration of 68s, past the 60s replay deadline. Build the pinned
+runner and its race-enabled disposable fixture before starting the proof clock.
+Retain the actual Make-selected source invocation, its deadline, worker PID
+receipts, failure controls and both report formats. The preparatory build must
+also finish within a finite limit. See [the Linux run](https://github.com/anoop2811/software-factory-template/actions/runs/44333263665/job/134911781276).
+
+The macOS versioned Go predecessor's read-only preview exhausted the same
+90-second watchdog in [the first run](https://github.com/anoop2811/software-factory-template/actions/runs/44333263665/job/134911781398)
+and [the repeat](https://github.com/anoop2811/software-factory-template/actions/runs/44435799303/job/135266743601).
+Both reached the selected and predecessor source identities; neither reached
+apply. The identical criterion passed locally. The logs do not isolate which
+operation consumed the remaining time. For the versioned and local Go
+predecessor previews, reuse ADR 0152's 120-second preview allowance for these
+same two source acquisitions. Record actual preview duration even on failure.
+Keep the real builds, input identities, snapshot checks and existing deadlines
+for mutations, rollback, compilation, suites and CI jobs.

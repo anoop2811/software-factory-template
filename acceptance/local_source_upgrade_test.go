@@ -147,6 +147,18 @@ type localUpgradeGoFixture struct {
 	runtime      []byte
 }
 
+// Both source-backed Go predecessor journeys independently acquire the same
+// two images for preview. Record elapsed time even if its watchdog fires.
+// per docs/DECISION_LOG.md:9038
+func (before localUpgradeGoFixture) preview(reportName string, args ...string) map[string]any {
+	GinkgoHelper()
+	ctx, cancel := qualification.LocalRecoveryLimits().PreviewContext(GinkgoT().Context())
+	defer cancel()
+	started := time.Now()
+	defer func() { AddReportEntry(reportName, time.Since(started).Seconds(), ReportEntryVisibilityNever) }()
+	return handoffProposal(handoffNativeProcessContext(ctx, before.root, before.f.environment, false, "", before.driver, args...))
+}
+
 func (fixture localUpgradeFixture) goPredecessor(versioned bool, alternateCompiler ...bool) localUpgradeGoFixture {
 	GinkgoHelper()
 	setup, _ := handoffNativeFixture(fixture.image)
@@ -496,7 +508,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(err).NotTo(HaveOccurred())
 		snapshot := installationSnapshot(root)
 		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		preview := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, args...), "--dry-run", "--json", "--")...))
+		preview := before.preview("local-upgrade.go-predecessor-preview-seconds", append(append([]string{}, args...), "--dry-run", "--json", "--")...)
 		Expect(preview["profile"]).To(Equal("go-hybrid-v1"))
 		Expect(preview["authentication"]).To(Equal("local-source"))
 		Expect(preview["checks"]).To(ContainElement(localUpgradePlanMarker))
@@ -878,18 +890,13 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		originalDescriptor, err := os.ReadFile(filepath.Join(root, ".factory/installation.current"))
 		Expect(err).NotTo(HaveOccurred())
 		args := localUpgradeArgs(fixture.source, fixture.beforeSource)
-		limits := qualification.LocalRecoveryLimits()
-		previewContext, stopPreview := limits.PreviewContext(context.Background())
-		defer stopPreview()
-		previewStarted := time.Now()
-		preview := handoffProposal(handoffNativeProcessContext(previewContext, root, f.environment, false, "", driver, append(append([]string{}, args...), "--dry-run", "--json")...))
-		stopPreview()
-		AddReportEntry("local-recovery.preview-seconds", time.Since(previewStarted).Seconds(), ReportEntryVisibilityNever)
+		preview := before.preview("local-recovery.preview-seconds", append(append([]string{}, args...), "--dry-run", "--json")...)
 		ready := filepath.Join(f.root, "actual-selected-worker.json")
 		control, err := json.Marshal(map[string]string{"Root": root, "Ready": ready})
 		Expect(err).NotTo(HaveOccurred())
 		writeFixture(fixture.control, control, 0600)
 		DeferCleanup(func() { Expect(os.Remove(fixture.control)).To(Succeed()) })
+		limits := qualification.LocalRecoveryLimits()
 		ctx, cancel := limits.Context(context.Background())
 		defer cancel()
 		command := handoffCommand(ctx, root, f.environment, "", driver, append(args, "--confirm", preview["proposal_digest"].(string), "--quiescent")...)

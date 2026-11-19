@@ -100,6 +100,14 @@ subjects against the selected source. The
 records those actual outcomes separately from source CI. **Two release gates
 remain: R6 adopter pilot/signoff and R7 stable activation/publication.**
 
+The [published RC4 adopter pilot](RC4_ADOPTER_PILOT.md) is in progress.
+Forward upgrade, installed application checks and interrupted forward recovery
+passed, but failed rollback preparation stranded its transaction journal and a
+customized ignore file exposed an addable private transition lock. Decision 176
+addresses rollback preparation first; private-control ignore coverage remains
+separate work within R6. These findings do not reopen source conversion or add
+release gates. R6 and stable activation remain incomplete.
+
 ### Earlier RC3 qualification (historical)
 
 [v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)

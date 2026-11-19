@@ -261,6 +261,20 @@ rollback switch. Later edits and unrecognized state remain conflicts.
 See [the whole-installation contract](adr/0098-whole-installation-upgrade-and-rollback.md)
 and [candidate handoff](migration/GO_CANDIDATE_HANDOFF.md).
 
+Rolling back to v0.1.6 also checks that the old factory can run. Have its
+original prerequisites, including Python 3, available before confirming.
+With the Decision 176 change, if a prerequisite check exits with a failure,
+use the same trusted installation inputs to preview `--recover ID --direction
+forward` with `--dry-run --json`. Confirm that proposal to return to the Go
+installation. Restore the prerequisite, then preview and confirm a fresh
+`--rollback ID`. If the diagnostic reports unresolved process ownership, follow
+its reconciliation instructions first.
+
+Published RC4 predates this correction. If RC4 has already refused both rollback
+and recovery after a missing prerequisite, preserve the journal and backup for
+operator inspection. The [adopter pilot](migration/RC4_ADOPTER_PILOT.md)
+records the diagnostics for that case.
+
 Legacy configuration conversion is separate: `./factory migrate-config --dry-run`
 previews `factory.config` conversion, and successful apply retains the adjacent
 `factory.config.migrated` file. It does not switch runtimes or become part of the

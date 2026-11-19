@@ -548,13 +548,23 @@ var _ = Describe("Go source qualification worker execution", func() {
 			}
 			Expect(cpuField(finalEnabled)).To(Equal(cpuField(enabled)), "the final duplicate runtime setting takes precedence")
 		}
-		root := GinkgoT().TempDir()
+		root, _ := fixtureDirectories()
 		for _, path := range []string{"go.mod", "go.sum"} {
 			body, err := os.ReadFile(filepath.Join("..", path))
 			Expect(err).NotTo(HaveOccurred())
 			writeFixture(filepath.Join(root, path), body, 0600)
 		}
 		writeFixture(filepath.Join(root, "acceptance/worker_test.go"), []byte(sourceGateWorkerSuite), 0600)
+		// Compile the pinned runner and race-enabled fixture in bounded setup phases.
+		// Every proof below still replays the original source command and deadline.
+		// per docs/DECISION_LOG.md:9026
+		for _, args := range [][]string{
+			{"build", "-mod=readonly", "-o", os.DevNull, "github.com/onsi/ginkgo/v2/ginkgo"},
+			{"test", "-mod=readonly", "-race", "-c", "-o", os.DevNull, "./acceptance"},
+		} {
+			build := handoffCooperativeProcess(root, nil, "", []string{root}, "go", args...)
+			Expect(build.status).To(Equal(0), "prepare worker fixture with go %v: %s", args, build.stderr)
+		}
 		for _, run := range []struct {
 			group, requested, workers, failure string
 		}{{"base", "1", "1", ""}, {"base", "3", "3", ""}, {"release-handoff", "3", "2", ""}, {"release-handoff", "2", "2", "handoff-0"}, {"local-upgrade", "2", "1", ""}, {"local-upgrade", "3", "1", "local-0"}, {"local-upgrade-predecessor", "2", "1", ""}, {"local-upgrade-predecessor", "3", "1", "local-predecessor-0"}, {"local-upgrade-go", "2", "1", ""}, {"local-upgrade-go", "3", "1", ""}, {"local-upgrade-go", "2", "1", "local-go-0"}} {

@@ -26,15 +26,15 @@ func (owner *transaction) persistUnresolved(ctx context.Context) error {
 	if owner.tree == nil || owner.guard == nil || owner.lease == nil {
 		return &Uncertainty{Operation: "unresolved work; maintenance must remain in force", cause: primary}
 	}
-	pending, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	pending, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return &Uncertainty{Operation: "unresolved admission evidence; maintenance must remain in force", cause: errors.Join(primary, err)}
 	}
 	if pending == nil {
-		if err := publishBytes(ctx, owner.tree, ".factory/runtime-publication.pending", nil, 0600, nil); err != nil {
+		if err := publishBytes(ctx, owner.tree, pendingMarkerPath, nil, 0600, nil); err != nil {
 			return &Uncertainty{Operation: "unresolved admission publication; maintenance must remain in force", cause: errors.Join(primary, err)}
 		}
-		pending, _, err = observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+		pending, _, err = observe(ctx, owner.tree, pendingMarkerPath, 0)
 		if err != nil {
 			return &Uncertainty{Operation: "unresolved admission observation; maintenance must remain in force", cause: errors.Join(primary, err)}
 		}

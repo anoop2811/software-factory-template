@@ -191,12 +191,18 @@ func (owner *transaction) completePendingCleanup(ctx context.Context) error {
 	if _, err := inspectState(ctx, owner.tree); err != nil {
 		return err
 	}
-	pending, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	pending, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil {
 		return err
 	}
-	if !imageEqual(pending, owner.record.Pending, true) {
+	if !terminalPendingEqual(owner.record, pending) {
 		return conflict("terminal pending entry changed after consent")
+	}
+	if err := owner.pending.Check(ctx); err != nil {
+		return err
+	}
+	if err := owner.finalizePreparedPending(ctx, pending); err != nil {
+		return err
 	}
 	if err := owner.pending.Check(ctx); err != nil {
 		return err
@@ -208,7 +214,7 @@ func (owner *transaction) completePendingCleanup(ctx context.Context) error {
 	if err := parent.Sync(ctx); err != nil {
 		return &Uncertainty{Operation: "terminal pending cleanup durability", cause: err}
 	}
-	absence, _, err := observe(ctx, owner.tree, ".factory/runtime-publication.pending", 0)
+	absence, _, err := observe(ctx, owner.tree, pendingMarkerPath, 0)
 	if err != nil || absence != nil {
 		return &Uncertainty{Operation: "terminal pending cleanup absence", cause: errors.Join(err, conflict("terminal pending absence could not be established"))}
 	}

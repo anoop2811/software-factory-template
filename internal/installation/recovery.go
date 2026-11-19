@@ -79,11 +79,11 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		return result, err
 	}
 	defer func() { returned = errors.Join(returned, tree.Close()) }()
-	pending, _, pendingErr := observe(ctx, tree, ".factory/runtime-publication.pending", 0)
+	pending, _, pendingErr := observe(ctx, tree, pendingMarkerPath, 0)
 	if pendingErr != nil {
 		return result, pendingErr
 	}
-	if terminalCleanup && (record.Pending == nil || pending != nil && !imageEqual(pending, record.Pending, true)) {
+	if terminalCleanup && (record.Pending == nil || pending != nil && !terminalPendingEqual(record, pending)) {
 		return result, conflict("terminal pending observation differs from current marker")
 	}
 	if request.Recover != "" && pending == nil && !terminalCleanup {

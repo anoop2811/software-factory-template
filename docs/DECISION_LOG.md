@@ -9015,3 +9015,16 @@ The pilot also found omitted ignore coverage for the private transition lock whe
 an adopter has a customized `.gitignore`. Keep that separate bounded correction
 within R6 after this PR is resolved. Existing nested application CI setup remains
 operator-owned, as it was in v0.1.6. R6 and R7 remain the two release gates.
+
+PR #187 qualification follow-up, 2026-11-18 UTC. The Linux source-entrypoint
+job reported 3,512 discovered criteria against an expected 3,509. Its three new
+rollback cases belong to installation, bringing that partition from 101 to 104.
+Use the sum of the independently specified partition sizes as the expected
+total and continue checking every partition and the exact union of identities.
+
+The same job's first worker replay reported four passing fixture specs in 5ms
+and a Ginkgo duration of 68s, past the 60s replay deadline. Build the pinned
+runner and its race-enabled disposable fixture before starting the proof clock.
+Retain the actual Make-selected source invocation, its deadline, worker PID
+receipts, failure controls and both report formats. The preparatory build must
+also finish within a finite limit. See [the Linux run](https://github.com/anoop2811/software-factory-template/actions/runs/44333263665/job/134911781276).

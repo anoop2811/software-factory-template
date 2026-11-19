@@ -9061,3 +9061,10 @@ on a case-insensitive volume. Preserve distinct application files on volumes
 that distinguish those spellings. Keep the merged ignore file within the
 existing installation read limit so a subsequent upgrade or rollback can read
 the file the installer wrote.
+
+The historical upgrade and rollback checks require byte-for-byte preservation
+when the project's root rules already ignore the lock. On upgrade, reuse that
+coverage and add the explicit root rule only when needed. A machine-local Git
+exclude is insufficient for a new checkout. Prove the pre-existing private
+backup and runtime rules before writing a lock-only change. A rejected backup
+must leave the adopter's original ignore file intact.

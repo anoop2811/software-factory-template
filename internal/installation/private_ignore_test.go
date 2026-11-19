@@ -42,6 +42,48 @@ var _ = Describe("Installation private ignore policy", func() {
 		return root, owner
 	}
 
+	// per docs/DECISION_LOG.md:9065
+	DescribeTable("reuses portable root ignore coverage during upgrade", func(rootRule string, localOnly bool) {
+		root, owner := project()
+		body := []byte(rules + rootRule)
+		path := filepath.Join(root, ".gitignore")
+		installationComponentWrite(root, ".gitignore", body, 0644)
+		if localOnly {
+			installationComponentWrite(root, ".git/info/exclude", []byte("/"+lock+"\n"), 0644)
+		}
+		Expect(git(root, "check-ignore", "--no-index", "--", lock)).To(Equal(lock + "\n"))
+		before, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(owner.ensurePrivateIgnore(context.Background())).To(Succeed())
+		if localOnly {
+			Expect(os.ReadFile(path)).To(Equal(append(body, []byte("/"+lock+"\n")...)))
+		} else {
+			after, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(before, after)).To(BeTrue(), "the adopter's existing rule already protects the lock")
+			Expect(os.ReadFile(path)).To(Equal(body))
+		}
+		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".gitignore:"))
+	}, Entry("the root ignores the factory directory", ".factory/\n", false),
+		Entry("the root names the lock without a leading slash", lock+"\n", false),
+		Entry("only the repository's local Git exclude names the lock", "", true))
+
+	// per docs/DECISION_LOG.md:9068
+	It("preserves the original ignore file when a backup prerequisite prevents the lock rule update", func() {
+		root, owner := project()
+		path := filepath.Join(root, ".gitignore")
+		body := []byte(rules + "!/.factory/backups/\n")
+		installationComponentWrite(root, ".gitignore", body, 0644)
+		before, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		err = owner.ensurePrivateIgnore(context.Background())
+		Expect(ErrorStatus(err)).To(Equal(2))
+		after, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(before, after)).To(BeTrue())
+		Expect(os.ReadFile(path)).To(Equal(body))
+	})
+
 	// per docs/DECISION_LOG.md:9059
 	DescribeTable("recognizes a tracked spelling only when it identifies the same transition lock", func(variant string) {
 		root, owner := project()

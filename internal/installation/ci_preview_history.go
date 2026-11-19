@@ -58,7 +58,7 @@ func ciPredecessorBytes(ctx context.Context, request Request, release ciworkflow
 			return result, ctx.Err()
 		}
 		switch {
-		case ciExactRecipe(*before, ciGeneratedRecipe):
+		case matchesGeneratedCIRecipe(*before):
 			old := ciworkflow.Release{Tag: request.Before.Version, SourceRevision: request.Before.Revision, OriginTarget: request.Before.Target, Repository: release.Repository}
 			application := inputs.application
 			application.MutationDirectory = ""
@@ -157,6 +157,10 @@ func ciBeforeMatches(request Request, before *staging.Inspection) bool {
 
 func ciRecipePath(path string) bool {
 	return (strings.HasPrefix(path, "internal/initcmd/") || strings.HasPrefix(path, "internal/initinventory/") || strings.HasPrefix(path, "internal/ciworkflow/")) && strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
+}
+
+func matchesGeneratedCIRecipe(image staging.Inspection) bool {
+	return ciExactRecipe(image, ciGeneratedRecipe) || ciExactRecipe(image, ciLockIgnoreRecipe)
 }
 
 func ciExactRecipe(image staging.Inspection, recipe map[string]string) bool {

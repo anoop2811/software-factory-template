@@ -196,7 +196,7 @@ func qualifyCIProjection(ctx context.Context, ci *ciWorkflowContext, request Req
 	if ci.Before != expectedBefore {
 		return ciWorkflowHistory{}, nil, conflict("CI predecessor identity disagrees with fresh inputs")
 	}
-	if image.Manifest.Version != ci.Release.Tag || image.Manifest.SourceRevision != ci.Release.SourceRevision || image.Manifest.Target != ci.Release.OriginTarget || !ciExactRecipe(image, ciGeneratedRecipe) {
+	if image.Manifest.Version != ci.Release.Tag || image.Manifest.SourceRevision != ci.Release.SourceRevision || image.Manifest.Target != ci.Release.OriginTarget || !matchesGeneratedCIRecipe(image) {
 		return ciWorkflowHistory{}, nil, conflict("CI target renderer recipe is not qualified")
 	}
 	inputs, err := ciInputsFromValues(ctx, ci.Current)

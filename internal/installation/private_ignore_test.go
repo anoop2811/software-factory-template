@@ -51,7 +51,7 @@ var _ = Describe("Installation private ignore policy", func() {
 			private, err := os.Lstat(filepath.Join(root, ".factory"))
 			Expect(err).NotTo(HaveOccurred())
 			if !os.SameFile(private, app) {
-				Expect(os.Chmod(parent, 0775)).To(Succeed())
+				Expect(os.Chmod(parent, 0775)).To(Succeed()) // #nosec G302 -- intentionally group-writable test-owned application directory.
 			}
 		}
 		Expect(git(root, "ls-files", "-z")).To(Equal(variant + "\x00"))

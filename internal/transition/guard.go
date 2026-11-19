@@ -13,6 +13,10 @@ import (
 )
 
 const lockName = "runtime-transition.lock"
+
+// LockPath is the permanent project-relative lock shared by runtime processes.
+const LockPath = ".factory/" + lockName
+
 const activityName = "runtime-activity"
 const pendingName = "runtime-publication.pending"
 

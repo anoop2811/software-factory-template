@@ -96,10 +96,9 @@ func (q *qualified) overlay(ctx context.Context, target *tree, plan []asset, inp
 		assets[entry.Path] = a
 	}
 	ignore := assets[".gitignore"]
-	for _, rule := range installation.PrivateIgnoreRules() {
-		if !strings.Contains("\n"+string(ignore.data)+"\n", "\n"+rule+"\n") {
-			ignore.data = append(ignore.data, []byte("\n"+rule+"\n")...)
-		}
+	ignore.data, err = installation.MergePrivateIgnoreRules(ignore.data)
+	if err != nil {
+		return nil, err
 	}
 	assets[".gitignore"] = ignore
 	result := make([]asset, 0, len(assets))
@@ -197,7 +196,7 @@ func (q *qualified) activate(ctx context.Context, target *tree, plan []asset, en
 	return pending.Parent.Sync(ctx)
 }
 
-var privatePaths = []string{".factory/bin/factory-runtime", ".factory/assets/scaffold/factory", ".factory/installation.current", ".factory/installation-transactions/ignore-proof", ".factory/backups/ignore-proof"}
+var privatePaths = []string{".factory/bin/factory-runtime", ".factory/assets/scaffold/factory", ".factory/installation.current", ".factory/installation-transactions/ignore-proof", ".factory/backups/ignore-proof", transition.LockPath}
 
 func ignoreEnvironment(environment map[string]string, root string) map[string]string {
 	env := childEnvironment(environment, root)
@@ -243,7 +242,7 @@ func checkIgnoredPaths(ctx context.Context, root string, environment map[string]
 			}
 		}
 	}
-	return ctx.Err()
+	return installation.CheckTransitionLockIndex(ctx, root, ignoreEnvironment(environment, root), nil)
 }
 
 // A new target need not acquire Git metadata just to prove its future ignores.

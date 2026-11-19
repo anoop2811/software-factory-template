@@ -9028,3 +9028,14 @@ runner and its race-enabled disposable fixture before starting the proof clock.
 Retain the actual Make-selected source invocation, its deadline, worker PID
 receipts, failure controls and both report formats. The preparatory build must
 also finish within a finite limit. See [the Linux run](https://github.com/anoop2811/software-factory-template/actions/runs/44333263665/job/134911781276).
+
+The macOS versioned Go predecessor's read-only preview exhausted the same
+90-second watchdog in [the first run](https://github.com/anoop2811/software-factory-template/actions/runs/44333263665/job/134911781398)
+and [the repeat](https://github.com/anoop2811/software-factory-template/actions/runs/44435799303/job/135266743601).
+Both reached the selected and predecessor source identities; neither reached
+apply. The identical criterion passed locally. The logs do not isolate which
+operation consumed the remaining time. For the versioned and local Go
+predecessor previews, reuse ADR 0152's 120-second preview allowance for these
+same two source acquisitions. Record actual preview duration even on failure.
+Keep the real builds, input identities, snapshot checks and existing deadlines
+for mutations, rollback, compilation, suites and CI jobs.

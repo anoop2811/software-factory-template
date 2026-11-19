@@ -64,3 +64,7 @@ the added independent criterion.
 Run both genuine recovery cases locally and on Linux/macOS, retain phase timings,
 and require the complete final-head CI/review result before human merge. A local
 pass or diagnostic improvement alone does not close the hosted failure.
+
+Decision 176 extends the same read-only preview allowance to the two exact Go
+predecessor upgrade cases that acquire both source images. The observed failures
+and the scope of the extension are recorded in docs/DECISION_LOG.md:9032.

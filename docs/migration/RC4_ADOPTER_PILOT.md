@@ -154,7 +154,14 @@ initialized fixture passed. No application credentials were copied, no model
 was called, and no private application source was published. The disposable
 database used its own container/VM with temporary data and no host mounts.
 
-Finish and review the rollback-preparation correction, then the separate private
-control ignore correction; rerun affected pilot boundaries against the reviewed
-candidate. Complete the temporary development cycle and obtain explicit operator
-acceptance. These remain work inside R6, followed by the existing R7 stable gate.
+[PR #187](https://github.com/anoop2811/software-factory-template/pull/187) merged
+the rollback-preparation correction. Decision 177 covers the other finding.
+On the retained RC4 checkout, `git ls-files --others --exclude-standard -- .factory/runtime-transition.lock`
+listed the lock after upgrade. The corrected checkout should produce empty
+output for that command, retain the lock on disk and leave unrelated files
+addable under the adopter's rules.
+
+Rerun rollback preparation and lock visibility against the reviewed candidate,
+complete the temporary feature's failing test, passing change and reversal,
+and obtain operator acceptance. These are the remaining R6 pilot steps before
+R7 stable activation and publication.

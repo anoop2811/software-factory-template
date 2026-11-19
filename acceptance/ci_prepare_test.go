@@ -364,9 +364,10 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 
 	// per docs/adr/0143-ci-checkout-preparation.md:64
 	// per docs/adr/0143-ci-checkout-preparation.md:72
+	// per docs/DECISION_LOG.md:9050
 	It("preserves customized, dirty, unsafe and already-owned checkout inputs on refusal", func() {
 		ciPrepareRequireQuiescentGit(project.repository)
-		for _, kind := range []string{"customized", "missing", "nonexecutable", "symlink", "hardlink", "dirty worktree", "dirty index", "private bin", "private assets", "private backup", "private transaction", "descriptor", "pending", "metadata ambiguity"} {
+		for _, kind := range []string{"customized", "missing", "nonexecutable", "symlink", "hardlink", "dirty worktree", "dirty index", "private bin", "private assets", "private backup", "private transaction", "descriptor", "pending", "metadata ambiguity", "tracked transition lock"} {
 			f, driver, root := project.checkout()
 			ciPrepareRequireQuiescentGit(root)
 			gate := filepath.Join(root, "scripts/hooks/direct-main-push-block.sh")
@@ -396,6 +397,13 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 			case "dirty index":
 				writeFixture(filepath.Join(root, "application.txt"), []byte("staged application change\n"), 0644)
 				imageGit(root, "add", "application.txt")
+			case "tracked transition lock":
+				const lock = ".factory/runtime-transition.lock"
+				writeFixture(filepath.Join(root, lock), nil, 0600)
+				imageGit(root, "add", "--force", "--", lock)
+				imageGit(root, "commit", "--quiet", "-m", "test: track local transition lock")
+				Expect(imageGit(root, "status", "--porcelain", "--untracked-files=no")).To(BeEmpty())
+				Expect(imageGit(root, "ls-files", "--cached", "--", lock)).To(Equal(lock + "\n"))
 			case "private bin", "private assets", "private backup", "private transaction":
 				names := map[string]string{"private bin": "bin", "private assets": "assets", "private backup": "backups", "private transaction": "installation-transactions"}
 				Expect(os.Mkdir(filepath.Join(root, ".factory", names[kind]), 0700)).To(Succeed())
@@ -411,7 +419,10 @@ var _ = Describe("Whole installation upgrade release candidate handoff CI checko
 				imageGit(root, "add", "factory.yaml")
 				imageGit(root, "commit", "--quiet", "-m", "test: ambiguous project metadata")
 			}
-			ciPrepareRefusal(root, driver, f, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH))
+			out := ciPrepareRefusal(root, driver, f, ciPrepareArguments(runtime.GOOS+"/"+runtime.GOARCH))
+			if kind == "tracked transition lock" {
+				Expect(out.stderr).To(ContainSubstring("untracked"))
+			}
 		}
 	})
 

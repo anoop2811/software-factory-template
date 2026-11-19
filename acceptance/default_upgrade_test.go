@@ -89,9 +89,26 @@ var _ = Describe("Go default packaged upgrade", Ordered, ContinueOnFailure, func
 	})
 
 	// per docs/adr/0122-default-packaged-go-upgrade.md:77
+	// per docs/DECISION_LOG.md:9054
 	It("requires fresh consent and restores exact legacy originals through inert backup and explicit rollback", func() {
 		p := fixtures.legacyProject(defaultUpgradeNextTag)
 		writeFixture(filepath.Join(p.root, "docs/operator-note.md"), []byte("preserve customized application history\n"), 0600)
+		const lock = ".factory/runtime-transition.lock"
+		const sibling = ".factory/operator-note"
+		ignorePath := filepath.Join(p.root, ".gitignore")
+		legacyIgnore, err := os.ReadFile(ignorePath)
+		Expect(err).NotTo(HaveOccurred())
+		customIgnore := append(legacyIgnore, []byte("\n# Keep project-owned files visible\n!/.factory/\n/operator-cache/")...)
+		writeFixture(ignorePath, customIgnore, 0644)
+		Expect(os.MkdirAll(filepath.Join(p.root, ".factory"), 0700)).To(Succeed())
+		writeFixture(filepath.Join(p.root, lock), nil, 0600)
+		writeFixture(filepath.Join(p.root, sibling), []byte("operator file\n"), 0600)
+		lockBefore, err := os.Lstat(filepath.Join(p.root, lock))
+		Expect(err).NotTo(HaveOccurred())
+		addable := func() []string {
+			return strings.Fields(imageGit(p.root, "ls-files", "--others", "--exclude-standard", "--", lock, sibling))
+		}
+		Expect(addable()).To(ConsistOf(lock, sibling))
 		before := installationSnapshot(p.root)
 		original, err := os.ReadFile(filepath.Join(p.root, "factory"))
 		Expect(err).NotTo(HaveOccurred())
@@ -106,6 +123,14 @@ var _ = Describe("Go default packaged upgrade", Ordered, ContinueOnFailure, func
 		applied := p.apply(proposal)
 		Expect(applied.status).To(Equal(0), "%+v", applied)
 		Expect(applied.stderr).To(ContainSubstring(defaultUpgradeApplyMarker))
+		lockAfter, err := os.Lstat(filepath.Join(p.root, lock))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(os.SameFile(lockBefore, lockAfter)).To(BeTrue())
+		updatedIgnore, err := os.ReadFile(ignorePath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(updatedIgnore)).To(HavePrefix(string(customIgnore)))
+		Expect(addable()).To(ConsistOf(sibling), "a v0.1.6 upgrade must keep only the transition lock out of Git")
+		Expect(imageProcess(p.root, nil, "git", "ls-files", "--stage", "-z")).To(Equal(index))
 		defaultInitDescriptor(p.root, defaultUpgradeTag, fixtures.revision, fixtures.image(defaultUpgradeTag).binary)
 		ids := retentionBackupIDs(p.root)
 		Expect(ids).To(HaveLen(1))

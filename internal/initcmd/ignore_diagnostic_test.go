@@ -36,7 +36,7 @@ exit 7
 `
 		Expect(os.WriteFile(filepath.Join(tools, "git"), []byte(script), 0700)).To(Succeed()) // #nosec G306 -- private test-owned executable fixture requires its owner execute bit.
 		environment := map[string]string{"PATH": tools + string(os.PathListSeparator) + os.Getenv("PATH"), "DIAGNOSTIC_RECORDS": records, "DIAGNOSTIC_STAGE": stage, "DIAGNOSTIC_TIMEOUT": strconv.FormatBool(timeout), "PRIVATE_ENV": "PRIVATE_ENVIRONMENT_VALUE"}
-		rules := []byte(strings.Join(installation.PrivateIgnoreRules(), "\n") + "\n")
+		rules := []byte(strings.Join(installation.PrivateIgnoreRules(), "\n") + "\n/.factory/runtime-transition.lock\n")
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		prefix := "cannot prepare isolated ignore proof"

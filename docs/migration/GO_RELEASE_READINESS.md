@@ -105,8 +105,14 @@ Forward upgrade, installed application checks and interrupted forward recovery
 passed, but failed rollback preparation stranded its transaction journal and a
 customized ignore file exposed an addable private transition lock. The rollback
 correction merged in [PR #187](https://github.com/anoop2811/software-factory-template/pull/187).
-Decision 177 covers the lock. R6 still requires a candidate rerun of both
-findings, the temporary feature exercise and operator acceptance.
+[PR #188](https://github.com/anoop2811/software-factory-template/pull/188)
+merged the lock correction. The [merged-source pilot](RC4_ADOPTER_PILOT.md#rerun-with-both-fixes-in-merged-source)
+passed forward upgrade, lock visibility and the temporary feature exercise.
+Rollback refused with legacy Python unavailable. After restoring Python, public
+recovery and a fresh rollback both succeeded. R6 still
+requires evidence from signed release assets containing both fixes and the
+operator's explicit acceptance of the pilot results and agreement on the Q5
+evidence period and exit criteria.
 
 ### Earlier RC3 qualification (historical)
 

@@ -1,6 +1,6 @@
 # Go raw native event accounting candidate
 
-This G2 slice follows [ADR-0066](../adr/0066-go-native-event-streams.md). The
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This G2 slice follows [ADR-0066](../adr/0066-go-native-event-streams.md). The
 private `usage parse` command accepts raw captured stdout for Codex, Claude Code
 and OpenCode, then returns the accounting metadata established by `usage normalize`.
 It does not publish intermediate events or run a native CLI.

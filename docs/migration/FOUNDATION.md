@@ -1,6 +1,6 @@
 # Go runtime foundation candidate
 
-This iteration starts the conversion specified in
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This iteration starts the conversion specified in
 [001-go-runtime-conversion.md](../../specs/001-go-runtime-conversion.md).
 It supplies an immutable asset inventory and a developer-built Cobra dispatcher
 with outside-in Ginkgo/Gomega compatibility coverage. It does not complete G0

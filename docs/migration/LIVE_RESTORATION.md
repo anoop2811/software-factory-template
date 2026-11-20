@@ -1,6 +1,6 @@
 # Live publication and restoration core
 
-Status: source component; not released or connected to an installation command.
+Historical source checkpoint before installed restoration. See the [v0.2.0 upgrade guide](../UPGRADING.md) for public rollback and recovery.
 [ADR 0094](../adr/0094-live-publication-restoration.md)
 defines the component and its qualification requirements.
 The additive [durable completion contract](DURABLE_PUBLICATION.md) is defined

@@ -1,6 +1,6 @@
 # Durable local recovery creation
 
-[ADR-0091](../adr/0091-durable-local-recovery-creation.md) defines the source-built
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0091](../adr/0091-durable-local-recovery-creation.md) defines the source-built
 Go backup writer. It copies an explicitly confirmed selection from the six-path
 legacy budget/loop reference catalog into `.factory/backups/MIGRATION_ID/`.
 Installed activation, complete historical-factory coverage, controlled restoration,

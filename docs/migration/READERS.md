@@ -1,6 +1,6 @@
 # Read-only Go reader candidate
 
-This source-only slice implements configuration path/get/has and role-tier
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This source-only slice implements configuration path/get/has and role-tier
 resolution under Decision 51 (docs/DECISION_LOG.md:1952), following the
 sourceable-library contract in specs/001-go-runtime-conversion.md:306.
 The installed `factory`, configuration libraries and three harness adapters

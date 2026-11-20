@@ -1,6 +1,6 @@
 # Go native harness execution candidate
 
-[ADR-0068](../adr/0068-go-native-harness-execution.md) defines the next G2
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0068](../adr/0068-go-native-harness-execution.md) defines the next G2
 component: invocation preparation, local capability checks, process supervision
 and assistant response selection for Codex, Claude Code and OpenCode.
 

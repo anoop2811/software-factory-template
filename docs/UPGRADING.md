@@ -188,9 +188,7 @@ Unchanged, proven-owned obsolete implementations are retired or replaced only as
 part of the compatible Go transaction. Supported public script paths become thin
 adapters; policy gates and native harness formats can intentionally remain shell,
 JSON, TOML or TypeScript. Their existence is not a fallback to the old controllers.
-The source repository retains compatibility implementations and fixtures until
-its separate source/default cutover; migration cleanup concerns the selected
-adopter installation, not every script in the repository.
+The source repository retains compatibility fixtures and shell validation hooks. Migration cleanup applies to the proven-owned files in the selected adopter installation.
 
 The current Go implementation also declares the 83 unused private scaffold-cache
 files from older full-cache Go installations retired. The metrics HTML template
@@ -309,4 +307,4 @@ Projects that need the historical script update can explicitly select v0.1.6:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.1.6
 ```
 
-The historical updater refreshes known framework paths and can replace edits to those files. Save your changes first, review the resulting diff and run `./factory doctor`. To migrate to Go, use the preview and confirmation above.
+In the original v0.1.6 project, running `./factory upgrade` directly with no ref defaults to `main` unless `FACTORY_REF` is set. Pin the tag above to stay on Bash. The historical updater refreshes known framework paths and can replace edits to those files. Save your changes first, review the resulting diff and run `./factory doctor`. To migrate to Go, use the preview and confirmation above.

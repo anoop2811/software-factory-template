@@ -1,6 +1,6 @@
 # Read-only recovery restoration planning
 
-[ADR-0092](../adr/0092-go-recovery-restoration-planning.md) defines the
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0092](../adr/0092-go-recovery-restoration-planning.md) defines the
 source-built Go restoration planner. It compares one checked local recovery
 set against the same selected installed reference paths. It reports candidates
 and conflicts without restoring, deleting or changing any file.

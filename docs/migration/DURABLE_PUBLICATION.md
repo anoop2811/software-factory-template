@@ -1,7 +1,7 @@
 # Durable live publication completion
 
-Status: source contract; qualification is recorded in the pull request. The
-installed factory does not invoke this component.
+Historical source checkpoint. The installed factory at that point did not invoke
+this component. See the [stable upgrade and release guides](README.md) for v0.2.0.
 [ADR 0095](../adr/0095-durable-live-publication.md) defines the authoritative
 contract and remaining recovery scope.
 

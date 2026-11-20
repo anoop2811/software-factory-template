@@ -46,13 +46,13 @@ CI runs the fixtures. A hook PR without one doesn't merge, no matter how obvious
 ## Workflow
 
 ```bash
-./scripts/prereq-check.sh      # verify required tools
+./factory prereq               # check the tools available to the source checkout
 make check                     # lint, tests, and all CI hooks locally
 make lint-commits              # lint HEAD's commit message
-./scripts/pre-push-check.sh    # the full pre-push gate
+./factory check                # the full pre-push gate
 ```
 
-If you change `opencode.json` or the agent role files, run `make sync-harnesses` and commit the regenerated `.claude/` and `.codex/` files. CI fails on adapter drift.
+If you change `opencode.json` or the agent role files, run `./factory sync all` and commit the regenerated `.claude/` and `.codex/` files. CI fails on adapter drift.
 
 ## Style
 

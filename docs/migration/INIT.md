@@ -23,8 +23,8 @@ version. A local installation must explicitly choose local source or an official
 release. For a published prerelease, use `--go-candidate TAG` instead:
 
 ```sh
-./factory-go init ../new-project --go-candidate v0.2.0-rc.3 --pack go
-./factory-go init --help
+./factory init ../new-project --go-candidate TAG --pack go
+./factory init --help
 ```
 
 A failed release verification leaves the target unchanged. `--help` performs
@@ -47,8 +47,8 @@ Current authenticated initialization also creates
 packs. It preserves existing application workflows and refuses an occupied
 `factory.yml` before publication. It omits newly copied source-development and
 separate pack jobs. See [generated ordinary CI](CI_PREPARATION.md#ci-created-by-current-initialization)
-for application setup, mock-only evaluation and the remaining review-lane and
-upgrade integration boundaries. Earlier published candidates retain their own
+for application setup, mock-only evaluation and how the optional review lane
+participates in an upgrade. Earlier published candidates retain their own
 initialization behavior.
 Authenticated explicit candidates with noncanonical tags, such as `candidate-r4`,
 retain their initialization support but receive an explanation that ordinary CI
@@ -101,18 +101,17 @@ two data files consumed by installed commands:
 - `packs/review-lane/review-pr.yml` for review-lane setup.
 
 These are two cached data files, not the entire installed factory. The reviewed
-inventory has 58 rows: three existing retirement rows and 55 active selections.
+v0.2.0 inventory has 141 rows covering 86 retirements and 55 active selections.
 The installed descriptor lists 53 assets because `.factory-version` and the
 descriptor itself are separate controls. Project-facing scaffold files remain
 available outside this private cache.
 
-Known RC3 and post-RC3 images retain their original 141-row generation, including
-85 cached assets, when reconstructed for recovery. Upgrading an existing
-installation leaves its 83 unused old cache files untouched; this change does
-not retire, overwrite or adopt them. A historical rollback that needs a changed,
-missing or unsafe old cache entry is blocked before publication and preserves
-that entry. Qualified cleanup of existing caches is a separate migration step.
-See [ADR 0119](../adr/0119-minimal-qualified-initializer-inventory.md).
+Older Go releases are reconstructed with their original inventories. Where a
+qualified predecessor selected all 85 cache files, a stable upgrade can retire
+the 83 unused files after confirming their ownership and original contents.
+A predecessor with the 58-row inventory selected only the two consumed files.
+Additional files there remain outside automatic retirement. The upgrade preview
+reports conflicts and preservation reasons. See [the retirement rules](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 
 The intended compatibility boundaries preserve user README content and unmanaged
 Makefile/ignore rules. Unsafe source or destination paths and unrepresentable flat

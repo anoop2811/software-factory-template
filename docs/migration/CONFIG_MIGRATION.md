@@ -45,10 +45,8 @@ the recovery bytes. The diagnostic reports the partial state and requests
 inspection before retrying; an unknown recovery destination is preserved.
 Output failure can also return nonzero after a completed migration.
 
-## Rollout boundary
+## Installed use in v0.2.0
 
-This command converts configuration data, not the installed factory runtime.
-Installed script entry points remain routed as before. Go activation, retiring
-redundant scripts, and the ignored runtime backup/retention lifecycle are separate
-conversion work. The single established `.migrated` configuration recovery file
-is retained under the existing compatibility contract.
+Run `./factory migrate-config --dry-run` to preview the configuration conversion.
+The adjacent `factory.config.migrated` backs up that input. To migrate the whole
+Bash installation and retain its recovery set, follow the [upgrade guide](../UPGRADING.md).

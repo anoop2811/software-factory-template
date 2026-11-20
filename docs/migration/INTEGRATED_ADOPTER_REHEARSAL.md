@@ -103,7 +103,7 @@ Keep machine idle sleep disabled only for the duration of a long local run when
 needed; do not change runtime timeouts to compensate for a sleeping evaluator.
 Hosted exact-head reports remain the cross-platform source qualification.
 
-## Remaining release gates
+## Release gates remaining at R4
 
 R4 closed with the reviewed merge and hosted evidence below. R5 publishes and qualifies RC4 on the
 four supported native targets, using actual release authenticity. R6 records the

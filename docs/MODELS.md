@@ -7,7 +7,7 @@ whatever it is already configured with.
 
 ## Choosing at init
 
-`factory-init` asks for a provider once. It only *seeds* defaults:
+The v0.2.0 initializer asks for a provider during project setup. It only *seeds* defaults:
 
 | Provider | What gets seeded |
 |---|---|
@@ -17,15 +17,15 @@ whatever it is already configured with.
 | `openai` | opencode tiers as `openai/…`, plus native Claude/Codex tiers |
 | anything else | opencode tiers blank (set them yourself), plus native Claude/Codex tiers |
 
-Nothing here is locked in — edit `factory.yaml` and run `make sync-harnesses`
-(Decision 25) and every harness re-routes.
+To change the selection, edit `factory.yaml`, run `./factory sync all` and
+inspect the generated diff.
 
 ## Why the three harnesses differ
 
-opencode reaches [75+ providers](https://opencode.ai/docs/providers/) with a
-`provider/model` string, so its tiers follow whichever provider you chose. Claude
-Code only talks to Anthropic and Codex only to OpenAI, so their tiers always use
-those native ids — and they only apply if you actually run that harness.
+The factory writes OpenCode model IDs as provider/model strings. It seeds
+Claude Code and Codex with identifiers in their own native formats. The
+identifiers below are v0.2.0 configuration examples. Availability and billing
+depend on the provider and account you actually use.
 
 ```yaml
 # factory.yaml — the shape, whatever the provider
@@ -51,10 +51,10 @@ account.
 | Ollama (local) | `ollama/<your-tag>` | none |
 | Bedrock / Vertex / Azure | provider-prefixed, per opencode's provider docs | that cloud's credentials |
 
-The factory never reads or stores a key. Credentials belong to your harness (and,
-if you enable a CI lane that calls a model, to your CI secrets) — see
-[opencode's provider docs](https://opencode.ai/docs/providers/) for how each one
-is authenticated.
+Use your harness's credential settings for interactive work. If you enable
+the optional advisory PR review, the factory review client reads the API key
+from its environment. Configure the corresponding Actions secret and put only
+its **name** in `factory.yaml`. [Review lane setup](REVIEW_LANE.md).
 
 ## Tiers, not models
 

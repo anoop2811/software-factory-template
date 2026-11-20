@@ -1,6 +1,6 @@
 # Legacy adoption and transparent cleanup
 
-[ADR-0081](../adr/0081-explicit-legacy-asset-adoption.md) records the approved
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0081](../adr/0081-explicit-legacy-asset-adoption.md) records the approved
 ownership boundary. This document describes the source qualification flow;
 installed upgrade activation, whole-factory backup and pruning remain pending.
 The separate [local recovery writer](RECOVERY_CREATION.md) can preserve an

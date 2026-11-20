@@ -9079,10 +9079,10 @@ checkouts. A conflicting project rule must be reported before editing the file.
 
 Publish v0.2.0 from the merged adopter pilot at
 `5d6dbb0e0a0ef32113f200ef80cb7578bfb92f4c`. The operator approved the stable
-release and Latest designation after merging PR #189. Keep v0.1.6 as Latest
-during signing. Check the published native qualification on all four supported
-targets and exercise the signed stable installer with a fresh project and the
-v0.1.6 adopter before promotion. Use the same exact stable tag as the public
+release and Latest designation after merging PR #189. v0.1.6 stayed Latest
+during signing. All four native targets passed the published qualification, and the signed
+installer ran in a fresh project and the v0.1.6 adopter pilot before GitHub
+marked v0.2.0 Latest on 2026-11-20. Use the same exact stable tag as the public
 installer default. Preserve explicit historical release selection and require
 a reviewed migration digest and quiescence to activate the Go installation.
 
@@ -9095,8 +9095,15 @@ that work independently of the hosted installer default. Label roadmap proposals
 as planned. Apply the same evidence standard to the terminal example, metadata,
 language packs, role controls, cost claims and analytics preference text.
 
-Use a responsive editorial layout for the homepage, with locally served type
-and an original mechanical illustration. Keep captured CLI output, release
-evidence and installer commands readable without JavaScript. The illustration
-is decorative and conveys no release result. Retain the canonical site URL,
-analytics preference controls and exact-version installation examples.
+Use a responsive editorial layout with system typefaces and an interactive
+qualification graphic. Every tile represents one of the five passing scenarios
+per native target. Keep the CLI output, target selector, evidence and install
+commands readable without JavaScript. The site uses text assets for its design
+so the existing review lane can cover the entire change under ADR 0100.
+
+The homepage should answer the adopter’s first question: what would I otherwise
+have to assemble by hand? Lead with project setup, language packs, harness roles,
+CI and upgrades, then show where checks, usage reports and optional model runs
+fit. Link readers to maintained guides for operating v0.2.0 and to immutable
+release artifacts for evidence. Update current instructions across the repository
+while retaining the dates, baselines and results of historical decisions and pilots.

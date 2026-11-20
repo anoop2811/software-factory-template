@@ -1,11 +1,13 @@
 # Hooks reference
 
-**In short**
+In v0.2.0 the Go CLI runs project checks, and harness adapters and CI use
+shared hook entrypoints. Shell gates read project settings through
+`scripts/lib/config.sh`. Set paths and patterns in `factory.yaml`.
 
-- Every deterministic control is a shell script in `scripts/hooks/`. Adapters and CI call the same scripts; nothing is reimplemented inline.
-- Every hook is break/fix proven: CI introduces the exact defect, watches the hook fail, reverts, watches it pass.
-- Hooks read `factory.yaml` via `scripts/lib/config.sh` — hook files are byte-identical between template and adopters.
-- The edit path fails open if a script is missing; `hook-existence-check.sh` in CI catches that before merge.
+Run `./factory selftest` to see fourteen shipped gates each refuse a broken
+fixture and accept its healthy control. Run `./factory doctor` to inspect the
+settings and integrity of your installation. A custom hook needs its own
+regression test. [CLI command reference](CLI.md).
 
 On the fail-open: if a hook script is missing or unexecutable, edits proceed with a log line, because failing closed would halt all work — including the spec-writer writing tests — on a missing file. The CI existence check is the compensating control.
 

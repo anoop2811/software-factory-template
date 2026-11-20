@@ -1,10 +1,9 @@
 # Workflows
 
-The harness-agnostic substrate of "graph engineering." Most of the graph is
-already the factory — roles are the nodes, gates are the verified edges, the
-reviewer is the skeptic, models tier by role (see [CONCEPTS.md](CONCEPTS.md)). A
-**workflow recipe** adds the one missing piece: making a *specific composition*
-explicit and lintable, once, for all three harnesses.
+A workflow recipe describes how a team wants coding agents to carry out a
+task. v0.2.0 ships recipes for review and evaluation and a linter for their
+structure. The active harness coordinates the work with its available tools.
+For the factory's executable check and repair loop, see [LOOPS.md](LOOPS.md).
 
 ## A recipe is a plain-text graph
 
@@ -48,6 +47,6 @@ graph its own way. `AGENTS.md` points every harness's agent at `workflows/`:
 - **Codex** — `spawn_agent` / `wait_agent`: the same fan-out via Codex's
   multi-agent tools.
 
-Same recipe, same lint, native execution. That is what makes the graph work on
-Claude Code, opencode, and Codex without a per-harness workflow format — because
-only Claude has a committable workflow *file*; the others orchestrate at runtime.
+All three harnesses can read the same recipe. Actual dispatch depends on the
+harness, permissions and tools available in the session. See the
+[roadmap](FEATURE_ROADMAP.md) for proposed resumable graph execution.

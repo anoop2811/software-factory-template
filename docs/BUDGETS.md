@@ -1,7 +1,6 @@
 # Budgeting and observability
 
-Status: P0 implementation and deterministic acceptance complete (Decision 46).
-Native capability probes and unrun paid checks are distinguished below.
+In v0.2.0, use `./factory budget` to decide whether to launch an agent and to inspect what a factory-managed run consumed. Runs are off by default.
 
 ## Boundary
 
@@ -22,6 +21,7 @@ Preview a task using your existing harness configuration:
 ./factory budget plan --harness codex --session maintenance --task issue-71
 ```
 
+With the default settings the plan returns exit 2 and explains that budgeting is disabled.
 To launch it, set `budget_enabled: true` in factory.yaml, put your instructions
 in a local file, and run:
 
@@ -39,12 +39,10 @@ attempt stays in the report. Distinct task IDs share the same session limits.
 
 ## Interface and configuration
 
-The default source/script installation reads flat factory.yaml through the shared
-shell entry point and passes values as data to its Python implementation. The
-source-built or explicitly selected installed Go CLI reads the same configuration
-and owns budgeting natively without Python. Runtime selection and command
-availability are explained in [CLI.md](CLI.md); source/ref updates retain the
-script default until the replacement cutover is qualified.
+The packaged v0.2.0 CLI reads the flat `factory.yaml` in your project and manages
+budgets in Go. The installed budget command requires neither Python nor a Go
+compiler. An existing v0.1.6 project stays on its Bash installation until you
+preview and confirm the upgrade. See the [CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) and [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
 
 Commands (flags use separate values or `--flag=value`):
 
@@ -206,7 +204,7 @@ requirements or strict USD requested; exact argv/role/model for all harnesses;
 normal/error/malformed/duplicate usage; partial unknown totals; stopped timeout
 children; signal cleanup; concurrent admission and session-time reservations;
 metadata privacy; and installation plus upgrade delivery. Paid calls are absent
-from normal CI. Existing factory checks remain green.
+from the budget acceptance suite.
 
 ## Compatibility evidence
 

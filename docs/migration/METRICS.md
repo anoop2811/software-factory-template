@@ -46,8 +46,8 @@ ordering race; after registering cancellation with Ginkgo cleanup,
 `go test -race ./internal/...` passed (loop package `ok 10.924s`).
 Exact-head platform CI remains a separate merge gate.
 
-## Rollout boundary
+## Installed use in v0.2.0
 
-This completes source implementation only. Script-based installations retain
-their existing metrics path. Installed Go activation, legacy retirement and
-the ignored, bounded recovery lifecycle remain separate cutover requirements.
+The packaged Go CLI owns `./factory metrics`.
+A v0.1.6 installation keeps using its script until you apply the supported
+[upgrade](../UPGRADING.md). See the [command reference](../CLI.md) for usage.

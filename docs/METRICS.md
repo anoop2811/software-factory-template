@@ -1,18 +1,18 @@
 # Metrics
 
-What the factory is doing to your repository. **Local only** — computed on your
-machine, from your repository, for you. Nothing is transmitted, and nothing here
-changes the standing promise: the factory you install never phones home.
+Use the v0.2.0 CLI to see which gates are armed, what they have blocked and where
+the same files keep changing. The metrics command reads local repository data.
+It can write a report on your machine without contacting a metrics service.
 
 ```sh
-factory metrics                # terminal report
-factory metrics --json         # machine-readable, for your own collector
-factory metrics --html         # writes .factory/metrics.html — no server
-factory metrics --days 90      # window (default 30)
+./factory metrics                # terminal report
+./factory metrics --json         # machine-readable, for your own collector
+./factory metrics --html --no-open  # write .factory/metrics.html for later
+./factory metrics --days 90      # window (default 30)
 ```
 
-Most of it is derived from **git history**, so it is meaningful the day you
-install the factory rather than after months of collecting events.
+An existing project can report its Git history on day one. A new project has
+little history, and block counts depend on the events its installed gates record.
 
 ## Two rules
 
@@ -97,13 +97,13 @@ Anyone with a collector already knows what to do with that:
 
 ```sh
 # Prometheus textfile collector
-factory metrics --json | jq -r '
+./factory metrics --json | jq -r '
   "factory_gates_armed \(.enforcement.gates_armed)",
   "factory_blocks \(.enforcement.blocks_in_window)",
   "factory_reverts \(.loop.reverts)"' > /var/lib/node_exporter/factory.prom
 
 # anything else
-factory metrics --json | your-shipper
+./factory metrics --json | your-shipper
 ```
 
 ## Storage
@@ -114,8 +114,8 @@ trimmed to the most recent half when it grows past that. No database, no rotatio
 scheme. Because older raw events are dropped, the report says blocks **retained**
 rather than claiming an all-time total it can no longer stand behind.
 
-`.factory/` is gitignored. Events record gate names, timestamps and counts —
-never file contents, diffs, or commit messages.
+`.factory/` is gitignored. Each event records a UTC timestamp, a gate name and
+the reason that gate supplied. The metrics command derives counts from those events.
 
 ## The HTML page
 

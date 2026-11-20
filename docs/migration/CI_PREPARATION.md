@@ -6,21 +6,19 @@ the installed `./factory`. Public launchers also identify the runtime for the
 machine on which the project was initialized; another platform needs a complete
 matching selection, not just a copied executable.
 
-The native `ci prepare` command and its installer entrypoint are being qualified
-for the replacement release. They are unavailable in v0.1.6 and in earlier
-candidates that lack the command. Current Go source also provides the explicit
-workflow renderer below. Current authenticated initialization adds the ordinary
-workflow described next; eligible authenticated upgrades integrate existing
-workflow migration with installation backup and recovery. Integrated hosted
-rehearsal remains [release-readiness work](GO_RELEASE_READINESS.md). The preparation
-and rendering commands themselves do not install or rewrite workflow files.
+v0.2.0 ships `ci prepare`, the installer bootstrap and the workflow renderer.
+Authenticated initialization writes the ordinary workflow described next.
+Eligible authenticated upgrades include workflow migration in the installation
+backup and recovery transaction. The preparation and rendering commands alone
+do not install or rewrite workflow files. See the [integrated rehearsal](INTEGRATED_ADOPTER_REHEARSAL.md)
+and [stable release evidence](GO_RELEASE_READINESS.md#stable-v020).
 
 ## CI created by current initialization
 
 Current authenticated `factory init` creates `.github/workflows/factory.yml`,
 using the exact selected release, its authenticated source revision and the
 initial installation platform. Earlier published candidates keep their original
-initializer behavior; this is part of the upcoming replacement release.
+initializer behavior. The procedure here applies to stable v0.2.0.
 Explicit candidate tags that are not full canonical semantic versions can still
 initialize, but CI preparation does not support them. Initialization explains
 that limitation and preserves existing workflows without creating the new job.
@@ -49,18 +47,18 @@ client; a local-only installation cannot supply that downloadable identity.
 
 ## Standalone review client
 
-Current Go source adds an explicit acquisition operation for privileged review
+v0.2.0 provides an explicit acquisition operation for privileged review
 jobs. It needs a separately trusted native executable or reviewed installer and
 an official published release that implements this operation; v0.1.6 and earlier
 candidates do not gain it retroactively. The generated opt-in workflow now uses
 this operation, with the installer pinned to reviewed merged commit
-`3794e6cc8fa66eb02504e753b0ad11955f5cf85a`. It reads matching tag/revision records
+`959ebbc2a661fe7911f2770b1c5746b54c287249`. It reads matching tag/revision records
 from the committed launcher and `.factory-version`, validates the receipt and
 runner executable, then invokes single-request review. Exact predecessor-owned
 enabled workflows participate in the upgrade transaction; off/absent lanes stay
 unchanged and customized enabled workflows are conflicts. See
 [the integration contract](../adr/0154-installed-review-workflow-migration.md).
-Integrated rehearsal remains R4 work. The acquisition command itself does not
+The [integrated rehearsal](INTEGRATED_ADOPTER_REHEARSAL.md) exercised the workflow. The acquisition command itself does not
 enable reviews or change an already-enabled workflow.
 
 From the project checkout, choose disposable scratch outside that checkout:
@@ -168,8 +166,8 @@ downloadable CI release. See the
 [transactional migration contract](../adr/0148-transactional-installed-ci-migration.md).
 
 Use `./factory ci workflow --help` for the selector contract. The shell installer
-supports `ci prepare`, not workflow rendering. Older published candidates and
-v0.1.6 do not contain this new command.
+supports `ci prepare` and `ci review-client`. Use the native v0.2.0 CLI for workflow
+rendering. v0.1.6 has no `ci` command.
 
 ## Bootstrap without an existing native executable
 

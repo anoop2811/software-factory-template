@@ -1,6 +1,6 @@
 # Go configuration-write candidate
 
-This G1 slice adds `factory_config_set` under
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This G1 slice adds `factory_config_set` under
 [ADR-0063](../adr/0063-go-configuration-writes.md). It changes the explicit source
 candidate; installed factory scripts keep their current routing until the
 migration's compatibility, delivery and recovery requirements pass.

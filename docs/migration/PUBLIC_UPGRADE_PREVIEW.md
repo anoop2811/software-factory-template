@@ -1,6 +1,6 @@
 # Public Go upgrade preview
 
-[ADR-0082](../adr/0082-go-public-upgrade-preview.md) defines the read-only preview
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0082](../adr/0082-go-public-upgrade-preview.md) defines the read-only preview
 in a locally built Go binary. Installed migration application remains pending.
 
 Run from the installation root:

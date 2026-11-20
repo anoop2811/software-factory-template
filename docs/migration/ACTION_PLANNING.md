@@ -1,6 +1,6 @@
 # Go migration target-action planning
 
-[ADR-0080](../adr/0080-go-migration-action-planning.md) extends the read-only
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0080](../adr/0080-go-migration-action-planning.md) extends the read-only
 installation assessment into a blocked comparison with a local source tree.
 
 The private compiled request is `FACTORY_BRIDGE_PROTOCOL=1 factory migration

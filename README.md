@@ -1,16 +1,12 @@
 # Software Factory Template
 
-**In short**
+Software AI Factory bootstraps a new or existing repository for development with Codex, Claude Code and OpenCode. Give the next developer a working set of language-pack files, shared agent roles, project checks and GitHub Actions without assembling a separate setup for each tool.
 
-- A project-agnostic scaffold that wraps AI coding agents in deterministic gates: shell hooks and CI checks that block, instead of prompts that ask.
-- Extracted from a factory that built a real product. Nothing here is speculative tooling.
-- Every gate is proven by a break/fix fixture — we've watched each one catch the defect it exists for.
-- Bounded delivery: one complete function per PR, with its tests, compatibility work and docs, so humans and AI reviewers can assess the whole change.
-- MIT licensed.
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships one project-local Go CLI. Start with setup and local checks. Turn on budgeted agent runs, bounded repair loops or model-assisted PR review when you need them. [Explore the commands](docs/CLI.md).
 
 ## Quick start
 
-Run `gh auth status` before using the installer’s `init` or `upgrade` command. If this is your first time using the GitHub CLI, run `gh auth login`.
+Run `gh auth status` before using the authenticated Go installer for `init` or `upgrade`. If this is your first time using the GitHub CLI, run `gh auth login`.
 
 ```bash
 # one shot — fetch, then set up the current repo:
@@ -22,7 +18,12 @@ curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typ
 
 # From an existing v0.1.6 project, preview the upgrade before confirming it:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
+
+# For an installed Go project, preview the public installer’s pinned stable release:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --dry-run --json
 ```
+
+The pack checks start at the project root. For a monorepo with nested modules or workspaces, adapt the check command and workflow paths to your directory layout.
 
 With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
 
@@ -69,7 +70,7 @@ product tools and retained validation gates keep their own requirements.
 
 1. Read [docs/CONCEPTS.md](docs/CONCEPTS.md) (~5 min) — why the gates exist.
 2. Use the Quick start initializer in your project to install the hooks and prove they fire.
-3. Run `./factory doctor` any time to see which gates are armed, inert, or stale — and watch every armed gate fire on its own break/fix proof.
+3. Run `./factory doctor` any time to see which gates are armed, inert, or stale and exercise the 14 core gate proofs against isolated fixtures.
    - `./factory report` shows what the gates caught, enforced at 0 model tokens, plus one clearly-labeled cost estimate — no vanity "tokens saved" number.
    - `./factory metrics` shows what the factory is doing to your repo: gates armed vs inert, what they blocked, rework, reverts, whether claims carry evidence. Mostly from git history, so it works the day you install. `--json` to export, `--html` for a page. Local only — nothing is transmitted.
 4. Read [docs/ADAPTING.md](docs/ADAPTING.md) "Adopting incrementally" to arm gates one at a time.
@@ -77,12 +78,7 @@ product tools and retained validation gates keep their own requirements.
 
 ## Factory commands
 
-Use one public entrypoint: `./factory`. This table describes current Go source
-and selected Go installations; commands marked **Go only** are absent from the
-older v0.1.6 script dispatcher. Use an actual published release tag for `TAG`. Start with
-`./factory help`; flags vary by command. The [CLI reference](docs/CLI.md) explains
-options, runtime availability and side effects. The table follows current Go
-source; older published candidates can have fewer features.
+The table covers the released v0.2.0 CLI. Start with `./factory help`. Commands marked **Go only** were absent from the v0.1.6 dispatcher. Use an exact published release for `TAG`; the CI helpers accept `--go-candidate v0.2.0` for the stable release, too. The [CLI reference](docs/CLI.md) explains flags, prerequisites and side effects.
 
 | Command | Purpose | Example |
 |---|---|---|
@@ -103,8 +99,8 @@ source; older published candidates can have fewer features.
 | `review-lane` | Inspect/manage advisory PR review: `status`, `enable`, `disable`, `pending`, `secret-name`. | `./factory review-lane status` |
 | `metrics` | Read local activity/enforcement metrics; JSON or local HTML output is available. | `./factory metrics --json` |
 | `report` | Read gate/block history and a labelled estimate; `--clear` resets the block log. | `./factory report` |
-| `budget` | `plan`, `run` or `report` managed model invocations; only explicit `run` launches a model. | `./factory budget plan --harness codex --session work --task issue-1` |
-| `loop` | `plan`, `run`, `resume` or inspect `status` for manual checks or bounded agent work. | `./factory loop plan --harness codex --session work --task issue-1` |
+| `budget` **Go only** | `plan`, `run` or `report` managed model invocations; only explicit `run` launches a model. | `./factory budget plan --harness codex --session work --task issue-1` |
+| `loop` **Go only** | `plan`, `run`, `resume` or inspect `status` for manual checks or bounded agent work. | `./factory loop plan --harness codex --session work --task issue-1` |
 | `migrate-config` | Preview conversion of legacy flat configuration to YAML; applying preserves a backup. | `./factory migrate-config --dry-run` |
 
 Budgeted model runs and bounded loops require explicit enablement. Real evaluation
@@ -121,9 +117,9 @@ The packaging/staging utilities are maintainer tools; regular users keep the one
 
 A prompt that says "never edit test files" is a request an agent may or may not honor. A shell hook that exits 2 on the edit is a fact. Put the control in a hook, not in the prompt — that principle is due to Birgitte Böckeler (Thoughtworks), and this template applies it to commit discipline, push gates, role separation, and citation integrity.
 
-The second idea is the Verification Contract: only claim what you've observed. Three claim levels (WROTE / RAN / OBSERVED), every check proven by watching it fail. See [docs/CONCEPTS.md](docs/CONCEPTS.md).
+The second idea is the Verification Contract: only claim what you've observed. Its three claim levels are WROTE, RAN and OBSERVED. When adding a gate, exercise a deliberate failure and a healthy control. The v0.2.0 installed self-test covers fourteen such pairs. See [docs/CONCEPTS.md](docs/CONCEPTS.md).
 
-The third idea is that this is already a graph. The vocabulary everyone's chasing — prompt, loop, harness, graph — maps straight onto what's here: roles are the nodes, gates are the verified edges, the reviewer is the skeptic that never wrote the code, and models tier by role. You don't adopt a graph framework; the graph is the floor, and it runs the same on Claude Code, opencode, and Codex because the roles are canonical. The mapping is in [docs/CONCEPTS.md](docs/CONCEPTS.md).
+Workflow recipes describe which role handles each step and where findings get checked. The repository ships review and evaluation recipes. Each harness supplies its own orchestration. See [workflows](docs/WORKFLOWS.md).
 
 ## Bounded delivery
 
@@ -142,12 +138,12 @@ for scope examples and the merge workflow.
 
 | Piece | Where | What it does |
 |---|---|---|
-| Agent roles | `.opencode/agent/` | spec-writer, implementer, refactorer, reviewer, wiki-maintainer. The role that writes tests never writes implementation — enforced by a hook, not by trust. |
+| Agent roles | `.opencode/agent/` | spec-writer, implementer, refactorer, reviewer, wiki-maintainer. With an explicit implementer role and configured test patterns, the test-edit hook blocks edits to matching tests. |
 | Hooks | `scripts/hooks/` | Deterministic gates on commits, pushes, and CI. Each one in [docs/HOOKS.md](docs/HOOKS.md). |
 | Harness adapters | `factory sync` in Go; `scripts/sync-*.sh` in the script installation | opencode is canonical; the Claude Code and Codex configs are generated from it, and CI fails on drift. |
-| Language packs | `packs/` | The core never mentions a language. Packs carry the stack opinions. |
+| Language packs | `packs/` | Select stack-specific checks and tool configuration, one pack or several. |
 | Agent evals | `eval/` | Score agents on real tasks — a red spec plus an oracle, pass rate over N runs. Baselines record what they were measured against, so a changed oracle reports *stale* instead of a false "no regression". |
-| Workflow recipes | `workflows/` | The graph in plain text: nodes are roles, edges are code, findings pass a verifier. `workflow-lint` enforces the shape; one recipe runs natively on all three harnesses. |
+| Workflow recipes | `workflows/` | The graph in plain text: nodes are roles, edges are code, findings pass a verifier. `workflow-lint` enforces the shape; agents interpret the recipe with their own orchestration tools. |
 | CLI | `./factory` | One developer entrypoint for setup, health, upgrades, budgets and loops. [Command reference](docs/CLI.md). |
 | Metrics | `factory metrics` | What the factory is doing to your repo, computed locally and never sent anywhere. Shows the unflattering numbers — inert gates, repeat blocks, rework, stale baselines — as prominently as the wins. [docs/METRICS.md](docs/METRICS.md). |
 
@@ -168,9 +164,7 @@ staged migration with backward compatibility, recovery and safe cleanup. Native 
 configuration, configuration migration, budgets, loops, harness synchronization,
 check orchestration, evaluation and review. Authenticated whole-installation
 upgrade, rollback, interrupted recovery and backup retention are implemented.
-The [command reference](docs/CLI.md) distinguishes this source surface from the
-current script default; [release readiness](docs/migration/GO_RELEASE_READINESS.md)
-tracks the remaining qualification and cutover gates.
+The [command reference](docs/CLI.md) covers the shipped Go CLI. The [stable release record](docs/migration/GO_RELEASE_READINESS.md#stable-v020) links the four native qualification reports and describes the v0.1.6 adopter exercise.
 
 ## Cost & models
 
@@ -183,21 +177,13 @@ not claim a strict dollar cap. See [budget controls](docs/BUDGETS.md).
 For manual checks or explicitly bounded implement/check/review/repair, see
 [Loop engineering](docs/LOOPS.md). `factory loop plan` makes no model calls.
 
-Each role runs on a cost-appropriate model. The reviewer and spec-writer get a frontier model; the low-stakes roles — refactorer, wiki-maintainer, background tasks — get a cheaper one. Because opencode, Claude, and Codex have different native model namespaces, each carries its own per-tier defaults (verified current, overridable in `factory.yaml`):
-
-| Tier | opencode (OpenRouter) | Codex | Claude |
-|---|---|---|---|
-| frontier | `openrouter/z-ai/glm-5.2` | `gpt-5.6-sol` | `claude-opus-4-8` |
-| default | `openrouter/z-ai/glm-5.2` | `gpt-5.6-terra` | `claude-sonnet-4-6` |
-| economy | `openrouter/qwen/qwen3-coder` | `gpt-5.6-luna` | `claude-haiku-4-5` |
-
-It's a routing change only — no gate is relaxed, so the same hooks check the output whichever model produced it. That's what lets a cheaper model run safely on the low-stakes roles. The default (`standard`) profile runs two tiers — frontier and default; the opt-in `economy` profile adds the cheaper third. To reconfigure later, edit `factory.yaml` (change a model, or flip `cost_profile`) and run `make sync-harnesses` — one edit re-routes all three harnesses. See [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md).
+Keep each harness’s own model configuration by choosing `inherit` during setup, or configure model tiers in `factory.yaml`. The standard profile uses frontier and default tiers. Economy adds a third tier for selected roles. After changing the settings, run `./factory sync all` and inspect the generated diff. See [the model guide](docs/MODELS.md) and [cost profiles](docs/COST_AND_TOKENS.md).
 
 ## Documentation
 
 - [docs/CLI.md](docs/CLI.md) — commands, examples, runtime availability and model-cost choices
 - [docs/UPGRADING.md](docs/UPGRADING.md) — v0.1.6 to the Go factory, backups and recovery
-- [docs/migration/GO_RELEASE_READINESS.md](docs/migration/GO_RELEASE_READINESS.md) — remaining Go replacement release gates
+- [docs/migration/GO_RELEASE_READINESS.md](docs/migration/GO_RELEASE_READINESS.md) — v0.2.0 qualification reports and migration evidence
 - [docs/CONCEPTS.md](docs/CONCEPTS.md) — why the rules exist, including the full Verification Contract
 - [docs/ADAPTING.md](docs/ADAPTING.md) — adopting the factory in an existing project
 - [docs/COST_AND_TOKENS.md](docs/COST_AND_TOKENS.md) — the cost profile and per-harness model tiers

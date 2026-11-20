@@ -49,8 +49,8 @@ The shell selftest reported `217 passed, 0 failed, 0 skipped`. Independent final
 correctness/security/test review found no remaining actionable issues; the full
 combined compiled-CLI regression and platform results are recorded in the PR.
 
-## Rollout boundary
+## Installed use in v0.2.0
 
-This is source implementation and integration. Existing installed script routes
-remain available; installed Go activation, legacy script retirement and the
-bounded ignored recovery lifecycle remain separate work.
+The packaged Go CLI owns `./factory review-lane` and keeps provider review opt-in.
+A v0.1.6 installation keeps using its script until you apply the supported
+[upgrade](../UPGRADING.md). See the [command reference](../CLI.md) for usage.

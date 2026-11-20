@@ -3,19 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Software AI Factory v0.2.0 — Go CLI for AI coding workflows</title>
-<meta name="description" content="A Go CLI for Codex, Claude Code and OpenCode. Run project checks, inspect usage, set limits on agent runs and preview migration from the v0.1.6 Bash factory.">
-<meta property="og:title" content="Software AI Factory v0.2.0 — Go CLI for AI coding workflows">
-<meta property="og:description" content="A Go CLI for Codex, Claude Code and OpenCode. Run project checks, inspect usage, set limits on agent runs and preview migration from the v0.1.6 Bash factory.">
+<title>Software AI Factory v0.2.0 — Project setup for AI coding agents</title>
+<meta name="description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
+<meta property="og:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta property="og:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://softwareaifactory.sh/">
 <meta property="og:site_name" content="Software AI Factory">
 <meta property="og:locale" content="en_US">
-<meta name="twitter:card" content="summary_large_image">
-<meta property="og:image" content="https://softwareaifactory.sh/site-assets/factory-cams.webp">
-<meta property="og:image:alt" content="Editorial illustration of orange, green and silver machined cams">
-<meta name="twitter:title" content="Software AI Factory v0.2.0 — Go CLI for AI coding workflows">
-<meta name="twitter:description" content="A Go CLI for Codex, Claude Code and OpenCode. Run project checks, inspect usage, set limits on agent runs and preview migration from the v0.1.6 Bash factory.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta name="twitter:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <link rel="canonical" href="https://softwareaifactory.sh/">
 <!-- Site/source identity, not a claim of search ranking or app rich-result eligibility.
      per docs/DECISION_LOG.md:4569 -->
@@ -30,13 +28,13 @@
       "name": "Software AI Factory",
       "alternateName": "softwareaifactory.sh",
       "inLanguage": "en",
-      "description": "A Go CLI for Codex, Claude Code and OpenCode. Run project checks, inspect usage, set limits on agent runs and preview migration from the v0.1.6 Bash factory."
+      "description": "Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI."
     },
     {
       "@type": "WebPage",
       "@id": "https://softwareaifactory.sh/#webpage",
       "url": "https://softwareaifactory.sh/",
-      "name": "Software AI Factory v0.2.0 — Go CLI for AI coding workflows",
+      "name": "Software AI Factory v0.2.0 — Project setup for AI coding agents",
       "inLanguage": "en",
       "isPartOf": {"@id": "https://softwareaifactory.sh/#website"},
       "about": {"@id": "https://softwareaifactory.sh/#source"}
@@ -46,7 +44,7 @@
       "@id": "https://softwareaifactory.sh/#source",
       "name": "Software AI Factory",
       "url": "https://softwareaifactory.sh/",
-      "description": "A Go CLI for Codex, Claude Code and OpenCode. Run project checks, inspect usage, set limits on agent runs and preview migration from the v0.1.6 Bash factory.",
+      "description": "Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.",
       "codeRepository": "https://github.com/anoop2811/software-factory-template",
       "codeSampleType": "template",
       "version": "0.2.0",
@@ -82,7 +80,6 @@
   gtag('config', 'G-SWDEH8ZZQM');
 </script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
-<link rel="preload" href="site-assets/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="site-assets/site.css">
 </head>
 <body>
@@ -92,7 +89,8 @@
   <div class="wrap masthead">
     <a class="domain" href="#" aria-label="Software AI Factory home"><img src="favicon.svg" alt="" width="28" height="28"> Software AI Factory</a>
     <nav aria-label="Main navigation">
-      <a href="#features">Features</a>
+      <a href="#runtime">How it works</a>
+      <a href="#features">Agent runs</a>
       <a href="#why">Evidence</a>
       <a href="#install">Install</a>
       <a href="#roadmap">Roadmap</a>
@@ -110,21 +108,120 @@
     <div class="wrap hero-grid">
       <div class="hero-copy">
       <div class="pills"><a class="pill green" href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">v0.2.0 <span>Stable release</span></a></div>
-      <h1>Project checks<br>for <em>AI coding<br> agents.</em></h1>
-      <p class="sub">Use the same project checks with Codex, Claude Code and OpenCode. The Go CLI lets you inspect a run’s reported usage and choose how many times an agent can try a repair.</p>
+      <h1>Your repo, ready for <em>coding agents.</em></h1>
+      <p class="sub">A new repo can mean wiring up tests, CI and instructions for each coding agent by hand. Software AI Factory bootstraps that setup in a new or existing project. Codex, Claude Code and OpenCode share the project’s roles and checks, and you choose when to spend tokens on review or repair.</p>
       <div class="cta-row">
         <a class="btn primary" href="#install">Install or upgrade <span aria-hidden="true">↗</span></a>
-        <a class="btn" href="#why">See the evidence <span aria-hidden="true">↓</span></a>
+        <a class="btn" href="#runtime">See what gets installed <span aria-hidden="true">↓</span></a>
       </div>
       </div>
-      <figure class="hero-art">
-        <img class="cam-art" src="site-assets/factory-cams.webp" width="850" height="1063" fetchpriority="high" alt="">
+      <figure class="hero-art" aria-labelledby="matrix-title">
+        <div class="matrix">
+          <div class="matrix-title"><strong id="matrix-title">Release qualification</strong><a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Run evidence ↗</a></div>
+          <div class="matrix-stage" aria-hidden="true">
+            <div class="tile-grid">
+              <div class="tile-row linux-amd"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row linux-arm"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row mac-amd"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row mac-arm"><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+          <fieldset class="matrix-picker">
+            <legend>Each tile is one passing scenario. Select a platform.</legend>
+            <label><input type="radio" name="target" value="linux-amd" checked><span>Linux · amd64</span></label>
+            <label><input type="radio" name="target" value="linux-arm"><span>Linux · arm64</span></label>
+            <label><input type="radio" name="target" value="mac-amd"><span>macOS · Intel</span></label>
+            <label><input type="radio" name="target" value="mac-arm"><span>macOS · arm64</span></label>
+          </fieldset>
+          <div class="matrix-reading">
+            <span class="linux-amd">Ubuntu 24.04.5 LTS · amd64</span>
+            <span class="linux-arm">Ubuntu 24.04.5 LTS · arm64</span>
+            <span class="mac-amd">macOS 15.7.9 · amd64</span>
+            <span class="mac-arm">macOS 15.8.2 · arm64</span>
+            <strong>5/5 scenarios passed</strong>
+          </div>
+        </div>
         <figcaption class="term">
-          <span class="term-title">Installed CLI excerpt · macOS arm64</span>
+          <span class="term-title">Captured v0.2.0 output · macOS arm64</span>
           <pre class="term-body"><span>$ ./factory selftest</span>
 selftest: 14 shipped gates proved, 0 failed</pre>
         </figcaption>
       </figure>
+    </div>
+  </section>
+
+  <section id="runtime" aria-labelledby="runtime-heading">
+    <div class="wrap">
+      <h2 id="runtime-heading">What you get <em>in your repo.</em></h2>
+      <p class="lede">A Go service and a TypeScript frontend need different tools. They can still share one project configuration, one set of agent roles and one command to run the checks.</p>
+      <div class="grid3">
+        <article class="cell c-blue" id="inside">
+          <h3>Bootstrap the project</h3>
+          <p>Run the initializer and choose Go, TypeScript, Java, a combination, or the core factory alone. It writes <code>factory.yaml</code>, installs the selected pack files and generates a GitHub Actions workflow for authenticated release installs. You supply the application and its tests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md">Set up a project</a>.</p>
+        </article>
+        <article class="cell c-violet">
+          <h3>Switch coding agents</h3>
+          <p>Move from writing a spec in Claude Code to implementing it in Codex or reviewing it in OpenCode. The factory ships five role definitions and generates each harness’s configuration from the same source. After changing roles or model settings, run <code>./factory sync all</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/MODELS.md">Configure roles and models</a>.</p>
+        </article>
+        <article class="cell" id="differs">
+          <h3>Catch a mistake before merge</h3>
+          <p>Configure <code>./factory check</code> to run your project’s checks. For example, the edit hook can block an implementer from changing a matching test file. The generated CI also checks harness wiring and runs a mock evaluation on pull requests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md">See which checks run where</a>.</p>
+        </article>
+        <article class="cell">
+          <h3>Find out what actually ran</h3>
+          <p>Use <code>./factory doctor</code> to find an inactive gate or a missing adapter. Use <code>./factory metrics --json</code> to inspect local block and rework signals. When an enabled agent run reports usage, <code>./factory budget report</code> shows it. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/METRICS.md">Read your project metrics</a>.</p>
+        </article>
+        <article class="cell c-blue">
+          <h3>Review a change in context</h3>
+          <p>Use the spec template and role-based review recipe to take one behavior from requirement to reviewed PR. Enable advisory review to ask a configured model to inspect same-repository PRs targeting the default branch. These reviews can use paid tokens. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/REVIEW_LANE.md">Set up PR review</a>.</p>
+        </article>
+        <article class="cell c-violet">
+          <h3>Upgrade an existing factory</h3>
+          <p>Preview which files will change before moving a supported v0.1.6 installation to Go. The installer identifies conflicts, requires confirmation and keeps a local recovery backup. Your team can carry on using <code>./factory</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">Walk through an upgrade</a>.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature scope: docs/adr/0053-advertise-budget-and-loop-features.md:5. -->
+  <section id="features" class="band" aria-labelledby="features-heading">
+    <div class="wrap">
+
+      <h2 id="features-heading">Set limits <em>before</em> an agent runs.</h2>
+      <p class="lede">Start with a local plan. To launch an agent through <code>factory budget run</code>, enable the budget and use your configured harness CLI and credentials.</p>
+      <div class="grid3">
+        <div class="cell">
+          <span class="mono-label">factory budget</span>
+          <h3>Limit attempts and runtime</h3>
+          <p>Limit task attempts, session runs, execution time, and concurrent factory invocations. Preview the plan locally before enabling a run. An optional threshold uses estimated cost to warn or stop later launches. A single invocation can exceed that estimate. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md">Choose your budget controls &rarr;</a></p>
+        </div>
+        <div class="cell c-blue">
+          <span class="mono-label">factory budget report</span>
+          <h3>Inspect each attempt</h3>
+          <p>The local ledger records the harness, role, duration and outcome of factory-managed attempts. Reports show token usage or cost estimates when available and mark missing values as unknown. The ledger omits prompt and response bodies. Your harness controls its own history. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md#execution-and-storage">Explore run reporting &rarr;</a></p>
+        </div>
+        <div class="cell c-violet">
+          <span class="mono-label">factory loop</span>
+          <h3>Choose when to retry</h3>
+          <p>In manual mode the factory runs your configured check once. The factory itself makes no model call in this mode. In bounded mode, the factory runs the implementer, checks the changes and calls a separate reviewer after checks pass. Repair attempts share the budget and stop at the configured limits. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
+        </div>
+        <!-- Delivery practice: docs/adr/0114-incremental-go-cutover-delivery.md:15. -->
+        <div class="delivery">
+
+          <h3>Keep a pull request reviewable</h3>
+          <p>The project recommends shipping one change in behavior with its tests, compatibility work and documentation. For model-assisted PR review, the optional review lane can split a diff into batches with request and token limits. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BOUNDED_DELIVERY.md">Plan reviewable changes &rarr;</a></p>
+        </div>
+      </div>
+      <details class="examples"><summary>Try the local plan and report commands</summary>
+      <pre class="qs" tabindex="0" aria-label="Local feature preview commands"><span class="dim"># shows a blocker (exit 2) while budget_enabled is false</span>
+<span class="prompt">$</span> ./factory budget plan --harness codex --session demo --task first
+
+<span class="dim"># inspect local run history</span>
+<span class="prompt">$</span> ./factory budget report --session demo --json
+
+<span class="dim"># in a committed Git project with a configured check command</span>
+<span class="prompt">$</span> ./factory loop plan --harness codex --session demo --task first</pre></details>
+      <p class="table-note">For either plan, select <code>codex</code>, <code>claude</code> or <code>opencode</code>. One budgeted attempt is one factory-managed CLI launch. Bounded loops require <code>loop_enabled</code> and <code>budget_enabled</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md#usage-and-cost-choices">Allow for reviewer calls in the budget</a>.</p>
     </div>
   </section>
 
@@ -140,72 +237,6 @@ selftest: 14 shipped gates proved, 0 failed</pre>
       <div class="callout green">
         <h3>A migration with application code in place</h3>
         <p>On macOS arm64, we upgraded a disposable copy of a supported v0.1.6 installation. All 103 application files kept their contents and modes. The installed factory caught a new failing feature test, passed after the implementation, and passed again after we reverted the exercise. We also exercised recovery and restored the Bash installation. <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">Pilot scope and release notes</a>.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Feature scope: docs/adr/0053-advertise-budget-and-loop-features.md:5. -->
-  <section id="features" class="band" aria-labelledby="features-heading">
-    <div class="wrap">
-
-      <h2 id="features-heading">Set limits <em>before</em> an agent runs.</h2>
-      <p class="lede">Start with a local plan. To launch an agent through <code>factory budget run</code>, enable the budget and use your configured harness CLI and credentials.</p>
-      <div class="grid3">
-        <div class="cell">
-          <span class="mono-label">factory budget</span>
-          <h3>Limit attempts and runtime</h3>
-          <p>Limit task attempts, session runs, execution time, and concurrent factory invocations. Preview the plan locally before enabling a run. An optional threshold uses estimated cost to warn or stop later launches. A single invocation can exceed that estimate. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/BUDGETS.md">Choose your budget controls &rarr;</a></p>
-        </div>
-        <div class="cell c-blue">
-          <span class="mono-label">factory budget report</span>
-          <h3>Inspect each attempt</h3>
-          <p>The local ledger records the harness, role, duration and outcome of factory-managed attempts. Reports show token usage or cost estimates when available and mark missing values as unknown. The ledger omits prompt and response bodies. Your harness controls its own history. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/BUDGETS.md#execution-and-storage">Explore run reporting &rarr;</a></p>
-        </div>
-        <div class="cell c-violet">
-          <span class="mono-label">factory loop</span>
-          <h3>Choose when to retry</h3>
-          <p>In manual mode the factory runs your configured check once. The factory itself makes no model call in this mode. In bounded mode, the factory runs the implementer, checks the changes and calls a separate reviewer after checks pass. Repair attempts share the budget and stop at the configured limits. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
-        </div>
-        <!-- Delivery practice: docs/adr/0114-incremental-go-cutover-delivery.md:15. -->
-        <div class="delivery">
-
-          <h3>Keep a pull request reviewable</h3>
-          <p>The project recommends shipping one change in behavior with its tests, compatibility work and documentation. For model-assisted PR review, the optional review lane can split a diff into batches with request and token limits. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/BOUNDED_DELIVERY.md">Plan reviewable changes &rarr;</a></p>
-        </div>
-      </div>
-      <details class="examples"><summary>Try the local plan and report commands</summary>
-      <pre class="qs" tabindex="0" aria-label="Local feature preview commands"><span class="dim"># shows a blocker (exit 2) while budget_enabled is false</span>
-<span class="prompt">$</span> ./factory budget plan --harness codex --session demo --task first
-
-<span class="dim"># inspect local run history</span>
-<span class="prompt">$</span> ./factory budget report --session demo --json
-
-<span class="dim"># in a committed Git project with a configured check command</span>
-<span class="prompt">$</span> ./factory loop plan --harness codex --session demo --task first</pre></details>
-      <p class="table-note">For either plan, select <code>codex</code>, <code>claude</code> or <code>opencode</code>. One budgeted attempt is one factory-managed CLI launch. Bounded loops require <code>loop_enabled</code> and <code>budget_enabled</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/LOOPS.md#usage-and-cost-choices">Allow for reviewer calls in the budget</a>.</p>
-    </div>
-  </section>
-
-  <section id="runtime" aria-labelledby="runtime-heading">
-    <div class="wrap">
-      <h2 id="runtime-heading">One CLI in <em>your project.</em></h2>
-      <div class="grid3">
-        <div class="cell c-blue" id="differs">
-          <h3>Enforce a project rule</h3>
-          <p>For example, the test-edit hook checks the supplied agent role and the configured file patterns. It rejects an implementer edit to a matching test path. Run <code>./factory selftest</code> to exercise its blocked and allowed cases. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/scripts/hooks/test-edit-denial.sh">Read the hook</a>.</p>
-        </div>
-        <div class="cell c-violet">
-          <h3>Work across harnesses</h3>
-          <p>The factory ships five roles, including spec-writer, implementer and reviewer. <code>./factory sync</code> generates harness configuration, and <code>./factory eval structural</code> checks the wiring for a selected harness. Model choice and permissions depend on your configuration. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md">CLI command reference</a>.</p>
-        </div>
-        <div class="cell">
-          <h3>Read your project’s metrics</h3>
-          <p><code>./factory doctor</code> inspects gate health. <code>./factory metrics --json</code> reports local signals such as gate configuration, recorded blocks and rework in Git history. A new project may have little history to report. <a href="https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/METRICS.md">Metrics reference</a>.</p>
-        </div>
-      </div>
-      <div class="callout" id="inside">
-        <h3>Language packs</h3>
-        <p>v0.2.0 includes Go, TypeScript and Java packs. They supply language-specific checks and tool configuration. Select one pack, combine packs with <code>--pack go,typescript</code>, or choose <code>--pack none</code> for the core factory. Your project still needs the tools for the checks you enable. <a href="https://github.com/anoop2811/software-factory-template/tree/v0.2.0/packs">Browse the shipped packs</a>.</p>
       </div>
     </div>
   </section>
@@ -320,6 +351,7 @@ if (navigator.clipboard && navigator.clipboard.writeText) {
         status.textContent = button.getAttribute('aria-label') + ': copied.';
         setTimeout(function () { button.textContent = 'Copy'; }, 1800);
       } catch (error) {
+        command.parentElement.focus();
         var range = document.createRange();
         range.selectNodeContents(command);
         var selection = window.getSelection();

@@ -1,6 +1,6 @@
 # R3 proof retirement map
 
-Status: source inventory and retirement plan; no suite retirement is approved by this file.
+This is the historical source inventory and retirement plan. The [stable release record](GO_RELEASE_READINESS.md#stable-v020) covers the resulting v0.2.0 runtime.
 
 This map supports [R3 cutover](R3_CUTOVER.md). Its authority is the conversion
 contract: specifications in `specs/001-go-runtime-conversion.md:207` require a

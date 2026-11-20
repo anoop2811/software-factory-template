@@ -161,7 +161,23 @@ listed the lock after upgrade. The corrected checkout should produce empty
 output for that command, retain the lock on disk and leave unrelated files
 addable under the adopter's rules.
 
-Rerun rollback preparation and lock visibility against the reviewed candidate,
-complete the temporary feature's failing test, passing change and reversal,
-and obtain operator acceptance. These are the remaining R6 pilot steps before
-R7 stable activation and publication.
+## Rerun with both fixes in merged source
+
+On 2026-11-20 UTC, the macOS arm64 pilot ran on a new disposable copy of the
+supported v0.1.6 fixture. It used the exact merged source `fec964135850c0889c19c23fe4ab4e9a3a4ef1cb`,
+which includes the rollback fix and [PR #188](https://github.com/anoop2811/software-factory-template/pull/188).
+The public RC4 assets still represent their original revision.
+
+| Operation | Observed result |
+| --- | --- |
+| `factory upgrade --local --source DIR --dry-run --json`, followed by confirmed apply | v0.1.6 profile, zero blockers and conflicts, exit 0. All 103 application files retained their bytes and modes. The upgrade preserved the configuration, HEAD, index bytes and staged entries. Installed `./factory selftest` reported `14 shipped gates proved, 0 failed`. |
+| Private lock visibility | The permanent lock existed at mode 0600. Of the lock and a neighboring operator file, Git listed only the operator file as addable. |
+| Temporary feature through `./factory check` | Baseline passed with 12 frontend tests. A new test for an empty HTTP 205 response failed on JSON parsing. The implementation passed all 13 tests. Restoring the two original files returned the count to 12 and the full check passed again. All 103 application files, configuration, HEAD and staged entries matched the baseline. The raw Git index bytes changed during the feature exercise. |
+| Rollback with the legacy Python prerequisite deliberately unavailable | Confirmed rollback refused with exit 2. The tool probe was reached. The 293 selected and tracked path observations retained their content, mode, link target or absence. The journal was in `checking` with a pending marker. |
+| Recovery and fresh rollback after restoring Python | Public `upgrade --installation --recover ID --direction forward` preview and confirmed apply both exited 0. A fresh `--rollback ID` preview and confirmed apply exited 0. The journal recorded a committed reverse rollback. The 195 original tracked entries outside `.gitignore` matched, the permanent lock kept its inode, and the active Go binary, descriptor and pending marker were absent. The restored legacy `./factory metrics --json` exited 0. |
+
+This rerun exercised committed local-source delivery. R6 still requires the
+signed release path containing both fixes. Q5 calls for the operator to agree
+on the evidence period and exit criteria and accept the pilot results. The
+proposed criterion is successful completion of the pilot without a calendar
+wait. R7 covers stable activation and publication.

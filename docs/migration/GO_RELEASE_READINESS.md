@@ -105,8 +105,12 @@ Forward upgrade, installed application checks and interrupted forward recovery
 passed, but failed rollback preparation stranded its transaction journal and a
 customized ignore file exposed an addable private transition lock. The rollback
 correction merged in [PR #187](https://github.com/anoop2811/software-factory-template/pull/187).
-Decision 177 covers the lock. R6 still requires a candidate rerun of both
-findings, the temporary feature exercise and operator acceptance.
+[PR #188](https://github.com/anoop2811/software-factory-template/pull/188)
+merged the lock correction. The [merged-source pilot](RC4_ADOPTER_PILOT.md#rerun-with-both-fixes-in-merged-source)
+passed forward upgrade, lock visibility, temporary feature development and
+reversal, and rollback after a forced legacy prerequisite failure. R6 still
+requires evidence from signed release assets containing both fixes and the
+operator's Q5 decision on the evidence period, exit criteria and pilot results.
 
 ### Earlier RC3 qualification (historical)
 

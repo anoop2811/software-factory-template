@@ -43,19 +43,22 @@ var _ = Describe("Installation private ignore policy", func() {
 	}
 
 	// per docs/DECISION_LOG.md:9065
-	DescribeTable("reuses portable root ignore coverage during upgrade", func(rootRule string, localOnly bool) {
+	DescribeTable("reuses portable root ignore coverage during upgrade", func(rootRule, extraSource string) {
 		root, owner := project()
 		body := []byte(rules + rootRule)
 		path := filepath.Join(root, ".gitignore")
 		installationComponentWrite(root, ".gitignore", body, 0644)
-		if localOnly {
-			installationComponentWrite(root, ".git/info/exclude", []byte("/"+lock+"\n"), 0644)
+		switch extraSource {
+		case ".git/info/exclude":
+			installationComponentWrite(root, extraSource, []byte("/"+lock+"\n"), 0644)
+		case ".factory/.gitignore":
+			installationComponentWrite(root, extraSource, []byte("/runtime-transition.lock\n"), 0644)
 		}
 		Expect(git(root, "check-ignore", "--no-index", "--", lock)).To(Equal(lock + "\n"))
 		before, err := os.Lstat(path)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(owner.ensurePrivateIgnore(context.Background())).To(Succeed())
-		if localOnly {
+		if rootRule == "" {
 			Expect(os.ReadFile(path)).To(Equal(append(body, []byte("/"+lock+"\n")...)))
 		} else {
 			after, err := os.Lstat(path)
@@ -63,10 +66,70 @@ var _ = Describe("Installation private ignore policy", func() {
 			Expect(os.SameFile(before, after)).To(BeTrue(), "the adopter's existing rule already protects the lock")
 			Expect(os.ReadFile(path)).To(Equal(body))
 		}
-		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".gitignore:"))
-	}, Entry("the root ignores the factory directory", ".factory/\n", false),
-		Entry("the root names the lock without a leading slash", lock+"\n", false),
-		Entry("only the repository's local Git exclude names the lock", "", true))
+		if extraSource != ".factory/.gitignore" {
+			Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".gitignore:"))
+		}
+	}, Entry("the root ignores the factory directory", ".factory/\n", ""),
+		Entry("the root names the lock without a leading slash", lock+"\n", ""),
+		Entry("a nested positive rule repeats the root coverage", lock+"\n", ".factory/.gitignore"),
+		Entry("only the repository's local Git exclude names the lock", "", ".git/info/exclude"))
+
+	// per docs/DECISION_LOG.md:9067
+	It("keeps the lowercase lock ignored in a case-sensitive checkout after a case-insensitive upgrade", func() {
+		root, owner := project()
+		original := rules + ".factory/*.LOCK\n"
+		path := filepath.Join(root, ".gitignore")
+		installationComponentWrite(root, ".gitignore", []byte(original), 0644)
+		git(root, "config", "core.ignorecase", "true")
+		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(ContainSubstring(":.factory/*.LOCK\t"))
+		Expect(owner.ensurePrivateIgnore(context.Background())).To(Succeed())
+		Expect(git(root, "-c", "core.ignorecase=false", "check-ignore", "--no-index", "--", lock)).To(Equal(lock + "\n"))
+		Expect(os.ReadFile(path)).To(Equal([]byte(original + "/" + lock + "\n")))
+	})
+
+	// per docs/DECISION_LOG.md:9067
+	DescribeTable("checks the project lock policy even when Git locally excludes its entire parent", func(nestedRule string, permitted bool) {
+		root, owner := project()
+		installationComponentWrite(root, ".gitignore", []byte(rules), 0644)
+		installationComponentWrite(root, ".git/info/exclude", []byte("/.factory/\n"), 0644)
+		installationComponentWrite(root, ".factory/.gitignore", []byte(nestedRule+"\n"), 0644)
+		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".git/info/exclude:"))
+		path := filepath.Join(root, ".gitignore")
+		before, err := os.Lstat(path)
+		Expect(err).NotTo(HaveOccurred())
+		err = owner.ensurePrivateIgnore(context.Background())
+		if permitted {
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.ReadFile(path)).To(Equal([]byte(rules + "/" + lock + "\n")))
+		} else {
+			Expect(ErrorStatus(err)).To(Equal(2), "a checkout without the local exclude would expose the lock")
+			after, err := os.Lstat(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.SameFile(before, after)).To(BeTrue(), "a refused lock-only update must preserve the existing ignore file")
+			Expect(os.ReadFile(path)).To(Equal([]byte(rules)))
+		}
+		Expect(os.ReadFile(filepath.Join(root, ".factory/.gitignore"))).To(Equal([]byte(nestedRule + "\n")))
+	}, Entry("nested project rules ignore the lock", "/runtime-transition.lock", true),
+		Entry("nested project rules expose the lock", "!/runtime-transition.lock", false))
+
+	// per docs/DECISION_LOG.md:9050
+	// per docs/DECISION_LOG.md:9068
+	DescribeTable("allows an appended missing root rule to supersede an earlier root negation", func(rule, probe string) {
+		root, owner := project()
+		complete := rules + "/" + lock + "\n"
+		original := "!" + rule + "\n" + strings.Replace(complete, rule+"\n", "", 1)
+		path := filepath.Join(root, ".gitignore")
+		installationComponentWrite(root, ".gitignore", []byte(original), 0644)
+		probeBefore := exec.Command("git", "check-ignore", "--no-index", "-q", "--", probe) // #nosec G204 -- fixed probes in a test-owned Git repository.
+		probeBefore.Dir = root
+		var visible *exec.ExitError
+		Expect(errors.As(probeBefore.Run(), &visible)).To(BeTrue())
+		Expect(visible.ExitCode()).To(Equal(1))
+		Expect(owner.ensurePrivateIgnore(context.Background())).To(Succeed())
+		Expect(os.ReadFile(path)).To(Equal([]byte(original + rule + "\n")))
+		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", probe)).To(ContainSubstring(":" + rule + "\t"))
+	}, Entry("backup directory", "/.factory/backups/", ".factory/backups/ignore-proof/installation.manifest"),
+		Entry("permanent lock", "/"+lock, lock))
 
 	// per docs/DECISION_LOG.md:9068
 	It("preserves the original ignore file when a backup prerequisite prevents the lock rule update", func() {

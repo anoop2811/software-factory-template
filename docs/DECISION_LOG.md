@@ -9068,3 +9068,9 @@ coverage and add the explicit root rule only when needed. A machine-local Git
 exclude is insufficient for a new checkout. Prove the pre-existing private
 backup and runtime rules before writing a lock-only change. A rejected backup
 must leave the adopter's original ignore file intact.
+
+Evaluate the proposed root file in its actual line order, including any nested
+project rules that affect the private paths. A missing rule appended at the end
+can supersede an earlier root negation. Reuse a root rule for the lock only if
+the lowercase lock remains ignored on both case-sensitive and case-insensitive
+checkouts. A conflicting project rule must be reported before editing the file.

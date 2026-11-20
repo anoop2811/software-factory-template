@@ -183,6 +183,12 @@ the two active Go runtime paths. The 195-entry comparison checks restoration
 against the original 196 tracked entries, excluding the declared `.gitignore`
 edit. The last two counts therefore measure different rollback steps.
 
+`git diff --cached --name-only -z` returned no staged changes after feature
+reversal. The subsequent rollback preserved the raw index. Comparing
+`git ls-files --stage -z` to `git ls-tree -rz HEAD` then matched all 196 paths,
+object IDs and modes, each at stage zero. This comparison establishes what a
+commit would contain independently of the index file's byte representation.
+
 This rerun exercised committed local-source delivery. R6 still requires the
 signed release path containing both fixes. Q5 calls for the operator to agree
 on the evidence period and exit criteria and accept the pilot results. The

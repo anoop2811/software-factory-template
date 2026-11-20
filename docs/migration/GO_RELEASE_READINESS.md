@@ -111,7 +111,8 @@ passed forward upgrade, lock visibility and the temporary feature exercise.
 Rollback refused with legacy Python unavailable. After restoring Python, public
 recovery and a fresh rollback both succeeded. R6 still
 requires evidence from signed release assets containing both fixes and the
-operator's Q5 decision on the evidence period, exit criteria and pilot results.
+operator's explicit acceptance of the pilot results and agreement on the Q5
+evidence period and exit criteria.
 
 ### Earlier RC3 qualification (historical)
 

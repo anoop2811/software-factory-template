@@ -10,7 +10,7 @@
 
 ## Quick start
 
-Run `gh auth status` before installation. If this is your first time using the GitHub CLI, run `gh auth login`.
+Run `gh auth status` before using the installer’s `init` or `upgrade` command. If this is your first time using the GitHub CLI, run `gh auth login`.
 
 ```bash
 # one shot — fetch, then set up the current repo:

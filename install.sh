@@ -2,7 +2,7 @@
 set -eu
 
 # Pin the qualified publisher release for ordinary init and upgrade.
-# docs/DECISION_LOG.md:9078.
+# docs/DECISION_LOG.md:9085.
 FACTORY_DEFAULT_REF=v0.2.0
 
 # Candidate selection is reserved before the legacy parser (which re-splits its

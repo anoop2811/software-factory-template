@@ -4,10 +4,31 @@
 
 The operator selected the merge of [PR #189](https://github.com/anoop2811/software-factory-template/pull/189)
 for v0.2.0. The [stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0)
-identifies the downloads and adopter evidence. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
+identifies the downloads. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
 records asset signing and qualification on Linux and macOS, on amd64 and arm64.
 The public installer pins the tag. Existing projects choose when to apply the upgrade.
 See the [v0.1.6 upgrade guide](../UPGRADING.md) for preview, confirmation and recovery.
+
+### Signed adopter pilot, 2026-11-20 UTC
+
+On macOS arm64, a fresh Git project and a disposable copy of the supported
+v0.1.6 adopter both ran the public installer with `--ref v0.2.0`. The bootstrap,
+installation image and runtime archive passed checksum and GitHub attestation
+checks for the tag and merge commit. Both installed binaries matched the one
+in the signed image (SHA-256
+`a68e7df6e0f59523c95a69d1319fd33d6e10618c696743ce0085c36970310c68`).
+
+| Exercise | Observed outcome |
+|---|---|
+| Fresh init and confirmed v0.1.6 upgrade | Both installations reported `14 shipped gates proved, 0 failed`. The adopter preview had zero blockers and conflicts. The upgrade preserved all 103 application files, configuration, HEAD and index. |
+| Temporary application feature | The installed `./factory check` passed at baseline, caught the new failing test, passed all 13 frontend tests after implementation, and passed the original 12 after reversal. The adopter's product files were restored. |
+| Failed rollback and recovery | With a required legacy tool unavailable, rollback returned 2 and left all 295 observed active paths unchanged. After restoring the tool, forward recovery and a fresh rollback succeeded. The transaction committed, 195 legacy files matched their original content and modes, and the restored Bash metrics command returned valid JSON. The root ignore-file update retained the private lock. |
+
+The tagged source also passed 28 inventory and historical compatibility specs.
+The fixed conversion inventory contains 21 command adapters, seven shell
+libraries and four retired Python runtime modules. The original adopter checkout
+was outside the exercise. Earlier pilot findings and fixture scope are recorded
+in the [adopter pilot history](RC4_ADOPTER_PILOT.md).
 
 The entries below record the checklist at earlier delivery milestones.
 Their open items and installer pins describe the state at each milestone.

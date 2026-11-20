@@ -9107,3 +9107,10 @@ CI and upgrades, then show where checks, usage reports and optional model runs
 fit. Link readers to maintained guides for operating v0.2.0 and to immutable
 release artifacts for evidence. Update current instructions across the repository
 while retaining the dates, baselines and results of historical decisions and pilots.
+At release cutover, match the page title, social metadata, structured version,
+install examples and qualification links to the newly published artifacts.
+Describe the metrics log’s actual fields: hooks supply the reason text, so a
+custom hook can place sensitive data there. The metrics command sends no events.
+Record the packaged prereq limitation observed with Go-pack initialization: a
+two-part generated minimum fails comparison, and an explicit three-part project
+minimum allows the same checker to compare the installed toolchain.

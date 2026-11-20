@@ -23,6 +23,8 @@ the core. The stack hints come from manifests at the project root. Review
 `check_command` for your repository layout and install any tools your checks
 need. The factory itself makes no model call during initialization.
 
+For a Go pack, check the generated `go_min_version` in `factory.yaml`. v0.2.0 can write a two-part version, but `./factory prereq` expects a full minimum patch version. Use your project’s approved minimum before running that check.
+
 ## factory doctor
 
 Run `./factory doctor` after setup or when a project rule seems inactive. It
@@ -189,7 +191,7 @@ this invocation mistake with exit 2 before parsing their Bash-only syntax.
 An installed language gate lives in `scripts/hooks/`; keep it while that pack
 is configured. The upstream `packs/go/`, `packs/java/`, and `packs/typescript/`
 source directories are not required in an adopted repository.
-The Go installation retains the template for managing the optional review lane.
+The installed CLI keeps its review workflow template at `.factory/assets/scaffold/packs/review-lane/review-pr.yml` for use when you enable the optional review lane.
 Use `./factory review-lane disable` to turn off its workflow. Keep managed
 assets in place so subsequent upgrades can recognize the installation.
 

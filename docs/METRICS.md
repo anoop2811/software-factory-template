@@ -2,7 +2,7 @@
 
 Use the v0.2.0 CLI to see which gates are armed, what they have blocked and where
 the same files keep changing. The metrics command reads local repository data.
-It can write a report on your machine without contacting a metrics service.
+It writes local reports and sends no metrics. You can explicitly pipe its output to your own collector.
 
 ```sh
 ./factory metrics                # terminal report
@@ -115,7 +115,7 @@ scheme. Because older raw events are dropped, the report says blocks **retained*
 rather than claiming an all-time total it can no longer stand behind.
 
 `.factory/` is gitignored. Each event records a UTC timestamp, a gate name and
-the reason that gate supplied. The metrics command derives counts from those events.
+the reason that gate supplied. The metrics command derives counts from those events. A custom hook controls its reason text. Keep sensitive content out of that field.
 
 ## The HTML page
 

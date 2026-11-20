@@ -233,7 +233,7 @@ selftest: 14 shipped gates proved, 0 failed</pre>
         <div class="stat"><div class="n">20/20</div><p>Published release checks passed. Each target exercised fresh setup, upgrades from v0.1.6 and an earlier Bash baseline, rollback, and recovery after interruption.</p></div>
         <div class="stat"><div class="n">14</div><p>Core gate proofs passed in the installed self-test. Each gate rejected a deliberately broken fixture and accepted its healthy control.</p></div>
       </div>
-      <p class="table-note">The release workflow attested 12 platform assets. <a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Release run</a> · <a href="https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz">Download the per-target evidence</a>.</p>
+      <p class="table-note">The release workflow attested three assets per target: the bootstrap executable, installation image and runtime archive. That makes 12 platform assets. <a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Release run</a> · <a href="https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz">Download the per-target evidence</a>.</p>
       <div class="callout green">
         <h3>A migration with application code in place</h3>
         <p>On macOS arm64, we upgraded a disposable copy of a supported v0.1.6 installation. All 103 application files kept their contents and modes. The installed factory caught a new failing feature test, passed after the implementation, and passed again after we reverted the exercise. We also exercised recovery and restored the Bash installation. <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">Pilot scope and release notes</a>.</p>
@@ -351,6 +351,7 @@ if (navigator.clipboard && navigator.clipboard.writeText) {
         status.textContent = button.getAttribute('aria-label') + ': copied.';
         setTimeout(function () { button.textContent = 'Copy'; }, 1800);
       } catch (error) {
+        command.scrollIntoView({block: 'nearest'});
         command.parentElement.focus();
         var range = document.createRange();
         range.selectNodeContents(command);

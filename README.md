@@ -29,7 +29,7 @@ With no subcommand the installer only fetches the pinned source. With `init` it 
 
 ## Upgrade from v0.1.6 to the Go factory
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The public installer selects v0.2.0 by default. Use its exact tag for both steps of a migration so the preview and confirmation select the same release.
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The public installer selects v0.2.0 by default. Use its exact tag for both steps so the preview and confirmation select the same release. On the original v0.1.6 installation, a bare local `./factory upgrade` defaults to `main` unless overridden. Use the authenticated installer below for this migration.
 
 ```sh
 # Preview changes without modifying the project.

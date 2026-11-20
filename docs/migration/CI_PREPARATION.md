@@ -52,7 +52,7 @@ jobs. It needs a separately trusted native executable or reviewed installer and
 an official published release that implements this operation; v0.1.6 and earlier
 candidates do not gain it retroactively. The generated opt-in workflow now uses
 this operation, with the installer pinned to reviewed merged commit
-`959ebbc2a661fe7911f2770b1c5746b54c287249`. It reads matching tag/revision records
+[959ebbc](https://github.com/anoop2811/software-factory-template/commit/959ebbc2a661fe7911f2770b1c5746b54c287249) from [PR #184](https://github.com/anoop2811/software-factory-template/pull/184). The [workflow shipped in v0.2.0](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/packs/review-lane/review-pr.yml#L168) supplies this installer pin separately from the selected client release. It reads matching tag/revision records
 from the committed launcher and `.factory-version`, validates the receipt and
 runner executable, then invokes single-request review. Exact predecessor-owned
 enabled workflows participate in the upgrade transaction; off/absent lanes stay
@@ -165,9 +165,7 @@ ineligible releases retain explicit unavailability instead of inventing a
 downloadable CI release. See the
 [transactional migration contract](../adr/0148-transactional-installed-ci-migration.md).
 
-Use `./factory ci workflow --help` for the selector contract. The shell installer
-supports `ci prepare` and `ci review-client`. Use the native v0.2.0 CLI for workflow
-rendering. v0.1.6 has no `ci` command.
+Use `./factory ci workflow --help` for the selector contract. For `ci prepare` and `ci review-client`, the [shell entrypoint](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/install.sh#L94) authenticates the selected release bootstrap and passes the original CI operation to its native executable. Use the native v0.2.0 CLI for workflow rendering. v0.1.6 has no `ci` command.
 
 ## Bootstrap without an existing native executable
 

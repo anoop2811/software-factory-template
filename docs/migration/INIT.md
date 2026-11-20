@@ -101,7 +101,7 @@ two data files consumed by installed commands:
 - `packs/review-lane/review-pr.yml` for review-lane setup.
 
 These are two cached data files, not the entire installed factory. The reviewed
-v0.2.0 inventory has 141 rows covering 86 retirements and 55 active selections.
+v0.2.0 inventory has 141 rows covering 55 active selections and 86 retirements. The retirements comprise 83 unused cache files and the legacy controllers `scripts/lib/budget.py`, `scripts/lib/budget_adapters.py` and `scripts/lib/loop.py`. See [the retirement inventory](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 The installed descriptor lists 53 assets because `.factory-version` and the
 descriptor itself are separate controls. Project-facing scaffold files remain
 available outside this private cache.

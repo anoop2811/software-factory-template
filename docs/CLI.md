@@ -35,6 +35,8 @@ With a new project, start with the [initializer and pack choices](ADAPTING.md). 
 
 The three `ci` subcommands use the flag name `--go-candidate` for both stable and prerelease tags. Use `v0.2.0` for `TAG` to select this release. Generated workflows pin the installer revision and record the installation’s actual origin target.
 
+**Go-pack prerequisite check in v0.2.0.** The initializer can write a two-part `go_min_version` such as `1.26`. The released `prereq` command requires a three-part minimum and reports “cannot be compared” even for a newer installed Go. Set `go_min_version` in `factory.yaml` to the full minimum patch your project supports, then run `./factory prereq` again.
+
 ## Everyday workflow
 
 From an initialized project with a Git commit and a configured check command:
@@ -107,7 +109,7 @@ client; PR content is untrusted review data, never executable setup.
 
 Contributors can use `./factory` directly with the provisioned Go toolchain and
 module cache. It builds offline, preserves caller input and publishes one ignored
-developer output. Provision the locked modules with `go mod download` first.
+developer output. Provision the locked modules with `go mod download` first. A failed source build preserves the previous developer output and exits before invoking it.
 Concurrent commands retain separate private executables until each returns;
 normal completion removes only its own private file. They can also build the
 native command explicitly:

@@ -6,7 +6,7 @@ shared hook entrypoints. Shell gates read project settings through
 
 Run `./factory selftest` to see fourteen shipped gates each refuse a broken
 fixture and accept its healthy control. Run `./factory doctor` to inspect the
-settings and integrity of your installation. A custom hook needs its own
+settings and integrity of your installation and run the same core proofs. A custom hook needs its own
 regression test. [CLI command reference](CLI.md).
 
 On the fail-open: if a hook script is missing or unexecutable, edits proceed with a log line, because failing closed would halt all work — including the spec-writer writing tests — on a missing file. The CI existence check is the compensating control.

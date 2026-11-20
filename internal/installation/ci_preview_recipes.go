@@ -1,5 +1,7 @@
 package installation
 
+import "maps"
+
 // Frozen initializer source vectors read from immutable Git objects.
 // docs/adr/0147-installed-ci-migration-preview.md:63.
 // 8f2c6ae27f47a1ddbffc76cc10bdceffd424f2c4
@@ -21,6 +23,15 @@ var ciGeneratedRecipe = map[string]string{
 	"internal/initcmd/workflow.go":        "3da195943729779be2daf395e255068b4bfbd607c9ac7635fcaaf14392432669",
 	"internal/initinventory/inventory.go": "6c5c0afffd167f7ce13128945347986facf58faecd3eda5a952f527ec36a76b7",
 }
+
+// Both lock-aware initializer files must match the same generation. The workflow
+// renderer and remaining initializer sources are identical. docs/DECISION_LOG.md:9056.
+var ciLockIgnoreRecipe = func() map[string]string {
+	recipe := maps.Clone(ciGeneratedRecipe)
+	recipe["internal/initcmd/ci.go"] = "e836f259332069e3c4e1886abaa40e1671b083b50de65c351d19ac58ee9f0494"
+	recipe["internal/initcmd/selection.go"] = "2ca66aea154133485ed470cd4a3677293057aadc1bb7e48de7d78ee0ee568d07"
+	return recipe
+}()
 
 // 6b8f08c820c347a9c9d12c4afd00b3f7e6aca547
 var ciCopiedRecipe = map[string]string{

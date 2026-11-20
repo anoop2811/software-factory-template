@@ -1,10 +1,12 @@
 package installation
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/installedlayout"
 	"github.com/anoop2811/software-factory-template/internal/native"
 	"github.com/anoop2811/software-factory-template/internal/staging"
+	"github.com/anoop2811/software-factory-template/internal/transition"
 )
 
 func operationEnvironment() map[string]string {
@@ -110,22 +113,66 @@ func (owner *transaction) preflightCandidate(ctx context.Context, reverse bool) 
 	owner.record.Phase = "prepared"
 	return owner.save(ctx)
 }
+
+// MergePrivateIgnoreRules preserves adopter rules and appends missing root rules for
+// installation assets and the permanent transition lock. docs/DECISION_LOG.md:9048.
+func MergePrivateIgnoreRules(data []byte) ([]byte, error) {
+	return mergePrivateRules(data, append(PrivateIgnoreRules(), "/"+transition.LockPath))
+}
+
+func mergePrivateRules(data []byte, rules []string) ([]byte, error) {
+	limit := leafLimit(".gitignore")
+	if int64(len(data)) > limit {
+		return nil, conflict("installation ignore file exceeds limit")
+	}
+	lines := "\n" + strings.ReplaceAll(string(data), "\r\n", "\n") + "\n"
+	updated := bytes.Clone(data)
+	for _, rule := range rules {
+		if strings.Contains(lines, "\n"+rule+"\n") {
+			continue
+		}
+		if len(updated) > 0 && updated[len(updated)-1] != '\n' {
+			updated = append(updated, '\n')
+		}
+		updated = append(updated, rule...)
+		updated = append(updated, '\n')
+	}
+	if int64(len(updated)) > limit {
+		return nil, conflict("installation ignore file exceeds limit")
+	}
+	return updated, nil
+}
+
 func (owner *transaction) ensurePrivateIgnore(ctx context.Context) error {
-	image, data, err := observe(ctx, owner.tree, ".gitignore", 1<<20)
+	image, data, err := observe(ctx, owner.tree, ".gitignore", leafLimit(".gitignore"))
 	if err != nil {
 		return err
 	}
-	rules := PrivateIgnoreRules()
-	updated := append([]byte{}, data...)
-	for _, rule := range rules {
-		if !strings.Contains("\n"+string(updated)+"\n", "\n"+rule+"\n") {
-			if len(updated) > 0 && updated[len(updated)-1] != '\n' {
-				updated = append(updated, '\n')
-			}
-			updated = append(updated, []byte(rule+"\n")...)
-		}
+	env := operationEnvironment()
+	if err := CheckTransitionLockIndex(ctx, owner.root, env, nil); err != nil {
+		return err
 	}
-	if string(updated) != string(data) {
+	id := operationID(owner.request)
+	paths := []string{".factory/bin/factory-runtime", ".factory/assets/scaffold/factory", ".factory/installation.current", journalPath(id), ".factory/backups/" + id + "/installation.manifest"}
+	tracked, err := native.ExecuteCommand(ctx, owner.root, append([]string{"git", "--no-optional-locks", "-c", "core.fsmonitor=false", "ls-files", "--"}, paths...), env, 5*time.Second)
+	if err != nil || tracked.Outcome != "completed" || len(tracked.Stdout) != 0 {
+		return errors.Join(conflict("private installation data is tracked or cannot be inspected"), err, ctx.Err())
+	}
+	baseline, err := mergePrivateRules(data, PrivateIgnoreRules())
+	if err != nil {
+		return err
+	}
+	updated, err := owner.proposedPrivateIgnore(ctx, baseline, paths)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(updated, data) {
+		if bytes.Equal(baseline, data) {
+			// A lock-only edit cannot repair a backup or runtime refusal.
+			if err := checkPrivatePathsIgnored(ctx, owner.root, env, paths); err != nil {
+				return err
+			}
+		}
 		mode := os.FileMode(0644)
 		if image != nil {
 			mode = os.FileMode(image.Mode & 0777)
@@ -134,18 +181,126 @@ func (owner *transaction) ensurePrivateIgnore(ctx context.Context) error {
 			return err
 		}
 	}
-	for _, path := range []string{".factory/bin/factory-runtime", ".factory/assets/scaffold/factory", ".factory/installation.current", journalPath(operationID(owner.request)), ".factory/backups/" + operationID(owner.request) + "/installation.manifest"} {
-		tracked, err := native.ExecuteCommand(ctx, owner.root, []string{"git", "ls-files", "--", path}, operationEnvironment(), 5*time.Second)
-		if err != nil || tracked.ExitCode == nil || *tracked.ExitCode != 0 || len(tracked.Stdout) != 0 {
-			return errors.Join(conflict("private installation data is tracked or cannot be inspected"), err)
-		}
-		ignored, err := native.ExecuteCommand(ctx, owner.root, []string{"git", "check-ignore", "--no-index", "-q", "--", path}, operationEnvironment(), 5*time.Second)
-		if err != nil || ignored.ExitCode == nil || *ignored.ExitCode != 0 {
-			return errors.Join(conflict("private installation data is not effectively ignored"), err)
-		}
+	if err := checkPrivatePathsIgnored(ctx, owner.root, env, append(paths, transition.LockPath)); err != nil {
+		return err
 	}
 	return owner.check(ctx)
 }
+
+func checkPrivatePathsIgnored(ctx context.Context, root string, env map[string]string, paths []string) error {
+	for _, path := range paths {
+		result, err := native.ExecuteCommand(ctx, root, []string{"git", "check-ignore", "--no-index", "-q", "--", path}, env, 5*time.Second)
+		if err != nil || result.Outcome != "completed" {
+			return errors.Join(conflict("private installation data is not effectively ignored"), err, ctx.Err())
+		}
+	}
+	return ctx.Err()
+}
+
+// Evaluate the candidate at its actual root precedence before publishing. Only
+// the six private pathnames and their ancestors' ignore files participate.
+// docs/DECISION_LOG.md:9065.
+func (owner *transaction) proposedPrivateIgnore(ctx context.Context, data []byte, paths []string) (_ []byte, returned error) {
+	scratch, err := os.MkdirTemp(owner.scratch, "factory-ignore-")
+	if err != nil {
+		return nil, err
+	}
+	identity, err := os.Lstat(scratch)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		current, err := os.Lstat(scratch)
+		if err != nil || !os.SameFile(identity, current) {
+			returned = errors.Join(returned, errors.New("ignore proof scratch changed"), err)
+			return
+		}
+		returned = errors.Join(returned, os.RemoveAll(scratch))
+	}()
+	proof, err := os.OpenRoot(scratch)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { returned = errors.Join(returned, proof.Close()) }()
+	parents := make(map[string]bool)
+	for _, path := range append(paths, transition.LockPath) {
+		if err := proof.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			return nil, err
+		}
+		if err := proof.WriteFile(path, nil, 0600); err != nil {
+			return nil, err
+		}
+		for dir := filepath.Dir(path); dir != "."; dir = filepath.Dir(dir) {
+			parents[dir] = true
+		}
+	}
+	if err := proof.WriteFile(".gitignore", data, 0600); err != nil {
+		return nil, err
+	}
+	env := operationEnvironment()
+	env["GIT_INDEX_FILE"] = filepath.Join(scratch, "index")
+	// Explicit exclude options omit machine excludes and the repository's
+	// info/exclude. Use the real repository's other Git settings.
+	matches := func(option, ignoreCase string, names ...string) (bool, error) {
+		args := []string{"git", "--no-optional-locks", "-c", "core.fsmonitor=false", "--work-tree=" + scratch}
+		if ignoreCase != "" {
+			args = append(args, "-c", "core.ignoreCase="+ignoreCase)
+		}
+		args = append(args, "ls-files", "--others", "--ignored", "-z", option, "--")
+		result, err := native.ExecuteCommand(ctx, owner.root, append(args, names...), env, 5*time.Second)
+		if err != nil || result.Outcome != "completed" {
+			return false, errors.Join(errors.New("cannot inspect proposed private ignore rules"), err, ctx.Err())
+		}
+		return string(result.Stdout) == strings.Join(names, "\x00")+"\x00", ctx.Err()
+	}
+	updated := data
+	rootRules := "--exclude-from=" + filepath.Join(scratch, ".gitignore")
+	for _, folding := range []string{"false", "true"} {
+		covered, err := matches(rootRules, folding, transition.LockPath)
+		if err != nil {
+			return nil, err
+		}
+		if !covered {
+			updated, err = mergePrivateRules(data, []string{"/" + transition.LockPath})
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+	}
+	if err := proof.WriteFile(".gitignore", updated, 0600); err != nil {
+		return nil, err
+	}
+	for dir := range parents {
+		path := filepath.Join(dir, ".gitignore")
+		image, contents, err := observe(ctx, owner.tree, path, leafLimit(".gitignore"))
+		if err != nil {
+			return nil, err
+		}
+		if image != nil {
+			if err := proof.WriteFile(path, contents, 0600); err != nil {
+				return nil, err
+			}
+		}
+	}
+	projectRules := "--exclude-per-directory=.gitignore"
+	// ls-files emits pathnames in index order, independently of argv order.
+	names := slices.Sorted(slices.Values(paths))
+	covered, err := matches(projectRules, "", names...)
+	if err != nil || !covered {
+		return nil, errors.Join(conflict("private installation data is not effectively ignored"), err)
+	}
+	for _, folding := range []string{"false", "true"} {
+		for _, option := range []string{rootRules, projectRules} {
+			covered, err := matches(option, folding, transition.LockPath)
+			if err != nil || !covered {
+				return nil, errors.Join(conflict("private transition lock is not effectively ignored"), err)
+			}
+		}
+	}
+	return updated, nil
+}
+
 func (owner *transaction) backup(ctx context.Context) error {
 	base := ".factory/backups/" + operationID(owner.request)
 	existing, err := owner.tree.Root.Root.Lstat(base)

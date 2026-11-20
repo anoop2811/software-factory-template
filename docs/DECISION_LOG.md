@@ -9039,3 +9039,38 @@ predecessor previews, reuse ADR 0152's 120-second preview allowance for these
 same two source acquisitions. Record actual preview duration even on failure.
 Keep the real builds, input identities, snapshot checks and existing deadlines
 for mutations, rollback, compilation, suites and CI jobs.
+
+## Decision 177 (2026-11-19 UTC): keep the transition lock private across adopter upgrades
+
+The published RC4 pilot found that an adopter's customized root `.gitignore`
+left `.factory/runtime-transition.lock` addable after a supported v0.1.6
+upgrade. The lock coordinates local processes and persists between commands.
+Keep its inode in place and add an ignore rule for that exact root path when
+installing the Go runtime. Preserve existing ignore-file content, unrelated
+paths and the Git index. If the lock is tracked or the augmented rules still
+leave it visible, refuse the installation. Fresh installations and upgrades must
+agree on the rule.
+
+Exercise the upgrade with real Git and a customized v0.1.6 project. Check the
+resulting lock, preservation of the operator's rules, and an unrelated addable
+file. Keep historical installation recipe recognition and published release
+assets intact. The adopter rerun and operator acceptance remain part of R6.
+
+The tracked-file check must recognize another index spelling of the same lock
+on a case-insensitive volume. Preserve distinct application files on volumes
+that distinguish those spellings. Keep the merged ignore file within the
+existing installation read limit so a subsequent upgrade or rollback can read
+the file the installer wrote.
+
+The historical upgrade and rollback checks require byte-for-byte preservation
+when the project's root rules already ignore the lock. On upgrade, reuse that
+coverage and add the explicit root rule only when needed. A machine-local Git
+exclude is insufficient for a new checkout. Prove the pre-existing private
+backup and runtime rules before writing a lock-only change. A rejected backup
+must leave the adopter's original ignore file intact.
+
+Evaluate the proposed root file in its actual line order, including any nested
+project rules that affect the private paths. A missing rule appended at the end
+can supersede an earlier root negation. Reuse a root rule for the lock only if
+the lowercase lock remains ignored on both case-sensitive and case-insensitive
+checkouts. A conflicting project rule must be reported before editing the file.

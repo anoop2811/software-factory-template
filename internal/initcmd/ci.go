@@ -335,6 +335,7 @@ func activateCI(ctx context.Context, target *tree, image staging.Inspection, pla
 }
 
 func ciPrivateIgnore(ctx context.Context, git *ciGitReader, private []string) error {
+	private = append(private, transition.LockPath)
 	tracked, err := git.run(ctx, append([]string{"ls-files", "--cached", "-z", "--"}, private...)...)
 	if err != nil || len(tracked) != 0 {
 		return errors.Join(err, errors.New("CI private assets must be untracked"))
@@ -343,7 +344,7 @@ func ciPrivateIgnore(ctx context.Context, git *ciGitReader, private []string) er
 	if err != nil || !ciPathsEqual(ignored, private) {
 		return errors.Join(err, errors.New("CI private assets must all be effectively ignored"))
 	}
-	return nil
+	return installation.CheckTransitionLockIndex(ctx, git.root, git.environment, git.options)
 }
 
 func ciPathsEqual(data []byte, expected []string) bool {

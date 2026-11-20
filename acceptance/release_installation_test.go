@@ -315,6 +315,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 	})
 
 	// per docs/adr/0101-go-release-handoff.md:148
+	// per docs/DECISION_LOG.md:9052
 	It("initializes a real selected Go installation from the authenticated complete image", func() {
 		f, driver := handoffNativeFixture(fixtures.image)
 		// per docs/DECISION_LOG.md:4873
@@ -323,6 +324,9 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 		result := handoffCooperativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), []string{f.root}, driver, "init", target, "--go-candidate", handoffVersion, "--pack", "none")
 		Expect(result.status).To(Equal(0), "%+v", result)
 		handoffNPMLifecyclePreserved(f, target)
+		ignore, err := os.ReadFile(filepath.Join(target, ".gitignore"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(strings.Split(string(ignore), "\n")).To(ContainElement("/.factory/runtime-transition.lock"))
 		data, err := os.ReadFile(filepath.Join(target, ".factory/installation.current"))
 		Expect(err).NotTo(HaveOccurred())
 		var descriptor map[string]any
@@ -645,8 +649,24 @@ var _ = Describe("Whole installation upgrade release candidate handoff", Ordered
 
 	// per docs/adr/0101-go-release-handoff.md:579
 	// per docs/adr/0101-go-release-handoff.md:588
+	// per docs/DECISION_LOG.md:9050
 	It("preserves policy-refusal status while retaining prepared recovery inputs", func() {
 		f, driver := handoffNativeFixture(fixtures.image)
+		const lock = ".factory/runtime-transition.lock"
+		exposedLock := fixtures.legacyFixture("v0.1.6")
+		ignorePath := filepath.Join(exposedLock.root, ".gitignore")
+		original, err := os.ReadFile(ignorePath)
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(ignorePath, append(original, []byte("\n!/.factory/\r\n/"+lock+"\r\n!/"+lock+"\r\n")...), 0644)
+		Expect(imageProcess(exposedLock.root, nil, "git", "check-ignore", "--no-index", "-q", "--", lock).status).To(Equal(1))
+		lockProposal := handoffPreview(f, driver, exposedLock.root)
+		Expect(lockProposal["blockers"]).To(BeEmpty())
+		refused := handoffApply(f, driver, exposedLock.root, lockProposal)
+		Expect(refused.status).To(Equal(2), "%+v", refused)
+		Expect(refused.stderr).To(ContainSubstring("not effectively ignored"))
+		_, err = os.Lstat(filepath.Join(exposedLock.root, ".factory/installation.current"))
+		Expect(os.IsNotExist(err)).To(BeTrue())
+
 		legacy := fixtures.legacyFixture("v0.1.6")
 		launcher, err := os.ReadFile(filepath.Join(legacy.root, "factory"))
 		Expect(err).NotTo(HaveOccurred())

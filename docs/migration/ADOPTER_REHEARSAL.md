@@ -65,6 +65,6 @@ coverage issue. The scheduler criterion was observed failing its old 2999-case
 oracle, then passing native disjoint/exhaustive discovery with
 `3008 = 2866 base + 98 installation + 44 release-handoff`.
 
-These are local source results. Exact-head hosted CI, independent advisory review
-and a new signed candidate are still required. RC1 remains failed and v0.1.6
-remains latest stable. No release gate is closed merely by this correction.
+These were local source results. At the time, hosted CI, independent review and
+a new signed candidate were still required. RC1 failed, and v0.1.6 was then
+the stable release. See the subsequent [v0.2.0 release results](GO_RELEASE_READINESS.md#stable-v020).

@@ -1,6 +1,6 @@
 # Go budget argument compatibility
 
-[ADR-0072](../adr/0072-go-budget-argument-compatibility.md) extends the private
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0072](../adr/0072-go-budget-argument-compatibility.md) extends the private
 Go budget command with the legacy help and argument grammar. It supersedes the
 initial help/prefix refusal documented in [BUDGET_COMMAND.md](BUDGET_COMMAND.md).
 The installed Bash/Python route, shell model selection and upgrade behavior

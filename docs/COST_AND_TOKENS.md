@@ -1,55 +1,45 @@
 # Cost and tokens
 
-**Status: Phase 1 shipped; later phases are intent.** The opt-in `economy` cost
-profile is live — `factory-init` offers it, and it routes the low-stakes roles
-across opencode, Claude, and Codex (see the phased plan below for what has
-landed and what has not). The default is unchanged: cost control is a profile
-you turn on, not a change to how the factory works out of the box. Sections
-describing later phases (context budget, measurement, the eval-gated implementer
-downgrade) remain proposals, and say so.
+In v0.2.0 you can choose a model tier for each role, limit factory-managed
+agent launches and inspect the usage the harness reported. Choose the control
+that matches the question:
 
-**In short**
+| What do you want to know or change? | Where to start |
+|---|---|
+| Which model will a role use? | Edit the tiers in `factory.yaml` and run `./factory sync all`. Blank tiers inherit the harness model. |
+| May the factory launch an agent for this task? | [Budget plan](BUDGETS.md) explains admission, including disabled or exhausted budgets. Agent launches are opt-in. |
+| What did those launches consume? | `./factory budget report --json` reads the local ledger. Missing usage stays unknown and cost figures are estimates. |
+| When should the factory stop trying to repair a change? | [Bounded loops](LOOPS.md) share the invocation budget across implementation and review. |
+| Which gates blocked work? | `./factory report` shows recorded blocks and a separately labelled estimate. |
 
-- There are two cost surfaces: the tokens the factory *itself* adds (governance
-  context, review passes) and the tokens the *work* costs (the actual
-  implementation). The second usually dwarfs the first.
-- The largest lever already half-exists. The factory routes roles to a
-  default tier and a frontier tier. A cost profile extends that to a
-  cheaper third tier for high-volume mechanical roles.
-- A deterministic gate costs zero model tokens. Every check that stays a shell
-  hook instead of an LLM reviewer is a check that never bills.
-- Cost is opt-in. The default profile favours simplicity; the cost-optimized
-  profile trades a little configuration for lower spend.
-- We do not publish savings numbers we have not measured. Where this document
-  estimates, it says "expected", not "reduces by X%".
+The installed core self-test runs without a model. A configured project check,
+coding harness or enabled PR review can have its own costs.
 
 ## The two cost surfaces
 
 **1. The cost of using the factory.** The overhead the factory imposes on top of
 the raw task: governance context loaded into the prompt (`AGENTS.md`,
 `FACTORY_RULES.md`, role prompts, the Verification Contract), plus the extra
-turns discipline adds — a spec pass, a test pass, a reviewer pass. This is real
-but bounded, and most of it is a stable prefix that caches well (see L3).
+turns discipline adds — a spec pass, a test pass, a reviewer pass. Charges depend on the harness, task and provider's caching behavior (see L3).
 
 **2. The cost of the work done with the factory.** The tokens the actual
 implementation burns — exploration, generation, rework. This is where the money
 is, and it is mostly a function of which model does the work and how much it
-flails. The factory reduces flailing (tight specs, fast deterministic feedback)
-and can route the high-volume work to a cheaper model (L2).
+flails. Specs and deterministic feedback can surface errors before another model call.
+A configured tier can route high-volume work to a cheaper model (L2).
 
 A cost plan has to help both, and be honest that surface 2 is the larger prize.
 
 ## Where the factory spends tokens today
 
-- **Always-loaded context.** The instruction files are read every turn. They are
-  stable across turns, which matters for caching, but they are not free on the
-  first turn or on any cache miss.
-- **Per-role model routing already exists, two tiers.** `spec-writer` and
+- **Always-loaded context.** Instruction files can become part of a harness's model context.
+  Their cost depends on how the harness assembles requests and how the provider handles cached input.
+- **The standard profile uses two tiers.** `spec-writer` and
   `reviewer` run on the frontier tier; `implementer`, `refactorer`, and
   `wiki-maintainer` run on the default tier. Both model strings are chosen at
-  `factory-init` and recorded in `factory.yaml`, then substituted into the
+  `factory init` and recorded in `factory.yaml`, then substituted into the
   harness configs (`opencode.json` and the agent frontmatter) by
-  `make sync-harnesses`. Since Decision 41 that is the same file the gates read:
+  `./factory sync all`. Since Decision 41 that is the same file the gates read:
   routing and enforcement are different *keys*, not different files, and routing
   still relaxes no gate.
 - **`small_model` now follows the economy tier.** The opencode lightweight-task
@@ -57,13 +47,13 @@ A cost plan has to help both, and be honest that surface 2 is the larger prize.
   profile it routes to the cheaper economy tier instead. (This lever is
   opencode-specific — Claude and Codex have no equivalent per-project
   small-model knob, but they still get the per-role economy routing below.)
-- **Gates are shell, so they are free.** The self-test, `factory doctor`, and
-  every hook cost zero model tokens. This is the design already paying off:
-  enforcement that would otherwise be an LLM review pass is a shell exit code.
+- **Local gate proofs.** `./factory selftest` and `./factory doctor` run their
+  core gate proofs without a model. Application commands you configure can
+  invoke additional tools.
 
 ## The levers
 
-### L1 — Enforcement in shell, not the model
+### L1 — Deterministic enforcement
 
 The core principle (put the control in a hook, not the prompt) is also a token
 principle. A hook that exits non-zero costs zero model tokens; the same rule
@@ -81,7 +71,7 @@ Match the model to the role's volume and stakes:
 |---|---|---|---|
 | `spec-writer` | low | high (spec correctness) | frontier |
 | `reviewer` | low | high (adversarial catch) | frontier — never downgrade the adversary |
-| `implementer` | high | medium (tests are the net) | default, or economy under the cost profile |
+| `implementer` | high | medium (tests are the net) | default in both shipped profiles |
 | `refactorer` | high | low (behaviour-preserving) | economy |
 | `wiki-maintainer` | medium | low | economy |
 
@@ -95,7 +85,7 @@ keep.
 
 The factory's instruction files do not change turn to turn, which is the ideal
 shape for prompt caching. If the harness caches the stable prefix, the governance
-overhead (surface 1) becomes nearly free after the first turn. The design value:
+overhead may decrease on cache hits, subject to provider pricing. The design value:
 keep the always-loaded context stable and ordered — governance, then role prompt,
 then the volatile task and diff — so the cacheable part stays contiguous and does
 not get invalidated by interleaving volatile content into it.
@@ -118,23 +108,23 @@ mean a mechanical miss is caught before it costs a model-plus-CI cycle.
 
 ## The cost-optimized profile (opt-in)
 
-A `cost_profile`, chosen at `factory-init` and recorded in `factory.yaml`
+A `cost_profile`, chosen at `factory init` and recorded in `factory.yaml`
 alongside the models, defaulting to `standard`:
 
 - **`standard`** — the economy-eligible roles collapse to each harness's default
   model, so there is no third tier and nothing to think about.
 - **`economy`** — turns on a third, cheaper tier and routes the high-volume,
-  low-stakes roles to it: `refactorer`, `wiki-maintainer`, the opencode
-  `small_model`, and — once the eval proves it (see below) — `implementer`.
+  low-stakes roles to it: `refactorer`, `wiki-maintainer` and the opencode
+  `small_model`. Moving the implementer to that tier is a proposal.
   `spec-writer` and `reviewer` stay frontier; the profile never downgrades the
   roles whose job is to catch mistakes.
 
 ### Per-harness models
 
-The three harnesses have different native model namespaces — opencode can route
-any provider through OpenRouter, Claude Code calls Anthropic ids, Codex calls
-OpenAI ids — so each carries its own per-tier models, shipped as intelligent
-defaults and overridable in `factory.yaml`:
+v0.2.0 seeds the following strings when the operator selects OpenRouter
+during initialization. They are configurable defaults. Check the selections
+against model availability for your account. Choosing `inherit` leaves the
+model tiers blank.
 
 | Tier | opencode (OpenRouter) | Codex | Claude |
 |---|---|---|---|
@@ -156,17 +146,10 @@ codex_default_model: "gpt-5.6-terra"
 codex_economy_model: "gpt-5.6-luna"
 ```
 
-The routing reaches all three harnesses through `make sync-harnesses`. A role's
-tier is a property of the *role*, not the model string (opencode's frontier and
-default can share one model), so `scripts/lib/roles.sh` maps each role to its
-tier — `spec-writer`/`reviewer` → frontier, `refactorer`/`wiki-maintainer` →
-economy, everything else → default. `sync-opencode` writes opencode's models
-into `opencode.json`; `sync-claude`/`sync-codex` write each Claude/Codex
-subagent's model. All three read that tier's model from `factory.yaml`, and a
-blank value — or a repository that never configured the tiers, like this
-template itself — falls back to `inherit` rather than breaking. Model routing
-touches no runtime gate: it decides which model does the work, never which rules
-the work must pass.
+The Go synchronizer resolves the tier from the role and the profile.
+Spec-writer and reviewer use frontier. Refactorer and wiki-maintainer use
+economy when selected, otherwise default. Implementer uses default.
+Each adapter writes the resulting model in the format its harness expects.
 
 ### Changing it later
 
@@ -174,15 +157,12 @@ Reconfiguring is one edit and one command — no re-init:
 
 ```sh
 # change a model, or flip cost_profile between standard and economy, in factory.yaml
-$ make sync-harnesses
+$ ./factory sync all
 ```
 
 `factory.yaml` is the single source of truth for every harness's models,
-including opencode. The economy→default collapse is applied at *sync* time (by
-`resolve_tier` reading `cost_profile`), so flipping the profile and re-syncing
-re-routes opencode, Claude, and Codex together — you are never editing three
-places or re-running init to change a tier. `factory-init` runs this same sync at
-the end, so a fresh repo is already wired.
+including OpenCode. After reviewing the diff, commit the generated changes
+along with the configuration change. Fresh initialization also runs the sync.
 
 The profile is a routing change only. It arms no new behaviour and relaxes no
 gate — the same hooks fire regardless of which model did the work. That is the
@@ -209,13 +189,8 @@ and observed wall time stay distinct. See [BUDGETS.md](BUDGETS.md) for limits an
 cross-harness evidence. The existing `factory report` remains a gate report;
 `factory budget report --json` exports the separate local invocation ledger.
 
-You cannot reduce what you cannot see. The shell factory does not meter tokens —
-the harness does — but the factory can make that metering actionable: running
-each role as its own session gives per-role cost visibility, so an adopter can
-see whether the implementer or the reviewer is the real spend and tune the
-profile accordingly. A later `factory` report that summarizes per-role model
-assignment (not token counts, which live in the harness) is a possible addition,
-not a commitment.
+For other interactive work, use your harness or provider's own usage records.
+The factory ledger covers only the invocations the factory launches.
 
 ### A post-session report: `factory report` (shipped)
 
@@ -223,22 +198,20 @@ not a commitment.
 separate, so each number means exactly what it says:
 
 - **Facts the factory computes itself (no counterfactual).** The deterministic
-  gates installed (enforced in shell, 0 model tokens each), the cost profile and
+  shipped gate entrypoints it counts, the cost profile and
   model tiers, and the gate *blocks* recorded — each one a catch a hook made,
   logged by `scripts/lib/events.sh` when it fired. A hook that exits non-zero
   genuinely cost no model tokens; this is what *happened*, not what was avoided.
   The block window resets with `factory report --clear`.
-- **Measured token spend stays with the harness.** The shell factory does not
-  meter tokens; the report points you at your harness's usage output (opencode,
-  Claude Code, and Codex each report per-session counts) rather than scrape a
-  fragile number.
-- **One clearly-labeled estimate.** Each block is a catch an LLM reviewer would
-  have had to make; a review pass is roughly R tokens (default 3000, override
+- **Measured token spend.** Use `./factory budget report` for reported usage
+  from factory-managed runs. The gate report does not read interactive sessions.
+- **One clearly-labeled estimate.** The estimate assumes a hypothetical review pass
+  per recorded block at R tokens per pass (default 3000, override
   `FACTORY_REVIEW_TOKENS`); N blocks → approximately N×R tokens of *review* spend
   avoided — printed as an **estimate** with its method, never as a bare "saved
   N tokens".
 
-Actual output, with two blocks recorded:
+Historical output excerpt from the script factory, with two recorded blocks:
 
 ```
 Facts (deterministic, 0 model tokens)
@@ -265,9 +238,8 @@ reinforces the product.
 A genuine savings figure has exactly one honest source: a measured A/B in the
 eval harness — run the same task with the cost profile on and off and compare the
 actual token counts. That is a real counterfactual because both runs actually
-happened. It is an occasional eval artifact ("measured 2026-07-19, task X:
-economy profile used 12% fewer tokens, gates still green"), reported with the
-command that produced it — not a per-session badge. Running every task twice to
+happened. Report the two runs, their settings and the
+command that produced the comparison — not a per-session badge. Running every task twice to
 show a savings number would itself double the spend, which is why this lives in
 the eval, deliberately, and not in the session loop.
 
@@ -275,20 +247,17 @@ the eval, deliberately, and not in the session loop.
 
 - **Phase 0 — this document.** Make the levers explicit and name "prefer a hook
   over an LLM check" and "keep the prefix cache-friendly" as design values.
-- **Phase 1 — the `economy` tier and profile. (Shipped.)** `factory-init` prompts
+- **Phase 1 — the `economy` tier and profile. (Shipped.)** `factory init` prompts
   for `cost_profile` and records it with the economy tier in `factory.yaml`;
   the economy-eligible roles (`refactorer`, `wiki-maintainer`, opencode
   `small_model`) route to the economy tier under `economy` and collapse to the
-  default under `standard`. Routing crosses to Claude and Codex via the sync
-  scripts. `implementer` stays on the default model until Phase 4. A break/fix
-  fixture in the self-test proves Codex emits a per-agent model for a native id
-  and omits it for a slug or placeholder.
+  default under `standard`. The synchronizer writes the corresponding
+  Claude and Codex settings. The implementer stays on the default tier.
 - **Phase 1.5 — per-harness intelligent defaults. (Shipped.)** Each harness
   carries its own per-tier models (the matrix above) instead of one shared
   string, so Claude and Codex get real frontier/default/economy ladders out of
-  the box, not just opencode. `scripts/lib/roles.sh` maps role → tier and the
-  sync scripts read each tier's model from `factory.yaml`. Self-test fixtures
-  prove per-tier routing on both Codex and Claude, and inherit when unset.
+  the box when tiers are selected. The synchronizer reads them from
+  `factory.yaml`. Blank model settings inherit the harness configuration.
 - **Phase 2 — cache-friendly context and a budget audit.** Order the always-on
   context so the cacheable prefix is contiguous; measure the always-loaded
   footprint and move what can be lazy.

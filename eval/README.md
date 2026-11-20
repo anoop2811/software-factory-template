@@ -20,7 +20,9 @@ It uses its own temporary config, so it passes or fails on wiring — not on
 whatever your `factory.yaml` happens to arm. What it deliberately does not
 claim: live in-harness behavior. That's a separate, manual observation.
 
-The public script delegates to `factory eval structural --harness=NAME`.
+In an installed v0.2.0 project, run `./factory eval structural --harness=codex`,
+substituting `claude` or `opencode` to check another adapter. The public script
+delegates to the same command.
 A source checkout uses its Go launcher; an installed project uses the packaged
 binary. The command reads wiring and gates from the caller's project. Existing
 shared validation gates keep their own prerequisites; this evaluation calls no
@@ -36,21 +38,18 @@ did not tamper with it. Scores are diffed against a saved baseline
 a regression and exits non-zero.
 
 ```sh
-./scripts/golden-task-eval.sh                        # mock runner, 1 run
-./scripts/golden-task-eval.sh --harness claude       # a real Claude Code run
-./scripts/golden-task-eval.sh --harness opencode --runs 5 --save-baseline
+./factory eval golden --harness mock --runs 1        # local scoring example
+./factory eval golden --harness claude               # opt-in model run
+./factory eval golden --harness opencode --runs 5 --save-baseline
 ```
 
 Naming a harness selects its runner: `--harness claude` uses
-`eval/runners/claude.sh`. Claude Code, Codex and opencode ship working runners,
-because the factory already configures those three — it generates their agent
-files and routes their model tiers, so asking you to work out the invocation as
-well would be strange. `--runner` still overrides, for a harness the factory
+`eval/runners/claude.sh`. The factory ships runners for Claude Code, Codex and OpenCode. `--runner` still overrides, for a harness the factory
 does not configure.
 
 Real runs cost tokens and need your credentials, which is why `mock` remains the
-default: it calls no model, so the scorer stays provable in CI. A mock score is
-1.00 by construction and `factory metrics` labels it as not an agent score.
+default: it calls no model, so the scorer stays provable in CI. The mock runner solves the shipped reference-answer task. A custom oracle can
+fail it. The metrics report labels mock results separately from real-agent scores.
 
 ### A task
 
@@ -116,8 +115,8 @@ suite; a run that hits the cap usually means permissions, not model quality.
 
 A saved score only means something against the inputs it was measured on. So each
 result records a fingerprint of those inputs — per task, its `task.md` and
-`verify.sh` oracle; globally, the runner, `AGENTS.md`, and the model tiers from
-`factory.config`. When a fingerprint differs, the eval reports **stale** and exits
+`verify.sh` oracle; globally, the runner, `AGENTS.md` and the cost profile and model-tier
+entries in `factory.yaml` and the legacy `factory.config` when present. When a fingerprint differs, the eval reports **stale** and exits
 non-zero with the reason:
 
 ```

@@ -1,6 +1,6 @@
 # Runtime transition guard
 
-Decision 92 and [ADR 0093](../adr/0093-runtime-transition-guard.md) introduce
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). Decision 92 and [ADR 0093](../adr/0093-runtime-transition-guard.md) introduce
 cooperation between the source-built Go controllers and the current legacy
 budget/loop scripts. This is a prerequisite for safe installed migration, not
 an installer or a completed v0.1.6 cutover.

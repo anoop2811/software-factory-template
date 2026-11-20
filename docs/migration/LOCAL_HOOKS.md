@@ -1,6 +1,6 @@
 # Go local-hook registration candidate
 
-This G1 slice implements the registration parser under
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This G1 slice implements the registration parser under
 [ADR-0062](../adr/0062-go-local-hook-normalization.md). It adds
 `factory_local_hooks` to the source candidate readers. The installed factory
 continues to use its existing scripts until compatibility, release delivery and

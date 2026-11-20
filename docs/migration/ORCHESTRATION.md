@@ -3,8 +3,8 @@
 The Go runtime owns harness synchronization, prerequisite discovery, the eight
 pre-push stages, structural and golden evaluation, review requests and shared
 helpers. The contract is [ADR 0099](../adr/0099-native-factory-orchestration.md).
-This completes the orchestration source workstream; default packaged bootstrap
-and replacement-release qualification remain separate gates.
+These commands ship in v0.2.0. The [CLI reference](../CLI.md) describes everyday use,
+and the [release record](GO_RELEASE_READINESS.md#stable-v020) covers packaged delivery.
 
 | Supported invocation | Canonical Go implementation | Retained boundary |
 |---|---|---|
@@ -83,11 +83,10 @@ Direct `scripts/golden-task-eval.sh` and `make golden-eval` now enter the existi
 native `factory eval golden` owner. Scoring no longer requires Python; historical
 scorer fixtures remain explicit test-only inputs. See
 [ADR 0132](../adr/0132-go-source-golden-evaluation.md).
-The source checkout retains other direct command/helper bodies and explicit
-historical fixtures until their separate entrypoint and proof-runner cleanup.
-Their presence does not establish release readiness or a runtime fallback in
-an opted-in Go installation. The finite remaining source paths and historical
-proof obligations are tracked in [R3 cutover](R3_CUTOVER.md).
+The [completed source cutover](R3_CUTOVER.md) records the command adapters,
+sourceable shell libraries and retired Python controllers. Historical fixtures
+exercise compatibility in development tests. Installed adapters call their
+declared Go owners, while configured policy gates can still run shell scripts.
 No Go or Python interpreter is required for the
 converted installed orchestration; retained JSON validation gates still require
 `jq`, and configured product packs can require their own toolchains.

@@ -1,6 +1,6 @@
 # Interrupted publication recovery
 
-Status: Go source implementation; no installed recovery consumer.
+Historical source checkpoint before the installed recovery consumer. See the [stable upgrade guide](../UPGRADING.md) for public recovery.
 [ADR 0096](../adr/0096-interrupted-publication-recovery.md) is authoritative.
 
 A crashed process loses its live publication handle. The retained journal and

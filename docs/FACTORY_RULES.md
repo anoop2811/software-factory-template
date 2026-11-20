@@ -37,7 +37,7 @@ Boundaries worth remembering:
 
 ## Structural rules
 
-**Generator/evaluator separation.** The agent that writes the spec doesn't write the implementation; the agent that writes the tests doesn't write the implementation; the agent that writes the implementation doesn't write the tests. Enforced by `test-edit-denial.sh`, by role separation in the agent definitions (spec-writer = frontier model, implementer = default model), and by `FACTORY_AGENT_ROLE` set explicitly in each agent's environment.
+**Generator/evaluator separation.** Assign test design, implementation and review to separate roles. The test-edit hook blocks the explicitly identified implementer on configured test paths. Model tiers can inherit or select the same model. The hook checks the role and target path.
 
 **Go tests use Ginkgo v2 and Gomega only.** The `testing` package exists only in each package's `RunSpecs` bootstrap; specs use Ginkgo nodes, parameterized cases use `DescribeTable`, assertions use Gomega. Enforced by `ginkgo-only-check.sh`.
 

@@ -1,14 +1,14 @@
 # Go Runtime Conversion
 
-**Status:** Draft
+**Status:** Merged design specification. Decision 49 authorized the first implementation stage. See the [v0.2.0 release evidence](../docs/migration/GO_RELEASE_READINESS.md#stable-v020) for the shipped result.
 **Author(s):** Anoop Gopalakrishnan (direction); Codex (draft)
 **Date:** 2026-09-06
 **Story/Ticket:** Decision 48 in [DECISION_LOG.md](../docs/DECISION_LOG.md); follows [merged PR #72](https://github.com/anoop2811/software-factory-template/pull/72)
-**Sprint/Cycle:** Staged migration; scheduling follows spec review
+**Sprint/Cycle:** Staged Go migration from the v0.1.6 Bash baseline
 
 Format source: [ai-craft SPEC_TEMPLATE.md](https://github.com/anoop2811/ai-craft/blob/3d6c1bbb8f84116e34519382c826030324a06e77/SPEC_TEMPLATE.md), read 2026-09-06.
-This draft follows its twelve sections and WHAT/WHY emphasis. Design choices
-below are proposals for human review, not approval to start implementation.
+The original draft follows its twelve sections and WHAT/WHY emphasis. The
+implementation decisions are recorded separately in the decision log and ADRs.
 Specifications in this repository use `specs/NNN-descriptive-name.md`.
 
 Compatibility baseline: factory commit `76952eaa63aebd1ecd282f5ab51dd7c3627cb497`
@@ -30,7 +30,7 @@ require developers to repair their repositories by hand.
 
 ## 2. Problem
 
-The factory currently combines Bash entry points and controls with Python budget
+At the September 2026 conversion baseline, Bash entry points and controls coexisted with Python budget
 and loop controllers. Configuration, process supervision, filesystem state and
 release delivery cross language boundaries, making their shared contracts harder
 to maintain as the factory grows. A language change must not discard the safety
@@ -483,7 +483,7 @@ named stage, not completion of this draft.
 | Q2 | Minimum platform scope | Anoop | Revised 2026-10-30 | Approved: Ubuntu 24.04+ and macOS 15+, each on amd64/arm64. User-approved Decision 128 replaces the original 2026-09-07 macOS 14 floor after hosted-runner retirement. Build with CGO disabled; fresh native qualification remains required before advertising each target. |
 | Q3 | Release authenticity and offline trust | Anoop | Resolved 2026-09-07 | Approved: GitHub build attestations with offline verification bundles. Provision trusted roots independently; enforce repository, signer workflow and source revision. Checksums alone are not publisher authentication. |
 | Q4 | Recovery location, retention and pruning policy | Anoop | 2026-09-06 | Resolved from user direction: local gitignored `.factory/backups/MIGRATION_ID/`; default one successful forward release transition, then prune eligible older sets after checks. Keep the preceding recovery set; explicit holds and safe older-set pruning support longer reference needs. Details: AC 4.4-4.6 and section 8. |
-| Q5 | What evidence period and pilot exit criteria are required before making Go the default and removing active legacy implementations? | Anoop | 2026-09-13, before default cutover | Manual adopter pilot approved as mandatory on 2026-09-06. Detailed evidence period and exit criteria remain pending; all acceptance and cleanup gates are mandatory regardless of calendar duration. |
+| Q5 | What evidence period and pilot exit criteria are required before making Go the default and removing active legacy implementations? | Anoop | Stable publication authorized 2026-11-20 | The mandatory adopter pilot was approved on 2026-09-06. Decision 175 proposed completed pilot evidence and operator acceptance without a fixed wait. Decision 178 records the operator’s stable release decision after PR #189. See the [signed pilot outcomes](../docs/migration/GO_RELEASE_READINESS.md#stable-v020). |
 
 **Approved prerequisite EX-001 (Decision 50, 2026-09-06):** an independent
 baseline fixture observed legacy configuration overwriting a caller value during
@@ -504,7 +504,7 @@ design records, after these compatibility contracts are reviewed.
 
 ### Decision 1: One Go runtime, stable external adapters
 
-**Context:** Both factory logic and users' integrations currently span scripts.
+**Context at design time:** Both factory logic and users' integrations spanned scripts.
 
 **Decision:** Propose converting owned runtime behavior to Go and retaining thin
 bootstrap, command, hook and sourced-library compatibility adapters. Keep packs,
@@ -674,6 +674,8 @@ implementation pins them; this spec creates no go.mod or go.sum.
 | Conversion-induced model usage | Not applicable yet | Zero extra calls for equivalent workloads | Fake native invocation accounting; paid evidence reported separately |
 
 ## Review Checklist
+
+This was the original design review checklist. The [release record](../docs/migration/GO_RELEASE_READINESS.md#stable-v020) tracks the implementation and its qualification.
 
 - [ ] Problem and user value accepted by Anoop.
 - [ ] Stories and Given/When/Then criteria reviewed, including failure and recovery paths.

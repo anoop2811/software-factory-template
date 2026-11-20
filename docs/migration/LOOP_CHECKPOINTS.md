@@ -1,6 +1,6 @@
 # Go loop checkpoint storage and recovery invariants
 
-[ADR-0074](../adr/0074-go-loop-checkpoint-storage.md) adds the second milestone
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0074](../adr/0074-go-loop-checkpoint-storage.md) adds the second milestone
 of the existing loop conversion package: storage and read-only resume assessment.
 It preserves schema-1 checkpoint identities and the Python flock namespace while
 sharing filesystem mechanics with the Go budget ledger.

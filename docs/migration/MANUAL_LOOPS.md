@@ -1,6 +1,6 @@
 # Go manual loop controller qualification
 
-[ADR-0075](../adr/0075-go-manual-loop-controller.md) governs milestone three
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0075](../adr/0075-go-manual-loop-controller.md) governs milestone three
 of the existing loop package: deterministic checks and fresh manual resume.
 The private compiled candidate composes existing source identities, schema-one
 checkpoints and process supervision. It does not activate installed commands

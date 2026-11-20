@@ -1,6 +1,6 @@
 # Go budget execution controller candidate
 
-[ADR-0070](../adr/0070-go-budget-execution-controller.md) composes the existing
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0070](../adr/0070-go-budget-execution-controller.md) composes the existing
 Go budget ledger, native supervisor and usage parser. It retains initial read-only
 admission, local preflight, locked re-admission, ownership publication before
 prompt delivery, and durable finalization before an answer can be returned.

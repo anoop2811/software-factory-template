@@ -9074,3 +9074,43 @@ project rules that affect the private paths. A missing rule appended at the end
 can supersede an earlier root negation. Reuse a root rule for the lock only if
 the lowercase lock remains ignored on both case-sensitive and case-insensitive
 checkouts. A conflicting project rule must be reported before editing the file.
+
+## Decision 178 (2026-11-20 UTC): promote the qualified Go factory to stable
+
+Publish v0.2.0 from the merged adopter pilot at
+`5d6dbb0e0a0ef32113f200ef80cb7578bfb92f4c`. The operator approved the stable
+release and Latest designation after merging PR #189. v0.1.6 stayed Latest
+during signing. All four native targets passed the published qualification, and the signed
+installer ran in a fresh project and the v0.1.6 adopter pilot before GitHub
+marked v0.2.0 Latest on 2026-11-20. Use the same exact stable tag as the public
+installer default. Preserve explicit historical release selection and require
+a reviewed migration digest and quiescence to activate the Go installation.
+
+## Decision 179 (2026-11-20 UTC): ground the public homepage in the stable release
+
+Describe shipped capabilities using the v0.2.0 CLI, tagged implementation and
+published qualification reports. Use the signed adopter exercise only for its
+observed fixture and platform. Show exact-version setup and migration commands
+that work independently of the hosted installer default. Label roadmap proposals
+as planned. Apply the same evidence standard to the terminal example, metadata,
+language packs, role controls, cost claims and analytics preference text.
+
+Use a responsive editorial layout with system typefaces and an interactive
+qualification graphic. Every tile represents one of the five passing scenarios
+per native target. Keep the CLI output, target selector, evidence and install
+commands readable without JavaScript. The site uses text assets for its design
+so the existing review lane can cover the entire change under ADR 0100.
+
+The homepage should answer the adopter’s first question: what would I otherwise
+have to assemble by hand? Lead with project setup, language packs, harness roles,
+CI and upgrades, then show where checks, usage reports and optional model runs
+fit. Link readers to maintained guides for operating v0.2.0 and to immutable
+release artifacts for evidence. Update current instructions across the repository
+while retaining the dates, baselines and results of historical decisions and pilots.
+At release cutover, match the page title, social metadata, structured version,
+install examples and qualification links to the newly published artifacts.
+Describe the metrics log’s actual fields: hooks supply the reason text, so a
+custom hook can place sensitive data there. The metrics command sends no events.
+Record the packaged prereq limitation observed with Go-pack initialization: a
+two-part generated minimum fails comparison, and an explicit three-part project
+minimum allows the same checker to compare the installed toolchain.

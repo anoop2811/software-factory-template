@@ -1,6 +1,6 @@
 # R3 source entrypoint and legacy runtime cutover
 
-This is the finite remaining source-cutover inventory for the approved
+This is the historical source-cutover inventory that led to [v0.2.0](GO_RELEASE_READINESS.md#stable-v020). It tracks the approved
 [Go conversion specification](../../specs/001-go-runtime-conversion.md), not a
 new feature roadmap. It was inspected on 2026-11-02 against merged PR #161
 (`f3a0b65`), before the next R3 implementation. The Go owners below already

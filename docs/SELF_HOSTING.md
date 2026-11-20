@@ -102,7 +102,7 @@ The model's opinion is not a required merge gate.
 `factory review-batch github` command, offline `--plan`, authenticated cache,
 limits and opt-in routing. Coverage succeeds only for complete current-head work;
 findings stay advisory. Rerun through Actions > Adversarial review.
-Generated workflows need a trusted absolute `REVIEW_GO_CLIENT` to opt in.
+Generated adopter workflows use single-request review by default when the lane is enabled. To opt into batched review, supply a trusted absolute `REVIEW_GO_CLIENT`.
 
 ### Single-diff compatibility runner
 
@@ -217,9 +217,10 @@ to native fixed-HTTP compatibility mode.
 For a canonical factory source checkout, the generated workflow prepares the
 Go version declared in go.mod and its locked modules, then exercises the source
 launcher before exposing review credentials. It does not build an adopter's
-application module. Installed projects must provision their trusted packaged
-runtime on each runner; a developer's local installation is not transferred by
-Git checkout. Explicit-client workflows keep their existing provisioning path.
+application module. In v0.2.0, an installed project's generated review workflow
+authenticates the selected release's standalone client for the runner. It reads
+the committed launcher and version marker without executing project code. See
+[review client acquisition](migration/CI_PREPARATION.md#standalone-review-client).
 
 The parallel client keeps all existing request, input-byte and token caps. A
 failed batch stops new paid requests; already admitted siblings finish within
@@ -250,14 +251,14 @@ leaving model tiers blank makes sync-opencode remove source model placeholders
 
 The source .github/CODEOWNERS still contains adopter placeholders; it is not
 proof of owner coverage for this repository. Full server-side human-review
-protection needs its own concrete configuration and validation. Likewise,
-structural adapter tests do not establish live native-agent enforcement, and
-Go candidates do not establish packaged upgrade, recovery or cleanup acceptance.
+protection needs its own concrete configuration and validation. Structural
+adapter tests exercise harness wiring. The [stable release record](migration/GO_RELEASE_READINESS.md#stable-v020)
+identifies the upgrade and recovery paths exercised with published assets.
 Optional budgeted model runs and bounded loops remain opt-in.
 
-## Evidence for this iteration
+## Historical self-hosting evidence from September 2026
 
-`./factory doctor` ran 217 self-tests: `217 passed, 0 failed, 0 skipped`.
+At that point `./factory doctor` ran 217 self-tests: `217 passed, 0 failed, 0 skipped`.
 It exposed the unset local hooks path, missing review secret and an adapter-drift
 warning. After local hook activation, `hookspath_status` reported `armed` for
 this worktree's tracked .githooks/pre-push. `make check-drift` exited 0 after the

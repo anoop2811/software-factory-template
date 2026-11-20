@@ -1,6 +1,6 @@
 # Go budget ledger and admission candidate
 
-[ADR-0069](../adr/0069-go-budget-ledger-admission.md) defines the shared storage
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0069](../adr/0069-go-budget-ledger-admission.md) defines the shared storage
 and admission component for the G2 budget-controller conversion. It is based
 on the merged Python controller, independently of native-execution PR #95.
 

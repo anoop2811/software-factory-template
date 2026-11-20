@@ -1,6 +1,6 @@
 # Baseline compatibility inventory
 
-Decision 49 (`docs/DECISION_LOG.md:1800`) starts characterization before production
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). Decision 49 (`docs/DECISION_LOG.md:1800`) starts characterization before production
 routing changes. The governing conversion contract is
 [the Go runtime specification](../../specs/001-go-runtime-conversion.md).
 

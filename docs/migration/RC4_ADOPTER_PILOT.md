@@ -4,12 +4,12 @@ Contract: docs/DECISION_LOG.md:8951, docs/DECISION_LOG.md:8986 and
 specs/001-go-runtime-conversion.md:486 (Q5).
 Observed 2026-11-17 UTC on macOS 26.6.2, arm64.
 
-**R6 remains open.** The actual published candidate passed supported forward
+**At RC4, R6 remained open.** The actual published candidate passed supported forward
 migration, installed application checks and witnessed interrupted forward
 recovery. Failed reverse preparation exposed a rollback/recovery defect, and a
 customized ignore file exposed incomplete private-control ignore coverage.
-Neither R5's earlier published qualification nor successful source corrections
-close these pilot findings. R7 stable activation remains separate.
+R5 qualification and source corrections alone could not close these findings.
+See the subsequent [signed stable pilot](GO_RELEASE_READINESS.md#signed-adopter-pilot-2026-11-20-utc).
 
 ## Scope
 
@@ -189,9 +189,7 @@ reversal. The subsequent rollback preserved the raw index. Comparing
 object IDs and modes, each at stage zero. This comparison establishes what a
 commit would contain independently of the index file's byte representation.
 
-This rerun exercised committed local-source delivery. R6 still requires the
-signed release path containing both fixes. Q5 calls for the operator to agree
-on the evidence period and exit criteria and accept the pilot results. The
-proposal is successful completion of the pilot without a calendar wait. The
-operator's decision on that proposal is pending. R7 covers stable activation
-and publication.
+This rerun exercised committed local-source delivery. The subsequent
+[signed v0.2.0 pilot](GO_RELEASE_READINESS.md#signed-adopter-pilot-2026-11-20-utc)
+exercised the release containing both fixes. The operator approved stable
+publication after the merged pilot, as recorded in Decision 178.

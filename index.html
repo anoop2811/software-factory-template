@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Software AI Factory — Enforced Checks for AI Coding Agents</title>
-<meta name="description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
-<meta property="og:title" content="Software AI Factory — Enforced Checks for AI Coding Agents">
-<meta property="og:description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
+<title>Software AI Factory v0.2.0 — Project setup for AI coding agents</title>
+<meta name="description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
+<meta property="og:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta property="og:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://softwareaifactory.sh/">
 <meta property="og:site_name" content="Software AI Factory">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Software AI Factory — Enforced Checks for AI Coding Agents">
-<meta name="twitter:description" content="Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.">
+<meta name="twitter:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta name="twitter:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <link rel="canonical" href="https://softwareaifactory.sh/">
 <!-- Site/source identity, not a claim of search ranking or app rich-result eligibility.
      per docs/DECISION_LOG.md:4569 -->
@@ -28,13 +28,13 @@
       "name": "Software AI Factory",
       "alternateName": "softwareaifactory.sh",
       "inLanguage": "en",
-      "description": "Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets."
+      "description": "Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI."
     },
     {
       "@type": "WebPage",
       "@id": "https://softwareaifactory.sh/#webpage",
       "url": "https://softwareaifactory.sh/",
-      "name": "Software AI Factory — Enforced Checks for AI Coding Agents",
+      "name": "Software AI Factory v0.2.0 — Project setup for AI coding agents",
       "inLanguage": "en",
       "isPartOf": {"@id": "https://softwareaifactory.sh/#website"},
       "about": {"@id": "https://softwareaifactory.sh/#source"}
@@ -44,34 +44,21 @@
       "@id": "https://softwareaifactory.sh/#source",
       "name": "Software AI Factory",
       "url": "https://softwareaifactory.sh/",
-      "description": "Open-source software factory for Codex, Claude Code and OpenCode. Enforce checks, review independently, track usage and run repair loops within budgets.",
+      "description": "Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.",
       "codeRepository": "https://github.com/anoop2811/software-factory-template",
       "codeSampleType": "template",
+      "version": "0.2.0",
       "programmingLanguage": ["Go", "Shell", "TypeScript"],
       "license": "https://github.com/anoop2811/software-factory-template/blob/main/LICENSE"
     }
   ]
 }
 </script>
-<!-- The page loads one third-party script (Google Analytics). Constrain where it
-     may go: no other host can be contacted, framed, or posted to. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https://www.google-analytics.com https://*.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
 <!-- frame-ancestors is deliberately absent: it is ignored in a <meta> CSP (it is
      header-only), and static Pages hosting cannot set response headers. -->
 
-<!-- Analytics. Consent Mode v2. analytics_storage is granted by default and a
-     visitor can turn it off from the footer; the preference lives in
-     localStorage, not a cookie, and never leaves the browser. Every advertising
-     signal is denied permanently: this measures pages, not people, and there are
-     no ads.
-     This was cookieless (analytics_storage denied) first. That is the better
-     privacy default, but GA4 only surfaces cookieless pings through behavioural
-     modelling, which needs ~1,000 denied events/day AND ~1,000 granted daily
-     users to train — thresholds a site this size cannot meet, so the pings were
-     collected and never reported. Cookieless GA4 at this scale is the worst of
-     both: a third-party script that returns nothing. See Decision 36 for the
-     trade-off accepted here, including the EU consent exposure.
-     The factory you install never phones home; this is the website. -->
+<!-- Website analytics preferences follow Decision 36. -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -87,492 +74,27 @@
     }
   } catch (e) { /* storage blocked — leave the default in place */ }
 </script>
-<!-- No integrity="sha384-..." here on purpose: gtag.js is served non-versioned and
-     updated continuously, and is not CORS-enabled for integrity checking, so a
-     pinned hash would break analytics rather than secure it. The compensating
-     control is the CSP above — this is the only third-party host the page may
-     load a script from or connect to. -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SWDEH8ZZQM"></script>
 <script>
   gtag('js', new Date());
   gtag('config', 'G-SWDEH8ZZQM');
 </script>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any">
-<style>
-  :root {
-    --bg: #0B0D12;
-    --bg2: #0E1117;
-    --surface: #12151C;
-    --surface2: #161A22;
-    --edge: #222733;
-    --edge-soft: #1B202A;
-    --fg: #E8EAEF;
-    --muted: #9BA1AD;
-    --faint: #626977;
-    --green: #4CC46E;
-    --green-dim: rgba(76,196,110,.13);
-    --red: #F0605A;
-    --red-dim: rgba(240,96,90,.12);
-    --blue: #7AA2F7;
-    --blue-dim: rgba(122,162,247,.12);
-    --violet: #A78BFA;
-    --violet-dim: rgba(167,139,250,.12);
-    --amber: #E5B15C;
-    --amber-dim: rgba(229,177,92,.12);
-    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --glow-term: 0 0 0 1px var(--edge), 0 24px 80px -24px rgba(76,196,110,.18), 0 24px 80px -40px rgba(122,162,247,.22);
-    --shadow-card: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px -18px rgba(0,0,0,.6);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--sans);
-    font-size: 16.5px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  a { color: var(--blue); text-decoration: none; }
-  a:hover { text-decoration: underline; text-underline-offset: 3px; }
-  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 2px; }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 0 28px; }
-
-  /* ── Header ─────────────────────────────────────────── */
-  header {
-    position: sticky; top: 0; z-index: 10;
-    background: rgba(11,13,18,.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--edge-soft);
-  }
-  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 58px; }
-  .domain { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--fg); }
-  .domain:hover { text-decoration: none; }
-  .domain .sh { color: var(--green); }
-  nav { display: flex; align-items: center; gap: 22px; font-size: 14px; font-weight: 500; }
-  nav a { color: var(--muted); }
-  nav a:hover { color: var(--fg); text-decoration: none; }
-  .nav-gh {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
-    padding: 7px 13px; border: 1px solid var(--edge); border-radius: 8px;
-    color: var(--fg) !important; background: var(--surface);
-    transition: border-color 130ms ease;
-  }
-  .nav-gh:hover { border-color: var(--faint); text-decoration: none; }
-  .nav-gh svg { width: 15px; height: 15px; fill: currentColor; }
-  @media (max-width: 560px) { nav a:not(.nav-gh) { display: none; } }
-  /* On a narrow phone the domain and the GitHub button together want more room
-     than a 28px gutter leaves them, and flex items will not shrink below their
-     own content. Rather than truncate the product name, give the header bar a
-     tighter gutter and gap — it is the one row on the page where the content
-     genuinely cannot reflow. */
-  @media (max-width: 400px) {
-    header .wrap { padding: 0 16px; gap: 10px; }
-    .nav-gh { padding: 7px 10px; }
-  }
-
-  /* ── Hero ───────────────────────────────────────────── */
-  .hero { position: relative; padding: 84px 0 60px; overflow: hidden; }
-  .hero::before {
-    content: ""; position: absolute; inset: 0; z-index: -1;
-    background-image:
-      linear-gradient(var(--edge-soft) 1px, transparent 1px),
-      linear-gradient(90deg, var(--edge-soft) 1px, transparent 1px);
-    background-size: 46px 46px;
-    opacity: .5;
-    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 80%);
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 80%);
-  }
-  .hero::after {
-    content: ""; position: absolute; inset: -20% -10%; z-index: -2; pointer-events: none;
-    background:
-      radial-gradient(600px 380px at 12% 0%, rgba(76,196,110,.14), transparent 65%),
-      radial-gradient(640px 400px at 90% 8%, rgba(122,162,247,.13), transparent 65%),
-      radial-gradient(700px 460px at 55% 105%, rgba(167,139,250,.12), transparent 68%);
-  }
-  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px; }
-  .pill {
-    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
-    border-radius: 999px; padding: 5px 12px; border: 1px solid var(--edge);
-    color: var(--muted); background: var(--surface);
-  }
-  .pill.green { color: var(--green); background: var(--green-dim); border-color: rgba(76,196,110,.32); }
-  .pill.blue { color: var(--blue); background: var(--blue-dim); border-color: rgba(122,162,247,.32); }
-  .pill.violet { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,.32); }
-  .pill.amber { color: var(--amber); background: var(--amber-dim); border-color: rgba(229,177,92,.32); }
-  .hero h1 {
-    font-size: clamp(32px, 5.8vw, 56px);
-    line-height: 1.07;
-    letter-spacing: -0.03em;
-    font-weight: 760;
-    max-width: 21ch;
-  }
-  .hero h1 .pass-word {
-    background: linear-gradient(93deg, #4CC46E 0%, #3ED3B0 48%, #7AA2F7 105%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .hero .sub {
-    margin-top: 20px;
-    font-size: 18.5px;
-    color: var(--muted);
-    max-width: 56ch;
-  }
-  .cta-row { margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 9px;
-    font-family: var(--mono); font-size: 14px; font-weight: 600;
-    padding: 12px 20px;
-    border: 1px solid var(--edge);
-    border-radius: 9px;
-    color: var(--fg);
-    background: var(--surface);
-    transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
-  }
-  .btn:hover { text-decoration: none; transform: translateY(-1px); border-color: var(--faint); }
-  .btn.primary {
-    background: linear-gradient(180deg, #F4F5F7, #DDE0E6);
-    color: #0B0D12; border-color: transparent; font-weight: 700;
-  }
-  .btn.primary:hover { background: #fff; }
-  .btn svg { width: 16px; height: 16px; fill: currentColor; }
-  @media (prefers-reduced-motion: reduce) { .btn:hover { transform: none; } }
-
-  /* ── Terminal (the signature) ───────────────────────── */
-  .term {
-    margin-top: 52px;
-    background: #0A0C10;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: var(--glow-term);
-  }
-  .term-bar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--edge-soft);
-    font-family: var(--mono); font-size: 12px; color: var(--faint);
-  }
-  .dot { width: 11px; height: 11px; border-radius: 50%; }
-  .dot.r { background: #FF5F57; } .dot.y { background: #FEBC2E; } .dot.g { background: #28C840; }
-  .term-title { margin-left: 8px; }
-  .term-bar .right { margin-left: auto; }
-  .term-body {
-    padding: 22px 22px 26px;
-    font-family: var(--mono);
-    font-size: 13.5px;
-    line-height: 1.8;
-    color: #C9CDD4;
-    min-height: 310px;
-    white-space: pre-wrap;
-    overflow-x: auto;
-  }
-  .term-body .dim { color: var(--faint); }
-  .term-body .ok { color: var(--green); }
-  .term-body .no { color: var(--red); font-weight: 600; }
-  .term-body .prompt { color: var(--blue); }
-  .term-body .warn { color: var(--amber); }
-  .cursor { display: inline-block; width: 8px; height: 15px; background: #C9CDD4; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
-  .term-note { margin-top: 12px; font-size: 12.5px; color: var(--faint); font-family: var(--mono); }
-
-  /* ── Sections ───────────────────────────────────────── */
-  section { padding: 76px 0 20px; }
-  .eyebrow {
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
-    letter-spacing: .02em; display: block; margin-bottom: 12px;
-  }
-  .eyebrow.green { color: var(--green); }
-  .eyebrow.amber { color: var(--amber); }
-  .eyebrow.violet { color: var(--violet); }
-  .eyebrow.blue { color: var(--blue); }
-  h2 { font-size: clamp(24px, 3.4vw, 31px); letter-spacing: -0.02em; line-height: 1.2; font-weight: 720; }
-  .lede { margin-top: 14px; color: var(--muted); max-width: 62ch; }
-
-  /* ── Why: stats + ask/block + pipeline ──────────────── */
-  .stats { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  @media (max-width: 700px) { .stats { grid-template-columns: 1fr; } }
-  .stat {
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
-    padding: 22px 20px; box-shadow: var(--shadow-card);
-  }
-  .stat .n { font-family: var(--mono); font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
-  .stat:nth-child(1) .n { color: var(--amber); }
-  .stat:nth-child(2) .n { color: var(--red); }
-  .stat:nth-child(3) .n { color: var(--green); }
-  .stat p { margin-top: 10px; font-size: 14px; color: var(--muted); line-height: 1.5; }
-
-  .askblock { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 700px) { .askblock { grid-template-columns: 1fr; } }
-  .codecard {
-    border-radius: 12px; border: 1px solid var(--edge);
-    background: #0A0C10; overflow: hidden; box-shadow: var(--shadow-card);
-  }
-  .codecard .cc-head {
-    font-family: var(--mono); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
-    padding: 10px 16px; border-bottom: 1px solid var(--edge-soft);
-  }
-  .codecard.ask .cc-head { color: var(--amber); background: var(--amber-dim); }
-  .codecard.block .cc-head { color: var(--green); background: var(--green-dim); }
-  .codecard pre {
-    font-family: var(--mono); font-size: 13px; line-height: 1.9; padding: 16px 18px;
-    color: #C9CDD4; overflow-x: auto;
-  }
-  .codecard.ask pre { color: var(--faint); }
-  .codecard .c-dim { color: var(--faint); }
-  .codecard .c-red { color: var(--red); font-weight: 600; }
-  .codecard .c-green { color: var(--green); }
-  .codecard .c-amber { color: var(--amber); }
-  .credit { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
-
-  .pipeline { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 18px 20px; box-shadow: var(--shadow-card); }
-  .chip {
-    font-family: var(--mono); font-size: 13px; font-weight: 700;
-    border-radius: 8px; padding: 8px 14px; border: 1px solid;
-  }
-  .chip.break { color: var(--amber); border-color: rgba(229,177,92,.4); background: var(--amber-dim); }
-  .chip.fail { color: var(--red); border-color: rgba(240,96,90,.4); background: var(--red-dim); }
-  .chip.revert { color: var(--blue); border-color: rgba(122,162,247,.4); background: var(--blue-dim); }
-  .chip.pass { color: var(--green); border-color: rgba(76,196,110,.4); background: var(--green-dim); }
-  .arrow { color: var(--faint); font-family: var(--mono); }
-  .pipeline p { flex-basis: 100%; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
-
-  .aside-note {
-    margin-top: 26px; font-size: 14.5px; color: var(--muted); max-width: 64ch;
-    border-left: 3px solid var(--edge); padding: 12px 0 12px 16px;
-  }
-  .aside-note strong { color: var(--fg); }
-
-  /* who-it's-for strip */
-  .whofor { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .whofor .tag {
-    font-size: 13px; color: var(--muted);
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 8px;
-    padding: 7px 13px;
-  }
-  .whofor .tag b { color: var(--fg); font-weight: 600; }
-
-  /* config example */
-  .yaml { margin-top: 20px; background: #0A0C10; border: 1px solid var(--edge); border-radius: 10px;
-    padding: 16px 18px; font-family: var(--mono); font-size: 13px; line-height: 1.85; overflow-x: auto; white-space: pre; box-shadow: var(--shadow-card); }
-  .yaml .k { color: var(--blue); } .yaml .v { color: #C9CDD4; } .yaml .c { color: var(--faint); }
-
-  /* a cell that earns the full row */
-  .cell.span3 { grid-column: 1 / -1; }
-  @media (max-width: 740px) { .cell.span3 { grid-column: auto; } }
-  .sample { margin-top: 16px; background: #0A0C10; border: 1px solid var(--edge); border-radius: 10px;
-    padding: 16px 18px; font-family: var(--mono); font-size: 12.5px; line-height: 1.75;
-    color: #C9CDD4; overflow-x: auto; white-space: pre; max-width: 100%; }
-  .sample .dim { color: var(--faint); } .sample .warn { color: var(--amber); }
-
-  /* callout box (prereqs / after) */
-  .callout { margin-top: 22px; background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 18px 20px; box-shadow: var(--shadow-card); }
-  .callout h3 { font-size: 14px; margin-bottom: 8px; color: var(--fg); }
-  .callout h3 .mono { font-family: var(--mono); color: var(--amber); font-size: 12.5px; }
-  .callout ol, .callout ul { margin: 0; padding-left: 20px; }
-  .callout li { font-size: 14px; color: var(--muted); line-height: 1.7; }
-  .callout li code, .callout li .mono { font-family: var(--mono); font-size: .9em; color: var(--fg); }
-  .callout.green { border-color: rgba(76,196,110,.32); }
-  .callout.green h3 { color: var(--green); }
-  .two-col { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
-
-  /* FAQ */
-  .faq { margin-top: 34px; display: grid; gap: 12px; }
-  .faq details {
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
-    padding: 4px 18px; box-shadow: var(--shadow-card);
-  }
-  .faq summary { cursor: pointer; padding: 14px 0; font-weight: 600; font-size: 15.5px; color: var(--fg); list-style: none; }
-  .faq summary::-webkit-details-marker { display: none; }
-  .faq summary::before { content: "+ "; color: var(--green); font-family: var(--mono); }
-  .faq details[open] summary::before { content: "− "; }
-  .faq details p { padding: 0 0 16px; margin: 0; font-size: 14.5px; color: var(--muted); line-height: 1.6; }
-
-  /* docs strip */
-  .docs-strip { margin-top: 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  @media (max-width: 720px) { .docs-strip { grid-template-columns: 1fr 1fr; } }
-  .docs-strip a {
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
-    padding: 16px 16px; box-shadow: var(--shadow-card); color: var(--fg);
-    transition: border-color 130ms ease;
-  }
-  .docs-strip a:hover { border-color: var(--faint); text-decoration: none; }
-  .docs-strip .dt { font-family: var(--mono); font-size: 12px; color: var(--blue); }
-  .docs-strip .dd { display: block; margin-top: 6px; font-size: 13.5px; color: var(--muted); }
-
-  /* ── Differences ────────────────────────────────────── */
-  section.band { background: var(--bg2); border-top: 1px solid var(--edge-soft); border-bottom: 1px solid var(--edge-soft); padding-bottom: 68px; margin-top: 52px; }
-  .diff-list { margin-top: 34px; display: grid; gap: 10px; }
-  .diff-row {
-    display: grid; grid-template-columns: 1fr 1fr;
-    background: var(--surface);
-    border: 1px solid var(--edge);
-    border-radius: 11px;
-    overflow: hidden;
-    box-shadow: var(--shadow-card);
-  }
-  .diff-row > div { padding: 16px 20px; font-size: 15px; display: flex; align-items: baseline; gap: 10px; }
-  .diff-row .them { color: var(--faint); background: rgba(0,0,0,.22); border-right: 1px solid var(--edge-soft); }
-  .diff-row .mark { font-family: var(--mono); font-weight: 700; flex: none; }
-  .diff-row .them .mark { color: var(--faint); }
-  .diff-row .us .mark { color: var(--green); }
-  .diff-row code { font-family: var(--mono); font-size: .9em; background: rgba(255,255,255,.05); border: 1px solid var(--edge-soft); padding: 1px 6px; border-radius: 5px; color: var(--fg); }
-  .diff-row .them code { color: var(--faint); }
-  @media (max-width: 660px) {
-    .diff-row { grid-template-columns: 1fr; }
-    .diff-row .them { border-right: none; border-bottom: 1px solid var(--edge-soft); }
-  }
-
-  /* ── Inside ─────────────────────────────────────────── */
-  .grid3 { margin-top: 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  @media (max-width: 740px) { .grid3 { grid-template-columns: 1fr; } }
-
-  /* Every grid on this page, in one place.
-
-     `1fr` is shorthand for `minmax(auto, 1fr)`, and that `auto` floor is the
-     item's min-content width — so a track can never shrink below the widest
-     unbreakable thing inside it. One pre-formatted install snippet in a callout
-     was enough to hold a track at 597px inside a 334px column, which widened
-     the whole document on a phone (624px against a 390px viewport) rather than
-     scrolling inside the box that had asked to scroll.
-
-     A zero floor lets the track shrink and hands the overflow back to the
-     element that opted into `overflow-x: auto`. It applies at every breakpoint,
-     including the single-column ones, where the problem is identical.
-
-     .faq and .diff-list are single-column grids with no explicit template, so
-     they are easy to overlook — their implicit track has the same auto floor.
-     The FAQ hides its worst case behind a closed details element, which is
-     exactly the kind of content a quick resize test never lays out. */
-  .stats > *, .askblock > *, .two-col > *, .docs-strip > *,
-  .diff-row > *, .grid3 > *, .faq > *, .diff-list > * { min-width: 0; }
-
-  /* A zero floor lets the track shrink, but a URL still has no break point, so
-     it would simply hang out of the box instead of the page. These are commands
-     meant to be copied, not admired — wrapping one is better than a page that
-     slides sideways when someone opens an answer. */
-  .faq p, .faq .mono { overflow-wrap: break-word; }
-  .cell {
-    background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
-    padding: 22px 20px; box-shadow: var(--shadow-card);
-    border-top: 3px solid var(--green);
-  }
-  .cell.c-blue { border-top-color: var(--blue); }
-  .cell.c-violet { border-top-color: var(--violet); }
-  .cell h3 { font-size: 16.5px; margin-bottom: 8px; }
-  .cell p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-  .cell .mono-label {
-    font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--green);
-    display: inline-block; margin-bottom: 12px;
-    background: var(--green-dim); border: 1px solid rgba(76,196,110,.3); border-radius: 6px; padding: 3px 8px;
-  }
-  .cell.c-blue .mono-label { color: var(--blue); background: var(--blue-dim); border-color: rgba(122,162,247,.3); }
-  .cell.c-violet .mono-label { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,.3); }
-
-  /* Three columns of stack names cannot fit a phone, and squeezing them would
-     hyphenate "golangci-lint" into nonsense. The table keeps its real width and
-     scrolls sideways inside this box instead of dragging the page with it.
-     tabindex makes that scroll reachable from a keyboard. */
-  .table-scroll { margin-top: 34px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 12px; }
-  /* Once it scrolls, squeezing it buys nothing — at 334px the stack column wrapped
-     six lines deep and read worse than a sideways scroll. Give it a legible floor
-     and let the box scroll; on desktop width:100% wins and this never applies. */
-  .table-scroll > table { margin-top: 0; min-width: 520px; }
-  table { margin-top: 34px; border-collapse: separate; border-spacing: 0; width: 100%; font-size: 14.5px; background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-card); }
-  th, td { text-align: left; padding: 13px 18px; }
-  thead tr { background: rgba(0,0,0,.28); }
-  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; border-bottom: 1px solid var(--edge-soft); }
-  tbody tr + tr td { border-top: 1px solid var(--edge-soft); }
-  .badge {
-    font-family: var(--mono); font-size: 12px; font-weight: 700;
-    border-radius: 999px; padding: 4px 12px; white-space: nowrap;
-  }
-  .badge.tested { color: var(--green); background: var(--green-dim); border: 1px solid rgba(76,196,110,.35); }
-  .badge.exp { color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--edge); }
-  .table-note { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
-
-  .qs {
-    margin-top: 36px;
-    background: #0A0C10; border: 1px solid var(--edge); border-radius: 12px;
-    padding: 20px 22px;
-    font-family: var(--mono); font-size: 13px; line-height: 2;
-    color: #C9CDD4;
-    overflow-x: auto;
-    white-space: pre;
-    box-shadow: var(--shadow-card);
-  }
-  .qs .dim { color: var(--faint); }
-  .qs .prompt { color: var(--blue); }
-
-  /* ── Final CTA ──────────────────────────────────────── */
-  /* Consent bar. Hidden until JS decides it is needed, so a visitor who has
-     already chosen never sees it flash. */
-  .consent {
-    display: none;
-    position: fixed; inset: auto 0 0 0; z-index: 20;
-    background: rgba(14,17,23,.97);
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    border-top: 1px solid var(--edge);
-  }
-  .consent.show { display: block; }
-  .consent .wrap {
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-    padding-top: 14px; padding-bottom: 14px;
-  }
-  .consent p { color: var(--muted); font-size: 14px; margin: 0; flex: 1 1 320px; }
-  .consent .btns { display: flex; gap: 8px; }
-  .consent button {
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
-    padding: 8px 15px; border-radius: 8px; cursor: pointer;
-    border: 1px solid var(--edge); background: var(--surface); color: var(--fg);
-  }
-  .consent button:hover { border-color: var(--faint); }
-  .consent button.allow { background: var(--green-dim); border-color: rgba(76,196,110,.4); color: var(--green); }
-  .consent button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-
-  .cta-final {
-    margin-top: 84px; padding: 76px 0 84px;
-    position: relative; overflow: hidden;
-    border-top: 1px solid var(--edge-soft);
-    text-align: center;
-  }
-  .cta-final::before {
-    content: ""; position: absolute; inset: 0; z-index: -1;
-    background:
-      radial-gradient(680px 320px at 15% 0%, rgba(76,196,110,.16), transparent 65%),
-      radial-gradient(680px 320px at 85% 100%, rgba(167,139,250,.16), transparent 65%);
-  }
-  .cta-final h2 { font-size: clamp(26px, 4vw, 38px); }
-  .cta-final p { color: var(--muted); margin-top: 12px; }
-  .cta-final .cta-row { margin-top: 28px; justify-content: center; }
-
-  /* ── Footer ─────────────────────────────────────────── */
-  footer { border-top: 1px solid var(--edge-soft); padding: 30px 0 48px; font-size: 13.5px; color: var(--faint); background: var(--bg2); }
-  footer .wrap { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-  footer .fdomain { font-family: var(--mono); font-weight: 700; color: var(--fg); }
-  footer .fdomain .sh { color: var(--green); }
-  footer a { color: var(--muted); }
-</style>
+<link rel="stylesheet" href="site-assets/site.css">
 </head>
 <body>
 
+<a class="skip" href="#main-content">Skip to content</a>
 <header>
-  <div class="wrap">
-    <a class="domain" href="#">softwareaifactory<span class="sh">.sh</span></a>
-    <nav>
-      <a href="#features">Features</a>
-      <a href="#why">Why</a>
-      <a href="#differs">How it differs</a>
-      <a href="#inside">Inside</a>
+  <div class="wrap masthead">
+    <a class="domain" href="#" aria-label="Software AI Factory home"><img src="favicon.svg" alt="" width="28" height="28"> Software AI Factory</a>
+    <nav aria-label="Main navigation">
+      <a href="#runtime">How it works</a>
+      <a href="#features">Agent runs</a>
+      <a href="#why">Evidence</a>
       <a href="#install">Install</a>
-      <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md">CLI</a>
-      <a href="https://github.com/anoop2811/software-factory-template/tree/main/docs">Docs</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md">CLI docs</a>
       <a class="nav-gh" href="https://github.com/anoop2811/software-factory-template">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
         GitHub
@@ -581,405 +103,204 @@
   </div>
 </header>
 
-<main>
+<main id="main-content">
   <section class="hero">
-    <div class="wrap">
-      <div class="pills">
-        <span class="pill green">Executable checks</span>
-        <span class="pill blue">MIT licensed</span>
-        <span class="pill violet">break/fix proven</span>
-        <span class="pill amber">Codex · Claude Code · OpenCode</span>
-      </div>
-      <h1>Your AI agents follow rules.<br>Ours <span class="pass-word">exit&nbsp;non-zero</span> if they don't.</h1>
-      <p class="lede"><strong>Software AI Factory</strong> is an open-source software factory for Codex, Claude Code and OpenCode, with enforceable checks and independent agent review.</p>
-      <p class="sub">Gates that block instead of ask. Roles that can't grade their own work. A commit lint that bans the word "verified" unless a command and its output back it up. We pulled this out of the factory we build our own product with — it's what stuck after an agent told us a change was verified when the check had never run.</p>
-      <p class="lede"><a href="#features">Budget controls, run observability, and bounded repair loops</a> &mdash; choose how much work your agents can take on.</p>
-      <div class="whofor">
-        <span class="tag">For a <b>solo dev</b> driving one coding agent</span>
-        <span class="tag">or a <b>team</b> whose agents open PRs</span>
-        <span class="tag">on <b>opencode</b>, <b>Claude Code</b>, or <b>Codex</b></span>
-      </div>
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+      <div class="pills"><a class="pill green" href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">v0.2.0 <span>Stable release</span></a></div>
+      <h1>Your repo, ready for <em>coding agents.</em></h1>
+      <p class="sub">A new repo can mean wiring up tests, CI and instructions for each coding agent by hand. Software AI Factory bootstraps that setup in a new or existing project. Codex, Claude Code and OpenCode share the project’s roles and checks, and you choose when to spend tokens on review or repair.</p>
       <div class="cta-row">
-        <a class="btn primary" href="https://github.com/anoop2811/software-factory-template">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-          View on GitHub
-        </a>
-        <a class="btn" href="https://github.com/anoop2811/software-factory-template/fork">
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>
-          Fork the template
-        </a>
+        <a class="btn primary" href="#install">Install or upgrade <span aria-hidden="true">↗</span></a>
+        <a class="btn" href="#runtime">See what gets installed <span aria-hidden="true">↓</span></a>
       </div>
-
-      <div class="term" aria-label="Terminal demonstration: a gate blocking an agent, then the self-test suite">
-        <div class="term-bar">
-          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="term-title">watch a gate fire</span>
-          <span class="right">bash</span>
+      </div>
+      <figure class="hero-art" aria-labelledby="matrix-title">
+        <div class="matrix">
+          <div class="matrix-title"><strong id="matrix-title">Release qualification</strong><a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Run evidence ↗</a></div>
+          <div class="matrix-stage" aria-hidden="true">
+            <div class="tile-grid">
+              <div class="tile-row linux-amd"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row linux-arm"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row mac-amd"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="tile-row mac-arm"><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+          <fieldset class="matrix-picker">
+            <legend>Each tile is one passing scenario. Select a platform.</legend>
+            <label><input type="radio" name="target" value="linux-amd" checked><span>Linux · amd64</span></label>
+            <label><input type="radio" name="target" value="linux-arm"><span>Linux · arm64</span></label>
+            <label><input type="radio" name="target" value="mac-amd"><span>macOS · Intel</span></label>
+            <label><input type="radio" name="target" value="mac-arm"><span>macOS · arm64</span></label>
+          </fieldset>
+          <div class="matrix-reading">
+            <span class="linux-amd">Ubuntu 24.04.5 LTS · amd64</span>
+            <span class="linux-arm">Ubuntu 24.04.5 LTS · arm64</span>
+            <span class="mac-amd">macOS 15.7.9 · amd64</span>
+            <span class="mac-arm">macOS 15.8.2 · arm64</span>
+            <strong>5/5 scenarios passed</strong>
+          </div>
         </div>
-        <div class="term-body" id="term"><span class="cursor"></span></div>
+        <figcaption class="term">
+          <span class="term-title">Captured v0.2.0 output · macOS arm64</span>
+          <pre class="term-body"><span>$ ./factory selftest</span>
+selftest: 14 shipped gates proved, 0 failed</pre>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="runtime" aria-labelledby="runtime-heading">
+    <div class="wrap">
+      <h2 id="runtime-heading">What you get <em>in your repo.</em></h2>
+      <p class="lede">A Go service and a TypeScript frontend need different tools. They can still share one project configuration, one set of agent roles and one command to run the checks.</p>
+      <div class="grid3">
+        <article class="cell c-blue" id="inside">
+          <h3>Bootstrap the project</h3>
+          <p>Run the initializer and choose Go, TypeScript, Java, a combination, or the core factory alone. It writes <code>factory.yaml</code>, installs the selected pack files and generates a GitHub Actions workflow for authenticated release installs. You supply the application and its tests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md">Set up a project</a>.</p>
+        </article>
+        <article class="cell c-violet">
+          <h3>Switch coding agents</h3>
+          <p>Move from writing a spec in Claude Code to implementing it in Codex or reviewing it in OpenCode. The factory ships five role definitions and generates each harness’s configuration from the same source. After changing roles or model settings, run <code>./factory sync all</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/MODELS.md">Configure roles and models</a>.</p>
+        </article>
+        <article class="cell" id="differs">
+          <h3>Catch a mistake before merge</h3>
+          <p>Configure <code>./factory check</code> to run your project’s checks. For example, the edit hook can block an implementer from changing a matching test file. The generated CI also checks harness wiring and runs a mock evaluation on pull requests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md">See which checks run where</a>.</p>
+        </article>
+        <article class="cell">
+          <h3>Find out what actually ran</h3>
+          <p>Use <code>./factory doctor</code> to find an inactive gate or a missing adapter. Use <code>./factory metrics --json</code> to inspect local block and rework signals. When an enabled agent run reports usage, <code>./factory budget report</code> shows it. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/METRICS.md">Read your project metrics</a>.</p>
+        </article>
+        <article class="cell c-blue">
+          <h3>Review a change in context</h3>
+          <p>Use the spec template and role-based review recipe to take one behavior from requirement to reviewed PR. Enable advisory review to ask a configured model to inspect same-repository PRs targeting the default branch. These reviews can use paid tokens. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/REVIEW_LANE.md">Set up PR review</a>.</p>
+        </article>
+        <article class="cell c-violet">
+          <h3>Upgrade an existing factory</h3>
+          <p>Preview which files will change before moving a supported v0.1.6 installation to Go. The installer identifies conflicts, requires confirmation and keeps a local recovery backup. Your team can carry on using <code>./factory</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">Walk through an upgrade</a>.</p>
+        </article>
       </div>
-      <p class="term-note">Illustrative terminal excerpt. Run ./factory selftest for the current gate proofs and results.</p>
     </div>
   </section>
 
   <!-- Feature scope: docs/adr/0053-advertise-budget-and-loop-features.md:5. -->
   <section id="features" class="band" aria-labelledby="features-heading">
     <div class="wrap">
-      <span class="eyebrow green">$ budgeting &middot; observability &middot; loop engineering</span>
-      <h2 id="features-heading">Give your agents limits. See where the work goes.</h2>
-      <p class="lede">Choose a local preview, a single budgeted invocation, or a bounded repair loop. The shared controls support Codex, Claude Code, and OpenCode through their native CLIs. Model execution is opt-in; your existing permissions and factory gates still apply.</p>
-      <p class="table-note"><strong>Available on main.</strong> These additions are not included in the current v0.1.6 release. Use the <a href="#install">install or upgrade instructions with <code>--ref main</code></a> to try them.</p>
+
+      <h2 id="features-heading">Set limits <em>before</em> an agent runs.</h2>
+      <p class="lede">Start with a local plan. To launch an agent through <code>factory budget run</code>, enable the budget and use your configured harness CLI and credentials.</p>
       <div class="grid3">
         <div class="cell">
           <span class="mono-label">factory budget</span>
-          <h3>Budgeting: set limits before launch</h3>
-          <p>Limit task attempts, session runs, execution time, and concurrent factory invocations. Preview the plan locally before enabling a run. Optional estimated-cost thresholds can warn or stop further launches; they are not a guaranteed dollar cap. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md">Choose your budget controls &rarr;</a></p>
+          <h3>Limit attempts and runtime</h3>
+          <p>Limit task attempts, session runs, execution time, and concurrent factory invocations. Preview the plan locally before enabling a run. An optional threshold uses estimated cost to warn or stop later launches. A single invocation can exceed that estimate. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md">Choose your budget controls &rarr;</a></p>
         </div>
         <div class="cell c-blue">
           <span class="mono-label">factory budget report</span>
-          <h3>Observability: inspect each attempt</h3>
-          <p>See the harness, role, requested model, duration, outcome, reported tokens, and available cost estimates. Missing usage stays unknown. The local, gitignored ledger stores metadata without prompts or responses; export reports as JSON. Native harness history follows its own settings. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md#execution-and-storage">Explore run reporting &rarr;</a></p>
+          <h3>Inspect each attempt</h3>
+          <p>The local ledger records the harness, role, duration and outcome of factory-managed attempts. Reports show token usage or cost estimates when available and mark missing values as unknown. The ledger omits prompt and response bodies. Your harness controls its own history. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BUDGETS.md#execution-and-storage">Explore run reporting &rarr;</a></p>
         </div>
         <div class="cell c-violet">
           <span class="mono-label">factory loop</span>
-          <h3>Loop engineering: repair within bounds</h3>
-          <p>Manual mode runs your configured check without calling a model. Explicit bounded mode coordinates implementation, checks, separate review, and repair through the same budget. It stops on exhausted limits or stalled progress and leaves evidence and a next action for handoff. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
+          <h3>Choose when to retry</h3>
+          <p>In manual mode the factory runs your configured check once. The factory itself makes no model call in this mode. In bounded mode, the factory runs the implementer, checks the changes and calls a separate reviewer after checks pass. Repair attempts share the budget and stop at the configured limits. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md">Configure a bounded loop &rarr;</a></p>
         </div>
         <!-- Delivery practice: docs/adr/0114-incremental-go-cutover-delivery.md:15. -->
-        <div class="cell c-blue span3">
-          <span class="mono-label">bounded delivery</span>
-          <h3>One complete function per pull request</h3>
-          <p>Give human and AI reviewers one coherent change: the behavior, independent tests, compatibility work, required cleanup and docs together. Work on independent functions in parallel; merge dependent changes in order after review and checks. Use the same practice with Codex, Claude Code or OpenCode. Scope is a planning discipline; configured review budgets bound model requests. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BOUNDED_DELIVERY.md">Plan reviewable changes &rarr;</a></p>
+        <div class="delivery">
+
+          <h3>Keep a pull request reviewable</h3>
+          <p>The project recommends shipping one change in behavior with its tests, compatibility work and documentation. For model-assisted PR review, the optional review lane can split a diff into batches with request and token limits. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/BOUNDED_DELIVERY.md">Plan reviewable changes &rarr;</a></p>
         </div>
       </div>
-      <div class="qs" aria-label="Local feature previews without model calls"><span class="dim"># inspect limits; new runs are disabled until you opt in</span>
+      <details class="examples"><summary>Try the local plan and report commands</summary>
+      <pre class="qs" tabindex="0" aria-label="Local feature preview commands"><span class="dim"># shows a blocker (exit 2) while budget_enabled is false</span>
 <span class="prompt">$</span> ./factory budget plan --harness codex --session demo --task first
 
 <span class="dim"># inspect local run history</span>
 <span class="prompt">$</span> ./factory budget report --session demo --json
 
-<span class="dim"># preview the default manual loop; no checks or model calls</span>
-<span class="prompt">$</span> ./factory loop plan --harness codex --session demo --task first</div>
-      <p class="table-note">Use <code>--harness claude</code> or <code>--harness opencode</code> with the same commands. Budget limits cover factory-managed launches, not unrelated interactive sessions or individual model turns inside a harness. Bounded loops require both <code>loop_enabled</code> and <code>budget_enabled</code>; <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md#usage-and-cost-choices">allow for reviewer calls in the budget</a>.</p>
+<span class="dim"># in a committed Git project with a configured check command</span>
+<span class="prompt">$</span> ./factory loop plan --harness codex --session demo --task first</pre></details>
+      <p class="table-note">For either plan, select <code>codex</code>, <code>claude</code> or <code>opencode</code>. One budgeted attempt is one factory-managed CLI launch. Bounded loops require <code>loop_enabled</code> and <code>budget_enabled</code>. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/LOOPS.md#usage-and-cost-choices">Allow for reviewer calls in the budget</a>.</p>
     </div>
   </section>
 
-  <!-- Runtime documentation: docs/DECISION_LOG.md:4607. -->
-  <section id="runtime" class="band" aria-labelledby="runtime-heading">
+  <section id="why" class="band" aria-labelledby="qualification-heading">
     <div class="wrap">
-      <span class="eyebrow blue">$ one factory CLI</span>
-      <h2 id="runtime-heading">Setup, checks and controlled agent work. One entrypoint.</h2>
-      <p class="lede">The Go implementation on main covers initialization, health checks, reporting, metrics, budgets, loops, harness synchronization, evaluation and adversarial review. Keep using <code>./factory</code>; select the work you need.</p>
-      <p class="table-note"><strong>Release status:</strong> v0.1.6 is the latest published stable release. v0.2.0 is the planned Go replacement and is not published yet. The published <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3">v0.2.0-rc.3</a> passed all 20 native published installation and migration scenarios. The default installer still selects scripts while minimum-OS evidence, pilot acceptance and default cutover remain open. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/migration/GO_RELEASE_READINESS.md">Release checklist &rarr;</a></p>
-      <div class="grid3">
-        <div class="cell c-blue">
-          <span class="mono-label">factory doctor &middot; check &middot; metrics</span>
-          <h3>Know what is armed</h3>
-          <p>Inspect gate health, run configured checks and read local activity metrics. The <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md">command reference</a> explains every command, its effects and its runtime availability.</p>
-        </div>
-        <div class="cell c-violet">
-          <span class="mono-label">factory sync &middot; eval &middot; review-batch</span>
-          <h3>Coordinate your tools</h3>
-          <p>Regenerate harness adapters, evaluate wiring or tasks, and review complete diffs in bounded batches. Model execution is explicit; offline review plans make no provider requests.</p>
-        </div>
-        <div class="cell">
-          <span class="mono-label">factory upgrade</span>
-          <h3>Plan the move from v0.1.6</h3>
-          <p>The implemented Go candidate flow authenticates a published release, previews changes and requires digest-bound confirmation. Customizations stay preserved; recovery copies are inert and Git-ignored, with qualified older sets pruned on later releases. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">Upgrade and recovery guide &rarr;</a></p>
-        </div>
-      </div>
-      <p class="table-note">A packaged Go installation needs no Go compiler or Python for converted factory behavior. Product toolchains, native harnesses and retained validation gates keep their own prerequisites. Model calls and their budgets remain choices you make.</p>
-    </div>
-  </section>
-
-  <section id="graph" class="band">
-    <div class="wrap">
-      <span class="eyebrow violet">$ prompt &middot; loop &middot; harness &middot; graph</span>
-      <h2>Everyone's drawing the graph. You're already standing on it.</h2>
-      <p class="lede">The words everyone's chasing are a ladder. A <strong>prompt</strong> is a sentence. A <strong>loop</strong> is a cycle. A <strong>harness</strong> is the floor the agent stands on. A <strong>graph</strong> is the shape of the work &mdash; nodes that think, edges that carry results. A factory is the floor <em>and</em> the graph. Not the influencer version &mdash; the one you can run and enforce.</p>
-
-      <table aria-label="Graph-engineering concepts mapped to the factory">
-        <thead><tr><th>Graph concept</th><th>What it already is here</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Node</strong> &mdash; a bounded job, one in, one out</td><td>A <strong>role</strong> &mdash; spec-writer, implementer, reviewer &mdash; defined once, generated for every harness</td></tr>
-          <tr><td><strong>Edge</strong> &mdash; a verified hand-off, not just "and then"</td><td>A <strong>gate</strong> &mdash; the hook that checks what crosses, and exits non-zero if it's wrong</td></tr>
-          <tr><td><strong>Verifier</strong> &mdash; a skeptic before a finding counts</td><td>The <strong>reviewer</strong> &mdash; adversarial, and never the same model that wrote the code</td></tr>
-          <tr><td><strong>Tier the models per node</strong></td><td>The <strong>economy cost profile</strong> &mdash; cheap model for mechanical roles, frontier for judgment</td></tr>
-        </tbody>
-      </table>
-      <p class="table-note">You don't become a "graph architect." The graph is the floor: roles are the nodes, gates are the edges, the reviewer is the skeptic, models tier by role. And because the roles are canonical &mdash; opencode is the source, Claude Code and Codex are generated &mdash; the same graph runs on all three. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md">Why it maps this way &rarr;</a></p>
-    </div>
-  </section>
-
-  <section id="why">
-    <div class="wrap">
-      <span class="eyebrow amber">$ [1/4] why this exists</span>
-      <h2>Prose rules decay. Exit codes don't.</h2>
-      <p class="lede">Across four review rounds of real agent-written code, one pattern held:</p>
-
+      <h2 id="qualification-heading">What passed for <em>v0.2.0</em></h2>
       <div class="stats">
-        <div class="stat">
-          <div class="n">4</div>
-          <p>consecutive review rounds before the pattern was undeniable</p>
-        </div>
-        <div class="stat">
-          <div class="n">100%</div>
-          <p>of false "verified" claims were checks that had never been run</p>
-        </div>
-        <div class="stat">
-          <div class="n">0</div>
-          <p>checks that actually ran and lied</p>
-        </div>
+        <div class="stat"><div class="n">4</div><p>Native release targets. Ubuntu 24.04 and macOS 15, each on amd64 and arm64.</p></div>
+        <div class="stat"><div class="n">20/20</div><p>Published release checks passed. Each target exercised fresh setup, upgrades from v0.1.6 and an earlier Bash baseline, rollback, and recovery after interruption.</p></div>
+        <div class="stat"><div class="n">14</div><p>Core gate proofs passed in the installed self-test. Each gate rejected a deliberately broken fixture and accepted its healthy control.</p></div>
       </div>
-
-      <div class="askblock">
-        <div class="codecard ask">
-          <div class="cc-head">a rule that asks</div>
-          <pre><span class="c-dim"># INSTRUCTIONS.md</span>
-- never edit test files
-- always verify before claiming done
-
-<span class="c-amber">compliance: whatever the model
-remembers today</span></pre>
-        </div>
-        <div class="codecard block">
-          <div class="cc-head">a rule that blocks</div>
-          <pre><span class="c-dim">$</span> ./scripts/hooks/test-edit-denial.sh
-<span class="c-red">DENIED: implementer role cannot
-edit test files.</span>
-<span class="c-dim">exit code:</span> <span class="c-red">2</span>
-
-<span class="c-green">compliance: not optional</span></pre>
-        </div>
+      <p class="table-note">The release workflow attested three assets per target: the bootstrap executable, installation image and runtime archive. That makes 12 platform assets. <a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Release run</a> · <a href="https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz">Download the per-target evidence</a>.</p>
+      <div class="callout green">
+        <h3>A migration with application code in place</h3>
+        <p>On macOS arm64, we upgraded a disposable copy of a supported v0.1.6 installation. All 103 application files kept their contents and modes. The installed factory caught a new failing feature test, passed after the implementation, and passed again after we reverted the exercise. We also exercised recovery and restored the Bash installation. <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">Pilot scope and release notes</a>.</p>
       </div>
-      <p class="credit">The underlying idea — computational controls beat inferential ones — comes from Birgitte Böckeler at Thoughtworks. We kept applying it until nothing important was left as prose. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md">Read the full Verification Contract →</a></p>
-
-      <div class="pipeline" aria-label="Break fix proof pipeline">
-        <span class="chip break">break</span><span class="arrow">→</span>
-        <span class="chip fail">FAIL</span><span class="arrow">→</span>
-        <span class="chip revert">revert</span><span class="arrow">→</span>
-        <span class="chip pass">PASS</span>
-        <p>A check you've only seen passing proves nothing. Every gate ships with this proof in CI — and the installer runs it on your machine before it will say "done."</p>
-      </div>
-
-      <p class="aside-note">To be clear: this is how we build, not how you should. There are other serious takes on agent reliability worth your time. This is just the one we can vouch for, since we live in it daily.</p>
-    </div>
-  </section>
-
-  <section id="differs" class="band">
-    <div class="wrap">
-      <span class="eyebrow green">$ [2/4] how this approach differs</span>
-      <h2>Six places we chose differently.</h2>
-      <p class="lede">The left column is the common default across today's agent tooling — instruction files, trusted-because-green checks, one session doing everything. It exists for good reasons. The right is what survived our failures.</p>
-      <div class="diff-list">
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>Rules live in prompts. Compliance is inference.</span></div>
-          <div class="us"><span class="mark">$</span><span>Rules are hooks in the write path. <code>exit 2</code> is a fact.</span></div>
-        </div>
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>Checks are trusted because they pass.</span></div>
-          <div class="us"><span class="mark">$</span><span>Every gate proven <strong>break → FAIL → revert → PASS</strong>, in CI.</span></div>
-        </div>
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>"Verified" means the agent said so.</span></div>
-          <div class="us"><span class="mark">$</span><span><code>WROTE</code> / <code>RAN</code> / <code>OBSERVED</code> — no evidence, no "verified." The commit lint enforces it.</span></div>
-        </div>
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>One session writes the code, the tests, and the approval.</span></div>
-          <div class="us"><span class="mark">$</span><span>Spec-writer writes tests. The implementer can't touch them. The reviewer is a different model.</span></div>
-        </div>
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>One platform. The workflow is the lock-in.</span></div>
-          <div class="us"><span class="mark">$</span><span>One canon generates adapters for opencode, Claude Code, and Codex. Models are swappable.</span></div>
-        </div>
-        <div class="diff-row">
-          <div class="them"><span class="mark">·</span><span>"Self-improving" agents grade their own improvements.</span></div>
-          <div class="us"><span class="mark">$</span><span>The ratchet: tightens automatically, loosens only by recorded human decision.</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="inside">
-    <div class="wrap">
-      <span class="eyebrow violet">$ [3/4] what's inside</span>
-      <h2>Small, inspectable, and honest about its own maturity.</h2>
-      <div class="grid3">
-        <div class="cell">
-          <span class="mono-label">scripts/hooks/</span>
-          <h3>Deterministic gates</h3>
-          <p>Test-edit denial, evidence-checking commit lint, decision gate, drift checks — all configured by one flat <span style="font-family:var(--mono)">factory.yaml</span>. Shared gates read your project configuration; the Go migration classifies replacements and preserves custom files. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md">Hook reference →</a></p>
-        </div>
-        <div class="cell c-blue">
-          <span class="mono-label">.opencode/ · .claude/ · .codex/</span>
-          <h3>Five agent roles</h3>
-          <p>Defined once, generated per harness, separated by permissions the hooks enforce — not by politeness. One keeps a cited wiki of your codebase — Karpathy's LLM-wiki pattern, with the provenance enforced rather than hoped for.</p>
-        </div>
-        <div class="cell c-violet">
-          <span class="mono-label">scripts/selftest/</span>
-          <h3>Break/fix proofs</h3>
-          <p>The suite violates each rule on purpose and asserts the gate fires. <span style="font-family:var(--mono)">factory-init</span> won't claim success until it passes on your repo.</p>
-        </div>
-        <div class="cell c-violet">
-          <span class="mono-label">eval/</span>
-          <h3>Agent evals that expire</h3>
-          <p>Score agents on real tasks: a task is a red spec plus an oracle, and the pass rate is measured over N runs &mdash; a run only counts if the oracle passes untampered. Each baseline records what it was measured against, so when the oracle or instructions change it reports <em>stale</em>, not a false &ldquo;no regression.&rdquo; <a href="https://github.com/anoop2811/software-factory-template/blob/main/eval/README.md">Eval reference &rarr;</a></p>
-        </div>
-        <div class="cell">
-          <span class="mono-label">workflows/</span>
-          <h3>The graph, in plain text</h3>
-          <p>A recipe is a graph you can read: nodes are roles, edges are code, findings pass a verifier before they count. <span style="font-family:var(--mono)">workflow-lint</span> enforces that shape &mdash; no agent spawned for plumbing an edge could do. One recipe, run natively by all three harnesses. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/WORKFLOWS.md">Workflows &rarr;</a></p>
-        </div>
-        <div class="cell c-blue">
-          <span class="mono-label">factory report</span>
-          <h3>Cost, without the vanity number</h3>
-          <p>What the gates caught, enforced at zero model tokens, plus one clearly-labeled estimate. It refuses to print &ldquo;tokens saved&rdquo; &mdash; that compares this run to one that never happened. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/COST_AND_TOKENS.md">Cost &amp; models &rarr;</a></p>
-        </div>
-        <div class="cell c-blue span3">
-          <span class="mono-label">factory metrics</span>
-          <h3>The numbers that don&rsquo;t flatter you</h3>
-          <p>Whether the factory is real or installed theatre &mdash; gates armed versus inert, what they blocked, how often you route around the same one, how much work got reworked or reverted, and whether your commits cite evidence for what they claim. Most of it is read from git history, so it says something the day you install rather than after months of collecting events.</p>
-          <div class="sample"><span class="dim">Enforcement  is the factory real, or installed theatre?</span>
-  gates installed                    12
-  config-armed gates                 8 armed, <span class="warn">4 inert</span>
-  blocks caught                      31 in window
-    commit-message-lint              22
-    test-edit-denial                  9
-  <span class="warn">same gate 3+ times in an hour       4 hour(s)</span> <span class="dim">&mdash; friction</span>
-
-<span class="dim">Loop health  is work converging, or circling?</span>
-  reworked                           <span class="warn">58 of 117 files</span> <span class="dim">&mdash; changed in more than one commit</span></div>
-          <p style="margin-top:14px">Every metric names the decision it informs; a number nobody acts on is noise wearing a lab coat. The uncomfortable ones are first-class &mdash; inert gates, repeat blocks, rework, stale baselines &mdash; for the same reason there is no &ldquo;tokens saved&rdquo; headline. And a gate that could block without recording it is reported too, because otherwise a silent gate reads as a quiet one.</p>
-          <p style="margin-top:10px"><strong>Local only.</strong> The numbers are computed on your machine, from your repository, for you. Nothing is transmitted &mdash; no exporters to configure, no server, no daemon, no account. <span style="font-family:var(--mono)">--json</span> exports a versioned document if you want it somewhere else; <span style="font-family:var(--mono)">--html</span> writes a self-contained page that fetches nothing when you open it. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/METRICS.md">Metrics reference &rarr;</a></p>
-        </div>
-      </div>
-
-      <div class="table-scroll" tabindex="0" role="region" aria-label="Language pack maturity, scrollable">
-      <table aria-label="Language pack maturity">
-        <thead><tr><th>Language pack</th><th>Blessed stack</th><th>Maturity</th></tr></thead>
-        <tbody>
-          <tr><td>Go</td><td>Ginkgo + Gomega · golangci-lint · gosec · govulncheck · gremlins</td><td><span class="badge tested">battle-tested</span></td></tr>
-          <tr><td>TypeScript / React / Vue</td><td>Vitest · Biome (React/Vue-aware) · tsc · Stryker · OSV-Scanner</td><td><span class="badge exp">experimental</span></td></tr>
-          <tr><td>Java / Spring Boot</td><td>JUnit 5 + AssertJ + Testcontainers · Spotless · Error Prone · SpotBugs · OSV-Scanner · PIT</td><td><span class="badge exp">beta</span></td></tr>
-        </tbody>
-      </table>
-      </div>
-      <p class="table-note"><em>battle-tested</em> = a production service shipped under it. <em>beta</em> = at least one real adopter. <em>experimental</em> = no proven adopter yet. Labels change on real adoption — not before. <strong>The core — commit gates, push gates, role separation, the verification contract — is language-agnostic and works with no pack at all.</strong> A pack only arms the test-file pattern and check command for your language, so Python, Rust, or Ruby projects get everything except those two.</p>
-      <p class="table-note"><strong>Frameworks ride on the language pack.</strong> React and Vue use the TypeScript pack — Biome auto-applies their rules from your <span class="mono" style="font-family:var(--mono)">package.json</span> — and Spring Boot uses the Java pack (JUnit 5 + Testcontainers). <span class="mono" style="font-family:var(--mono)">factory-init</span> detects them. Polyglot? Install several at once: <span class="mono" style="font-family:var(--mono)">--pack go,typescript</span>.</p>
-      <p class="table-note"><strong>Each role runs on a cost-appropriate model.</strong> Reviewer and spec-writer get a frontier model; refactorer, wiki-maintainer, and background tasks get a cheaper one — routed per harness, so opencode, Claude, and Codex each use their own native model tiers. It's opt-in, and it relaxes no gate: the same hooks check the output whichever model wrote it, which is what lets a cheaper model run safely. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/COST_AND_TOKENS.md">Cost &amp; models →</a></p>
-
-      <p class="lede" style="margin-top:28px">Configuration is one flat file — no nesting, no schema to learn:</p>
-      <div class="yaml"><span class="c"># factory.yaml</span>
-<span class="k">project_name:</span> <span class="v">myproject</span>
-<span class="k">protected_paths:</span> <span class="v">"internal/billing scripts/hooks"</span>
-<span class="k">test_file_patterns:</span> <span class="v">"_test\.go$"</span>
-<span class="k">check_command:</span> <span class="v">"make check"</span></div>
     </div>
   </section>
 
   <section id="install">
     <div class="wrap">
-      <span class="eyebrow blue">$ [4/4] install</span>
-      <h2>One command in. Proof before "done."</h2>
-      <p class="lede">Bare, the installer only fetches — a pinned copy into one folder, running nothing it downloaded. Add <span style="font-family:var(--mono)">init</span> and it also sets up the current repo. The word is your consent; the plain command never touches your project.</p>
-      <p class="table-note" style="margin-top:10px">Needs <code>git</code>, a coding harness (opencode, Claude Code, or Codex), and your language's tools. <span style="font-family:var(--mono)">factory-init</span> runs <span style="font-family:var(--mono)">prereq-check</span> first and tells you what's missing.</p>
-      <div class="qs" aria-label="Install commands"><span class="dim"># one shot: fetch, then set up the current repo (prompts you for a few values)</span>
-<span class="prompt">$</span> cd your-project
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init
-
-<span class="dim"># arm a language pack in the same step (go is battle-tested):</span>
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go
-
-<span class="dim"># polyglot? pass several — a Go backend with a TS frontend:</span>
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typescript
-
-<span class="dim"># the installer uses its pinned stable release; --ref takes any branch or tag:</span>
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
-
-<span class="dim"># or fetch only, run the setup yourself later:</span>
-<span class="prompt">$</span> curl -fsSL https://softwareaifactory.sh/install.sh | sh
-<span class="prompt">$</span> ~/.software-factory-template/scripts/factory-init.sh
-
-<span class="dim"># rather read before you run? so would we:</span>
-<span class="prompt">$</span> curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh</div>
-      <div class="stats" style="margin-top:16px;">
-        <div class="stat"><div class="n" style="color:var(--blue)">1</div><p>installer fetches a pinned copy — and executes none of it</p></div>
-        <div class="stat"><div class="n" style="color:var(--amber)">2</div><p>factory-init asks a few questions, writes factory.yaml, installs the gates</p></div>
-        <div class="stat"><div class="n" style="color:var(--green)">3</div><p>init breaks a rule on purpose, watches the gate fire, and only then says "done"</p></div>
-      </div>
-
-      <div class="two-col">
-        <div class="callout green">
-          <h3>After it says "done"</h3>
-          <ol>
-            <li><span class="mono">make sync-harnesses</span> — generate the Claude &amp; Codex adapters from the canon</li>
-            <li><span class="mono">./factory doctor</span> — see which gates are armed, inert, or stale, and watch each armed one fire its break/fix proof</li>
-            <li><span class="mono">./factory report</span> — what the gates caught, enforced at 0 model tokens, plus one labeled cost estimate (never a vanity "tokens saved" number)</li>
-            <li>Open your harness (<span class="mono">opencode</span>, Claude Code, or Codex) — the roles are already wired</li>
-            <li>Point the spec-writer at a change; it writes red tests, the implementer makes them pass, a different-model reviewer checks it</li>
-            <li>Activate local push checks explicitly: follow the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md#full-pre-push-checks">full pre-push setup</a> and preserve existing hooks. The separate tracked <span class="mono">.githooks/pre-push</span> blocks direct updates to main only.</li>
-          </ol>
+      <h2>Install v0.2.0 <em>in your project.</em></h2>
+      <p class="lede">Run these commands from the project directory. The installer uses Git, Bash and an authenticated GitHub CLI. Check <code>gh auth status</code> first. The packaged Go CLI needs neither a Go compiler nor Python to initialize a new project. Project builds, retained hooks and coding harnesses have their own prerequisites.</p>
+      <div class="install-commands">
+        <div class="command"><h3>New project</h3>
+          <pre tabindex="0"><code id="cmd-init">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go</code></pre>
+          <button type="button" data-copy="cmd-init" aria-label="Copy the new project command" hidden>Copy</button>
         </div>
-        <div class="callout">
-          <h3>Or just watch it fire — <span class="mono">no install</span></h3>
-          <div class="yaml" style="margin-top:12px"><span class="c"># requires Go; builds the CLI and proves gates in private fixtures</span>
-<span class="k">$</span> <span class="v">git clone https://github.com/anoop2811/software-factory-template</span>
-<span class="k">$</span> <span class="v">cd software-factory-template &amp;&amp; ./scripts/selftest/run.sh</span>
-<span class="c"># fourteen core gates; no model calls</span></div>
+        <div class="command"><h3>Preview a v0.1.6 upgrade</h3>
+          <pre tabindex="0"><code id="cmd-preview">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json</code></pre>
+          <button type="button" data-copy="cmd-preview" aria-label="Copy the preview command" hidden>Copy</button>
         </div>
+        <div class="command"><h3>Confirm the reviewed upgrade</h3>
+          <p>Pause other factory work and replace <code>PROPOSAL_DIGEST</code> with the digest from your preview.</p>
+          <pre tabindex="0"><code id="cmd-confirm">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent</code></pre>
+          <button type="button" data-copy="cmd-confirm" aria-label="Copy the confirmation command" hidden>Copy</button>
+        </div>
+        <span id="copy-status" class="visually-hidden" role="status"></span>
       </div>
-
-      <div class="faq">
-        <details><summary>Does it work with my existing CI?</summary><p>The gates are plain shell scripts, so you can call them from any CI — or from the git pre-push hook, which needs no CI at all. One caveat: the ready-made workflow we ship is GitHub Actions. On GitLab CI, Jenkins, CircleCI, and the like, you invoke the same scripts from your own pipeline config — a handful of lines, but that part is yours to write.</p></details>
-        <details><summary>Can I take just the commit lint, without the role separation?</summary><p>Yes. Every gate is independent. Adopt them one at a time — the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md">adoption guide</a> covers going incremental in a brownfield repo.</p></details>
-        <details><summary>How do I upgrade from v0.1.6 to the Go factory?</summary><p>Follow the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">upgrade guide</a> once a complete authenticated Go release is published. Preview with <code>upgrade --go-candidate TAG --dry-run --json</code>, review the proposal, stop other factory work, then confirm its digest with <code>--quiescent</code>. The ordinary <code>--ref main</code> update retains script runtime selection. v0.2.0 is not published yet; the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/migration/GO_RELEASE_READINESS.md">release checklist</a> tracks the remaining gates.</p></details>
-        <details><summary>How do I keep the script installation up to date?</summary><p>From inside the project: <code>curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade</code>. The installer uses its pinned stable release, currently v0.1.6; add <code>--ref main</code> for current source. Direct <code>./factory upgrade</code> defaults to main. Both refresh known framework paths in this project and can replace custom edits at those paths, including shipped hooks. Save those edits first and review the resulting diff. Nothing is committed for you. Run <code>./factory doctor</code> afterward. The authenticated Go migration has its own preservation and recovery contract; see the <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">upgrade guide</a>.</p></details>
-        <details><summary>What if I don't use opencode?</summary><p>The canonical config lives in <span class="mono" style="font-family:var(--mono)">opencode.json</span>, but a sync script generates equivalent Claude Code and Codex configs. The enforcement layer is plain shell — it doesn't care which harness drives.</p></details>
-        <details><summary>What about React, Vue, or Spring Boot?</summary><p>Frameworks ride on the language pack — they don't get their own. React and Vue use the TypeScript pack, and Biome auto-applies its <span class="mono" style="font-family:var(--mono)">react</span>/<span class="mono" style="font-family:var(--mono)">vue</span> rules when it sees the framework in your <span class="mono" style="font-family:var(--mono)">package.json</span>. Spring Boot uses the Java pack — its JUnit 5 + Testcontainers stack is Spring Boot's own blessed testing. <span class="mono" style="font-family:var(--mono)">factory-init</span> detects each and points you at the right pack. A framework-specific rule beyond that is a small custom hook, not a new pack.</p></details>
-        <details><summary>My language isn't Go, TypeScript, or Java.</summary><p>The core works anyway. Commit gates, push gates, role separation, and the verification contract are language-agnostic. A pack only arms the test-file pattern and check command — set those two in <span class="mono" style="font-family:var(--mono)">factory.yaml</span> by hand and you have the full thing.</p></details>
-        <details><summary>Will it slow down my dev loop?</summary><p>The gates are the fast local rail — a hook that exits in milliseconds. They run where you'd otherwise wait on a human reviewer to notice the same mistake. That trade goes the other way.</p></details>
-      </div>
+      <p class="table-note">The preview reports file actions and blockers. Modified or unrecognized factory files can block automatic migration. A confirmed upgrade retains a Git-ignored local recovery backup. Existing v0.1.6 projects choose when to migrate. <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md">Upgrade and recovery guide</a>.</p>
 
       <div class="docs-strip">
-        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md"><span class="dt">CLI.md</span><span class="dd">Every command, effects and cost choices</span></a>
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md"><span class="dt">CLI.md</span><span class="dd">Commands, options and side effects</span></a>
         <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md"><span class="dt">UPGRADING.md</span><span class="dd">v0.1.6 to Go, backups and recovery</span></a>
-        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md"><span class="dt">CONCEPTS.md</span><span class="dd">The Verification Contract, in full</span></a>
-        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md"><span class="dt">HOOKS.md</span><span class="dd">Every gate: what it enforces, when it fires</span></a>
-        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/PATTERNS.md"><span class="dt">PATTERNS.md</span><span class="dd">Six real failures that shaped this</span></a>
-        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/ADAPTING.md"><span class="dt">ADAPTING.md</span><span class="dd">Brownfield &amp; incremental adoption</span></a>
+        <a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md"><span class="dt">HOOKS.md</span><span class="dd">How to configure hooks</span></a>
       </div>
     </div>
   </section>
 
-  <section class="cta-final">
-    <div class="wrap">
-      <h2>Clone it. Break a rule.<br>Watch the gate fire.</h2>
-      <p>The fastest way to evaluate this template is to try to violate it. That is also the point.</p>
-      <div class="cta-row">
-        <a class="btn primary" href="https://github.com/anoop2811/software-factory-template">View on GitHub</a>
-        <a class="btn" href="https://github.com/anoop2811/software-factory-template/fork">Fork the template</a>
+  <section id="roadmap" class="band" aria-labelledby="roadmap-heading">
+    <div id="graph" class="wrap">
+      <h2 id="roadmap-heading">What’s <em>next?</em></h2>
+      <p class="lede">Today v0.2.0 ships workflow recipes for review and evaluation. The following proposals are planned work beyond this release.</p>
+      <div class="grid3">
+        <div class="cell"><h3>Context and memory</h3><p>Task-specific context selection, searchable project memory and handoffs with source references.</p></div>
+        <div class="cell c-blue"><h3>Harness and graph engineering</h3><p>Capability probes, isolated execution and resumable workflows with explicit handoffs.</p></div>
+        <div class="cell c-violet"><h3>Repository retrieval and MCP</h3><p>Cited retrieval over code and specs, and a catalog of tools with configurable permissions and output limits.</p></div>
       </div>
+      <p class="table-note"><a href="https://github.com/anoop2811/software-factory-template/blob/main/docs/FEATURE_ROADMAP.md">See priorities and proposed cost controls on the roadmap</a>.</p>
     </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span><span class="fdomain">softwareaifactory<span class="sh">.sh</span></span> · MIT · one team's pattern, offered as-is</span>
+    <span><span class="fdomain">Software AI Factory</span> · MIT license</span>
     <span><a href="https://github.com/anoop2811/software-factory-template">github.com/anoop2811/software-factory-template</a></span>
   </div>
-  <div class="wrap" style="padding-top:10px">
-    <span style="color:var(--faint);font-size:13px">This page counts visits with Google Analytics &mdash; no ads, no ad profiling, and you can switch it off. The factory you install never phones home: no telemetry, no callbacks. <button type="button" id="consent-reopen" style="background:none;border:0;padding:0;color:var(--blue);font:inherit;cursor:pointer;text-decoration:underline"><span id="consent-link-text">Analytics settings</span></button></span>
+  <div class="wrap footer-preferences">
+    <span>This website uses Google Analytics. You can change its analytics storage preference for this browser. <button type="button" id="consent-reopen"><span id="consent-link-text">Analytics settings</span></button></span>
   </div>
 </footer>
 
 <div class="consent" id="consent" role="region" aria-label="Analytics preference">
   <div class="wrap">
-    <p id="consent-status">Analytics are <strong>on</strong> for this browser &mdash; Google Analytics counts the visit and sets its cookie. No ads and no ad profiling, ever. Turn it off and nothing is stored here; your choice is remembered locally.</p>
+    <p id="consent-status">Analytics storage is <strong>allowed</strong> for this browser. This site configures advertising storage and personalization as denied.</p>
     <div class="btns">
-      <button type="button" id="consent-deny">Turn off</button>
-      <button type="button" class="allow" id="consent-allow">Keep on</button>
+      <button type="button" id="consent-deny">Deny storage</button>
+      <button type="button" class="allow" id="consent-allow">Allow storage</button>
     </div>
   </div>
 </div>
@@ -995,8 +316,8 @@ edit test files.</span>
   function isFull() { return read() !== "denied"; }
   function paint() {
     status.innerHTML = isFull()
-      ? "Analytics are <strong>on</strong> for this browser &mdash; Google Analytics counts the visit and sets its cookie. No ads and no ad profiling, ever. Turn it off and nothing is stored here; your choice is remembered locally."
-      : "Analytics are <strong>off</strong> for this browser. Google Analytics stores nothing here and its cookie is not set.";
+      ? "Analytics storage is <strong>allowed</strong> for this browser. This site configures advertising storage and personalization as denied."
+      : "Analytics storage is <strong>denied</strong> for this browser. The Google tag still loads and may send cookieless measurements. This site saves your preference locally when browser storage is available.";
     linkText.textContent = "Analytics settings";
   }
   function set(v) {
@@ -1018,66 +339,32 @@ edit test files.</span>
 </script>
 
 <script>
-(function () {
-  var lines = [
-    ["prompt", "$ FACTORY_AGENT_ROLE=implementer \\"],
-    ["prompt", "    ./scripts/hooks/test-edit-denial.sh pkg/parser_test.go"],
-    ["no",     "DENIED: implementer role cannot edit test files (pattern: _test\\.go). Generator/evaluator separation."],
-    ["dim",    "exit code: 2"],
-    ["",       ""],
-    ["prompt", "$ ./scripts/selftest/development.sh"],
-    ["warn",   "[excerpt] test-edit-denial"],
-    ["ok",     "  ok: deny implementer on _test.go"],
-    ["ok",     "  ok: deny implementer on .spec.ts (second pattern)"],
-    ["ok",     "  ok: allow spec-writer on test file"],
-    ["warn",   "[excerpt] decision-log-gate"],
-    ["ok",     "  ok: protected path without Decision ref fails"],
-    ["ok",     "  ok: protected path with Decision ref passes"],
-    ["",       ""],
-    ["ok",     "gate proofs passed (illustrative excerpt)"],
-    ["dim",    "exit code: 0"]
-  ];
-  var term = document.getElementById("term");
-  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  function render(upTo, partial) {
-    var html = "";
-    for (var i = 0; i < upTo; i++) {
-      var cls = lines[i][0], text = lines[i][1];
-      html += cls ? '<span class="' + cls + '">' + text + "</span>\n" : "\n";
-    }
-    if (partial !== undefined && upTo < lines.length) {
-      var cls2 = lines[upTo][0];
-      var frag = lines[upTo][1].slice(0, partial);
-      html += cls2 ? '<span class="' + cls2 + '">' + frag + "</span>" : frag;
-    }
-    html += '<span class="cursor"></span>';
-    term.innerHTML = html;
-  }
-
-  if (reduced) { render(lines.length); return; }
-
-  var line = 0;
-  function typeLine() {
-    if (line >= lines.length) { render(lines.length); return; }
-    var isCommand = lines[line][0] === "prompt";
-    if (!isCommand) {
-      render(line + 1);
-      line++;
-      setTimeout(typeLine, lines[line - 1][1] === "" ? 120 : 190);
-      return;
-    }
-    var chars = 0, full = lines[line][1].length;
-    (function typeChar() {
-      chars += 2;
-      render(line, chars);
-      if (chars < full) { setTimeout(typeChar, 14); }
-      else { line++; setTimeout(typeLine, 260); }
-    })();
-  }
-  setTimeout(typeLine, 500);
-})();
+if (navigator.clipboard && navigator.clipboard.writeText) {
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.hidden = false;
+    button.addEventListener('click', async function () {
+      var command = document.getElementById(button.dataset.copy);
+      var status = document.getElementById('copy-status');
+      try {
+        await navigator.clipboard.writeText(command.textContent);
+        button.textContent = 'Copied';
+        status.textContent = button.getAttribute('aria-label') + ': copied.';
+        setTimeout(function () { button.textContent = 'Copy'; }, 1800);
+      } catch (error) {
+        command.scrollIntoView({block: 'nearest'});
+        command.parentElement.focus();
+        var range = document.createRange();
+        range.selectNodeContents(command);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        button.textContent = 'Selected';
+        status.textContent = 'Command selected. Use your device’s copy action.';
+        setTimeout(function () { button.textContent = 'Copy'; }, 1800);
+      }
+    });
+  });
+}
 </script>
-
 </body>
 </html>

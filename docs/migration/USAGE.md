@@ -1,6 +1,6 @@
 # Go native usage accounting candidate
 
-This G2 slice implements [ADR-0064](../adr/0064-go-native-usage-accounting.md):
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This G2 slice implements [ADR-0064](../adr/0064-go-native-usage-accounting.md):
 shared metadata normalization for Codex, Claude Code and OpenCode. The installed
 budget and loop commands continue to use their existing controllers. This
 candidate does not launch a model or change a spending limit.

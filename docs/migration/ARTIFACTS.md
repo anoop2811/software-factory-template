@@ -1,6 +1,6 @@
 # Go runtime artifact verification candidate
 
-This slice adds a private verifier for a future packaged Go runtime. It checks
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This slice adds a private verifier for a future packaged Go runtime. It checks
 an inert `FACTORY_RUNTIME_ARTIFACT_V1` manifest, the requested `GOOS/GOARCH`, a
 relative binary path below an artifact root, file types/symlink boundaries and
 the binary's SHA-256 digest. A successful private request prints version,

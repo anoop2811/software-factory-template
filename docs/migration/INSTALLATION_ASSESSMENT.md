@@ -1,6 +1,6 @@
 # Go installation reference assessment
 
-[ADR-0079](../adr/0079-go-installation-reference-assessment.md) defines the first
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0079](../adr/0079-go-installation-reference-assessment.md) defines the first
 read-only prerequisite for ownership-aware budget/loop migration.
 
 The private compiled request is `FACTORY_BRIDGE_PROTOCOL=1 factory migration

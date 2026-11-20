@@ -1,14 +1,14 @@
 # Upgrade backup retention
 
 The approved contract is [ADR 0106](../adr/0106-go-backup-retention.md).
-This is source implementation for the explicit Go candidate flow; the default
-cutover and replacement release still require the gates in
-[GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
+v0.2.0 applies these rules to supported authenticated upgrades. The
+[stable release record](GO_RELEASE_READINESS.md#stable-v020) describes the
+v0.1.6 migration and recovery exercises.
 
 ## Ordinary upgrades
 
-Preview and confirm a later candidate using the existing
-[public upgrade commands](GO_CANDIDATE_HANDOFF.md). JSON preview includes a
+Preview an authenticated release and confirm its proposal using the
+[public upgrade commands](../UPGRADING.md#ordinary-go-upgrades). JSON preview includes a
 `retention` report; text preview includes the same report on a `factory retention:`
 line. The confirmation digest covers existing backup observations and holds.
 Changes after preview require a new preview.

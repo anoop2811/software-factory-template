@@ -1,6 +1,6 @@
 # Loop engineering
 
-Status: P1 implementation and deterministic acceptance complete (Decision 47).
+In v0.2.0, use `./factory loop` to run your project check once or opt into a bounded implementation, check, review and repair cycle.
 
 ## Acceptance contract
 
@@ -16,7 +16,7 @@ No background tasks or automatic commit, push, merge or release occur.
   no storage, checks or model calls. Manual is the default.
 - `factory loop run` takes the same arguments and `--prompt-file PATH` for bounded
   mode. Manual mode runs the configured deterministic check once and writes a
-  checkpoint; it never invokes a model or reports the task implemented/reviewed.
+  checkpoint. The controller makes no model calls in manual mode. Your check runs whatever project commands you configured.
 - `factory loop status --session ID --task ID [--json]`: local checkpoint and
   evidence, including a clear stopped/completed state and next action.
 - `factory loop resume` uses the same identity and verifies exact checkpoint
@@ -52,8 +52,7 @@ Each model invocation goes through the existing budget controller/role resolver,
 with the same session/task accounting; the stricter available limit wins. Do not
 raise budget_max_attempts automatically to accommodate the loop. Budget counts
 reviewer invocations too; expose this in the plan and setup examples. No concurrency
-fan-out, cheap reviewer substitution or direct provider API calls. Manual checks
-cost compute but no model tokens. Unattended use is explicit bounded mode with
+fan-out, cheap reviewer substitution or direct provider API calls. The controller makes no model calls in manual mode. Unattended use is explicit bounded mode with
 finite limits, not another implicit activation mechanism.
 
 Stop on implementation failure, time/attempt/budget exhaustion, no source progress,
@@ -106,16 +105,14 @@ The existing eleven roadmap items and priorities remain unchanged.
 
 ## Runtime selection
 
-Loops are implemented natively in the Go CLI, including manual checks, bounded
-repair and checkpoint freshness. The current source launcher and ordinary source/ref
-updates still select the legacy script runtime. An explicitly selected authenticated
-Go installation reaches the native controller through the same `./factory loop`
-command. See [CLI.md](CLI.md) and [UPGRADING.md](UPGRADING.md); source implementation
-does not by itself establish default cutover or a published replacement release.
+The packaged v0.2.0 Go CLI owns manual checks, bounded repair and checkpoint
+freshness. The source launcher's Go build uses the same command. To move a
+supported v0.1.6 Bash installation to v0.2.0, follow the [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
 
 ## Usage and cost choices
 
-Inspect the plan and run checks without using a model:
+Run these commands in an initialized Git project with a commit and a configured
+`loop_check_command` or `check_command`. The factory uses manual mode by default.
 
 ```sh
 ./factory loop plan --harness codex --session maintenance --task issue-72
@@ -146,8 +143,7 @@ still apply. A model invocation can exceed an estimated dollar threshold, so
 these remain structural limits rather than guaranteed financial ceilings.
 
 The controller performs no model calls to plan, record state, compare fingerprints
-or decide that a process/check failed. Only explicit bounded implementation and
-review consume model usage. Runs remain sequential. Required reviewer quality
+or decide that a process/check failed. The factory launches agents only for explicit bounded implementation and review. Runs remain sequential. Required reviewer quality
 and acceptance tests are not reduced by selecting an economy profile.
 
 ## Checkpoints and handoff

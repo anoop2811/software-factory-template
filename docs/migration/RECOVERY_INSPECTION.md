@@ -1,6 +1,6 @@
 # Read-only recovery inventory
 
-[ADR-0083](../adr/0083-go-recovery-set-inspection.md) defines the opt-in source
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0083](../adr/0083-go-recovery-set-inspection.md) defines the opt-in source
 preview inspection. This inspection does not create backups, apply installed
 migration, restore files or prune sets. The separate [local creation operation](RECOVERY_CREATION.md)
 provides the partial source-built writer.

@@ -9085,3 +9085,18 @@ targets and exercise the signed stable installer with a fresh project and the
 v0.1.6 adopter before promotion. Use the same exact stable tag as the public
 installer default. Preserve explicit historical release selection and require
 a reviewed migration digest and quiescence to activate the Go installation.
+
+## Decision 179 (2026-11-20 UTC): ground the public homepage in the stable release
+
+Describe shipped capabilities using the v0.2.0 CLI, tagged implementation and
+published qualification reports. Use the signed adopter exercise only for its
+observed fixture and platform. Show exact-version setup and migration commands
+that work independently of the hosted installer default. Label roadmap proposals
+as planned. Apply the same evidence standard to the terminal example, metadata,
+language packs, role controls, cost claims and analytics preference text.
+
+Use a responsive editorial layout for the homepage, with locally served type
+and an original mechanical illustration. Keep captured CLI output, release
+evidence and installer commands readable without JavaScript. The illustration
+is decorative and conveys no release result. Retain the canonical site URL,
+analytics preference controls and exact-version installation examples.

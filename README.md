@@ -10,6 +10,8 @@
 
 ## Quick start
 
+Run `gh auth status` before installation. If this is your first time using the GitHub CLI, run `gh auth login`.
+
 ```bash
 # one shot — fetch, then set up the current repo:
 cd your-project
@@ -18,43 +20,18 @@ curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go
 # polyglot? pass several — e.g. a Go backend with a TypeScript frontend:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typescript
 
-# later, from inside the repo — pull framework updates (a reviewable diff):
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
-
-# the installer uses its pinned stable release; --ref takes any branch or tag:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref main
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+# From an existing v0.1.6 project, preview the upgrade before confirming it:
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 ```
 
-The installer only fetches: it clones the template into `~/.software-factory-template` and stops. It runs nothing it downloaded. Prefer to inspect first?
-
-```bash
-curl -fsSLO https://softwareaifactory.sh/install.sh && less install.sh && sh install.sh
-```
-
-`factory-init.sh` detects your stack, writes `factory.yaml`, installs factory assets, then runs a break/fix self-test so you watch a gate fire before it declares success. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
+With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
 
 ## Upgrade from v0.1.6 to the Go factory
 
-**Release status:** v0.1.6 is the latest published stable release. v0.2.0 is the
-planned Go replacement; it is not published yet. Native commands and the explicit
-candidate upgrade flow are implemented on `main`.
-[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
-passed all twenty published scenarios across four native targets, including
-init, upgrade, rollback and interruption/recovery. Minimum-OS coverage, the operator pilot
-and default cutover remain open; track the
-[release checklist](docs/migration/GO_RELEASE_READINESS.md).
-
-The Go replacement supports Ubuntu 24.04+ and macOS 15+, on amd64/arm64.
-macOS 14 is outside the supported scope.
-
-The public installer still defaults to v0.1.6. Its exact stable Go `--ref` and
-`FACTORY_REF` selections at or after v0.2.0 use the authenticated native flow;
-legacy refs and `--ref main` retain the script route at this stage. When v0.2.0
-is published with its complete attested assets, use this flow from your project:
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The public installer selects v0.2.0 by default. Use its exact tag for both steps of a migration so the preview and confirmation select the same release.
 
 ```sh
-# Preview only; requires the complete published v0.2.0 release.
+# Preview changes without modifying the project.
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 
 # Review the proposal. Stop other factory work for the maintenance window.
@@ -81,14 +58,10 @@ for both preview and confirmation: its old reader may reject metadata from a new
 compiler before handing off. The installer authenticates the new owner first;
 see [earlier Go candidates](docs/UPGRADING.md#earlier-experimental-go-installations).
 See the [CLI command reference](docs/CLI.md) for the commands available in each
-runtime. Ordinary Go `init` now authenticates its selected installed release or
-the prepared v0.2.0 source default. Until v0.2.0 is published, source-built callers
-must select a published candidate or explicit local build. The tracked source
-launcher builds the Go CLI using the provisioned local Go toolchain and module
-cache; installed projects execute their packaged Go binary. The public stable
-pin remains v0.1.6. A bare
-installer invocation remains fetch-only, including for a Go tag; its advice
-re-enters authenticated initialization before running release code.
+runtime. Installed projects use their packaged Go CLI. The tracked source
+launcher builds the CLI with the local Go toolchain and module cache.
+A bare installer invocation only fetches source and prints the authenticated
+initialization command to use next.
 Installing the packaged Go factory requires no Go compiler or Python;
 product tools and retained validation gates keep their own requirements.
 

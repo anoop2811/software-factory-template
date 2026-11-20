@@ -9074,3 +9074,14 @@ project rules that affect the private paths. A missing rule appended at the end
 can supersede an earlier root negation. Reuse a root rule for the lock only if
 the lowercase lock remains ignored on both case-sensitive and case-insensitive
 checkouts. A conflicting project rule must be reported before editing the file.
+
+## Decision 178 (2026-11-20 UTC): promote the qualified Go factory to stable
+
+Publish v0.2.0 from the merged adopter pilot at
+`5d6dbb0e0a0ef32113f200ef80cb7578bfb92f4c`. The operator approved the stable
+release and Latest designation after merging PR #189. Keep v0.1.6 as Latest
+during signing. Check the published native qualification on all four supported
+targets and exercise the signed stable installer with a fresh project and the
+v0.1.6 adopter before promotion. Use the same exact stable tag as the public
+installer default. Preserve explicit historical release selection and require
+a reviewed migration digest and quiescence to activate the Go installation.

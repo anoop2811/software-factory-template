@@ -1,13 +1,16 @@
 # Go replacement release readiness
 
-This is the delivery checklist for the approved conversion specification, not a
-second feature roadmap. Source implementation progress and release readiness are
-different measurements. The last recorded fixed source-plan score is 60.7% at
-merged PR #124; it is a historical score, not a new estimate for later work.
+## Stable v0.2.0
 
-The supported initial upgrade inputs are v0.1.6 and immutable Bash baseline
-76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Unknown/customized installations are
-preserved and reported. The spec remains authoritative for scope and exceptions.
+The operator selected the merge of [PR #189](https://github.com/anoop2811/software-factory-template/pull/189)
+for v0.2.0. The [stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0)
+identifies the downloads and adopter evidence. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
+records asset signing and qualification on Linux and macOS, on amd64 and arm64.
+The public installer pins the tag. Existing projects choose when to apply the upgrade.
+See the [v0.1.6 upgrade guide](../UPGRADING.md) for preview, confirmation and recovery.
+
+The entries below record the checklist at earlier delivery milestones.
+Their open items and installer pins describe the state at each milestone.
 
 ## Completed source prerequisites
 
@@ -82,7 +85,7 @@ use Go; the public installer default remains v0.1.6. Bare fetch executes no
 downloaded code. Stable activation and final release qualification remain separate.
 Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
-## Current release candidate
+## Fourth release candidate (historical)
 
 [v0.2.0-rc.4](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.4)
 was published on 2026-11-16 UTC from
@@ -309,7 +312,7 @@ remain distinct from that source qualification. RC4 now supplies the minimum-OS
 evidence; the mandatory operator pilot, default cutover and final audit remain
 open requirements within R6 and R7.
 
-## Pending operator input
+## Operator input at the rehearsal milestone
 
 An isolated rehearsal has run against the operator-selected adopter; its detailed
 records remain local. A genuine v0.1.6 fixture migrated, while the actual older

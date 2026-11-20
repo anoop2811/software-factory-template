@@ -3,7 +3,7 @@
 The Go CLI's ordinary `init` selects an authenticated packaged Go initializer.
 The current source checkout's tracked launcher builds the Go CLI with the
 provisioned local toolchain/module cache. Direct `scripts/factory-init.sh` forwards
-to that same `init` owner. The public installer's default remains v0.1.6:
+to that same `init` owner. The public installer and source checkout both default to v0.2.0:
 
 ```sh
 ./factory init /path/to/project --pack go,typescript
@@ -27,8 +27,7 @@ release. For a published prerelease, use `--go-candidate TAG` instead:
 ./factory-go init --help
 ```
 
-The prepared v0.2.0 default is not a publication claim. Until that release exists,
-ordinary source-built init refuses without changing the target. `--help` performs
+A failed release verification leaves the target unchanged. `--help` performs
 no acquisition or target writes. Put a target beginning with an option name after
 `--`; it stays literal through version selection and authenticated handoff.
 Explicit candidate and local selectors take precedence over ambient defaults.

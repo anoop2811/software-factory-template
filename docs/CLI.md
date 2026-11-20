@@ -8,16 +8,10 @@ Start with `./factory help`. In particular, do not assume every command supports
 
 ## Which runtime am I using?
 
-As of 2026-10-26 UTC, v0.1.6 is the latest published stable release. A current source
-checkout's tracked `factory` builds the native CLI using the provisioned local Go
-toolchain and module cache, then runs it. Its one ignored `factory-go` output is
-refreshed on successful builds; failed builds preserve the previous output and
-refuse execution. Use the physical launcher file when invoking through aliases.
-Installed projects use their selected packaged binary. A successful explicit
-`--go-candidate TAG` installation selects the authenticated packaged Go runtime
-behind the same `./factory` entrypoint. The replacement v0.2.0 release and public
-stable activation remain pending; see [release readiness](migration/GO_RELEASE_READINESS.md)
-and the [upgrade guide](UPGRADING.md).
+Stable v0.2.0 installs a packaged Go binary behind `./factory`. A source
+checkout builds the CLI with the local Go toolchain and module cache. A v0.1.6
+installation keeps its Bash dispatcher until you preview and confirm the
+upgrade. See the [upgrade guide](UPGRADING.md).
 
 The table describes the current Go command surface. Entries marked **Go only**
 are unavailable in the older v0.1.6 script dispatcher. In that script installation,
@@ -29,9 +23,9 @@ can have fewer features than current `main`.
 | Command | When to use it | Example and effects |
 |---|---|---|
 | `help` | Discover the public commands | `./factory help` prints the selected runtime's command list. No model call. |
-| `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` authenticates its selected installed release or the prepared source default v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for a published prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
+| `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` authenticates its selected installed release or the v0.2.0 source default. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for a published prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
 | `doctor` | Diagnose installed factory health | `./factory doctor` reports armed, inert and stale gates and runs isolated break/fix probes. It does not repair configuration. No model call. |
-| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews its declared stable release; current source prepares v0.2.0, which must be published before use. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Applying requires a fresh digest and `--quiescent`. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The direct source upgrade adapter uses this same Go controller. |
+| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews its declared stable release; current source selects v0.2.0. Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Apply with `--confirm PROPOSAL_DIGEST --quiescent` after reviewing a fresh preview. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The direct source upgrade adapter uses this same Go controller. |
 | `ci prepare` **Go only** | Prepare a disposable checkout's missing private runtime | Invoke a separately trusted native binary: `/path/to/trusted/factory ci prepare --go-candidate TAG --origin-target darwin/arm64 --ephemeral`, or use the [authenticated installer entrypoint](migration/CI_PREPARATION.md#bootstrap-without-an-existing-native-executable). Authenticates exact origin/host release images and reprojects clean tracked factory assets for this job. No model call. This is not an upgrade or repair command. |
 | `ci review-client` **Go only** | Acquire a standalone review executable in disposable scratch | `/path/to/trusted/factory ci review-client --go-candidate TAG --expected-revision COMMIT --output /absolute/new/client-directory`. Requires an exact release and matching full source commit; writes one private executable and emits a JSON identity receipt. The trusted installer exposes the same operation. No project mutation, compiler, Python or model call. See [bootstrap scope and prerequisites](migration/CI_PREPARATION.md#standalone-review-client). |
 | `ci workflow` **Go only** | Render a workflow for an installed factory | `./factory ci workflow --go-candidate TAG --origin-target darwin/arm64 --installer-revision COMMIT` prints GitHub Actions YAML. All selectors are explicit; `COMMIT` is a reviewed lowercase forty-character installer commit SHA. No project inspection, acquisition, file publication or model call. Review application setup and existing workflows before installation; see [workflow generation](migration/CI_PREPARATION.md#render-a-workflow-for-review). |
@@ -135,9 +129,8 @@ go build -o factory-go ./cmd/factory
 ```
 
 Keep the tracked `factory` launcher intact. Ordinary source-built Go init selects
-an authenticated release rather than copying the checkout's scaffold. The prepared
-default v0.2.0 refuses until published; select an available official prerelease
-with `--go-candidate TAG` or build clean committed source with `--local`. Other
+an authenticated release rather than copying the checkout's scaffold. Use the default v0.2.0, pin an exact stable release with `--ref TAG`,
+select a prerelease with `--go-candidate TAG` or build committed source with `--local`. Other
 source commands can still require assets beside the invoked executable. A detached
 development binary does not acquire installed identity.
 

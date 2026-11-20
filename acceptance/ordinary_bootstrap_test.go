@@ -126,7 +126,8 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 		application := []byte("existing caller content remains\n")
 		writeFixture(filepath.Join(f.cwd, "application.txt"), application, 0600)
 		before := installationSnapshot(f.cwd)
-		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), "/bin/sh", f.installer, "init", target, "--ref", defaultInitTag, "--pack", "none")
+		// per docs/DECISION_LOG.md:9085
+		result := handoffNativeProcess(f.cwd, f.environment, nativeInitAnswers("y"), "/bin/sh", f.installer, "init", target, "--pack", "none")
 		_, legacyErr := os.Lstat(filepath.Join(f.records, "legacy-source-executed"))
 		AddReportEntry("ordinary-bootstrap.real-init", map[string]any{"status": result.status, "stdout": result.stdout, "stderr": result.stderr, "legacy_executed": legacyErr == nil, "direct_control": control.status}, ReportEntryVisibilityNever)
 		Expect(result.status).To(Equal(0), "ordinary stable installer must choose authenticated native code: %+v", result)
@@ -149,7 +150,8 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 		f := p.f
 		writeFixture(filepath.Join(p.root, "docs/bootstrap-user-note"), []byte("operator history\n"), 0600)
 		before := installationSnapshot(p.root)
-		args := defaultUpgradeInputArgs(p.inputs, "--ref", defaultUpgradeTag)
+		// per docs/DECISION_LOG.md:9085
+		args := defaultUpgradeInputArgs(p.inputs)
 		run := func(extra ...string) cliResult {
 			return handoffNativeProcess(p.root, f.environment, "", "/bin/sh", append([]string{f.installer}, append(append([]string{}, args...), extra...)...)...)
 		}
@@ -181,8 +183,9 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 
 var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, ContinueOnFailure, func() {
 	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:74
-	It("keeps bare fetch inert and the published legacy default unchanged", func() {
-		for _, ref := range []string{"", "main", defaultInitTag} {
+	// per docs/DECISION_LOG.md:9085
+	It("keeps bare fetch inert at the stable default and preserves explicit legacy initialization", func() {
+		for _, ref := range []string{"", "main", "v0.1.6", defaultInitTag} {
 			f := ordinaryBootstrapSentinel(defaultInitTag, "")
 			ordinaryBootstrapLegacyGit(f)
 			args := []string{f.installer}
@@ -200,17 +203,17 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 			git := handoffRecorded(f, "legacy-git-arguments")
 			want := ref
 			if want == "" {
-				want = "v0.1.6"
+				want = defaultInitTag
 			}
 			Expect(git).To(ContainElement(want))
-			if ref == defaultInitTag {
+			if want == defaultInitTag {
 				Expect(fetched.stdout).To(ContainSubstring("init --ref " + defaultInitTag))
 				Expect(fetched.stdout).NotTo(ContainSubstring("scripts/factory-init.sh"))
 			}
 		}
 		f := ordinaryBootstrapSentinel(defaultInitTag, "")
 		ordinaryBootstrapLegacyGit(f)
-		legacy := imageProcess(f.cwd, f.environment, "/bin/sh", f.installer, "init", "--pack", "none")
+		legacy := imageProcess(f.cwd, f.environment, "/bin/sh", f.installer, "init", "--ref", "v0.1.6", "--pack", "none")
 		Expect(legacy.status).To(Equal(0), "%+v", legacy)
 		Expect(handoffRecorded(f, "legacy-git-arguments")).To(ContainElement("v0.1.6"))
 		Expect(handoffRecorded(f, "legacy-init-arguments")).To(ContainElement(f.cwd))
@@ -258,7 +261,7 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 		// A downstream legacy parser cannot reinterpret a terminal ref or a
 		// malformed literal verb into permission to execute cached source.
 		// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:164
-		for _, prefix := range [][]string{{"init"}, {"init", "--ref", "v0.1.6"}, {"init "}, {"", "init"}} {
+		for _, prefix := range [][]string{{"init", "--ref", "v0.1.6"}, {"init "}, {"", "init"}} {
 			probe(append(append([]string{}, prefix...), "--", "--ref", defaultInitTag), "")
 		}
 		for _, ref := range []string{defaultInitTag, "v0.2"} {
@@ -281,23 +284,30 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 	})
 	// per docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:102
 	It("preserves exact stable selection literal argv terminators and native child exit status", func() {
-		for _, ambient := range []bool{false, true} {
-			tag := defaultInitTag + "+build.1"
+		// per docs/DECISION_LOG.md:9085
+		for _, selection := range []struct{ source, tag string }{
+			{"default", defaultInitTag},
+			{"environment", defaultInitTag + "+build.1"},
+			{"flag", defaultInitTag + "+build.1"},
+		} {
+			tag := selection.tag
 			f := ordinaryBootstrapSentinel(tag, "")
 			raw := strings.Replace(string(f.raw), "exit 0\n", "exit 37\n", 1)
 			writeFixture(filepath.Join(f.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+tag+"-"+f.target), []byte(raw), 0600)
-			args := []string{"init", "folder with spaces", "--pack", "none", "--", "--go-candidate", "quote ' and \" and $(not-code)", "line one\nline two"}
-			if ambient {
+			operands := []string{"init", "folder with spaces", "--pack", "none", "--", "--ref", "v0.1.6", "--go-candidate", "quote ' and \" and $(not-code)", "line one\nline two"}
+			args := operands
+			switch selection.source {
+			case "environment":
 				f.environment["FACTORY_REF"] = tag
-			} else {
+			case "flag":
 				f.environment["FACTORY_REF"] = "main"
-				args = append(args[:1], append([]string{"--ref=" + tag}, args[1:]...)...)
+				args = append([]string{"init", "--ref=" + tag}, operands[1:]...)
 			}
 			result := imageProcess(f.cwd, f.environment, "/bin/sh", append([]string{f.installer}, args...)...)
 			Expect(result.status).To(Equal(37), "%+v", result)
 			selected, remaining := ordinaryBootstrapOperands(handoffRecorded(f, "bootstrap-argv"))
 			Expect(selected).To(Equal(tag))
-			Expect(remaining).To(Equal([]string{"init", "folder with spaces", "--pack", "none", "--", "--go-candidate", "quote ' and \" and $(not-code)", "line one\nline two"}))
+			Expect(remaining).To(Equal(operands))
 			Expect(handoffRecorded(f, "release-view")).To(ContainElement("tagName,isDraft,isPrerelease"))
 			ordinaryBootstrapCache(f)
 		}
@@ -357,7 +367,8 @@ var _ = Describe("Authenticated ordinary Go installer bootstrap", Ordered, Conti
 				body, err := os.ReadFile(f.installer)
 				Expect(err).NotTo(HaveOccurred())
 				input = string(body)
-				args = []string{"-s", "--", "init", "--ref", defaultInitTag}
+				// per docs/DECISION_LOG.md:9085
+				args = []string{"-s", "--", "init"}
 			}
 			result := handoffNativeProcess(f.cwd, f.environment, input, program, args...)
 			Expect(result.status).To(Equal(0), "%+v", result)

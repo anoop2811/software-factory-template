@@ -2,22 +2,7 @@
 
 ## Availability and the command you keep
 
-As of 2026-10-31 UTC, **v0.1.6 is the latest published stable release**. v0.2.0 is
-the planned Go replacement and is not published. The explicit Go upgrade engine,
-rollback/recovery and retention are implemented on `main`.
-[v0.2.0-rc.3](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.3)
-passed all twenty published scenarios on the observed Linux/macOS targets;
-fresh qualification for the next candidate, operator pilot acceptance and default
-cutover remain open.
-See [the exact qualification evidence](migration/PUBLISHED_RELEASE_QUALIFICATION.md#third-published-candidate-result).
-[Release readiness](migration/GO_RELEASE_READINESS.md) is the delivery checklist.
-
-The v0.2.0 commands below are the recipe for when that exact release has its
-complete authenticated assets. Before publication they will refuse, preserving
-your project. A Go prerelease can be selected using its exact published tag once
-its assets are complete; it is an opt-in qualification candidate, not stable.
-Check the [official releases](https://github.com/anoop2811/software-factory-template/releases)
-for availability rather than assuming a tag or source commit is an installable release.
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) is the stable Go release. The public installer selects it by default. Pin the exact version for preview and confirmation so both steps authenticate the same release.
 
 You continue to use `./factory` in your project. Thin executable and sourceable
 adapters retain supported old paths for hooks and automation. Regular users do
@@ -55,10 +40,7 @@ experimental Go readers into direct-upgrade-compatible programs. See
   customized required files can block automatic migration and are preserved.
 - Start from a reviewable working tree. Save/commit your own project work so its
   diff is distinguishable from the upgrade. The upgrader does not commit for you.
-- Use a supported Linux/macOS amd64/arm64 machine and the platform requirements
-  recorded in the conversion specification. Windows is outside this release's
-  target set; published native minimum-OS qualification is still pending.
-- The candidate acquisition needs trusted `gh`, Bash and the existing platform
+- Release acquisition needs an authenticated GitHub CLI (`gh auth status`), Bash and the existing platform
   tools, plus network access to official GitHub releases and verification roots.
   The installed Go runtime needs no Go compiler or Python. Git, retained JSON gates
   such as those using `jq`, coding harnesses and your product's language tools
@@ -163,7 +145,7 @@ native bootstrap before execution; the Go owner then validates the complete
 installation image. Go releases use the official repository; a conflicting
 `FACTORY_REPO` refuses. See the [bootstrap contract](adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 
-The public default remains v0.1.6 until stable activation. Older stable tags keep
+The public default is v0.2.0. Older stable tags keep
 their legacy route. A non-version branch containing the native init/upgrade
 adapters explicitly selects that committed local source and requires the Go
 toolchain; native upgrades preview before fresh confirmation. A reused cache
@@ -175,8 +157,7 @@ explicitly selects local source. It never executes the fetched initializer.
 The tracked developer launcher and direct init/upgrade scripts now enter Go.
 
 A Go release containing ordinary upgrade selection can preview its declared
-stable release with `./factory upgrade --dry-run --json`. Current source prepares
-v0.2.0; that release must be published before this default can be acquired.
+stable release with `./factory upgrade --dry-run --json`. Current source selects v0.2.0.
 Selection is one explicit `--ref TAG`, then `FACTORY_REF`, then the declared
 default. Upgrade does not implicitly reuse the installed version.
 
@@ -282,9 +263,8 @@ runtime backup expiry policy. See [configuration migration](migration/CONFIG_MIG
 
 ## Explicit developer upgrade from committed local source
 
-Use a built Go caller for this opt-in path. The tracked source `factory` launcher
-still selects scripts; it does not activate local Go upgrades. From inside the
-adopter, select a clean committed factory checkout:
+Use the Go CLI for this opt-in path. From inside the adopter, select a clean
+committed factory checkout:
 
 ```sh
 /path/to/factory-go upgrade --local --source /path/to/clean-factory --dry-run --json
@@ -321,23 +301,12 @@ journal, backups and private inputs for the existing whole-installation recovery
 procedure. Never remove pending controls to force ordinary commands through.
 See [the local upgrade contract](adr/0117-explicit-go-local-upgrade.md).
 
-## Updating the script installation today
+## Keeping a project on the Bash release
 
-Existing source/ref updates keep their established behavior:
+Projects that need the historical script update can explicitly select v0.1.6:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
-# Explicitly select current committed source; native branch upgrade previews first:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.1.6
 ```
 
-The installer uses its pinned stable release (currently v0.1.6), unless an
-explicit ref or environment override selects another source. The second command
-selects `main`. Direct `./factory upgrade` in a script installation also defaults
-to `main`; pass an explicit `--ref` when matching a particular source matters.
-These legacy updates refresh known framework paths in place and can replace
-custom edits to those files, including shipped hooks. Save/reconcile those edits
-before running them, then review the diff and run `./factory doctor`. The
-preservation/conflict transaction described above belongs to the explicit
-Go flows. Default Go selection will be advertised only after the replacement
-release gates pass.
+The historical updater refreshes known framework paths and can replace edits to those files. Save your changes first, review the resulting diff and run `./factory doctor`. To migrate to Go, use the preview and confirmation above.

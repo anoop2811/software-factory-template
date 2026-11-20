@@ -9,7 +9,8 @@ Start with `./factory help`. In particular, do not assume every command supports
 ## Which runtime am I using?
 
 Stable v0.2.0 installs a packaged Go binary behind `./factory`. A source
-checkout builds the CLI with the local Go toolchain and module cache. A v0.1.6
+checkout builds the CLI with the local Go toolchain and module cache. A failed
+source build preserves the existing `factory-go` output and exits before running it. A v0.1.6
 installation keeps its Bash dispatcher until you preview and confirm the
 upgrade. See the [upgrade guide](UPGRADING.md).
 

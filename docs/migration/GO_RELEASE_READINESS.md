@@ -5,12 +5,14 @@
 The operator selected the merge of [PR #189](https://github.com/anoop2811/software-factory-template/pull/189)
 for v0.2.0. The [stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0)
 identifies the downloads. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
-records asset signing and qualification on Linux and macOS, on amd64 and arm64.
+passed all 20 scenarios on Linux and macOS, on amd64 and arm64. The [downloadable reports](https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz) preserve the run, target, signer subjects and scenario outcomes.
 The public installer pins the tag. Existing projects choose when to apply the upgrade.
 See the [v0.1.6 upgrade guide](../UPGRADING.md) for preview, confirmation and recovery.
 
 ### Signed adopter pilot, 2026-11-20 UTC
 
+The operator-approved pilot used a private application fixture. These are local
+observations, with per-command logs retained on the operator’s machine.
 On macOS arm64, a fresh Git project and a disposable copy of the supported
 v0.1.6 adopter both ran the public installer with `--ref v0.2.0`. The bootstrap,
 installation image and runtime archive passed checksum and GitHub attestation
@@ -34,6 +36,8 @@ The entries below record the checklist at earlier delivery milestones.
 Their open items and installer pins describe the state at each milestone.
 
 ## Completed source prerequisites
+
+Historical snapshot before stable promotion.
 
 - Native source commands exist for init, doctor, report, metrics, review-lane,
   configuration migration, budgets and loops.
@@ -175,6 +179,8 @@ fresh published qualification. RC3's original twenty passes do not qualify a
 later binary; its source, tag and assets remain unchanged.
 
 ## Required release gates
+
+Historical checklist from candidate qualification. See the stable result above.
 
 - [x] Complete committed source-image bundle and fixed legacy reference catalogs,
       with shared validation and authenticated closed-world payload custody.
@@ -320,6 +326,8 @@ No model is called as an upgrade or health test. Existing paid/optional choices
 and budgets remain explicit.
 
 ## Installed doctor correction
+
+Historical snapshot of the work remaining after the doctor correction.
 
 An isolated local adopter rehearsal exposed a sourceable-library permission
 mismatch in native doctor. Decision 112 corrects it while retaining executable

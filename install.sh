@@ -1021,7 +1021,7 @@ installer_main() {
         *) printf '%s\n' 'install: Go releases require the official repository' >&2; exit 2 ;;
       esac
       if [ "$installer_help" -eq 1 ]; then
-        printf '%s\n' 'Usage: install.sh init|upgrade [args] [--ref TAG]' 'Select an authenticated stable Go release at or after v0.2.0.'
+        printf '%s\n' 'Usage: install.sh init|upgrade [args] [--ref TAG]' "Default: $FACTORY_DEFAULT_REF. Use --ref for an exact stable tag; v0.1.6 selects the historical Bash installer."
         exit 0
       fi
       stable_install "$@"

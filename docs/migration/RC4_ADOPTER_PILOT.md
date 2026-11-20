@@ -163,9 +163,10 @@ addable under the adopter's rules.
 
 ## Rerun with both fixes in merged source
 
-On 2026-11-20 UTC, the macOS arm64 pilot ran on a new disposable copy of the
-supported v0.1.6 fixture. It used the exact merged source `fec964135850c0889c19c23fe4ab4e9a3a4ef1cb`,
-which includes the rollback fix and [PR #188](https://github.com/anoop2811/software-factory-template/pull/188).
+On 2026-11-20 from 14:38 to 14:45 UTC, the macOS arm64 pilot ran on a new
+disposable copy of the supported v0.1.6 fixture. Its source was the
+[merge of #188](https://github.com/anoop2811/software-factory-template/commit/fec964135850c0889c19c23fe4ab4e9a3a4ef1cb).
+Its immediate parent was the [rollback fix from #187](https://github.com/anoop2811/software-factory-template/commit/a137eff0d8943c396698cffeb0a3162c012ad4b1).
 The public RC4 assets still represent their original revision.
 
 | Operation | Observed result |
@@ -176,8 +177,15 @@ The public RC4 assets still represent their original revision.
 | Rollback with the legacy Python prerequisite deliberately unavailable | Confirmed rollback refused with exit 2. The tool probe was reached. The 293 selected and tracked path observations retained their content, mode, link target or absence. The journal was in `checking` with a pending marker. |
 | Recovery and fresh rollback after restoring Python | Public `upgrade --installation --recover ID --direction forward` preview and confirmed apply both exited 0. A fresh `--rollback ID` preview and confirmed apply exited 0. The journal recorded a committed reverse rollback. The 195 original tracked entries outside `.gitignore` matched, the permanent lock kept its inode, and the active Go binary, descriptor and pending marker were absent. The restored legacy `./factory metrics --json` exited 0. |
 
+The 103-file comparison uses the application manifest. The 293-path comparison
+takes the union of the legacy tracked paths, paths in the forward journal and
+the two active Go runtime paths. The 195-entry comparison checks restoration
+against the original 196 tracked entries, excluding the declared `.gitignore`
+edit. The last two counts therefore measure different rollback steps.
+
 This rerun exercised committed local-source delivery. R6 still requires the
 signed release path containing both fixes. Q5 calls for the operator to agree
 on the evidence period and exit criteria and accept the pilot results. The
-proposed criterion is successful completion of the pilot without a calendar
-wait. R7 covers stable activation and publication.
+proposal is successful completion of the pilot without a calendar wait. The
+operator's decision on that proposal is pending. R7 covers stable activation
+and publication.

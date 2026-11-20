@@ -107,8 +107,9 @@ customized ignore file exposed an addable private transition lock. The rollback
 correction merged in [PR #187](https://github.com/anoop2811/software-factory-template/pull/187).
 [PR #188](https://github.com/anoop2811/software-factory-template/pull/188)
 merged the lock correction. The [merged-source pilot](RC4_ADOPTER_PILOT.md#rerun-with-both-fixes-in-merged-source)
-passed forward upgrade, lock visibility, temporary feature development and
-reversal, and rollback after a forced legacy prerequisite failure. R6 still
+passed forward upgrade, lock visibility and the temporary feature exercise.
+Rollback refused with legacy Python unavailable. After restoring Python, public
+recovery and a fresh rollback both succeeded. R6 still
 requires evidence from signed release assets containing both fixes and the
 operator's Q5 decision on the evidence period, exit criteria and pilot results.
 

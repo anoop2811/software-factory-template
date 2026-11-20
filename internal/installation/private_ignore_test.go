@@ -66,9 +66,10 @@ var _ = Describe("Installation private ignore policy", func() {
 			Expect(os.SameFile(before, after)).To(BeTrue(), "the adopter's existing rule already protects the lock")
 			Expect(os.ReadFile(path)).To(Equal(body))
 		}
-		if extraSource != ".factory/.gitignore" {
-			Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".gitignore:"))
+		if extraSource != "" {
+			Expect(os.Remove(filepath.Join(root, extraSource))).To(Succeed())
 		}
+		Expect(git(root, "check-ignore", "--verbose", "--no-index", "--", lock)).To(HavePrefix(".gitignore:"))
 	}, Entry("the root ignores the factory directory", ".factory/\n", ""),
 		Entry("the root names the lock without a leading slash", lock+"\n", ""),
 		Entry("a nested positive rule repeats the root coverage", lock+"\n", ".factory/.gitignore"),

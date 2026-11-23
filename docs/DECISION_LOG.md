@@ -9171,3 +9171,16 @@ private timing control while keeping exclusive creation and conservative
 retention. Rollback, runtime, compiler, suite and job limits keep their
 existing values.
 [Local-upgrade failure](https://github.com/anoop2811/software-factory-template/actions/runs/45107131014/job/137473530802)
+
+## Decision 182 (2026-11-23 UTC): publish a homepage link-preview image
+
+Publish a version-independent, 1200 × 627 PNG beside the website assets. Link
+to its absolute HTTPS URL in the initial HTML so a social crawler can fetch
+the artwork without executing JavaScript. Keep the SVG as the source. Render
+the PNG in the GitHub Pages build and check the exported size, format and HTML
+metadata before publication. Pull requests exercise the same build. Only the
+upstream repository publishes from main. Select GitHub Actions as the Pages
+publishing source when adopting this workflow and run it on main. The artifact
+retains the existing static root, including the installer and custom domain.
+[LinkedIn website sharing requirements](https://www.linkedin.com/help/linkedin/answer/a521928)
+and [GitHub Pages publishing](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)

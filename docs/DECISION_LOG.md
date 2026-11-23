@@ -9122,3 +9122,8 @@ of the signed scaffold to the maintained command and upgrade guides. Document
 the installed check runner’s actual commit range and use a nonrecursive product
 test command in configuration examples. Only promise recovery arguments in a
 report when the controller can establish the inputs and direction for a preview.
+The initialized scaffold contains only part of the upstream documentation.
+For guides and project files absent from that scaffold, use links to the
+maintained factory repository. A corrected scaffold belongs in a new release:
+installed Go projects record the exact predecessor revision and the upgrader
+checks it when it reacquires the published predecessor.

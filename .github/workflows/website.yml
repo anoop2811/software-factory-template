@@ -1,0 +1,71 @@
+name: Website
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/website.yml
+      - .github/pages/**
+      - CNAME
+      - index.html
+      - site-assets/**
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    if: github.repository == 'anoop2811/software-factory-template'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install artwork tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends librsvg2-bin fonts-liberation libxml2-utils imagemagick
+      - name: Build the Pages root and check the share card
+        run: |
+          stage="$RUNNER_TEMP/site"
+          mkdir "$stage"
+          git archive HEAD | tar -x -C "$stage"
+          # The Pages packager dereferences links. Only publish files from this tree.
+          while IFS= read -r -d '' link; do
+            target=$(realpath -e -- "$link")
+            [[ $target == "$stage/"* && -f $target ]] || { echo "Invalid Pages link: $link" >&2; exit 1; }
+            cp --remove-destination -- "$target" "$link"
+          done < <(find "$stage" -type l -print0)
+          cd "$stage"
+          rsvg-convert site-assets/share-card.svg --output site-assets/share-card.png
+          bash .github/pages/check-card.sh
+      - name: Package the same site on pull requests and main
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+          # Match the legacy Pages root, including .factory-version and .nojekyll.
+          include-hidden-files: true
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - name: Deploy the checked artifact
+        id: publish
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

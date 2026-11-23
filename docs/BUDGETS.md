@@ -1,6 +1,6 @@
 # Budgeting and observability
 
-In v0.2.0, use `./factory budget` to decide whether to launch an agent and to inspect what a factory-managed run consumed. Runs are off by default.
+Use `./factory budget` to decide whether to launch an agent and to inspect what a factory-managed run consumed. Runs are off by default.
 
 ## Boundary
 
@@ -39,7 +39,7 @@ attempt stays in the report. Distinct task IDs share the same session limits.
 
 ## Interface and configuration
 
-The packaged v0.2.0 CLI reads the flat `factory.yaml` in your project and manages
+The packaged Go CLI reads the flat `factory.yaml` in your project and manages
 budgets in Go. The installed budget command requires neither Python nor a Go
 compiler. An existing v0.1.6 project stays on its Bash installation until you
 preview and confirm the upgrade. See the [CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) and [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).

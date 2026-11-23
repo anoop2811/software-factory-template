@@ -2,8 +2,8 @@
 set -eu
 
 # Pin the qualified publisher release for ordinary init and upgrade.
-# docs/DECISION_LOG.md:9085.
-FACTORY_DEFAULT_REF=v0.2.0
+# docs/DECISION_LOG.md:9136.
+FACTORY_DEFAULT_REF=v0.2.1
 
 # Candidate selection is reserved before the legacy parser (which re-splits its
 # arguments). Preserve literal argv and authenticate before the first execution.

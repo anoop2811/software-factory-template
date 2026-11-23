@@ -1,6 +1,6 @@
 # Cost and tokens
 
-In v0.2.0 you can choose a model tier for each role, limit factory-managed
+You can choose a model tier for each role, limit factory-managed
 agent launches and inspect the usage the harness reported. Choose the control
 that matches the question:
 
@@ -72,8 +72,8 @@ Match the model to the role's volume and stakes:
 | `spec-writer` | low | high (spec correctness) | frontier |
 | `reviewer` | low | high (adversarial catch) | frontier — never downgrade the adversary |
 | `implementer` | high | medium (tests are the net) | default in both shipped profiles |
-| `refactorer` | high | low (behaviour-preserving) | economy |
-| `wiki-maintainer` | medium | low | economy |
+| `refactorer` | high | low (behaviour-preserving) | default under standard, economy under economy |
+| `wiki-maintainer` | medium | low | default under standard, economy under economy |
 
 The insight: once the spec and tests exist, the implementer's job is bounded and
 checkable — a cheaper model that passes the gates is as good as an expensive one

@@ -9,8 +9,8 @@
 
 **Harness** — the tool that drives a coding agent: reads your prompt, calls the
 model, runs tools, edits files. This template supports three: opencode, Claude
-Code, and Codex. Their adapters use project configuration and shared checks. The v0.2.0
-Go CLI installs and synchronizes the adapters.
+Code, and Codex. Their adapters use project configuration and shared checks. The Go
+CLI installs and synchronizes the adapters.
 
 **Canon / canonical config** — the single source-of-truth configuration
 (`opencode.json` plus `.opencode/`). The Claude Code and Codex configs are
@@ -55,7 +55,7 @@ apply the relaxation themselves.
 
 **Pack** — an opinionated language bundle (`packs/<lang>/`) that arms
 `test_file_patterns` and `check_command` for a language and ships its blessed
-configuration and CI steps. v0.2.0 ships Go, TypeScript and Java packs.
+configuration and CI steps. The factory ships Go, TypeScript and Java packs.
 Use `--pack none` for the core or combine packs with `--pack go,typescript`.
 
 **Protected path** — a directory that requires human review on every change, via

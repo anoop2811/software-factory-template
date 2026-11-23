@@ -68,3 +68,7 @@ pass or diagnostic improvement alone does not close the hosted failure.
 Decision 176 extends the same read-only preview allowance to the two exact Go
 predecessor upgrade cases that acquire both source images. The observed failures
 and the scope of the extension are recorded in docs/DECISION_LOG.md:9032.
+
+Decision 181 applies the existing 180-second whole-command allowance to the
+matching two healthy confirmations and isolates their timing controls per adopter.
+The rollback commands retain their 90-second bound. See docs/DECISION_LOG.md:9151.

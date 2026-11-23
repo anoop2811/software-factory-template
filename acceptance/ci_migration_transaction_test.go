@@ -356,7 +356,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		provider, err := os.ReadFile(providerPath)
 		Expect(err).NotTo(HaveOccurred())
 		oldAPI := `  api) printf '%s\n' "$HANDOFF_REVISION" ;;`
-		newAPI := `  api) case "$2" in *v0.2.0) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
+		newAPI := `  api) case "$2" in *` + defaultUpgradeTag + `) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
 		Expect(strings.Count(string(provider), oldAPI)).To(Equal(1))
 		writeFixture(providerPath, []byte(strings.Replace(string(provider), oldAPI, newAPI, 1)), 0700)
 		surface.environment["HANDOFF_OLD_REVISION"] = revision
@@ -394,9 +394,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 
 	// per docs/adr/0148-transactional-installed-ci-migration.md:113
 	It("prunes eligible workflow backups on a later release and retains an independently usable immediate predecessor", func() {
-		const third = "v0.2.2"
 		p := fixtures.goProject(defaultUpgradeTag)
-		fixtures.provide(p.f, defaultUpgradeNextTag, third)
+		fixtures.provide(p.f, defaultUpgradeNextTag, defaultUpgradeThirdTag)
 		oldWorkflow, err := os.ReadFile(filepath.Join(p.root, ".github/workflows/factory.yml"))
 		Expect(err).NotTo(HaveOccurred())
 		first := p.preview("--ref", defaultUpgradeNextTag)
@@ -414,7 +413,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		// This setting changes historical reconstruction inputs without altering
 		// the no-pack target workflow. The saved context must qualify old backups.
 		ciTransactionSetting(p.root, "protected_paths", "changed-after-upgrade")
-		next := p.preview("--ref", third)
+		next := p.preview("--ref", defaultUpgradeThirdTag)
 		planned := retentionPreviewReport(next)
 		Expect(planned.Advanced).To(BeTrue())
 		row := retentionSet(planned, oldID)
@@ -423,7 +422,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		Expect(row.Bytes).NotTo(BeNil())
 		Expect(*row.Files).To(Equal(files))
 		Expect(*row.Bytes).To(Equal(size))
-		result := p.apply(next, "--ref", third)
+		result := p.apply(next, "--ref", defaultUpgradeThirdTag)
 		Expect(result.status).To(BeZero(), "%+v", result)
 		applied := retentionApplyReport(result)
 		Expect(applied.RemovedSets).To(Equal(1))
@@ -434,7 +433,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		Expect(remaining).NotTo(ContainElement(oldID))
 		Expect(os.ReadFile(filepath.Join(p.root, ".factory/backups", remaining[0], "assets/.github/workflows/factory.yml"))).To(Equal(middleWorkflow))
 		p.beforeVersion, p.before = defaultUpgradeNextTag, fixtures.image(defaultUpgradeNextTag)
-		rollback := fixtures.rollbackArgs(p, third, remaining[0])
+		rollback := fixtures.rollbackArgs(p, defaultUpgradeThirdTag, remaining[0])
 		reverse := handoffProposal(handoffNativeProcess(p.root, p.f.environment, "", p.driver, append(append([]string{}, rollback...), "--dry-run", "--json")...))
 		restored := handoffNativeProcess(p.root, p.f.environment, "", p.driver, append(rollback, "--confirm", reverse["proposal_digest"].(string), "--quiescent")...)
 		Expect(restored.status).To(BeZero(), "%+v", restored)
@@ -492,9 +491,8 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 
 	// per docs/adr/0148-transactional-installed-ci-migration.md:113
 	DescribeTable("preserves held or edited workflow-bearing backup sets across a later release", func(kind string) {
-		const third = "v0.2.2"
 		p := fixtures.goProject(defaultUpgradeTag)
-		fixtures.provide(p.f, defaultUpgradeNextTag, third)
+		fixtures.provide(p.f, defaultUpgradeNextTag, defaultUpgradeThirdTag)
 		first := p.preview("--ref", defaultUpgradeNextTag)
 		Expect(p.apply(first, "--ref", defaultUpgradeNextTag).status).To(BeZero())
 		ids := retentionBackupIDs(p.root)
@@ -515,14 +513,14 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 			original = append(original, []byte("\n# operator saved-file edit\n")...)
 			writeFixture(path, original, 0600)
 		}
-		proposal := p.preview("--ref", third)
+		proposal := p.preview("--ref", defaultUpgradeThirdTag)
 		row := retentionSet(retentionPreviewReport(proposal), id)
 		Expect(row.Action).NotTo(Equal("prune"))
 		if kind == "held" {
 			Expect(row.Action).To(Equal("retain"))
 			Expect(row.Reason).To(Equal("held for reference"))
 		}
-		result := p.apply(proposal, "--ref", third)
+		result := p.apply(proposal, "--ref", defaultUpgradeThirdTag)
 		Expect(result.status).To(BeZero(), "%+v", result)
 		Expect(retentionApplyReport(result).RemovedSets).To(BeZero())
 		Expect(retentionBackupIDs(p.root)).To(HaveLen(2))

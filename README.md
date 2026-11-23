@@ -2,7 +2,7 @@
 
 Software AI Factory bootstraps a new or existing repository for development with Codex, Claude Code and OpenCode. Give the next developer a working set of language-pack files, shared agent roles, project checks and GitHub Actions without assembling a separate setup for each tool.
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships one project-local Go CLI. Start with setup and local checks. Turn on budgeted agent runs, bounded repair loops or model-assisted PR review when you need them. [Explore the commands](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md).
+[v0.2.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1) ships one project-local Go CLI. Start with setup and local checks. Turn on budgeted agent runs, bounded repair loops or model-assisted PR review when you need them. [Explore the commands](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md).
 
 ## Quick start
 
@@ -11,39 +11,39 @@ Run `gh auth status` before using the authenticated Go installer for `init` or `
 ```bash
 # one shot — fetch, then set up the current repo:
 cd your-project
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.1 --pack go
 
 # polyglot? pass several — e.g. a Go backend with a TypeScript frontend:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go,typescript
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.1 --pack go,typescript
 
 # From an existing v0.1.6 project, preview the upgrade before confirming it:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --dry-run --json
 
-# From an installed v0.2.0 project, preview this version with its own Go CLI:
-./factory upgrade --ref v0.2.0 --dry-run --json
+# From an installed v0.2.0 project, preview the patch with your existing Go CLI:
+./factory upgrade --ref v0.2.1 --dry-run --json
 ```
 
 The pack checks start at the project root. For a monorepo with nested modules or workspaces, adapt the check command and workflow paths to your directory layout.
 
-With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --ref v0.2.0 --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
+With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --ref v0.2.1 --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
 
 ## Upgrade from v0.1.6 to the Go factory
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The installer uses the default built into its own revision. Use the exact tag for both steps so the preview and confirmation select the same release. On the original v0.1.6 installation, a bare local `./factory upgrade` defaults to `main` unless overridden. Use the authenticated installer below for this migration. Keep `--ref v0.2.0` on the preview so an older shell installer cannot select the legacy updater, which omits the preview flags.
+[v0.2.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The installer uses the default built into its own revision. Use the exact tag for both steps so the preview and confirmation select the same release. On the original v0.1.6 installation, a bare local `./factory upgrade` defaults to `main` unless overridden. Use the authenticated installer below for this migration. Keep `--ref v0.2.1` on the preview so an older shell installer cannot select the legacy updater, which omits the preview flags.
 
 ```sh
 # Preview changes without modifying the project.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --dry-run --json
 
 # Review the proposal. Stop other factory work for the maintenance window.
 # Replace PROPOSAL_DIGEST with the complete proposal_digest from that preview.
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --confirm PROPOSAL_DIGEST --quiescent
 
 # After successful activation, use the same public command.
 ./factory doctor
 ```
 
-For a published prerelease, replace `--ref v0.2.0` with `--go-candidate TAG` in
+For a published prerelease, replace `--ref v0.2.1` with `--go-candidate TAG` in
 both commands, using its exact published tag. The
 preview authenticates assets and reports conflicts without changing your project.
 Confirmation rechecks the proposal before activation. Unchanged owned obsolete
@@ -66,7 +66,7 @@ initialization command to use next.
 Installing the packaged Go factory requires no Go compiler or Python;
 product tools and retained validation gates keep their own requirements.
 
-A fresh v0.2.0 project can contain a copy of the README written before publication. For the shipped command behavior, use the [maintained CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) and [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
+Fresh v0.2.1 projects receive the updated scaffold README when the target has no README. The factory preserves a project’s existing README, including a copy created by v0.2.0 before publication. For the shipped command behavior, use the [maintained CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) and [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
 
 ## Getting started
 
@@ -80,7 +80,7 @@ A fresh v0.2.0 project can contain a copy of the README written before publicati
 
 ## Factory commands
 
-The table covers the released v0.2.0 CLI. Start with `./factory help`. Commands marked **Go only** were absent from the v0.1.6 dispatcher. Use an exact published release for `TAG`; the CI helpers accept `--go-candidate v0.2.0` for the stable release, too. The [CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) explains flags, prerequisites and side effects.
+The table covers the released v0.2.1 CLI. Start with `./factory help`. Commands marked **Go only** were absent from the v0.1.6 dispatcher. Use an exact published release for `TAG`; the CI helpers accept `--go-candidate v0.2.1` for the stable release, too. The [CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) explains flags, prerequisites and side effects.
 
 | Command | Purpose | Example |
 |---|---|---|
@@ -119,7 +119,7 @@ The packaging/staging utilities are maintainer tools; regular users keep the one
 
 A prompt that says "never edit test files" is a request an agent may or may not honor. A shell hook that exits 2 on the edit is a fact. Put the control in a hook, not in the prompt — that principle is due to Birgitte Böckeler (Thoughtworks), and this template applies it to commit discipline, push gates, role separation, and citation integrity.
 
-The second idea is the Verification Contract: only claim what you've observed. Its three claim levels are WROTE, RAN and OBSERVED. When adding a gate, exercise a deliberate failure and a healthy control. The v0.2.0 installed self-test covers fourteen such pairs. See [docs/CONCEPTS.md](https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md).
+The second idea is the Verification Contract: only claim what you've observed. Its three claim levels are WROTE, RAN and OBSERVED. When adding a gate, exercise a deliberate failure and a healthy control. The v0.2.1 installed self-test covers fourteen such pairs. See [docs/CONCEPTS.md](https://github.com/anoop2811/software-factory-template/blob/main/docs/CONCEPTS.md).
 
 Workflow recipes describe which role handles each step and where findings get checked. The repository ships review and evaluation recipes. Each harness supplies its own orchestration. See [workflows](https://github.com/anoop2811/software-factory-template/blob/main/docs/WORKFLOWS.md).
 
@@ -166,7 +166,7 @@ staged migration with backward compatibility, recovery and safe cleanup. Native 
 configuration, configuration migration, budgets, loops, harness synchronization,
 check orchestration, evaluation and review. Authenticated whole-installation
 upgrade, rollback, interrupted recovery and backup retention are implemented.
-The [command reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) covers the shipped Go CLI. The [stable release record](https://github.com/anoop2811/software-factory-template/blob/main/docs/migration/GO_RELEASE_READINESS.md#stable-v020) links the four native qualification reports and describes the v0.1.6 adopter exercise.
+The [command reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) covers the shipped Go CLI. The [v0.2.0 release record](https://github.com/anoop2811/software-factory-template/blob/main/docs/migration/GO_RELEASE_READINESS.md#stable-v020) links the four native qualification reports and describes the v0.1.6 adopter exercise.
 
 ## Cost & models
 

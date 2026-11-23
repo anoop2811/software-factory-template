@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Software AI Factory v0.2.0 — Project setup for AI coding agents</title>
+<title>Software AI Factory v0.2.1 — Project setup for AI coding agents</title>
 <meta name="description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
-<meta property="og:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta property="og:title" content="Software AI Factory v0.2.1 — Project setup for AI coding agents">
 <meta property="og:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://softwareaifactory.sh/">
 <meta property="og:site_name" content="Software AI Factory">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Software AI Factory v0.2.0 — Project setup for AI coding agents">
+<meta name="twitter:title" content="Software AI Factory v0.2.1 — Project setup for AI coding agents">
 <meta name="twitter:description" content="Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.">
 <link rel="canonical" href="https://softwareaifactory.sh/">
 <!-- Site/source identity, not a claim of search ranking or app rich-result eligibility.
@@ -34,7 +34,7 @@
       "@type": "WebPage",
       "@id": "https://softwareaifactory.sh/#webpage",
       "url": "https://softwareaifactory.sh/",
-      "name": "Software AI Factory v0.2.0 — Project setup for AI coding agents",
+      "name": "Software AI Factory v0.2.1 — Project setup for AI coding agents",
       "inLanguage": "en",
       "isPartOf": {"@id": "https://softwareaifactory.sh/#website"},
       "about": {"@id": "https://softwareaifactory.sh/#source"}
@@ -47,7 +47,7 @@
       "description": "Bootstrap language packs, agent roles and GitHub Actions in your repo. Use Codex, Claude Code or OpenCode, budget model runs and preview upgrades with one Go CLI.",
       "codeRepository": "https://github.com/anoop2811/software-factory-template",
       "codeSampleType": "template",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "programmingLanguage": ["Go", "Shell", "TypeScript"],
       "license": "https://github.com/anoop2811/software-factory-template/blob/main/LICENSE"
     }
@@ -107,7 +107,7 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
-      <div class="pills"><a class="pill green" href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">v0.2.0 <span>Stable release</span></a></div>
+      <div class="pills"><a class="pill green" href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1">v0.2.1 <span>Patch release notes</span></a></div>
       <h1>Your repo, ready for <em>coding agents.</em></h1>
       <p class="sub">A new repo can mean wiring up tests, CI and instructions for each coding agent by hand. Software AI Factory bootstraps that setup in a new or existing project. Codex, Claude Code and OpenCode share the project’s roles and checks, and you choose when to spend tokens on review or repair.</p>
       <div class="cta-row">
@@ -117,7 +117,7 @@
       </div>
       <figure class="hero-art" aria-labelledby="matrix-title">
         <div class="matrix">
-          <div class="matrix-title"><strong id="matrix-title">Release qualification</strong><a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Run evidence ↗</a></div>
+          <div class="matrix-title"><strong id="matrix-title">v0.2.0 qualification</strong><a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Run evidence ↗</a></div>
           <div class="matrix-stage" aria-hidden="true">
             <div class="tile-grid">
               <div class="tile-row linux-amd"><i></i><i></i><i></i><i></i><i></i></div>
@@ -233,7 +233,7 @@ selftest: 14 shipped gates proved, 0 failed</pre>
         <div class="stat"><div class="n">20/20</div><p>Published release checks passed. Each target exercised fresh setup, upgrades from v0.1.6 and an earlier Bash baseline, rollback, and recovery after interruption.</p></div>
         <div class="stat"><div class="n">14</div><p>Core gate proofs passed in the installed self-test. Each gate rejected a deliberately broken fixture and accepted its healthy control.</p></div>
       </div>
-      <p class="table-note">The release workflow attested three assets per target: the bootstrap executable, installation image and runtime archive. That makes 12 platform assets. <a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Release run</a> · <a href="https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz">Download the per-target evidence</a>.</p>
+      <p class="table-note">The release workflow attested three assets per target: the bootstrap executable, installation image and runtime archive. That makes 12 platform assets. <a href="https://github.com/anoop2811/software-factory-template/actions/runs/44789814756">Release run</a> · <a href="https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz">Download the per-target evidence</a>. For the onboarding and interrupted-recovery changes, see the <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1">v0.2.1 release notes</a>.</p>
       <div class="callout green">
         <h3>A migration with application code in place</h3>
         <p>On macOS arm64, we upgraded a disposable copy of a supported v0.1.6 installation. All 103 application files kept their contents and modes. The installed factory caught a new failing feature test, passed after the implementation, and passed again after we reverted the exercise. We also exercised recovery and restored the Bash installation. <a href="https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0">Pilot scope and release notes</a>.</p>
@@ -243,20 +243,20 @@ selftest: 14 shipped gates proved, 0 failed</pre>
 
   <section id="install">
     <div class="wrap">
-      <h2>Install v0.2.0 <em>in your project.</em></h2>
+      <h2>Install v0.2.1 <em>in your project.</em></h2>
       <p class="lede">Run these commands from the project directory. The installer uses Git, Bash and an authenticated GitHub CLI. Check <code>gh auth status</code> first. The packaged Go CLI needs neither a Go compiler nor Python to initialize a new project. Project builds, retained hooks and coding harnesses have their own prerequisites.</p>
       <div class="install-commands">
         <div class="command"><h3>New project</h3>
-          <pre tabindex="0"><code id="cmd-init">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go</code></pre>
+          <pre tabindex="0"><code id="cmd-init">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.1 --pack go</code></pre>
           <button type="button" data-copy="cmd-init" aria-label="Copy the new project command" hidden>Copy</button>
         </div>
         <div class="command"><h3>Preview a v0.1.6 upgrade</h3>
-          <pre tabindex="0"><code id="cmd-preview">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json</code></pre>
+          <pre tabindex="0"><code id="cmd-preview">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --dry-run --json</code></pre>
           <button type="button" data-copy="cmd-preview" aria-label="Copy the preview command" hidden>Copy</button>
         </div>
         <div class="command"><h3>Confirm the reviewed upgrade</h3>
           <p>Pause other factory work and replace <code>PROPOSAL_DIGEST</code> with the digest from your preview.</p>
-          <pre tabindex="0"><code id="cmd-confirm">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent</code></pre>
+          <pre tabindex="0"><code id="cmd-confirm">curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --confirm PROPOSAL_DIGEST --quiescent</code></pre>
           <button type="button" data-copy="cmd-confirm" aria-label="Copy the confirmation command" hidden>Copy</button>
         </div>
         <span id="copy-status" class="visually-hidden" role="status"></span>
@@ -274,7 +274,7 @@ selftest: 14 shipped gates proved, 0 failed</pre>
   <section id="roadmap" class="band" aria-labelledby="roadmap-heading">
     <div id="graph" class="wrap">
       <h2 id="roadmap-heading">What’s <em>next?</em></h2>
-      <p class="lede">Today v0.2.0 ships workflow recipes for review and evaluation. The following proposals are planned work beyond this release.</p>
+      <p class="lede">Today v0.2.1 ships workflow recipes for review and evaluation. The following proposals are planned work beyond this release.</p>
       <div class="grid3">
         <div class="cell"><h3>Context and memory</h3><p>Task-specific context selection, searchable project memory and handoffs with source references.</p></div>
         <div class="cell c-blue"><h3>Harness and graph engineering</h3><p>Capability probes, isolated execution and resumable workflows with explicit handoffs.</p></div>

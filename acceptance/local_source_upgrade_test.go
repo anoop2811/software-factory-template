@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"debug/buildinfo"
 	"encoding/json"
 	"errors"
@@ -26,9 +27,9 @@ const localUpgradePlanMarker = "INDEPENDENT_SELECTED_LOCAL_UPGRADER_PLAN_2026103
 const localUpgradeApplyMarker = "INDEPENDENT_SELECTED_LOCAL_UPGRADER_APPLY_20261030"
 
 type localUpgradeFixture struct {
-	image                                   handoffReleaseImage
-	beforeSource, source, revision, control string
-	legacy                                  installationFixtureData
+	image                          handoffReleaseImage
+	beforeSource, source, revision string
+	legacy                         installationFixtureData
 }
 
 // A source-only proposal marker proves the selected compiled planner runs; the
@@ -62,7 +63,6 @@ func localUpgradePrepareSource() localUpgradeFixture {
 	marked := strings.Replace(string(data), needle, `Checks: []string{"candidate-help", "installed-assets", "native-gate-proof", "state-compatibility", "`+localUpgradePlanMarker+`"}`, 1)
 	Expect(marked).NotTo(Equal(string(data)))
 	writeFixture(path, []byte(marked), 0644)
-	control := filepath.Join(image.work, "selected-worker-control.json")
 	transaction := filepath.Join(source, "internal/installation/transaction.go")
 	transactionData, err := os.ReadFile(transaction)
 	Expect(err).NotTo(HaveOccurred())
@@ -88,7 +88,7 @@ func localUpgradePrepareSource() localUpgradeFixture {
 		admitted = strings.Replace(admitted, phase.before, phase.after, 1)
 	}
 	writeFixture(transaction, []byte(admitted), 0644)
-	hook := strings.ReplaceAll(localUpgradePauseSource, "INDEPENDENT_CONTROL_PATH", fmt.Sprintf("%q", control))
+	hook := strings.ReplaceAll(localUpgradePauseSource, "INDEPENDENT_CONTROL_PATH", fmt.Sprintf("%q", image.work))
 	writeFixture(filepath.Join(source, "internal/installation/independent_local_upgrade_fixture.go"), []byte(hook), 0644)
 	imageGit(source, "add", "internal/installation/proposal.go", "internal/installation/transaction.go", "internal/installation/independent_local_upgrade_fixture.go")
 	imageGit(source, "commit", "--quiet", "-m", "independent selected upgrade planner witness")
@@ -96,7 +96,7 @@ func localUpgradePrepareSource() localUpgradeFixture {
 	Expect(revision).NotTo(Equal(image.revision))
 	Expect(imageGit(source, "status", "--porcelain", "--untracked-files=all")).To(BeEmpty())
 	AddReportEntry("local-upgrade.source", map[string]string{"before_source": before, "source": source, "revision": revision, "invoker_revision": image.revision}, ReportEntryVisibilityNever)
-	return localUpgradeFixture{image: image, beforeSource: before, source: source, revision: revision, control: control}
+	return localUpgradeFixture{image: image, beforeSource: before, source: source, revision: revision}
 }
 
 // Legacy-consuming groups add their own initialized predecessor to the shared source setup.
@@ -239,15 +239,25 @@ func localUpgradeCompiler(f handoffBootstrapFixture, image handoffReleaseImage, 
 	return localInitCompiler(f, wrapper, compiler, stage, mode)
 }
 
+// Each adopter has a private control under the evaluator's owned directory.
+// The independently compiled source fixture below uses the same filename.
+// per docs/DECISION_LOG.md:9151.
+func (fixture localUpgradeFixture) controlPath(root string) string {
+	return filepath.Join(fixture.image.work, fmt.Sprintf("selected-worker-%x.json", sha256.Sum256([]byte(root))))
+}
+
 // Evaluator-only code is committed into the selected fixture, never production.
 // The READY receipt follows a real durable journal save after two published rows;
 // cancellation targets that selected worker, not its outer inherited-stream waiter.
 // per docs/adr/0117-explicit-go-local-upgrade.md:78
 // per docs/DECISION_LOG.md:8797
 const localUpgradePauseSource = `package installation
-import("context";"encoding/json";"os";"syscall";"time")
+import("context";"crypto/sha256";"encoding/json";"fmt";"os";"path/filepath";"syscall";"time")
+func independentControlPath(root string) string {
+ return filepath.Join(INDEPENDENT_CONTROL_PATH, fmt.Sprintf("selected-worker-%x.json", sha256.Sum256([]byte(root))))
+}
 func independentLocalUpgradeTiming(root,phase string){
- data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if err!=nil{return}
+ data,err:=os.ReadFile(independentControlPath(root));if err!=nil{return}
  var c struct{Root,Ready string;TimingOnly bool};if json.Unmarshal(data,&c)!=nil||root!=c.Root||c.Ready==""{return}
  file,err:=os.OpenFile(c.Ready+".timing",os.O_CREATE|os.O_WRONLY|os.O_APPEND,0600);if err!=nil{return}
  _=json.NewEncoder(file).Encode(map[string]any{"phase":phase,"pid":os.Getpid(),"root":root,"at":time.Now().UTC().Format(time.RFC3339Nano)});_=file.Close()
@@ -265,7 +275,7 @@ func(owner *transaction)independentLocalUpgradePreflight(ctx context.Context,rev
  return err
 }
 func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)error{
- data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
+ data,err:=os.ReadFile(independentControlPath(owner.root));if os.IsNotExist(err){return nil};if err!=nil{return err}
  var c struct{Root,Ready string;TimingOnly bool};if err=json.Unmarshal(data,&c);err!=nil{return err};if c.TimingOnly{return nil}
  if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""{return nil}
  group,err:=syscall.Getpgid(0);if err!=nil{return err}
@@ -273,7 +283,7 @@ func(owner *transaction)independentLocalUpgradeAdmission(ctx context.Context)err
  data,err=json.Marshal(receipt);if err!=nil{return err};if err=os.WriteFile(c.Ready+".admitted.tmp",data,0600);err!=nil{return err};return os.Rename(c.Ready+".admitted.tmp",c.Ready+".admitted")
 }
 func(owner *transaction)independentLocalUpgradePause(ctx context.Context)error{
- data,err:=os.ReadFile(INDEPENDENT_CONTROL_PATH);if os.IsNotExist(err){return nil};if err!=nil{return err}
+ data,err:=os.ReadFile(independentControlPath(owner.root));if os.IsNotExist(err){return nil};if err!=nil{return err}
  var c struct{Root,Ready string;TimingOnly bool};if err=json.Unmarshal(data,&c);err!=nil{return err};if c.TimingOnly{return nil}
  if owner.root!=c.Root||owner.request.Recover!=""||owner.request.Rollback!=""||owner.record.Phase!="applying"{return nil}
  applied:=0;for _,row:=range owner.record.Entries{if row.Phase=="applied"{applied++}};if applied<2{return nil}
@@ -518,20 +528,15 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		// assertion, and before the older project/image cleanups remove evidence.
 		// per docs/DECISION_LOG.md:8797
 		ready := filepath.Join(fixture.image.work, fmt.Sprintf("healthy-go-upgrade-%t", versioned))
-		control, err := os.OpenFile(fixture.control, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G703 -- evaluator-owned control path below the private source image, not request data.
+		controlPath := fixture.controlPath(root)
+		control, err := os.OpenFile(controlPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600) // #nosec G703 -- evaluator-owned control path below the private source image, not request data.
 		Expect(err).NotTo(HaveOccurred(), "a retained control cannot be replaced by the next Ordered entry")
 		_, err = control.Write(imageMarshal(map[string]any{"Root": root, "Ready": ready, "TimingOnly": true}))
 		closed := control.Close()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(closed).To(Succeed())
-		controlSettled := false
-		DeferCleanup(func() {
-			if !controlSettled {
-				holdFixtureCleanup(fixture.control, "local Go timing control remains borrowed after an unconfirmed helper return")
-				return
-			}
-			Expect(os.Remove(fixture.control)).To(Succeed())
-		})
+		// The image fixture owns each adopter's control for its full lifetime,
+		// including retention when command ownership is uncertain.
 		DeferCleanup(func() {
 			timing, timingErr := os.ReadFile(ready + ".timing")
 			observation := map[string]any{"root": root, "versioned": versioned, "timing_only": true, "phase_timing_json": string(timing), "phase_timing_error": fmt.Sprint(timingErr)}
@@ -566,10 +571,19 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			}
 			AddReportEntry("local-upgrade.go-predecessor-phase-timing", observation, ReportEntryVisibilityNever)
 		})
-		applied := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
-		controlSettled = true
+		applied := handoffCooperativeProcessWithin(qualification.LocalRecoveryLimits().Command, root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
 		Expect(applied.status).To(Equal(0), "%+v", applied)
 		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
+		timing, err := os.ReadFile(ready + ".timing")
+		Expect(err).NotTo(HaveOccurred())
+		var phases []string
+		for line := range bytes.Lines(timing) {
+			var receipt localUpgradeWorkerReceipt
+			Expect(json.Unmarshal(line, &receipt)).To(Succeed())
+			Expect(receipt.Root).To(Equal(root))
+			phases = append(phases, receipt.Phase)
+		}
+		Expect(phases).To(ContainElement("preflight-end"))
 		localInitDescriptor(root, fixture.revision)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
@@ -578,9 +592,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
 		localInitPoisonCompiler(f)
 		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
-		controlSettled = false
 		restored := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work, filepath.Dir(before.before.Archive)}, driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
-		controlSettled = true
 		Expect(restored.status).To(Equal(0), "%+v", restored)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
@@ -894,8 +906,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		ready := filepath.Join(f.root, "actual-selected-worker.json")
 		control, err := json.Marshal(map[string]string{"Root": root, "Ready": ready})
 		Expect(err).NotTo(HaveOccurred())
-		writeFixture(fixture.control, control, 0600)
-		DeferCleanup(func() { Expect(os.Remove(fixture.control)).To(Succeed()) })
+		writeFixture(fixture.controlPath(root), control, 0600)
 		limits := qualification.LocalRecoveryLimits()
 		ctx, cancel := limits.Context(context.Background())
 		defer cancel()

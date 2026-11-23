@@ -1,5 +1,9 @@
 # Go replacement release readiness
 
+## v0.2.1 onboarding and recovery patch
+
+The [patch release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1) updates the scaffold README and guides. It also preserves file identity when an upgrade and its recovery are both interrupted. See its release notes for patch-specific qualification. The platform results and adopter pilot below belong to v0.2.0.
+
 ## Stable v0.2.0
 
 The operator selected the merge of [PR #189](https://github.com/anoop2811/software-factory-template/pull/189)

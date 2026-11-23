@@ -337,7 +337,7 @@ var _ = Describe("Installed runtime root separation", func() {
 			case len(observed.args) == 0:
 				Expect(observed.out.status).To(Equal(1), "%s: %+v", observed.route, observed.out)
 				Expect(observed.out.stdout).To(BeEmpty())
-				Expect(string(observed.acquired)).To(HavePrefix("api\x00repos/anoop2811/software-factory-template/commits/refs/tags/v0.2.0\x00"))
+				Expect(string(observed.acquired)).To(HavePrefix("api\x00repos/anoop2811/software-factory-template/commits/refs/tags/" + defaultUpgradeTag + "\x00"))
 			case observed.args[0] == "--force":
 				Expect(observed.out.status).To(Equal(2), "%s %q: %+v", observed.route, observed.args, observed.out)
 				Expect(observed.out.stdout).To(BeEmpty())

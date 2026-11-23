@@ -14,6 +14,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const fixtureCommandTimeout = 90 * time.Second
+
 // Each caller supplies its existing command/environment policy and all borrowed
 // fixture roots that an uncertain child could still use.
 // per docs/adr/0148-transactional-installed-ci-migration.md:764
@@ -26,13 +28,13 @@ func cooperativeFixtureProcess(base, reportName, input string, retainedRoots []s
 // per docs/adr/0151-reliable-ci-qualification.md:139
 func cooperativeFixtureProcessContext(parent context.Context, base, reportName, input string, retainedRoots []string, buildCommand func(context.Context) *exec.Cmd) cliResult {
 	GinkgoHelper()
-	return cooperativeFixtureProcessContextWithOutput(parent, base, reportName, input, retainedRoots, nil, buildCommand)
+	return cooperativeFixtureProcessContextWithOutput(parent, base, reportName, input, retainedRoots, nil, fixtureCommandTimeout, buildCommand)
 }
 
 // Receipt failure requires a real inherited non-writable descriptor while keeping
 // the same cooperative watchdog, settlement and conservative retention rules.
 // per docs/adr/0153-authenticated-review-client-bootstrap.md:96
-func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, reportName, input string, retainedRoots []string, stdoutOverride *os.File, buildCommand func(context.Context) *exec.Cmd) cliResult {
+func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, reportName, input string, retainedRoots []string, stdoutOverride *os.File, allowance time.Duration, buildCommand func(context.Context) *exec.Cmd) cliResult {
 	GinkgoHelper()
 	stream := func(name string) *os.File {
 		file, err := os.OpenFile(filepath.Join(base, reportName+"-"+name), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
@@ -45,7 +47,7 @@ func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, re
 	Expect(err).NotTo(HaveOccurred())
 	_, err = stdin.Seek(0, 0)
 	Expect(err).NotTo(HaveOccurred())
-	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
+	ctx, cancel := context.WithTimeout(parent, allowance)
 	defer cancel()
 	command := buildCommand(ctx)
 	Expect(command.Err).NotTo(HaveOccurred())
@@ -62,7 +64,7 @@ func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, re
 	if stdoutOverride != nil {
 		stdoutTarget = stdoutOverride
 	}
-	result, runErr := native.ExecuteInheritedCooperative(ctx, command.Dir, argv, environment, native.InheritedStreams{Stdin: stdin, Stdout: stdoutTarget, Stderr: stderrFile}, 90*time.Second)
+	result, runErr := native.ExecuteInheritedCooperative(ctx, command.Dir, argv, environment, native.InheritedStreams{Stdin: stdin, Stdout: stdoutTarget, Stderr: stderrFile}, allowance)
 	elapsed, contextErr := time.Since(started), ctx.Err()
 	stdout, stdoutErr := os.ReadFile(stdoutFile.Name())
 	stderr, stderrErr := os.ReadFile(stderrFile.Name())
@@ -94,11 +96,19 @@ func cooperativeFixtureProcessContextWithOutput(parent context.Context, base, re
 // per docs/adr/0151-reliable-ci-qualification.md:128
 func handoffCooperativeProcess(cwd string, environment map[string]string, input string, retainedRoots []string, program string, args ...string) cliResult {
 	GinkgoHelper()
+	return handoffCooperativeProcessWithin(fixtureCommandTimeout, cwd, environment, input, retainedRoots, program, args...)
+}
+
+// Apply the caller's qualification allowance to both the outer watchdog and
+// the cooperative supervisor. Other handoffs use fixtureCommandTimeout.
+// per docs/DECISION_LOG.md:9151.
+func handoffCooperativeProcessWithin(allowance time.Duration, cwd string, environment map[string]string, input string, retainedRoots []string, program string, args ...string) cliResult {
+	GinkgoHelper()
 	streams, err := os.MkdirTemp("", "factory-cooperative-handoff-")
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(cleanupFixtureDirectory, streams)
 	roots := append(append([]string{}, retainedRoots...), streams)
-	return cooperativeFixtureProcess(streams, "fixture.handoff-owner", input, roots, func(ctx context.Context) *exec.Cmd {
+	return cooperativeFixtureProcessContextWithOutput(context.Background(), streams, "fixture.handoff-owner", input, roots, nil, allowance, func(ctx context.Context) *exec.Cmd {
 		return handoffCommand(ctx, cwd, environment, input, program, args...)
 	})
 }

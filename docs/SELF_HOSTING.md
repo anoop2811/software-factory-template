@@ -217,7 +217,7 @@ to native fixed-HTTP compatibility mode.
 For a canonical factory source checkout, the generated workflow prepares the
 Go version declared in go.mod and its locked modules, then exercises the source
 launcher before exposing review credentials. It does not build an adopter's
-application module. In v0.2.0, an installed project's generated review workflow
+application module. Since v0.2.0, an installed project's generated review workflow
 authenticates the selected release's standalone client for the runner. It reads
 the committed launcher and version marker without executing project code. See
 [review client acquisition](migration/CI_PREPARATION.md#standalone-review-client).

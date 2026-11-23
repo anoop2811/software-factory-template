@@ -1,7 +1,7 @@
 # Workflows
 
 A workflow recipe describes how a team wants coding agents to carry out a
-task. v0.2.0 ships recipes for review and evaluation and a linter for their
+task. The factory ships recipes for review and evaluation and a linter for their
 structure. The active harness coordinates the work with its available tools.
 For the factory's executable check and repair loop, see [LOOPS.md](LOOPS.md).
 

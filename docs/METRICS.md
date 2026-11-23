@@ -1,6 +1,6 @@
 # Metrics
 
-Use the v0.2.0 CLI to see which gates are armed, what they have blocked and where
+Use the installed Go CLI to see which gates are armed, what they have blocked and where
 the same files keep changing. The metrics command reads local repository data.
 It writes local reports and sends no metrics. You can explicitly pipe its output to your own collector.
 

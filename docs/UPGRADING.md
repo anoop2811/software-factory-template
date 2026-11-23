@@ -2,7 +2,7 @@
 
 ## Availability and the command you keep
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) is the stable Go release. Pass `--ref v0.2.0` for both preview and confirmation. This selects the published Go release even when your copy of the shell installer has an older default. **Include the ref on the preview.** A shell installer that selects the v0.1.6 Bash updater can apply framework changes because its legacy handoff omits `--dry-run --json`.
+[v0.2.1](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1) is the stable Go release. Pass `--ref v0.2.1` for both preview and confirmation. This selects the published Go release even when your copy of the shell installer has an older default. **Include the ref on the preview.** A shell installer that selects the v0.1.6 Bash updater can apply framework changes because its legacy handoff omits `--dry-run --json`.
 
 You continue to use `./factory` in your project. Thin executable and sourceable
 adapters retain supported old paths for hooks and automation. Regular users do
@@ -55,10 +55,10 @@ experimental Go readers into direct-upgrade-compatible programs. See
 From inside your existing project (a project subdirectory is also supported):
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --dry-run --json
 ```
 
-For a published prerelease, replace `--ref v0.2.0` with `--go-candidate TAG` in
+For a published prerelease, replace `--ref v0.2.1` with `--go-candidate TAG` in
 both preview and confirmation, using its exact tag. The command obtains the matching native binary and installation
 image, checks their attestation against the official release workflow, tag and
 source revision, and computes a proposal. The preview uses temporary private
@@ -97,7 +97,7 @@ is your explicit affirmation of this maintenance condition.
 Replace `PROPOSAL_DIGEST` below with the full digest from your reviewed preview:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --confirm PROPOSAL_DIGEST --quiescent
 ```
 
 Repeat any `--project-input` overrides from the preview. Omit `--json` on apply;
@@ -145,7 +145,7 @@ native bootstrap before execution; the Go owner then validates the complete
 installation image. Go releases use the official repository; a conflicting
 `FACTORY_REPO` refuses. See the [bootstrap contract](adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 
-An unpinned installer uses its own `FACTORY_DEFAULT_REF`. The [installer in the signed v0.2.0 source](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/install.sh#L6) was built with a v0.1.6 default. Older stable tags keep
+An unpinned installer uses its own `FACTORY_DEFAULT_REF`. The [installer in the v0.2.0 source tag](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/install.sh#L6) was built with a v0.1.6 default. Older stable tags keep
 their legacy route. A non-version branch containing the native init/upgrade
 adapters explicitly selects that committed local source and requires the Go
 toolchain; native upgrades preview before fresh confirmation. A reused cache
@@ -157,15 +157,15 @@ explicitly selects local source. It never executes the fetched initializer.
 The tracked developer launcher and direct init/upgrade scripts now enter Go.
 
 A Go release containing ordinary upgrade selection can preview its declared
-stable release with `./factory upgrade --dry-run --json`. Current source selects v0.2.0.
+stable release with `./factory upgrade --dry-run --json`. Current source selects v0.2.1.
 Selection is one explicit `--ref TAG`, then `FACTORY_REF`, then the declared
 default. Upgrade does not implicitly reuse the installed version.
 
 Pin the same exact stable selection for preview and confirmation:
 
 ```sh
-./factory upgrade --ref v0.2.0 --dry-run --json
-./factory upgrade --ref v0.2.0 --confirm PROPOSAL_DIGEST --quiescent
+./factory upgrade --ref v0.2.1 --dry-run --json
+./factory upgrade --ref v0.2.1 --confirm PROPOSAL_DIGEST --quiescent
 ```
 
 Ordinary refs reject moving aliases such as `main`, old Bash tags and
@@ -228,7 +228,7 @@ for file/byte reports, preserved exceptions and retry behavior.
 
 An interrupted transaction can leave a pending barrier that deliberately blocks
 ordinary factory work. Keep its backup, journal, private authenticated input cache
-and any recovery diagnostic. Do not remove the
+and any recovery diagnostic, including the exact read-only preview command when supplied. Do not remove the
 pending marker, expire locks by age/PID or execute the saved scripts.
 
 Whole-installation rollback and forward/reverse interrupted recovery use the

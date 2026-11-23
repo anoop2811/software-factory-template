@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-const defaultUpgradeNextTag = "v0.2.1"
+const defaultUpgradeNextTag = "v0.2.2"
+const defaultUpgradeThirdTag = "v0.2.3"
 const defaultUpgradeBeforeRC = "v0.2.0-rc.3"
 
 type defaultUpgradeJourneyFixtures struct {

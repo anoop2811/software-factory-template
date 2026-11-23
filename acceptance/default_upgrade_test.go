@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const defaultUpgradeTag = "v0.2.0"
+const defaultUpgradeTag = defaultInitTag
 const defaultUpgradePlanMarker = "INDEPENDENT_SELECTED_DEFAULT_UPGRADER_PLAN_20261031"
 const defaultUpgradeApplyMarker = "INDEPENDENT_SELECTED_DEFAULT_UPGRADER_APPLY_20261031"
 
@@ -197,7 +197,7 @@ var _ = Describe("Go default packaged upgrade", Ordered, ContinueOnFailure, func
 		}
 		defaultInitNoForbidden(p.f)
 		AddReportEntry("default-upgrade.go-roundtrip", map[string]any{"before": beforeTag, "after": afterTag, "literal_project_name": name, "rollback_status": restored.status}, ReportEntryVisibilityNever)
-	}, Entry("stable official predecessor", defaultUpgradeTag, defaultUpgradeNextTag), Entry("official prerelease predecessor", defaultUpgradeBeforeRC, defaultUpgradeTag))
+	}, Entry("first stable Go predecessor", "v0.2.0", defaultUpgradeTag), Entry("official prerelease predecessor", defaultUpgradeBeforeRC, defaultUpgradeTag))
 
 	// per docs/adr/0122-default-packaged-go-upgrade.md:84
 	DescribeTable("reconciles real acquisition children and bounds cancellation diagnostics", func(blockedStderr bool) {

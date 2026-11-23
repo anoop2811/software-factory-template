@@ -131,7 +131,7 @@ func installedReviewGo(f *defaultUpgradeJourneyFixtures) (defaultUpgradeProject,
 	data, err := os.ReadFile(provider)
 	Expect(err).NotTo(HaveOccurred())
 	const oldAPI = `  api) printf '%s\n' "$HANDOFF_REVISION" ;;`
-	const newAPI = `  api) case "$2" in *v0.2.0) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
+	const newAPI = `  api) case "$2" in *` + defaultUpgradeTag + `) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
 	Expect(strings.Count(string(data), oldAPI)).To(Equal(1))
 	writeFixture(provider, []byte(strings.Replace(string(data), oldAPI, newAPI, 1)), 0700)
 	surface.environment["HANDOFF_OLD_REVISION"] = revision

@@ -13,7 +13,7 @@ import (
 
 // DefaultVersion is prepared for stable activation, not a publication claim.
 // docs/adr/0118-default-packaged-go-initialization.md:12.
-const DefaultVersion = "v0.2.0"
+const DefaultVersion = "v0.2.1"
 
 const minimumGoRelease = "v0.2.0"
 

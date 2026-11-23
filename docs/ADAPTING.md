@@ -2,12 +2,12 @@
 
 ## Set up a project
 
-Use v0.2.0 to add a shared development workflow to a new or existing Git
+Use v0.2.1 to add a shared development workflow to a new or existing Git
 project. From its root, check `gh auth status`, then run the public installer
 with your chosen language pack:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.1 --pack go
 ```
 
 The installer authenticates the packaged Go release. The initializer collects
@@ -23,7 +23,7 @@ the core. The stack hints come from manifests at the project root. Review
 `check_command` for your repository layout and install any tools your checks
 need. The factory itself makes no model call during initialization.
 
-For a Go pack, check the generated `go_min_version` in `factory.yaml`. v0.2.0 can write a two-part version, but `./factory prereq` expects a full minimum patch version. Use your project’s approved minimum before running that check.
+For a Go pack, check the generated `go_min_version` in `factory.yaml`. v0.2.1 can write a two-part version, but `./factory prereq` expects a full minimum patch version. Use your project’s approved minimum before running that check.
 
 ## factory doctor
 
@@ -156,14 +156,14 @@ Run `./factory doctor` between each step to inspect configuration and isolated g
 
 ## Upgrading
 
-From an existing v0.1.6 project, preview the migration with the v0.2.0 installer:
+From an existing v0.1.6 project, preview the migration with the v0.2.1 installer:
 
 ```sh
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.1 --dry-run --json
 ```
 
 Inspect the proposed replacements, retirements, recovery files and blockers.
-Unrecognized or customized required factory files can block automatic migration.
+The upgrader preserves application code and project settings in `factory.yaml`. Unrecognized or customized required factory files can block automatic migration.
 When the proposal is acceptable, pause factory work and confirm that same
 release and proposal digest. A successful migration retains a Git-ignored local
 recovery backup. The [upgrade guide](UPGRADING.md) gives the confirmation,

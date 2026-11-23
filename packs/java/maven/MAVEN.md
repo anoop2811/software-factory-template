@@ -1,6 +1,6 @@
 # Java pack with Maven
 
-During v0.2.0 setup, `init --pack java` selects Maven for `pom.xml` or `mvnw`
+During project setup, `init --pack java` selects Maven for `pom.xml` or `mvnw`
 when the repository has no `gradlew`.
 Use `--java-build-tool maven` in a mixed repository to override detection. An
 executable `mvnw` is preferred; without a wrapper, commands use `mvn` from PATH.

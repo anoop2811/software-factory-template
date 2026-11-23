@@ -1,23 +1,23 @@
 # Factory CLI reference
 
-The [v0.2.0 stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) provides one project command, `./factory`. Use it to bootstrap language packs and CI, configure Codex, Claude Code and OpenCode, run checks, plan agent work and upgrade the installation. Start with `./factory help`. Options such as `--json` and `--dry-run` belong to particular commands.
+The [v0.2.1 stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.1) provides one project command, `./factory`. Use it to bootstrap language packs and CI, configure Codex, Claude Code and OpenCode, run checks, plan agent work and upgrade the installation. Start with `./factory help`. Options such as `--json` and `--dry-run` belong to particular commands.
 
-The README and guides copied from the signed v0.2.0 scaffold reflect the release source snapshot. If an installed README calls v0.2.0 pending, follow this reference and the [published release instructions](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0).
+The v0.2.1 scaffold includes the updated README. An existing project keeps its own README during an upgrade. If yours still describes v0.2.0 as pending, use this reference and the [upgrade guide](UPGRADING.md).
 
 ## Which runtime am I using?
 
-A v0.2.0 installation runs a packaged Go binary. Look for `"version":"v0.2.0"` in `.factory/installation.current` at the project root. A v0.1.6 installation still runs Bash until you preview and confirm a migration. Follow the [upgrade guide](UPGRADING.md) from that project. Contributors running the source checkout use the same `./factory` entrypoint with a local Go toolchain and module cache.
+A v0.2.1 installation runs a packaged Go binary. Read the `version` field in `.factory/installation.current` at the project root. A v0.1.6 installation still runs Bash until you preview and confirm a migration. Follow the [upgrade guide](UPGRADING.md) from that project. Contributors running the source checkout use the same `./factory` entrypoint with a local Go toolchain and module cache.
 
-With a new project, start with the [initializer and pack choices](ADAPTING.md). The table below describes the released v0.2.0 CLI. **Go only** identifies commands absent from the v0.1.6 dispatcher.
+With a new project, start with the [initializer and pack choices](ADAPTING.md). The table below describes the released v0.2.1 CLI. **Go only** identifies commands absent from the v0.1.6 dispatcher.
 
 ## Command map
 
 | Command | When to use it | Example and effects |
 |---|---|---|
 | `help` | Discover the public commands | `./factory help` prints the selected runtime's command list. No model call. |
-| `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` uses the selected installed release, or v0.2.0 from this source revision. To choose another release, pass `--ref TAG` for a stable tag or `--go-candidate TAG` for a prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
+| `init` | Set up a new project | Go `./factory init ../new-project --pack go,typescript` uses the selected installed release, or v0.2.1 from this source revision. To choose another release, pass `--ref TAG` for a stable tag or `--go-candidate TAG` for a prerelease. `--local --source /path/to/clean-factory` builds committed local source. Prompts for settings and consent, installs the selected runtime and proves gates. May install project dependencies; no model call. See [initialization](migration/INIT.md). |
 | `doctor` | Diagnose installed factory health | `./factory doctor` reports armed, inert and stale gates and runs isolated break/fix probes. It does not repair configuration. No model call. |
-| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews the stable release declared by the running controller (v0.2.0 in this release). Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Apply with `--confirm PROPOSAL_DIGEST --quiescent` after reviewing a fresh preview. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The direct source upgrade adapter uses this same Go controller. |
+| `upgrade` | Update the factory installation | Go `./factory upgrade --dry-run --json` previews the stable release declared by the running controller (v0.2.1 in this release). Override with an exact stable `--ref TAG` or `FACTORY_REF`; use `--go-candidate TAG` for an explicit candidate. `upgrade --local --source DIR` builds committed source and needs `--before-source DIR` for Go predecessors. Apply with `--confirm PROPOSAL_DIGEST --quiescent` after reviewing a fresh preview. See [ordinary Go upgrades](UPGRADING.md#ordinary-go-upgrades). The direct source upgrade adapter uses this same Go controller. |
 | `ci prepare` **Go only** | Prepare a disposable checkout's missing private runtime | Invoke a separately trusted native binary: `/path/to/trusted/factory ci prepare --go-candidate TAG --origin-target darwin/arm64 --ephemeral`, or use the [authenticated installer entrypoint](migration/CI_PREPARATION.md#bootstrap-without-an-existing-native-executable). Authenticates exact origin/host release images and reprojects clean tracked factory assets for this job. No model call. This is not an upgrade or repair command. |
 | `ci review-client` **Go only** | Acquire a standalone review executable in disposable scratch | `/path/to/trusted/factory ci review-client --go-candidate TAG --expected-revision COMMIT --output /absolute/new/client-directory`. Requires an exact release and matching full source commit; writes one private executable and emits a JSON identity receipt. The trusted installer exposes the same operation. No project mutation, compiler, Python or model call. See [bootstrap scope and prerequisites](migration/CI_PREPARATION.md#standalone-review-client). |
 | `ci workflow` **Go only** | Render a workflow for an installed factory | `./factory ci workflow --go-candidate TAG --origin-target darwin/arm64 --installer-revision COMMIT` prints GitHub Actions YAML. All selectors are explicit; `COMMIT` is a reviewed lowercase forty-character installer commit SHA. No project inspection, acquisition, file publication or model call. Review application setup and existing workflows before installation; see [workflow generation](migration/CI_PREPARATION.md#render-a-workflow-for-review). |
@@ -35,9 +35,9 @@ With a new project, start with the [initializer and pack choices](ADAPTING.md). 
 | `loop` **Go only** | Run a manual check or a bounded implementation/review/repair loop | `./factory loop plan --harness codex --session work --task issue-1`; actions are `plan`, `run`, `resume` and `status`. Manual mode runs the configured check once; bounded mode requires explicit enablement and shares budget accounting. See [loops](LOOPS.md). |
 | `migrate-config` | Convert old flat configuration safely | `./factory migrate-config --dry-run` previews conversion of `factory.config` to `factory.yaml`. Remove `--dry-run` only after reviewing; conversion preserves an adjacent backup and refuses conflicting state. It does not activate a Go installation. See [configuration migration](migration/CONFIG_MIGRATION.md). |
 
-The three `ci` subcommands use the flag name `--go-candidate` for both stable and prerelease tags. Use `v0.2.0` for `TAG` to select this release. Generated workflows pin the installer revision and record the installation’s actual origin target.
+The three `ci` subcommands use the flag name `--go-candidate` for both stable and prerelease tags. Use `v0.2.1` for `TAG` to select this release. Generated workflows pin the installer revision and record the installation’s actual origin target.
 
-**Go-pack prerequisite check in v0.2.0.** The initializer can write a two-part `go_min_version` such as `1.26`. The released `prereq` command requires a three-part minimum and reports “cannot be compared” even for a newer installed Go. Set `go_min_version` in `factory.yaml` to the full minimum patch your project supports, then run `./factory prereq` again.
+**Go-pack prerequisite check.** The initializer can write a two-part `go_min_version` such as `1.26`. The released `prereq` command requires a three-part minimum and reports “cannot be compared” even for a newer installed Go. Set `go_min_version` in `factory.yaml` to the full minimum patch your project supports, then run `./factory prereq` again.
 
 ## Everyday workflow
 
@@ -58,7 +58,7 @@ Use `--harness claude` or `--harness opencode` for those adapters. `doctor` exec
 gate probes, and `check`/manual loops execute your configured project commands;
 review those commands as you would any build/test tooling.
 
-Authenticated v0.2.0 initialization also writes
+Authenticated v0.2.1 initialization also writes
 `.github/workflows/factory.yml` with installed-runtime preparation and the selected
 language-pack setup. Its ordinary PR evaluation is mock-only. Existing application
 workflows are preserved; an occupied `factory.yml` refuses initialization before
@@ -125,7 +125,7 @@ go build -o factory-go ./cmd/factory
 ```
 
 Keep the tracked `factory` launcher intact. Ordinary source-built Go init selects
-an authenticated release rather than copying the checkout's scaffold. The default is v0.2.0. Use `--ref TAG` to pin a stable release,
+an authenticated release rather than copying the checkout's scaffold. The default is v0.2.1. Use `--ref TAG` to pin a stable release,
 `--go-candidate TAG` to select a prerelease, or `--local` to build committed source. Other
 source commands can still require assets beside the invoked executable. A detached
 development binary does not acquire installed identity.

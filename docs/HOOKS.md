@@ -1,6 +1,6 @@
 # Hooks reference
 
-In v0.2.0 the Go CLI runs project checks, and harness adapters and CI use
+The Go CLI runs project checks, and harness adapters and CI use
 shared hook entrypoints. Shell gates read project settings through
 `scripts/lib/config.sh`. Set paths and patterns in `factory.yaml`.
 

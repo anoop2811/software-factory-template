@@ -52,7 +52,10 @@ failed = mode == "implement_fail" and role == "implementer"
 if role == "implementer":
     if mode == "hold":
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
-        Path(os.environ["LOOP_FIXTURE_CHILD"]).write_text(str(child.pid))
+        marker = Path(os.environ["LOOP_FIXTURE_CHILD"])
+        pending = marker.with_name(f"{marker.name}.{child.pid}")
+        pending.write_text(str(child.pid))
+        pending.replace(marker)
         time.sleep(120)
     if mode != "no_change":
         value = "bad" if mode in ("repeat_bad", "check_repair") and number == 1 else "good"

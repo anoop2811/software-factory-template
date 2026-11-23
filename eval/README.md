@@ -20,7 +20,7 @@ It uses its own temporary config, so it passes or fails on wiring — not on
 whatever your `factory.yaml` happens to arm. What it deliberately does not
 claim: live in-harness behavior. That's a separate, manual observation.
 
-In an installed v0.2.0 project, run `./factory eval structural --harness=codex`,
+In a project with the Go factory, run `./factory eval structural --harness=codex`,
 substituting `claude` or `opencode` to check another adapter. The public script
 delegates to the same command.
 A source checkout uses its Go launcher; an installed project uses the packaged

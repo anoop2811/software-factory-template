@@ -6,7 +6,7 @@ provisioned local toolchain/module cache. Direct `scripts/factory-init.sh` forwa
 to that same `init` owner. From the factory source checkout, select the released initializer explicitly:
 
 ```sh
-./factory init /path/to/project --ref v0.2.0 --pack go,typescript
+./factory init /path/to/project --ref v0.2.1 --pack go,typescript
 ```
 
 Keep the tracked `factory` file intact. Ordinary Go initialization authenticates
@@ -16,7 +16,7 @@ Go compiler or Python; the source launcher itself requires Go. Git, GitHub CLI a
 the tools required by retained gates and project setup are still needed.
 
 Selection order is `--ref TAG`, nonempty `FACTORY_REF`, the admitted installed
-release version, then the prepared source default `v0.2.0`. Explicit and environment
+release version, then the prepared source default `v0.2.1`. Explicit and environment
 refs must be exact stable Go tags at or after v0.2.0; `main`, old Bash tags and
 implicit prereleases refuse. An installed official prerelease can reuse its own
 version. A local installation must explicitly choose local source or an official
@@ -101,7 +101,7 @@ two data files consumed by installed commands:
 - `packs/review-lane/review-pr.yml` for review-lane setup.
 
 These are two cached data files, not the entire installed factory. The reviewed
-v0.2.0 inventory has 141 rows covering 55 active selections and 86 retirements. The retirements comprise 83 unused cache files and the legacy controllers `scripts/lib/budget.py`, `scripts/lib/budget_adapters.py` and `scripts/lib/loop.py`. See [the retirement inventory](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
+v0.2.0 inventory has 141 rows covering 55 active selections and 86 retirements. The retirements comprise 83 unused cache files and the legacy controllers `scripts/lib/budget.py`, `scripts/lib/budget_adapters.py` and `scripts/lib/loop.py`. The separate four-module source-conversion inventory also includes `scripts/lib/runtime_transition.py`; its historical role does not add another retirement row to this initializer inventory. See [the retirement inventory](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 The installed descriptor lists 53 assets because `.factory-version` and the
 descriptor itself are separate controls. Project-facing scaffold files remain
 available outside this private cache.

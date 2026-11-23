@@ -9127,3 +9127,23 @@ For guides and project files absent from that scaffold, use links to the
 maintained factory repository. A corrected scaffold belongs in a new release:
 installed Go projects record the exact predecessor revision and the upgrader
 checks it when it reacquires the published predecessor.
+
+## Decision 180 (2026-11-23 UTC): ship corrected onboarding in v0.2.1
+
+Publish the corrected scaffold and guides under a new patch tag. Existing
+installations record the exact source revision and authenticate it again during
+upgrade. Keep the original v0.2.0 tag and assets available for that lookup.
+Select v0.2.1 in the patch installer and native controller. Keep v0.2.0 as the
+minimum stable Go release and preserve exact tag overrides.
+
+Keep the v0.2.0 pilot and platform reports attributed to their original tag.
+Before making the patch Latest, qualify the published assets for fresh setup,
+both supported Bash predecessors, rollback and recovery across the four native
+targets. Also exercise an upgrade from an installed public v0.2.0 image,
+including preview, confirmation, preserved project files and post-upgrade checks.
+Publish the GitHub Release with Latest disabled to start signing. Deploy the
+homepage and installer from main only after the published patch checks pass.
+
+In the macOS budget acceptance job, the child PID marker became visible before
+its contents were written. Publish the test marker by renaming a complete
+sibling file so a reader can treat its presence as the child-ready signal.

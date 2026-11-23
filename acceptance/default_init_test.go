@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const defaultInitTag = "v0.2.0"
+const defaultInitTag = "v0.2.1"
 const defaultInitMarker = "INDEPENDENT_SELECTED_DEFAULT_INITIALIZER_20261030"
 
 type defaultInitImage struct {
@@ -359,9 +359,9 @@ var _ = Describe("Go default packaged initialization", Ordered, ContinueOnFailur
 			flags                 []string
 			environment, expected string
 		}{
-			{[]string{"--ref", "v0.2.1"}, "main", "v0.2.1"},
-			{[]string{"--ref=v0.2.1"}, defaultInitTag, "v0.2.1"},
-			{nil, "v0.2.1", "v0.2.1"},
+			{[]string{"--ref", "v0.2.0"}, "main", "v0.2.0"},
+			{[]string{"--ref=v0.2.0"}, defaultInitTag, "v0.2.0"},
+			{nil, "v0.2.0", "v0.2.0"},
 		} {
 			f, driver := fixtures.surface(selection.expected)
 			f.environment["FACTORY_REF"] = selection.environment

@@ -1,6 +1,6 @@
 # Loop engineering
 
-In v0.2.0, use `./factory loop` to run your project check once or opt into a bounded implementation, check, review and repair cycle.
+Use `./factory loop` to run your project check once or opt into a bounded implementation, check, review and repair cycle.
 
 ## Acceptance contract
 
@@ -105,9 +105,9 @@ The existing eleven roadmap items and priorities remain unchanged.
 
 ## Runtime selection
 
-The packaged v0.2.0 Go CLI owns manual checks, bounded repair and checkpoint
+The packaged Go CLI owns manual checks, bounded repair and checkpoint
 freshness. The source launcher's Go build uses the same command. To move a
-supported v0.1.6 Bash installation to v0.2.0, follow the [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
+supported v0.1.6 Bash installation to the Go factory, follow the [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
 
 ## Usage and cost choices
 

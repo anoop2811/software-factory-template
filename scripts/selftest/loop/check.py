@@ -11,7 +11,10 @@ with Path(os.environ["LOOP_FIXTURE_CALLS"]).open("a") as output:
 mode = os.environ.get("LOOP_FIXTURE_MODE", "normal")
 if mode == "check_hold":
     child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
-    Path(os.environ["LOOP_FIXTURE_CHILD"]).write_text(str(child.pid))
+    marker = Path(os.environ["LOOP_FIXTURE_CHILD"])
+    pending = marker.with_name(f"{marker.name}.{child.pid}")
+    pending.write_text(str(child.pid))
+    pending.replace(marker)
     time.sleep(120)
 if mode == "check_mutation":
     Path("product.txt").write_text("good modified during verification\n")

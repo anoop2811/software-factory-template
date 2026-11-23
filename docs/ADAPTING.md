@@ -49,7 +49,7 @@ The Go CLI reads this file at runtime. Shell hooks use its `scripts/lib/config.s
 | `test_file_patterns` | Space-separated regex patterns identifying test files for the test-edit denial hook. Empty disables the denial. | `"_test\.go$"` |
 | `language_packs` | Space-separated list of active packs. | `go` |
 | `local_hooks` | Paths to hooks *you* wrote, space-separated. Checked for existence and the execute bit like the shipped ones, run by `pre-push-check`, and — unlike editing a framework file — survives `factory upgrade`. To pass a hook its own arguments, separate entries with commas instead. | `"scripts/hooks/my-gate.sh"`, or `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"` |
-| `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"make check"` |
+| `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"go test -race ./..."` |
 
 The keys above arm the gates. The rest configure the harnesses — which model does
 which work, and whether the advisory review lane runs. They used to live in a
@@ -79,8 +79,10 @@ docs_root: docs
 citation_prefix: ""
 protected_paths: "internal/billing scripts/hooks .github/workflows"
 test_file_patterns: "_test\.go$"
-check_command: "make check"
+check_command: "go test -race ./..."
 ```
+
+Set `check_command` to an application build or test command. The factory-provided `make check` invokes this value, and `./factory check` invokes `make check`. Using either as the value recurses.
 
 A blank `citation_prefix` disables citation linting. A blank `test_file_patterns` disables test-edit denial. Other keys have their own defaults.
 
@@ -170,7 +172,7 @@ preview a stable upgrade through the installed `./factory upgrade` command.
 
 ## Writing your own hooks
 
-A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the worked example of the whole pattern; see [HOOKS.md](HOOKS.md).
+The [field-coverage hook](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) in the template source is a worked example. To adapt it to an installed project, follow the steps below and the [hook reference](HOOKS.md).
 
 1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then call `factory_config_get <key>` to share project settings with the shipped shell hooks.
 2. **Register it** in `factory.yaml` — `local_hooks: "scripts/hooks/my-gate.sh"` (space-separated; use commas instead when an entry carries arguments, e.g. `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"`, and pre-push will run it with them) — so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net). Register it there, *not* in `scripts/hooks/hook-existence-check.sh`: a local modification to that framework file can block automatic migration.

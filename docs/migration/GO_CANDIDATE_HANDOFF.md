@@ -75,17 +75,16 @@ authentication, project inputs and fresh mutation consent are still required.
 The older recipe selected 85 cached files. A v0.2.0 upgrade can retire its 83
 unused cache entries after establishing ownership. See [cache retirement](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 
-Successful acquisition removes its temporary cache. Interrupted upgrades retain
-needed authenticated inputs and print a concrete read-only recovery preview.
+On a handled interruption with pending transaction evidence, the controller retains the authenticated inputs. It prints a read-only recovery preview when it can determine the safe direction. Otherwise it requests manual reconciliation. A process killed before it can report may print neither diagnostic.
 Partial initialization reports its target and pending evidence, without claiming
 automatic rollback. Preserve that evidence and reconcile the reported state before
 removing a pending barrier.
 
-Whole-installation JSON reports provide `recovery_arguments` as literal argv for
+When a recovery plan is available, its JSON report can include `recovery_arguments` as literal arguments for
 a fresh read-only preview from the installation root. The vector retains the
 selected image identities, local or authenticated trust operands, Go predecessor
 image and project-input overrides. `recovery_command` is a short description;
-use the structured vector for replay. Any later mutation still requires the new
+use the structured vector for replay with the trusted executable indicated by the diagnostic. Any later mutation still requires the new
 proposal's confirmation and explicit quiescent declaration.
 
 Candidate preview also reports [backup retention](BACKUP_RETENTION.md), including

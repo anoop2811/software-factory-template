@@ -2,6 +2,8 @@
 
 The [v0.2.0 stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) provides one project command, `./factory`. Use it to bootstrap language packs and CI, configure Codex, Claude Code and OpenCode, run checks, plan agent work and upgrade the installation. Start with `./factory help`. Options such as `--json` and `--dry-run` belong to particular commands.
 
+The README and guides copied from the signed v0.2.0 scaffold reflect the release source snapshot. If an installed README calls v0.2.0 pending, follow this reference and the [published release instructions](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0).
+
 ## Which runtime am I using?
 
 A v0.2.0 installation runs a packaged Go binary. Look for `"version":"v0.2.0"` in `.factory/installation.current` at the project root. A v0.1.6 installation still runs Bash until you preview and confirm a migration. Follow the [upgrade guide](UPGRADING.md) from that project. Contributors running the source checkout use the same `./factory` entrypoint with a local Go toolchain and module cache.

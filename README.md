@@ -11,25 +11,25 @@ Run `gh auth status` before using the authenticated Go installer for `init` or `
 ```bash
 # one shot — fetch, then set up the current repo:
 cd your-project
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go
 
 # polyglot? pass several — e.g. a Go backend with a TypeScript frontend:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --pack go,typescript
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go,typescript
 
 # From an existing v0.1.6 project, preview the upgrade before confirming it:
 curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 
-# For an installed Go project, preview the public installer’s pinned stable release:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --dry-run --json
+# From an installed v0.2.0 project, preview this version with its own Go CLI:
+./factory upgrade --ref v0.2.0 --dry-run --json
 ```
 
 The pack checks start at the project root. For a monorepo with nested modules or workspaces, adapt the check command and workflow paths to your directory layout.
 
-With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
+With no subcommand the installer only fetches the pinned source. With `init` it authenticates the published Go CLI using GitHub CLI (`gh`), prompts for project settings, installs the selected assets and runs a break/fix self-test. To inspect the installer first, download it with `curl -fsSLO https://softwareaifactory.sh/install.sh`, read it, then run `sh install.sh init --ref v0.2.0 --pack go`. Local Git hooks need explicit activation: follow the [full pre-push check setup](docs/HOOKS.md#full-pre-push-checks), preserving any existing hooks. The tracked `.githooks/pre-push` only blocks direct updates to `main`. Commit-message lint runs in the configured CI checks or through `make lint-commits`; init does not install a local `commit-msg` hook.
 
 ## Upgrade from v0.1.6 to the Go factory
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The public installer selects v0.2.0 by default. Use its exact tag for both steps so the preview and confirmation select the same release. On the original v0.1.6 installation, a bare local `./factory upgrade` defaults to `main` unless overridden. Use the authenticated installer below for this migration.
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) ships the Go factory for Ubuntu 24.04+ and macOS 15+ on amd64 and arm64. The installer uses the default built into its own revision. Use the exact tag for both steps so the preview and confirmation select the same release. On the original v0.1.6 installation, a bare local `./factory upgrade` defaults to `main` unless overridden. Use the authenticated installer below for this migration. Keep `--ref v0.2.0` on the preview so an older shell installer cannot select the legacy updater, which omits the preview flags.
 
 ```sh
 # Preview changes without modifying the project.
@@ -65,6 +65,8 @@ A bare installer invocation only fetches source and prints the authenticated
 initialization command to use next.
 Installing the packaged Go factory requires no Go compiler or Python;
 product tools and retained validation gates keep their own requirements.
+
+A fresh v0.2.0 project can contain a copy of the README written before publication. For the shipped command behavior, use the [maintained CLI reference](https://github.com/anoop2811/software-factory-template/blob/main/docs/CLI.md) and [upgrade guide](https://github.com/anoop2811/software-factory-template/blob/main/docs/UPGRADING.md).
 
 ## Getting started
 

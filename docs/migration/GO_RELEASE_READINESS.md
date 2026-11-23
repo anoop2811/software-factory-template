@@ -6,7 +6,7 @@ The operator selected the merge of [PR #189](https://github.com/anoop2811/softwa
 for v0.2.0. On 2026-11-20 the GitHub Latest endpoint returned v0.2.0 after the published qualification and signed pilot. The [stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0)
 identifies the downloads. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
 passed all 20 scenarios on Linux and macOS, on amd64 and arm64. The [downloadable reports](https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz) preserve the run, target, signer subjects and scenario outcomes.
-The public installer pins the tag. Existing projects choose when to apply the upgrade.
+The [published installation instructions](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) pin the tag explicitly. Existing projects choose when to apply the upgrade.
 See the [v0.1.6 upgrade guide](../UPGRADING.md) for preview, confirmation and recovery.
 
 ### Signed adopter pilot, 2026-11-20 UTC
@@ -85,7 +85,7 @@ Historical snapshot before stable promotion.
 - Ordinary shell-installer init/upgrade requests with an exact stable Go ref
   reuse authenticated bootstrap acquisition and the native stable owner. The
   shell checks stable publisher metadata before first execution and carries one
-  explicit ref into Go. Bare fetch stays Git-only; the public v0.1.6 pin remains.
+  explicit ref into Go. At that checkpoint, bare fetch stayed Git-only and the public installer still selected v0.1.6.
   See [ADR 0124](../adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 - The tracked developer launcher builds and enters the existing native Cobra
   command; direct init/upgrade scripts forward to the same owners. Branch

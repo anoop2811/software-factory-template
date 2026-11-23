@@ -2,7 +2,7 @@
 
 ## Availability and the command you keep
 
-[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) is the stable Go release. The public installer selects it by default. Pin the exact version for preview and confirmation so both steps authenticate the same release.
+[v0.2.0](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) is the stable Go release. Pass `--ref v0.2.0` for both preview and confirmation. This selects the published Go release even when your copy of the shell installer has an older default. **Include the ref on the preview.** A shell installer that selects the v0.1.6 Bash updater can apply framework changes because its legacy handoff omits `--dry-run --json`.
 
 You continue to use `./factory` in your project. Thin executable and sourceable
 adapters retain supported old paths for hooks and automation. Regular users do
@@ -145,7 +145,7 @@ native bootstrap before execution; the Go owner then validates the complete
 installation image. Go releases use the official repository; a conflicting
 `FACTORY_REPO` refuses. See the [bootstrap contract](adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 
-The public default is v0.2.0. Older stable tags keep
+An unpinned installer uses its own `FACTORY_DEFAULT_REF`. The [installer in the signed v0.2.0 source](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/install.sh#L6) was built with a v0.1.6 default. Older stable tags keep
 their legacy route. A non-version branch containing the native init/upgrade
 adapters explicitly selects that committed local source and requires the Go
 toolchain; native upgrades preview before fresh confirmation. A reused cache
@@ -228,15 +228,12 @@ for file/byte reports, preserved exceptions and retry behavior.
 
 An interrupted transaction can leave a pending barrier that deliberately blocks
 ordinary factory work. Keep its backup, journal, private authenticated input cache
-and the exact recovery command printed by the diagnostic. Do not remove the
+and any recovery diagnostic. Do not remove the
 pending marker, expire locks by age/PID or execute the saved scripts.
 
 Whole-installation rollback and forward/reverse interrupted recovery use the
 `upgrade --installation` interface with independently qualified source images and
-a fresh proposal/digest. The public candidate flow prints the concrete read-only
-recovery preview needed for its actual state. Follow that evidence-specific
-command before confirming any recovery; `--go-candidate` alone is not a generic
-rollback switch. Later edits and unrecognized state remain conflicts.
+a fresh proposal/digest. When the controller can determine a safe recovery direction, it prints a read-only preview using the retained trusted executable. Run that preview before confirming recovery. If the diagnostic asks for manual reconciliation, or the process exited before printing guidance, preserve the pending state and qualified inputs. A migration ID alone is insufficient to choose a recovery direction. Later edits and unrecognized state remain conflicts.
 See [the whole-installation contract](adr/0098-whole-installation-upgrade-and-rollback.md)
 and [candidate handoff](migration/GO_CANDIDATE_HANDOFF.md).
 

@@ -36,7 +36,7 @@ The factory has computational controls that enforce invariants at CI time. You d
 
 Key hooks you will encounter in CI failures:
 - `scripts/citation-lint.sh` — resolves `<citation_prefix>*.md:NN` citations against `docs_root` (both configured in `factory.yaml`; empty prefix disables)
-- `docs/examples/hooks/field-coverage-check.sh` — an example domain-invariant hook; copy and adapt it for structs whose fields must never silently escape a derived computation
+- [Field-coverage hook from the template source](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) — an example domain-invariant hook; copy and adapt it for structs whose fields must never silently escape a derived computation
 - `scripts/hooks/shared-script-enforcement.sh` — verifies opencode, Claude Code, and Codex adapters call shared scripts, not inline logic
 - `scripts/hooks/test-edit-denial.sh` — blocks the implementer role from editing `*_test.go`
 - `scripts/hooks/ginkgo-only-check.sh` — permits `testing` only in `RunSpecs` bootstraps; all behavioral tests use Ginkgo/Gomega

@@ -3,10 +3,10 @@
 The Go CLI's ordinary `init` selects an authenticated packaged Go initializer.
 The current source checkout's tracked launcher builds the Go CLI with the
 provisioned local toolchain/module cache. Direct `scripts/factory-init.sh` forwards
-to that same `init` owner. The public installer and source checkout both default to v0.2.0:
+to that same `init` owner. From the factory source checkout, select the released initializer explicitly:
 
 ```sh
-./factory init /path/to/project --pack go,typescript
+./factory init /path/to/project --ref v0.2.0 --pack go,typescript
 ```
 
 Keep the tracked `factory` file intact. Ordinary Go initialization authenticates

@@ -89,7 +89,7 @@ Resolves every `<citation_prefix>*.md:NN` reference in code and docs against you
 
 Rejects malformed commit messages and any "verified"/"fixed"/"works" claim lacking a command-and-output citation.
 
-**Fires when:** CI lints every commit in a PR's BASE..HEAD range; locally via `make lint-commits` (HEAD). Takes a SHA argument or a message on stdin. Merge and revert commits are exempt from the subject check.
+**Commit range.** The template repository’s PR workflow lints the PR base through HEAD. In an installed project, `./factory check` (also invoked by generated CI) lints `origin/main..HEAD` when that ref exists and skips this stage when it is absent. `make lint-commits` checks HEAD. Takes a SHA argument or a message on stdin. Merge and revert commits are exempt from the subject check.
 
 **Exit codes:** 0 pass, 1 fail.
 
@@ -107,7 +107,7 @@ Also checked: conventional-commit subject (`feat` `fix` `chore` `docs` `refactor
 
 Requires commits touching governance-sensitive paths to reference a Decision number.
 
-**Fires when:** CI on pull requests (base..head), the pre-push gate, and against the working tree when run with no arguments. Governance paths are the factory's own surfaces (`opencode.json`, the adapters, `scripts/`, `.github/workflows/`, `Makefile`, `specs/`, `factory.yaml`) plus every prefix in `protected_paths`. Commits older than `decision_gate_cutoff` are exempt.
+**When it runs.** The template PR workflow supplies the PR base and HEAD. The installed `./factory check` supplies `origin/main` and HEAD when that remote ref exists and skips this stage otherwise. Running the gate without arguments checks the working tree. Governance paths are the factory's own surfaces (`opencode.json`, the adapters, `scripts/`, `.github/workflows/`, `Makefile`, `specs/`, `factory.yaml`) plus every prefix in `protected_paths`. Commits older than `decision_gate_cutoff` are exempt.
 
 **Exit codes:** 0 pass, 1 fail.
 
@@ -175,7 +175,7 @@ ginkgo-only-check: 1 violation(s) found
 
 The worked example of a domain-invariant hook: a struct's coverage function must include every field except deliberate exclusions, so a new field can't silently escape a derived computation.
 
-**Fires when:** nothing by default. Lives in `docs/examples/hooks/`; copy into `scripts/hooks/` and adapt it once your project has a struct that warrants it. Skips silently if the configured record file doesn't exist.
+**Fires when:** nothing by default. Copy the [example from the template source](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) into `scripts/hooks/` and adapt it to the fields your project needs to cover. Skips silently if the configured record file doesn't exist.
 
 **Exit codes:** 0 pass or skip, 1 fail.
 

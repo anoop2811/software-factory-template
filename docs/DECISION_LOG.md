@@ -4608,8 +4608,8 @@ redirect. That observed edge change is separate from these repository edits.
 
 Anoop requested an audit of the public index against delivered source, a usable
 command reference and README instructions for moving from v0.1.6 to the planned
-v0.2.0 Go replacement. GitHub release readback on 2026-10-23 still identifies
-v0.1.6 as latest stable and has no published v0.2.0 or Go candidate. Existing
+v0.2.0 Go replacement. GitHub release readback on 2026-10-23 identified
+v0.1.6 as latest stable and showed no published v0.2.0 or Go candidate. Existing
 source and opt-in release handoff are implemented; default selection, published
 native qualification, adopter pilot and stable publication remain separate gates
 in docs/migration/GO_RELEASE_READINESS.md.
@@ -4646,7 +4646,7 @@ reported `bundle file extension not supported, must be json or jsonl`.
 Their retained release.json artifacts identify the exact authenticated subjects;
 all five live scenarios failed on each observed Linux target. This is an observed
 candidate consumer defect, not successful migration evidence. RC1 now carries a
-failed-qualification notice; v0.1.6 remains latest stable.
+failed-qualification notice; v0.1.6 held the Latest designation at that milestone.
 
 The generic staging component copies caller-owned inputs into private pinned
 custody, but names the attestation snapshot `attestation`, discarding the format
@@ -4835,7 +4835,7 @@ head that passed all 18 checks. Release run 40252592120 passed four native build
 authentication of all twelve subjects, upload of fourteen assets and the release
 guard. The four live qualification jobs failed: three of twenty scenario criteria
 passed. The retained source, tag and assets remain unchanged; release notes mark
-the candidate unqualified for migration. v0.1.6 remains latest stable.
+the candidate unqualified for migration. v0.1.6 held the Latest designation at that milestone.
 
 The complete retained reports identify three separate boundaries:
 
@@ -4925,7 +4925,7 @@ passed on each target, twenty passed and zero failed overall. The candidate and
 harness identities match. These are published binary outcomes, distinct from
 source-only tests. The observed systems are Ubuntu 24.04.5 on both architectures,
 macOS 14.8.9 arm64 and macOS 15.7.9 amd64. The last does not establish macOS 14
-Intel support; retain the full minimum-OS gate. v0.1.6 remains latest stable.
+Intel support; retain the full minimum-OS gate. v0.1.6 held the Latest designation at that milestone.
 
 Keep the mandatory operator pilot in Q5 of
 specs/001-go-runtime-conversion.md:484. Q1 at
@@ -8652,7 +8652,7 @@ Record actual source, harness, OS, asset digests, scenario counts and failures.
 Publication is not a passing qualification. Preserve the tag and signed assets
 if a failure requires a later correction; do not silently replace them.
 
-Create a prerelease with explicit `--latest=false`; v0.1.6 remains latest stable.
+Create a prerelease with explicit `--latest=false`; v0.1.6 held the Latest designation at that milestone.
 Use the already reviewed Go 1.27.4 toolchain without changing dependencies.
 The [official Go release history](https://go.dev/doc/devel/release), fetched
 2026-11-15, confirms Go 1.27.4 was released 2026-11-10. The
@@ -9114,3 +9114,11 @@ custom hook can place sensitive data there. The metrics command sends no events.
 Record the packaged prereq limitation observed with Go-pack initialization: a
 two-part generated minimum fails comparison, and an explicit three-part project
 minimum allows the same checker to compare the installed toolchain.
+
+Post-publication audit, 2026-11-22. Pin the Go tag in the quick start so copies
+of the installer from different revisions select the same release. The v0.1.6
+handoff omits Go preview flags when it invokes the legacy updater. Direct readers
+of the signed scaffold to the maintained command and upgrade guides. Document
+the installed check runner’s actual commit range and use a nonrecursive product
+test command in configuration examples. Only promise recovery arguments in a
+report when the controller can establish the inputs and direction for a preview.

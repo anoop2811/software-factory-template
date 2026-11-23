@@ -27,7 +27,7 @@ Per-hook detail — fire conditions, exit codes, failure output — is in [HOOKS
 | `scripts/hooks/pending-lessons-push-block.sh` | No push while a lesson reminder or staleness flag is unaddressed. | pre-push, CI |
 | `scripts/hooks/loop-close-check.sh` | Nothing — a session-end nudge that writes `memory/PENDING-LESSONS.md`. | opencode `dispose` hook |
 | `packs/go/hooks/ginkgo-only-check.sh` | (Go pack) one testing dialect: Ginkgo v2 + Gomega, stdlib `testing` only in the `RunSpecs` bootstrap. | CI, `make check` |
-| `docs/examples/hooks/field-coverage-check.sh` | Example only, not an active gate: a struct's coverage function includes every non-excluded field. Copy and adapt. | nothing by default |
+| [Template field-coverage example](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) | Example only, not an active gate: a struct's coverage function includes every non-excluded field. Copy and adapt. | nothing by default |
 
 Boundaries worth remembering:
 

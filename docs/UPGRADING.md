@@ -136,6 +136,8 @@ If a command fails, preserve the diagnostics and migration evidence. An exit tha
 reports activation succeeded but cleanup failed requires cleanup reconciliation;
 it is not permission to reinstall or discard recovery files.
 
+If recovery itself is interrupted, use the recovery arguments reported by the factory to generate a fresh preview. In v0.2.1, the journal carries forward the identity of each file selected for replacement. A file with identical contents at a different inode still requires reconciliation when the journal cannot establish its ownership.
+
 ## Ordinary Go upgrades
 
 The shell installer accepts the same exact stable Go selection:

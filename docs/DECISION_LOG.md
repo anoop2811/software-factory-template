@@ -9147,3 +9147,27 @@ homepage and installer from main only after the published patch checks pass.
 In the macOS budget acceptance job, the child PID marker became visible before
 its contents were written. Publish the test marker by renaming a complete
 sibling file so a reader can treat its presence as the child-ready signal.
+
+## Decision 181 (2026-11-23 UTC): preserve file ownership across interrupted recovery
+
+The macOS CI migration job observed a forward interruption with a published
+adapter, then a second interruption during reverse recovery. The next preview
+reported the genuine candidate adapter as unowned. A staged-file receipt can
+prove publication before the transaction records the installed inode. Starting
+another recovery must carry the freshly qualified active identity into its own
+durable intent before preparing a replacement. Keep refusing an equal-content
+file at a different inode. For an older recovery journal, use a surviving
+prepared identity only when it matches a freshly qualified side of the
+transition. Absence of sufficient identity evidence still requires reconciliation.
+[CI failure](https://github.com/anoop2811/software-factory-template/actions/runs/45107131014/job/137473530766)
+
+The separate local-source macOS job took about 82 seconds to enter the selected
+worker. Its 90-second test watchdog cancelled preflight before a journal or
+pending marker existed. The next example encountered the first example's
+retained timing control. For the two healthy Go-predecessor source upgrades,
+bound the complete confirmation with the existing 180-second qualification
+allowance for commands rebuilding both images. Give each adopter its own
+private timing control while keeping exclusive creation and conservative
+retention. Rollback, runtime, compiler, suite and job limits keep their
+existing values.
+[Local-upgrade failure](https://github.com/anoop2811/software-factory-template/actions/runs/45107131014/job/137473530802)

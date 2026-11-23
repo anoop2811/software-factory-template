@@ -378,7 +378,7 @@ func reviewClientCooperativeProcess(f handoffBootstrapFixture, environment map[s
 	streams, err := os.MkdirTemp("", "factory-cooperative-review-")
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(cleanupFixtureDirectory, streams)
-	return cooperativeFixtureProcessContextWithOutput(context.Background(), streams, "fixture.review-client-owner", "", []string{f.root, streams}, stdout, func(ctx context.Context) *exec.Cmd {
+	return cooperativeFixtureProcessContextWithOutput(context.Background(), streams, "fixture.review-client-owner", "", []string{f.root, streams}, stdout, fixtureCommandTimeout, func(ctx context.Context) *exec.Cmd {
 		command := handoffCommand(ctx, f.cwd, environment, "", program, args...)
 		command.Env = make([]string, 0, len(environment))
 		for key, value := range environment {

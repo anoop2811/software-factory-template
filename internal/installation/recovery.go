@@ -233,10 +233,7 @@ func buildTransitionPlan(ctx context.Context, root string, request Request, reco
 		// Its full original identity, not equal bytes, proves that it was untouched.
 		// docs/DECISION_LOG.md:4892.
 		knownOriginal := !observedPhase && imageEqual(current, original.Before, true)
-		knownPrepared := preparedEqual(current, progress.PreparedAfter) && imageEqual(current, expected, false)
-		if record.Direction == "reverse" && progress.Phase == "reverse_prepared" {
-			knownPrepared = preparedEqual(current, progress.PreparedAfter) && imageEqual(current, original.Before, false)
-		}
+		knownPrepared := progress.recognizesPrepared(current, atBefore, atAfter, &record)
 		unconfirmedIntent := (progress.Phase == "prepared" || progress.Phase == "reverse_prepared") && !imageEqual(current, original.Before, true) && !knownObserved && !knownPrepared
 		changedObserved := observedPhase && !imageEqual(current, progress.ObservedAfter, true)
 		switch {
@@ -467,6 +464,27 @@ func (owner *transaction) validateLegacy(ctx context.Context) error {
 }
 
 var _ = os.ErrNotExist
+
+// Older recovery journals can carry a prepared receipt from the preceding
+// direction. Require its exact staged inode and one of the two qualified
+// images. A subsequent full observation of that inode also binds its ctime.
+// per docs/DECISION_LOG.md:9151.
+func (entry *journalEntry) recognizesPrepared(current *Image, atBefore, atAfter bool, record *journal) bool {
+	if !preparedEqual(current, entry.PreparedAfter) {
+		return false
+	}
+	if observed := entry.ObservedAfter; observed != nil && observed.Identity != nil &&
+		observed.Identity.Device == current.Identity.Device && observed.Identity.Inode == current.Identity.Inode && !imageEqual(current, observed, true) {
+		return false
+	}
+	if record.Purpose == "recovery" && (entry.Phase == "prepared" || entry.Phase == "reverse_prepared") {
+		return atBefore || atAfter
+	}
+	if record.Direction == "reverse" && entry.Phase == "reverse_prepared" {
+		return atBefore
+	}
+	return atAfter
+}
 
 func preparedEqual(actual, prepared *Image) bool {
 	if actual == nil || prepared == nil || actual.Identity == nil || prepared.Identity == nil || !imageEqual(actual, prepared, false) {

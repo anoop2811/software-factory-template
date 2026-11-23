@@ -340,10 +340,7 @@ func (capability *Capability) Complete(ctx context.Context) error {
 		}
 		for index := range owner.record.Entries {
 			if owner.record.Entries[index].Path == action.Path {
-				owner.record.Entries[index].Phase = "prepared"
-				if reverse {
-					owner.record.Entries[index].Phase = "reverse_prepared"
-				}
+				owner.record.Entries[index].prepareIntent(action, reverse)
 			}
 		}
 	}
@@ -595,6 +592,18 @@ func (owner *transaction) applyRow(ctx context.Context, action Action, reverse b
 	}
 	owner.recordObservedRow(action.Path, actual, reverse)
 	return owner.save(ctx)
+}
+
+// Carry the freshly requalified active inode through the next staging write.
+// A previous publication may have only a prepared receipt when recovery begins.
+// per docs/DECISION_LOG.md:9151.
+func (entry *journalEntry) prepareIntent(action Action, reverse bool) {
+	entry.ObservedAfter = action.Before
+	entry.PreparedAfter = nil
+	entry.Phase = "prepared"
+	if reverse {
+		entry.Phase = "reverse_prepared"
+	}
 }
 
 func (owner *transaction) recordObservedRow(path string, actual *Image, reverse bool) {

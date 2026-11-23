@@ -705,3 +705,9 @@ application and active installation data before reversal. Also qualify witnessed
 reverse-preflight interruption and both sides of pending publication, including
 replaced-marker refusal. New preparation evidence cannot be used to legitimize
 an unrelated marker or silently repair an older already-stranded journal.
+
+A new recovery intent records the freshly qualified active file identity before
+staging its replacement. A surviving prepared receipt from a previous direction
+can identify its own published inode on either qualified side of the operation.
+A later full observation of the same inode also binds its change time. See
+docs/DECISION_LOG.md:9151 for the repeated-interruption case.

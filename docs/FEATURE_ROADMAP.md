@@ -2,10 +2,10 @@
 
 Provenance: user-selected roadmap and priority order in the 2026-09-06 factory
 development session. Keep these feature names stable when reporting progress.
-v0.2.0 ships the Go CLI, authenticated setup and upgrades, harness configuration,
+v0.2.0 introduced the Go CLI, authenticated setup and upgrades, harness configuration,
 project and CI checks, budgets, repair loops, metrics and optional model review.
 The table tracks additional capabilities against the original roadmap. A 0% row
-can have useful foundations already. For example, v0.2.0 includes Markdown
+can have useful foundations already. For example, the Go factory includes Markdown
 workflow recipes and golden-task evaluation. The executable graph engine and
 automated model-selection proposals below are future work.
 Completion means the defined implementation and acceptance checks are complete;

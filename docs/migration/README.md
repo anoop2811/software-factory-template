@@ -1,6 +1,6 @@
 # Factory migration and release evidence
 
-For an existing v0.1.6 installation, start with the [upgrade guide](../UPGRADING.md). It gives the v0.2.0 installer command, explains the proposal and shows how to keep or restore the previous installation. For a new project, use the [initialization guide](INIT.md).
+For an existing v0.1.6 installation, start with the [upgrade guide](../UPGRADING.md). It gives the pinned installer command, explains the proposal and shows how to keep or restore the previous installation. For a new project, use the [initialization guide](INIT.md).
 
 | What do you need? | Where to look |
 |---|---|

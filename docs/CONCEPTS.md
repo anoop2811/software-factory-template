@@ -91,7 +91,7 @@ Rule 3 deserves its own paragraph because it's the one that has saved us most of
 break the thing  ->  check FAILS  ->  revert  ->  check PASSES
 ```
 
-A check you've only seen pass may be passing vacuously. We had a dead pipeline that read an empty stream, and a grep satisfied by a comment mentioning the required call — both real, both in [PATTERNS.md](PATTERNS.md). In v0.2.0, initialization runs the same fourteen core gate pairs as `./factory selftest`. Add a break/fix case to the project suite when you write your own gate.
+A check you've only seen pass may be passing vacuously. We had a dead pipeline that read an empty stream, and a grep satisfied by a comment mentioning the required call — both real, both in [PATTERNS.md](PATTERNS.md). Go initialization runs the same fourteen core gate pairs as `./factory selftest`. Add a break/fix case to the project suite when you write your own gate.
 
 ### Read back state after mutating it
 
@@ -152,7 +152,7 @@ CI           ──────────────> hooks
 
 Project-specific values — protected paths, test file patterns, the decision-log location, the citation prefix — live in `factory.yaml` at the repo root, read by the Go runtime and through the shell hooks' `scripts/lib/config.sh` adapter. The format uses flat `key: value` entries and space-separated lists. Anything more expressive belongs in a hook.
 
-This replaced an earlier install-time placeholder-substitution scheme, for a reason worth recording. Substituted placeholders fork every adopter from the template at install time, so upgrades required diff archaeology, and the template's own hooks couldn't run (or be tested) in the template repo itself. With runtime config, adopters can share a hook implementation. The v0.2.0 upgrade checks file ownership and offers a reviewable migration with recovery. Key reference in [ADAPTING.md](ADAPTING.md).
+This replaced an earlier install-time placeholder-substitution scheme, for a reason worth recording. Substituted placeholders fork every adopter from the template at install time, so upgrades required diff archaeology, and the template's own hooks couldn't run (or be tested) in the template repo itself. With runtime config, adopters can share a hook implementation. The Go upgrader checks file ownership and offers a reviewable migration with recovery. Key reference in [ADAPTING.md](ADAPTING.md).
 
 ## Decisions before code
 
@@ -162,6 +162,6 @@ Every decision about the factory goes in `docs/DECISION_LOG.md` before the code 
 
 At session end, lessons worth keeping go to `memory/lessons/NNN-*.md` with provenance — a file and line, a fetched URL with date, or "observed YYYY-MM-DD via \<action\>". A lesson without provenance is worse than no lesson; it becomes a stale fact asserted with confidence.
 
-A fresh v0.2.0 installation seeds one lesson (`001-verification-contract.md`) to prove the pattern; adopters accumulate their own from there.
+A fresh Go installation seeds one lesson (`001-verification-contract.md`) to prove the pattern; adopters accumulate their own from there.
 
 The loop closes by escalation: a per-turn reminder flag, a session-end check that records pending lessons (`loop-close-check.sh`), and a push block (`pending-lessons-push-block.sh`) that turns the ignorable nudge into a gate.

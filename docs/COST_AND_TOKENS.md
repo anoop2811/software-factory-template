@@ -1,6 +1,6 @@
 # Cost and tokens
 
-In v0.2.0 you can choose a model tier for each role, limit factory-managed
+You can choose a model tier for each role, limit factory-managed
 agent launches and inspect the usage the harness reported. Choose the control
 that matches the question:
 

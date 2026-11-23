@@ -7,7 +7,7 @@ whatever it is already configured with.
 
 ## Choosing at init
 
-The v0.2.0 initializer asks for a provider during project setup. It only *seeds* defaults:
+The Go initializer asks for a provider during project setup. It only *seeds* defaults:
 
 | Provider | What gets seeded |
 |---|---|

@@ -9128,7 +9128,7 @@ maintained factory repository. A corrected scaffold belongs in a new release:
 installed Go projects record the exact predecessor revision and the upgrader
 checks it when it reacquires the published predecessor.
 
-## Decision 180 (2026-11-22 UTC): ship corrected onboarding in v0.2.1
+## Decision 180 (2026-11-23 UTC): ship corrected onboarding in v0.2.1
 
 Publish the corrected scaffold and guides under a new patch tag. Existing
 installations record the exact source revision and authenticate it again during

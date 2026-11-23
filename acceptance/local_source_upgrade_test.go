@@ -535,14 +535,8 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		closed := control.Close()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(closed).To(Succeed())
-		controlSettled := false
-		DeferCleanup(func() {
-			if !controlSettled {
-				holdFixtureCleanup(controlPath, "local Go timing control remains borrowed after an unconfirmed helper return")
-				return
-			}
-			Expect(os.Remove(controlPath)).To(Succeed())
-		})
+		// The image fixture owns each adopter's control for its full lifetime,
+		// including retention when command ownership is uncertain.
 		DeferCleanup(func() {
 			timing, timingErr := os.ReadFile(ready + ".timing")
 			observation := map[string]any{"root": root, "versioned": versioned, "timing_only": true, "phase_timing_json": string(timing), "phase_timing_error": fmt.Sprint(timingErr)}
@@ -578,9 +572,11 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 			AddReportEntry("local-upgrade.go-predecessor-phase-timing", observation, ReportEntryVisibilityNever)
 		})
 		applied := handoffCooperativeProcessWithin(qualification.LocalRecoveryLimits().Command, root, f.environment, "", []string{f.root, root, fixture.image.work}, driver, append(append([]string{}, args...), "--confirm", preview["proposal_digest"].(string), "--quiescent", "--")...)
-		controlSettled = true
 		Expect(applied.status).To(Equal(0), "%+v", applied)
 		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
+		timing, err := os.ReadFile(ready + ".timing")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(string(timing)).To(ContainSubstring(`"phase":"preflight-end"`))
 		localInitDescriptor(root, fixture.revision)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))
@@ -589,9 +585,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		reverse = append(reverse, "--rollback", localUpgradeMigration(root))
 		localInitPoisonCompiler(f)
 		proposal := handoffProposal(handoffNativeProcess(root, f.environment, "", driver, append(append([]string{}, reverse...), "--dry-run", "--json")...))
-		controlSettled = false
 		restored := handoffCooperativeProcess(root, f.environment, "", []string{f.root, root, fixture.image.work, filepath.Dir(before.before.Archive)}, driver, append(reverse, "--confirm", proposal["proposal_digest"].(string), "--quiescent")...)
-		controlSettled = true
 		Expect(restored.status).To(Equal(0), "%+v", restored)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/bin/factory-runtime"))).To(Equal(before.runtime))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/installation.current"))).To(Equal(original))
@@ -905,9 +899,7 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		ready := filepath.Join(f.root, "actual-selected-worker.json")
 		control, err := json.Marshal(map[string]string{"Root": root, "Ready": ready})
 		Expect(err).NotTo(HaveOccurred())
-		controlPath := fixture.controlPath(root)
-		writeFixture(controlPath, control, 0600)
-		DeferCleanup(func() { Expect(os.Remove(controlPath)).To(Succeed()) })
+		writeFixture(fixture.controlPath(root), control, 0600)
 		limits := qualification.LocalRecoveryLimits()
 		ctx, cancel := limits.Context(context.Background())
 		defer cancel()

@@ -1,7 +1,7 @@
 # Try an authenticated Go factory candidate
 
-Candidate selection is explicit until the replacement release passes its remaining
-release gates. Use a published `TAG` with all twelve attested release assets.
+To install or upgrade to stable v0.2.0, follow the [stable guide](../UPGRADING.md).
+Use this guide to try a specific published prerelease with all twelve attested assets.
 An older release without those assets is refused; no alternative release or script
 implementation is substituted. The contract is [ADR 0101](../adr/0101-go-release-handoff.md).
 
@@ -61,9 +61,9 @@ installed Go runtime. To select a later candidate, use the same public interface
 ```
 
 Go-to-Go upgrades authenticate the predecessor too and require its supported
-generation recipe. An installed Go factory initializes another project with
-`./factory init TARGET --go-candidate TAG`; omitting the selector refuses before
-prompts or writes rather than publishing the inert legacy scaffold.
+generation recipe. In v0.2.0 an authenticated installation reuses its selected
+release for `./factory init TARGET`. Pass `--go-candidate TAG` to try a specific
+prerelease. An explicitly local installation must select a release or local source.
 
 The current source consumer retains the closed RC3 generation recipe from
 `95486ecdd3868a319a0e6362ee99cafd8f154200`. It reconstructs the original
@@ -72,20 +72,19 @@ data, so later target inventories need not be mistaken for the prior layout.
 Current-recipe matching also checks the selector and historical-role files.
 Unknown or altered unsupported recipes remain preserved conflicts; image
 authentication, project inputs and fresh mutation consent are still required.
-All 85 initializer-cache rows remain at this stage. Their later qualified
-retirement is separate from [historical recognition](../adr/0115-frozen-rc3-recipe-compatibility.md).
+The older recipe selected 85 cached files. A v0.2.0 upgrade can retire its 83
+unused cache entries after establishing ownership. See [cache retirement](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 
-Successful acquisition removes its temporary cache. Interrupted upgrades retain
-needed authenticated inputs and print a concrete read-only recovery preview.
+On a handled interruption with pending transaction evidence, the controller retains the authenticated inputs. It prints a read-only recovery preview when it can determine the safe direction. Otherwise it requests manual reconciliation. A process killed before it can report may print neither diagnostic.
 Partial initialization reports its target and pending evidence, without claiming
 automatic rollback. Preserve that evidence and reconcile the reported state before
 removing a pending barrier.
 
-Whole-installation JSON reports provide `recovery_arguments` as literal argv for
+When a recovery plan is available, its JSON report can include `recovery_arguments` as literal arguments for
 a fresh read-only preview from the installation root. The vector retains the
 selected image identities, local or authenticated trust operands, Go predecessor
 image and project-input overrides. `recovery_command` is a short description;
-use the structured vector for replay. Any later mutation still requires the new
+use the structured vector for replay with the trusted executable indicated by the diagnostic. Any later mutation still requires the new
 proposal's confirmation and explicit quiescent declaration.
 
 Candidate preview also reports [backup retention](BACKUP_RETENTION.md), including
@@ -94,9 +93,9 @@ predecessor recovery and prunes only qualified older sets. Standalone controls a
 `./factory upgrade --keep-backup MIGRATION_ID` and
 `./factory upgrade --prune-backup MIGRATION_ID`.
 
-The bare installer and existing source/ref defaults remain unchanged. Actual
-release authentication on all four targets, the mandatory adopter pilot and default
-cutover remain tracked in [GO_RELEASE_READINESS.md](GO_RELEASE_READINESS.md).
+The [stable release record](GO_RELEASE_READINESS.md#stable-v020) documents the
+four-platform qualification and the separate v0.1.6 adopter pilot. A bare installer
+invocation fetches the template. Give it an explicit verb to initialize or upgrade.
 
 Release maintainers can use the
 [published-release qualification lane](PUBLISHED_RELEASE_QUALIFICATION.md) to

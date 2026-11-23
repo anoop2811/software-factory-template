@@ -1,6 +1,6 @@
 # ADR 0124: authenticate ordinary Go installer requests before execution
 
-Status: accepted bounded R2 bootstrap contract; independent public RED precedes production
+Status: accepted R2 bootstrap contract. Its v0.1.6 pin describes the October checkpoint. See the [stable release record](../migration/GO_RELEASE_READINESS.md#stable-v020) for the later cutover.
 
 Date: 2026-10-31 UTC
 
@@ -25,9 +25,9 @@ The existing Go default `v0.2.0` is preparation, not publication authority.
 
 Observed 2026-10-31 via `gh release view --repo
 anoop2811/software-factory-template --json
-tagName,isDraft,isPrerelease,publishedAt,url`: latest stable is `v0.1.6`, draft
+tagName,isDraft,isPrerelease,publishedAt,url`: latest stable was `v0.1.6`, draft
 false, prerelease false, published `2026-09-06T19:10:47Z`. Release-list readback
-contains `v0.2.0-rc.1`, `.2` and `.3` prereleases, with no stable `v0.2.0`.
+contained `v0.2.0-rc.1`, `.2` and `.3` prereleases, with no stable `v0.2.0`.
 The official https://cli.github.com/manual/gh_release_view documentation, fetched
 2026-10-31, lists the tagName, isDraft and isPrerelease JSON fields used here.
 No tool version is changed by this decision.

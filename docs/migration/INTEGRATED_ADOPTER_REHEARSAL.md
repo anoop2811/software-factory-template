@@ -103,13 +103,9 @@ Keep machine idle sleep disabled only for the duration of a long local run when
 needed; do not change runtime timeouts to compensate for a sleeping evaluator.
 Hosted exact-head reports remain the cross-platform source qualification.
 
-## Remaining release gates
+## Release gates remaining at R4
 
-R4 closed with the reviewed merge and hosted evidence below. R5 publishes and qualifies RC4 on the
-four supported native targets, using actual release authenticity. R6 records the
-representative adopter pilot and operator acceptance. R7 performs stable
-activation with the final dependency/reference audit. This rehearsal does not
-change the public v0.1.6 default or create another release gate.
+R4 closed with the reviewed merge and hosted evidence below. R5 subsequently qualified RC4 on the four supported native targets. R6 covered the representative adopter pilot and operator acceptance. R7 covered stable activation and the final audit. The installer selected v0.1.6 at the time of this rehearsal. See the [published v0.2.0 results](GO_RELEASE_READINESS.md#stable-v020).
 
 ## Final hosted evidence and merge
 

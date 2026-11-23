@@ -1,6 +1,6 @@
 # ADR-0053: advertise budgeting, observability and loop engineering
 
-Status: accepted for implementation, 2026-09-07 UTC.
+Status: accepted on 2026-09-07 UTC. The release-availability instructions below applied before v0.2.0. See the [current CLI guide](../CLI.md) for the published release.
 
 The user requested landing-page coverage of the shipped budget, observability
 and loop features. Add a prominent section to index.html, linked from the main
@@ -25,12 +25,12 @@ Show local preview/report examples, not a paid launch disguised as a preview.
 Link bounded-mode setup, including reviewer accounting, to docs/LOOPS.md:107.
 Retain the existing metrics section for gate-level observability.
 
-Release availability: the official GitHub release API reports v0.1.6 as latest
+At the time of this decision the official GitHub release API reported v0.1.6 as latest
 (published 2026-09-06T19:10:47Z), read 2026-09-07 UTC via gh release view. The tag
 contains neither docs/BUDGETS.md nor docs/LOOPS.md (git ls-tree -r --name-only
-v0.1.6 docs/BUDGETS.md docs/LOOPS.md returned no paths). Label these additions as
-available on main and link the existing --ref main install/upgrade instructions;
-do not imply that the current default release includes them.
+v0.1.6 docs/BUDGETS.md docs/LOOPS.md returned no paths). The September homepage therefore listed these additions as
+available on main and linked the development branch. The published v0.2.0
+release now includes both features.
 
 Validate the changed page in a real browser at desktop and mobile widths,
 check navigation/document links and JavaScript errors, and run the existing

@@ -1,6 +1,6 @@
 # Public Go budget and loop qualification
 
-[ADR-0078](../adr/0078-go-public-budget-loop.md) governs public budget and loop
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0078](../adr/0078-go-public-budget-loop.md) governs public budget and loop
 routing in the developer-built Go binary. It is milestone two of the existing G2
 integration/retirement package; it does not change the 30-package denominator.
 

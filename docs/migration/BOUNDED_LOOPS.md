@@ -1,6 +1,6 @@
 # Go bounded loop command qualification
 
-[ADR-0076](../adr/0076-go-bounded-loop-controller.md) governs milestone four
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0076](../adr/0076-go-bounded-loop-controller.md) governs milestone four
 of the existing loop package: bounded implementation/check/review/repair through
 the shared budget controller, and the private Cobra command candidate.
 Installed dispatch, safe upgrade activation and legacy retirement remain pending.

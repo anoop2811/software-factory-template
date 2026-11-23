@@ -1,10 +1,12 @@
 # Java pack with Maven
 
-Factory-init selects Maven for `pom.xml` or `mvnw` when no `gradlew` is present.
+During v0.2.0 setup, `init --pack java` selects Maven for `pom.xml` or `mvnw`
+when the repository has no `gradlew`.
 Use `--java-build-tool maven` in a mixed repository to override detection. An
 executable `mvnw` is preferred; without a wrapper, commands use `mvn` from PATH.
-`java_build_tool` in factory.yaml records the install choice. To change tools,
-rerun init with the explicit option and review the generated diff.
+`java_build_tool` in `factory.yaml` records the install choice. Select the intended
+build tool during initial setup. On a project that already has the factory,
+authenticated init refuses to overwrite the installation.
 
 The initial `check_command`, Makefile, and CI run Maven's `verify` lifecycle
 and the JUnit dialect gate. They respect the tests and plugins already in your

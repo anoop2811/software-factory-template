@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Public stable activation remains a separate release step.
-# docs/adr/0124-ordinary-authenticated-go-installer-bootstrap.md:21.
-FACTORY_DEFAULT_REF=v0.1.6
+# Pin the qualified publisher release for ordinary init and upgrade.
+# docs/DECISION_LOG.md:9085.
+FACTORY_DEFAULT_REF=v0.2.0
 
 # Candidate selection is reserved before the legacy parser (which re-splits its
 # arguments). Preserve literal argv and authenticate before the first execution.
@@ -1021,7 +1021,7 @@ installer_main() {
         *) printf '%s\n' 'install: Go releases require the official repository' >&2; exit 2 ;;
       esac
       if [ "$installer_help" -eq 1 ]; then
-        printf '%s\n' 'Usage: install.sh init|upgrade [args] --ref TAG' 'Select an authenticated stable Go release at or after v0.2.0.'
+        printf '%s\n' 'Usage: install.sh init|upgrade [args] [--ref TAG]' "Default: $FACTORY_DEFAULT_REF. Use --ref for an exact stable tag; v0.1.6 selects the historical Bash installer."
         exit 0
       fi
       stable_install "$@"

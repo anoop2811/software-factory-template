@@ -3,8 +3,8 @@
 The contract is [ADR 0107](../adr/0107-published-release-qualification.md).
 This repository-only lane exercises actual published assets and their GitHub
 attestations. Regular users continue to use the single `factory` CLI.
-Adding the lane does not establish that a release passed it. The
-[replacement-release checklist](GO_RELEASE_READINESS.md) remains authoritative.
+For the four published stable v0.2.0 results and the signed adopter pilot, see the
+[release evidence](GO_RELEASE_READINESS.md#stable-v020). The dated candidate results follow.
 
 Current support is Ubuntu 24.04+ and macOS 15+ on both architectures under
 Decision 128 (2026-10-30). macOS 14 is no longer supported. Historical results
@@ -18,8 +18,8 @@ was published at `5ef20c186676069229cae3781c85ec509f377af2`.
 [Release run 40103396983](https://github.com/anoop2811/software-factory-template/actions/runs/40103396983)
 passed four native builds, attestation/upload of all twelve subjects and the
 qualification guard. The release contains fourteen assets including the shared
-attestation bundle and checksum file. It remains a prerelease; v0.1.6 is latest
-stable.
+attestation bundle and checksum file. RC1 was published as a prerelease. At that point
+v0.1.6 held the Latest designation.
 
 Actual published qualification **failed on all four targets**. Each evaluator
 first authenticated its three native subjects with the real verifier, then its
@@ -88,8 +88,8 @@ identity, authenticated subjects, observed OS, Ginkgo JSON/JUnit and actual stop
 interruption journals. Counts above include only the five scenario criteria, not
 Ginkgo suite hooks. The twenty criteria total three passes and seventeen failures.
 Decision 113 records the correction contract before implementation. RC2 notes mark
-it unqualified for migration; source, tag and assets remain unchanged. v0.1.6 stays
-latest stable. No platform, adopter-pilot or stable-release gate closes here.
+it unqualified for migration. The source, tag and assets were retained. At RC2,
+v0.1.6 still held the Latest designation.
 
 ## Third published candidate result
 
@@ -153,8 +153,8 @@ not attribute the host delay without evidence.
 RC3 establishes these published outcomes at the observed operating systems.
 It does not establish macOS 14 Intel compatibility, mandatory operator pilot
 acceptance, default Go selection, final classified retirement/audit or a stable
-release. v0.1.6 remains latest stable; RC1 and RC2 stay unchanged and marked
-unqualified. See the [remaining release gates](GO_RELEASE_READINESS.md).
+release. At RC3, v0.1.6 held the Latest designation, and RC1 and RC2 were marked
+unqualified. See the [subsequent stable qualification](GO_RELEASE_READINESS.md#stable-v020).
 
 ## Local correction evidence
 
@@ -598,7 +598,7 @@ reported insufficient requester quota; no Copilot approval is claimed. The merge
 subsequently passed all 47 reported checks, including four native bundles.
 
 The exact tag was read back from GitHub as the selected merge; the release is
-non-draft and marked prerelease, and the Latest endpoint still resolves v0.1.6.
+non-draft and marked prerelease. The Latest endpoint returned v0.1.6 at that time.
 The existing [release run 43958890935](https://github.com/anoop2811/software-factory-template/actions/runs/43958890935)
 builds four native bundles, authenticates and uploads twelve subjects with shared
 checksums/attestations, then qualifies actual published installation and migration.
@@ -680,6 +680,6 @@ It is unsigned, is not an installation input, and is outside the original
 tag remain unchanged; the archive preserves their qualification observations
 without claiming a new signed attestation.
 
-**R5 is complete.** R6 adopter pilot/signoff and R7 stable activation/publication
-remain pending. These live qualification results do not constitute operator
+**RC4 completed R5.** The adopter pilot and stable activation were the next steps.
+See the [stable evidence](GO_RELEASE_READINESS.md#stable-v020) for their outcomes. These live qualification results do not constitute operator
 acceptance of a representative adopter project or enable the stable default.

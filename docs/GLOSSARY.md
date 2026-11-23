@@ -9,12 +9,12 @@
 
 **Harness** — the tool that drives a coding agent: reads your prompt, calls the
 model, runs tools, edits files. This template supports three: opencode, Claude
-Code, and Codex. The enforcement layer is plain shell, so it works with any of
-them.
+Code, and Codex. Their adapters use project configuration and shared checks. The v0.2.0
+Go CLI installs and synchronizes the adapters.
 
 **Canon / canonical config** — the single source-of-truth configuration
 (`opencode.json` plus `.opencode/`). The Claude Code and Codex configs are
-*generated* from it by `sync-claude.sh` / `sync-codex.sh`, never hand-edited.
+*generated* from it. Run `./factory sync all` after changing roles or model tiers.
 "Three harnesses, one canon" means you configure once and the adapters follow.
 
 **Adapter** — a generated, harness-specific config derived from the canon
@@ -30,10 +30,11 @@ every adopter. Keys: `protected_paths`, `test_file_patterns`, `check_command`,
 refactorer, reviewer, wiki-maintainer. Roles are separated by what the hooks
 let each one do, not by instructions asking them to behave.
 
-**Generator / evaluator separation** — the thing that writes code is never the
-thing that judges it. The spec-writer writes tests; the implementer makes them
-pass but cannot edit them; the reviewer is a different model. Collapsing these
-into one session is the failure the separation exists to prevent.
+**Generator / evaluator separation** — the team assigns implementation and
+review to separate roles. The spec-writer writes tests,
+the implementer makes them pass, and a reviewer examines the change. The edit hook
+can block edits by an explicit implementer to configured test paths. Model choices
+depend on the project's settings.
 
 **The Verification Contract** — the rule that you may only claim what you have
 observed: `WROTE` (wrote it), `RAN` (ran it, here is the command and output),
@@ -54,8 +55,8 @@ apply the relaxation themselves.
 
 **Pack** — an opinionated language bundle (`packs/<lang>/`) that arms
 `test_file_patterns` and `check_command` for a language and ships its blessed
-tools. The core works with no pack; a pack just wires the two language-specific
-knobs.
+configuration and CI steps. v0.2.0 ships Go, TypeScript and Java packs.
+Use `--pack none` for the core or combine packs with `--pack go,typescript`.
 
 **Protected path** — a directory that requires human review on every change, via
 CODEOWNERS and branch protection. Set in `factory.yaml` `protected_paths`.

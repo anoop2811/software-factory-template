@@ -3,10 +3,10 @@
 The Go CLI's ordinary `init` selects an authenticated packaged Go initializer.
 The current source checkout's tracked launcher builds the Go CLI with the
 provisioned local toolchain/module cache. Direct `scripts/factory-init.sh` forwards
-to that same `init` owner. The public installer's default remains v0.1.6:
+to that same `init` owner. From the factory source checkout, select the released initializer explicitly:
 
 ```sh
-./factory init /path/to/project --pack go,typescript
+./factory init /path/to/project --ref v0.2.0 --pack go,typescript
 ```
 
 Keep the tracked `factory` file intact. Ordinary Go initialization authenticates
@@ -23,12 +23,11 @@ version. A local installation must explicitly choose local source or an official
 release. For a published prerelease, use `--go-candidate TAG` instead:
 
 ```sh
-./factory-go init ../new-project --go-candidate v0.2.0-rc.3 --pack go
-./factory-go init --help
+./factory init ../new-project --go-candidate TAG --pack go
+./factory init --help
 ```
 
-The prepared v0.2.0 default is not a publication claim. Until that release exists,
-ordinary source-built init refuses without changing the target. `--help` performs
+A failed release verification leaves the target unchanged. `--help` performs
 no acquisition or target writes. Put a target beginning with an option name after
 `--`; it stays literal through version selection and authenticated handoff.
 Explicit candidate and local selectors take precedence over ambient defaults.
@@ -48,8 +47,8 @@ Current authenticated initialization also creates
 packs. It preserves existing application workflows and refuses an occupied
 `factory.yml` before publication. It omits newly copied source-development and
 separate pack jobs. See [generated ordinary CI](CI_PREPARATION.md#ci-created-by-current-initialization)
-for application setup, mock-only evaluation and the remaining review-lane and
-upgrade integration boundaries. Earlier published candidates retain their own
+for application setup, mock-only evaluation and how the optional review lane
+participates in an upgrade. Earlier published candidates retain their own
 initialization behavior.
 Authenticated explicit candidates with noncanonical tags, such as `candidate-r4`,
 retain their initialization support but receive an explanation that ordinary CI
@@ -102,18 +101,17 @@ two data files consumed by installed commands:
 - `packs/review-lane/review-pr.yml` for review-lane setup.
 
 These are two cached data files, not the entire installed factory. The reviewed
-inventory has 58 rows: three existing retirement rows and 55 active selections.
+v0.2.0 inventory has 141 rows covering 55 active selections and 86 retirements. The retirements comprise 83 unused cache files and the legacy controllers `scripts/lib/budget.py`, `scripts/lib/budget_adapters.py` and `scripts/lib/loop.py`. See [the retirement inventory](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 The installed descriptor lists 53 assets because `.factory-version` and the
 descriptor itself are separate controls. Project-facing scaffold files remain
 available outside this private cache.
 
-Known RC3 and post-RC3 images retain their original 141-row generation, including
-85 cached assets, when reconstructed for recovery. Upgrading an existing
-installation leaves its 83 unused old cache files untouched; this change does
-not retire, overwrite or adopt them. A historical rollback that needs a changed,
-missing or unsafe old cache entry is blocked before publication and preserves
-that entry. Qualified cleanup of existing caches is a separate migration step.
-See [ADR 0119](../adr/0119-minimal-qualified-initializer-inventory.md).
+Older Go releases are reconstructed with their original inventories. Where a
+qualified predecessor selected all 85 cache files, a stable upgrade can retire
+the 83 unused files after confirming their ownership and original contents.
+A predecessor with the 58-row inventory selected only the two consumed files.
+Additional files there remain outside automatic retirement. The upgrade preview
+reports conflicts and preservation reasons. See [the retirement rules](../adr/0123-owned-obsolete-initializer-cache-retirement.md).
 
 The intended compatibility boundaries preserve user README content and unmanaged
 Makefile/ignore rules. Unsafe source or destination paths and unrepresentable flat

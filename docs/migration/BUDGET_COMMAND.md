@@ -1,6 +1,6 @@
 # Go budget command candidate
 
-[ADR-0071](../adr/0071-go-budget-command-candidate.md) adds the private compiled
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0071](../adr/0071-go-budget-command-candidate.md) adds the private compiled
 boundary `FACTORY_BRIDGE_PROTOCOL=1 factory budget controller ...`.
 It composes the existing ledger, runner and usage/native components using Cobra.
 It does not change the public installed `factory budget` dispatcher.

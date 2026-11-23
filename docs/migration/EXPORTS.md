@@ -1,6 +1,6 @@
 # Go configuration export candidate
 
-This slice moves legacy configuration parsing and export planning into Go under
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). This slice moves legacy configuration parsing and export planning into Go under
 docs/adr/0056-go-configuration-export-plans.md:5. A Bash adapter applies the plan
 to the calling shell, preserving local variables, explicit empty overrides and
 export attributes. Installed libraries and native harness routing still use the

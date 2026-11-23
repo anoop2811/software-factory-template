@@ -40,9 +40,8 @@ The shell selftest reported `217 passed, 0 failed, 0 skipped`. Independent
 production and test reviews reported no remaining actionable findings.
 Exact-head platform CI remains a separate gate before merge.
 
-## Rollout boundary
+## Installed use in v0.2.0
 
-This change completes source implementation of report, not installed activation.
-The existing shell report is retained for script-based installations. Legacy
-retirement and the ignored, bounded recovery lifecycle remain prerequisites to
-the public Go cutover; a native report does not authorize deleting old scripts.
+The packaged Go CLI owns `./factory report`.
+A v0.1.6 installation keeps using its script until you apply the supported
+[upgrade](../UPGRADING.md). See the [command reference](../CLI.md) for usage.

@@ -1,30 +1,43 @@
 # Adapting the factory to your project
 
-**In short**
+## Set up a project
 
-- Built for brownfield adoption: existing repo, existing tests, existing conventions.
-- All project-specific values go in one `factory.yaml`; hook files stay byte-identical to the template, so upgrades are file copies.
-- Several gates are armed by configuration — empty means off. Adopt incrementally.
-- `factory-init.sh` won't declare success until a break/fix self-test has watched the installed gates fire.
+Use v0.2.0 to add a shared development workflow to a new or existing Git
+project. From its root, check `gh auth status`, then run the public installer
+with your chosen language pack:
 
-## factory-init
+```sh
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- init --ref v0.2.0 --pack go
+```
 
-`factory-init.sh` installs the factory into an existing project. Four steps, in order:
+The installer authenticates the packaged Go release. The initializer collects
+project settings and asks for confirmation before writing the scaffold. It
+supplies the project-local `./factory`, canonical roles, adapters for OpenCode,
+Claude Code and Codex, shared hooks and the selected pack's checks. Authenticated
+setup generates one `.github/workflows/factory.yml` for the selected packs.
+An existing workflow at that path blocks initialization. Other application
+workflows are preserved. [Initialization details](migration/INIT.md).
 
-1. **Detects the stack.** Inspects the repo (go.mod, package.json, pom.xml/build.gradle) and proposes a language pack, or none.
-2. **Writes `factory.yaml`.** Everything project-specific goes in the config file; nothing in the hooks themselves is edited.
-3. **Installs the hooks.** Shared scripts into `scripts/hooks/` and `scripts/lib/`, the git pre-push entry point, the CI workflow, the agent roles, and the harness adapters (opencode canonical; Claude Code and Codex generated).
-4. **Proves the gates fire.** A break/fix self-test violates each installed gate — a malformed commit message, a staged direct-to-main push, an implementer-role test edit — confirms the block, reverts, and confirms the pass.
+Choose `--pack go,typescript` for both packs, or `--pack none` to start with
+the core. The stack hints come from manifests at the project root. Review
+`check_command` for your repository layout and install any tools your checks
+need. The factory itself makes no model call during initialization.
 
-If the self-test fails, the installation is not successful, and factory-init says so.
+For a Go pack, check the generated `go_min_version` in `factory.yaml`. v0.2.0 can write a two-part version, but `./factory prereq` expects a full minimum patch version. Use your project’s approved minimum before running that check.
 
 ## factory doctor
 
-`./factory doctor` reports the health of an installed factory at any time — not just at install. It classifies every gate as **armed** (configured and live), **inert** (present but not yet configured — e.g. no `citation_prefix`), or **stale** (a verification claim has expired); checks that every hook and generated adapter is intact and that `protected_paths` are covered by CODEOWNERS; then runs the same break/fix self-test so you watch each armed gate fire. It exits non-zero on real breakage (a missing hook, adapter drift, a failing proof); inert gates are a choice, not a fault. Current source builds and enters the Go CLI through `./factory`; an installed Go factory uses its packaged binary without requiring a Go compiler. See the [command guide](CLI.md) for `init`, `doctor`, `check` and `selftest`.
+Run `./factory doctor` after setup or when a project rule seems inactive. It
+reports gate configuration, missing core hooks, adapter drift, protected-path
+coverage in CODEOWNERS and the selected Git hook path. Warnings can accompany
+a healthy exit. Its self-test exercises fourteen shipped gates with a violation
+and a healthy control in isolated fixtures. Use `./factory check` to exercise
+your configured project checks. See the [CLI reference](CLI.md) and
+[local Git hook setup](HOOKS.md#full-pre-push-checks).
 
 ## factory.yaml reference
 
-Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no nesting; lists are space-separated on one line; values may be double-quoted; a trailing `# comment` is stripped, and a `#` inside quotes is part of the value. Anything more expressive belongs in a hook, not in configuration.
+The Go CLI reads this file at runtime. Shell hooks use its `scripts/lib/config.sh` adapter. Format: flat `key: value` pairs, no nesting; lists are space-separated on one line; values may be double-quoted; a trailing `# comment` is stripped, and a `#` inside quotes is part of the value. Anything more expressive belongs in a hook, not in configuration.
 
 | Key | Meaning | Example |
 |---|---|---|
@@ -36,7 +49,7 @@ Read at runtime by `scripts/lib/config.sh`. Format: flat `key: value` pairs, no 
 | `test_file_patterns` | Space-separated regex patterns identifying test files for the test-edit denial hook. Empty disables the denial. | `"_test\.go$"` |
 | `language_packs` | Space-separated list of active packs. | `go` |
 | `local_hooks` | Paths to hooks *you* wrote, space-separated. Checked for existence and the execute bit like the shipped ones, run by `pre-push-check`, and — unlike editing a framework file — survives `factory upgrade`. To pass a hook its own arguments, separate entries with commas instead. | `"scripts/hooks/my-gate.sh"`, or `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"` |
-| `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"make check"` |
+| `check_command` | The command that constitutes "the checks" for pre-push and diff-aware verification. | `"go test -race ./..."` |
 
 The keys above arm the gates. The rest configure the harnesses — which model does
 which work, and whether the advisory review lane runs. They used to live in a
@@ -53,9 +66,9 @@ separate `factory.config` that scripts *sourced*; they are ordinary keys here no
 | `review_api_key_secret` | Name of the repository secret CI reads the key from. | `OPENROUTER_API_KEY` |
 | `review_max_tokens` | Maximum OpenRouter completion tokens; decimal `1024`–`32768`, default `8192`. | `8192` |
 
-If you have a `factory.config` from an earlier release it still works — it is read
-for any key the YAML does not define. `./factory migrate-config` moves it across
-(`--dry-run` to preview), and `factory doctor` reminds you while it is still there.
+Supported legacy model and review keys in `factory.config` remain readable.
+Nonempty YAML values take precedence over the corresponding legacy settings.
+Preview conversion with `./factory migrate-config --dry-run`.
 
 A complete `factory.yaml` for an HTTP API project, using the template's own real keys:
 
@@ -66,10 +79,12 @@ docs_root: docs
 citation_prefix: ""
 protected_paths: "internal/billing scripts/hooks .github/workflows"
 test_file_patterns: "_test\.go$"
-check_command: "make check"
+check_command: "go test -race ./..."
 ```
 
-Every key is optional in the sense that an empty value disables the gate it arms — `citation_prefix: ""` above turns citation linting off, and a blank `test_file_patterns` would turn off the test-edit denial.
+Set `check_command` to an application build or test command. The factory-provided `make check` invokes this value, and `./factory check` invokes `make check`. Using either as the value recurses.
+
+A blank `citation_prefix` disables citation linting. A blank `test_file_patterns` disables test-edit denial. Other keys have their own defaults.
 
 Two boundaries worth stating plainly:
 
@@ -80,7 +95,7 @@ Two boundaries worth stating plainly:
 
 The core — the Verification Contract, agent roles, harness canon and adapters, the commit/decision/push gates — is language-agnostic. Packs carry the stack opinions: one blessed stack per language, no alternatives matrix. A template that supports everything enforces nothing.
 
-Real apps are often polyglot, so `factory-init` takes more than one pack — `--pack go,typescript` (comma-separated) or a repeated `--pack`. It asks only for the versions the selected packs need, and merges them: `test_file_patterns` becomes the union, `check_command` the packs' checks joined with `&&`, and each pack's config, dialect hook, and CI workflow install side by side.
+For a repository with several languages, `factory init` takes more than one pack — `--pack go,typescript` (comma-separated) or a repeated `--pack`. It asks only for the versions the selected packs need, and merges them: `test_file_patterns` becomes the union, `check_command` the packs' checks joined with `&&`, and each pack contributes configuration, dialect hooks and steps to the generated CI workflow.
 
 | Pack | Stack | Maturity |
 |---|---|---|
@@ -88,15 +103,13 @@ Real apps are often polyglot, so `factory-init` takes more than one pack — `--
 | TypeScript | Vitest, Biome (format + lint), tsc, Stryker (mutation), OSV-Scanner | experimental |
 | Java / Spring Boot | JUnit 5 + AssertJ + Testcontainers, Spotless (palantir), Error Prone, SpotBugs + find-sec-bugs, OSV-Scanner, PIT (mutation); Gradle or Maven | beta |
 
-The labels mean:
+The table uses the maturity labels recorded in the [pack manifests](../packs).
+The Java pack has a reported Maven adoption with project-specific adaptations.
+A pack label describes the project's adoption evidence.
 
-- **battle-tested** — a real project shipped under this pack. The Go pack built a production service; its hooks (`ginkgo-only-check.sh`, for one) have caught real drift.
-- **beta** — at least one real repository has adopted it, nothing has shipped under it yet.
-- **experimental** — no proven adopter yet. The stack may ship complete — Java's and TypeScript's do, with CI, formatter, and gates — but the label tracks adoption, not completeness. Treat its choices as proposals.
-
-A label changes only on evidence: a pack moves up when a real project adopts it, not when its fixtures pass.
-
-**Frameworks ride on the language pack; they don't get their own.** React and Vue use the TypeScript pack — Biome auto-applies its `react`/`vue` rule domains when it sees the framework in your `package.json` — and Spring Boot uses the Java pack, whose JUnit 5 + Testcontainers stack *is* Spring Boot's blessed testing. `factory-init` detects these and points you at the right pack. A framework-specific invariant beyond that (say, "no field injection" for Spring) is a custom dialect hook, the same shape as `ginkgo-only`/`vitest-only` — not a new pack. This is deliberate: one blessed stack per language keeps the opinion sharp (Decision 3), where a framework-per-pack matrix would not.
+React and Vue projects can use the TypeScript pack. Spring Boot projects can
+use the Java pack. The initializer prints stack hints from root manifests.
+Add any framework-specific invariant your team needs as a custom dialect hook.
 
 ## Cost profile (opt-in)
 
@@ -107,14 +120,14 @@ disabled. Set `budget_enabled: true` in `factory.yaml` only when you want to use
 `factory budget run`. See [BUDGETS.md](BUDGETS.md) for all keys and the distinction
 between enforced invocation limits and client-reported cost estimates.
 
-`factory-init` asks for a cost profile alongside the model choices. `standard`
+`factory init` asks for a cost profile alongside the model choices. `standard`
 (the default) keeps two tiers — a default model for most roles, a frontier model
 for `spec-writer` and `reviewer`. `economy` adds a third, cheaper tier for the
 low-stakes roles (`refactorer`, `wiki-maintainer`, the opencode `small_model`),
 while leaving the review path frontier.
 
 Each harness has its own native model namespace, so each carries its own per-tier
-models in `factory.yaml` — shipped as intelligent defaults, overridable there:
+models in `factory.yaml` — set at initialization and editable there:
 
 ```yaml
 model_provider                                                              # seeds the tiers below
@@ -123,22 +136,18 @@ claude_frontier_model   / claude_default_model   / claude_economy_model     # An
 codex_frontier_model    / codex_default_model    / codex_economy_model      # OpenAI ids
 ```
 
-No provider is assumed. `factory-init` asks once and only *seeds* these; choose
+No provider is assumed. `factory init` asks once and only *seeds* these; choose
 `inherit` and the factory writes no model pins at all, leaving each harness on
 its own configuration. See [MODELS.md](MODELS.md).
 
-`scripts/lib/roles.sh` maps each role to its tier, and `make sync-harnesses`
-writes the right per-tier model into each harness — opencode included. To
-reconfigure later, edit `factory.yaml` (change a model, or flip `cost_profile`
-between `standard` and `economy`) and run `make sync-harnesses`; the collapse is
-applied at sync time, so one edit re-routes all three harnesses. It is a routing
-change only — no gate is relaxed, so the same hooks check the output whichever
-model produced it. See [COST_AND_TOKENS.md](COST_AND_TOKENS.md) for the full
-rationale and the matrix.
+To change a model or switch profiles, edit `factory.yaml`, run
+`./factory sync all` and inspect the generated diff. The selected model and
+the configured project gates can be changed independently.
+[How model routing affects cost](COST_AND_TOKENS.md).
 
 ## Adopting incrementally
 
-1. Run `factory-init.sh`; leave `citation_prefix` and `test_file_patterns` empty for now. The self-test proves gates in isolated fixtures. Follow the [full pre-push setup](HOOKS.md#full-pre-push-checks) to activate local push checks while preserving existing hooks; CI runs its configured checks separately.
+1. Initialize the project. Use the core-only configuration if you want to choose the gates individually. The self-test proves gates in isolated fixtures. Follow the [full pre-push setup](HOOKS.md#full-pre-push-checks) to activate local push checks while preserving existing hooks; CI runs its configured checks separately.
 2. Set `protected_paths` to the directories where a silent agent change would hurt most; start narrow.
 3. When you split agent roles (spec-writer vs implementer), set `test_file_patterns` to arm generator/evaluator separation.
 4. When your specs cite a docs tree, set `citation_prefix` and `docs_root` to arm citation linting.
@@ -147,34 +156,26 @@ Run `./factory doctor` between each step to inspect configuration and isolated g
 
 ## Upgrading
 
-Two ways, same result — a reviewable diff over the repo you're in:
+From an existing v0.1.6 project, preview the migration with the v0.2.0 installer:
 
-```bash
-# from inside the repo, no local setup needed:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade
-
-# upgrade from a specific ref (branch or tag) instead of the pinned release:
-curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref main
-
-# or, if you're already set up:
-./factory upgrade            # pull framework updates over this repo
-./factory upgrade --ref v1.2 # or pin a specific template ref
+```sh
+curl -fsSL https://softwareaifactory.sh/install.sh | sh -s -- upgrade --ref v0.2.0 --dry-run --json
 ```
 
-`install.sh upgrade` refreshes the machine-wide template cache (`$FACTORY_HOME`, used by future `factory-init`) and then applies the update to the current repo — it acts on the directory you're in, just like `init`. `./factory upgrade` does the same locally without curl. Both upgrade **this** repo, not every repo on your machine: each repo owns its committed, governance-gated framework files, so you upgrade them where you are.
-
-Installs and upgrades are **pinned to the latest release by default**, so `curl … | sh` is reproducible. Pass `--ref <branch-or-tag>` (or set the `FACTORY_REF` env var) to install *or* upgrade from a specific ref — `--ref main` tracks the latest unreleased. It works on `init`, `upgrade`, or a bare fetch, before or after the verb. The flag is pipe-safe; the env var must sit on the `sh` invocation, not before `curl`.
-
-Either way it re-fetches the template and refreshes the byte-identical framework files you already have — the hooks, `scripts/`, the `factory` dispatcher, `factory-doctor`, `.githooks`, and any installed pack dialect hooks. This is safe precisely because of Decision 2: the hooks contain no substituted values, so refreshing them is a clean copy.
-
-It **never** touches your `factory.yaml`, your content (`wiki/` pages, `memory/lessons/`, `specs/`, `docs/DECISION_LOG.md`), or your code, and it **never overwrites** your identity/customizable files (`opencode.json`, the agent prompts, `AGENTS.md`, `README.md`, `CODEOWNERS`, `Makefile`) — it only *reports* which of those differ from upstream, so you decide whether to adopt the change. It records the version in `.factory-version`, runs `factory doctor`, and leaves everything as an uncommitted diff. Review it (the changed hooks are governance-sensitive — the decision-log gate will remind you), then commit.
+Inspect the proposed replacements, retirements, recovery files and blockers.
+Unrecognized or customized required factory files can block automatic migration.
+When the proposal is acceptable, pause factory work and confirm that same
+release and proposal digest. A successful migration retains a Git-ignored local
+recovery backup. The [upgrade guide](UPGRADING.md) gives the confirmation,
+post-upgrade checks and rollback steps. Once on the Go factory, you can
+preview a stable upgrade through the installed `./factory upgrade` command.
 
 ## Writing your own hooks
 
-A new gate is four steps. `docs/examples/hooks/field-coverage-check.sh` is the worked example of the whole pattern; see [HOOKS.md](HOOKS.md).
+The [field-coverage hook](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) in the template source is a worked example. To adapt it to an installed project, follow the steps below and the [hook reference](HOOKS.md).
 
-1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then `factory_config_get <key>` — the same way every shipped hook reads `factory.yaml`, so your gate stays byte-identical across adopters too.
-2. **Register it** in `factory.yaml` — `local_hooks: "scripts/hooks/my-gate.sh"` (space-separated; use commas instead when an entry carries arguments, e.g. `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"`, and pre-push will run it with them) — so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net). Register it there, *not* in `scripts/hooks/hook-existence-check.sh`: that is a framework file, and `factory upgrade` overwrites it byte-for-byte, so a hand-added entry would disappear on your next upgrade.
+1. **Write the script** under `scripts/hooks/`. Read any project value with `. scripts/lib/config.sh` at the top, then call `factory_config_get <key>` to share project settings with the shipped shell hooks.
+2. **Register it** in `factory.yaml` — `local_hooks: "scripts/hooks/my-gate.sh"` (space-separated; use commas instead when an entry carries arguments, e.g. `"scripts/hooks/my-gate.sh --strict, scripts/hooks/other.sh"`, and pre-push will run it with them) — so CI fails if the script goes missing or loses its execute bit (the fail-open edit path depends on this net). Register it there, *not* in `scripts/hooks/hook-existence-check.sh`: a local modification to that framework file can block automatic migration.
 3. **Add a break/fix case** to your project's test suite: introduce the exact violation, assert the gate fires, revert, assert it passes. Factory contributors add these broader regressions to `scripts/selftest/development.sh`; public `scripts/selftest/run.sh` is a transport adapter for the fixed native core proof, not an extension file. A gate you have only watched pass proves nothing.
 4. **Wire it into CI** so the gate runs on every pull request, not just locally.
 
@@ -192,10 +193,9 @@ this invocation mistake with exit 2 before parsing their Bash-only syntax.
 An installed language gate lives in `scripts/hooks/`; keep it while that pack
 is configured. The upstream `packs/go/`, `packs/java/`, and `packs/typescript/`
 source directories are not required in an adopted repository.
-`packs/review-lane/review-pr.yml` is separate: keep it if you want to enable or
-reinstall the optional review lane. Removing it does not disable an already
-installed workflow; use `./factory review-lane disable` for that. An upgrade
-may restore the shipped review-lane template.
+The installed CLI keeps its review workflow template at `.factory/assets/scaffold/packs/review-lane/review-pr.yml` for use when you enable the optional review lane.
+Use `./factory review-lane disable` to turn off its workflow. Keep managed
+assets in place so subsequent upgrades can recognize the installation.
 
 The factory's development runner prints a named skip for each fixture group whose optional source is
 missing, then continues through the remaining checks and reports the number
@@ -207,12 +207,12 @@ fourteen core gate pairs do not require the template's optional pack sources.
 
 ## Maven projects
 
-`factory-init.sh --pack java` uses Maven when `pom.xml` or `mvnw` exists and
+`factory init --pack java` uses Maven when `pom.xml` or `mvnw` exists and
 there is no `gradlew`. An executable Maven wrapper takes precedence over system
 `mvn`. Use `--java-build-tool maven` or `--java-build-tool gradle` to choose
 explicitly in a mixed build. No build-tool hint retains the Gradle default.
 
-Maven installs receive native Makefile targets, a Maven CI workflow, and
+Maven installs receive native Makefile targets, Maven steps in the factory CI workflow, and
 `quality-maven.xml` instead of `quality.gradle`. The initial checks run the
 existing Maven verify lifecycle and the JUnit dialect gate. Merge the quality
 snippet into the shared parent POM to activate Spotless, Error Prone, and

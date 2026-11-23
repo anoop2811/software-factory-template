@@ -4608,8 +4608,8 @@ redirect. That observed edge change is separate from these repository edits.
 
 Anoop requested an audit of the public index against delivered source, a usable
 command reference and README instructions for moving from v0.1.6 to the planned
-v0.2.0 Go replacement. GitHub release readback on 2026-10-23 still identifies
-v0.1.6 as latest stable and has no published v0.2.0 or Go candidate. Existing
+v0.2.0 Go replacement. GitHub release readback on 2026-10-23 identified
+v0.1.6 as latest stable and showed no published v0.2.0 or Go candidate. Existing
 source and opt-in release handoff are implemented; default selection, published
 native qualification, adopter pilot and stable publication remain separate gates
 in docs/migration/GO_RELEASE_READINESS.md.
@@ -4646,7 +4646,7 @@ reported `bundle file extension not supported, must be json or jsonl`.
 Their retained release.json artifacts identify the exact authenticated subjects;
 all five live scenarios failed on each observed Linux target. This is an observed
 candidate consumer defect, not successful migration evidence. RC1 now carries a
-failed-qualification notice; v0.1.6 remains latest stable.
+failed-qualification notice; v0.1.6 held the Latest designation at that milestone.
 
 The generic staging component copies caller-owned inputs into private pinned
 custody, but names the attestation snapshot `attestation`, discarding the format
@@ -4835,7 +4835,7 @@ head that passed all 18 checks. Release run 40252592120 passed four native build
 authentication of all twelve subjects, upload of fourteen assets and the release
 guard. The four live qualification jobs failed: three of twenty scenario criteria
 passed. The retained source, tag and assets remain unchanged; release notes mark
-the candidate unqualified for migration. v0.1.6 remains latest stable.
+the candidate unqualified for migration. v0.1.6 held the Latest designation at that milestone.
 
 The complete retained reports identify three separate boundaries:
 
@@ -4925,7 +4925,7 @@ passed on each target, twenty passed and zero failed overall. The candidate and
 harness identities match. These are published binary outcomes, distinct from
 source-only tests. The observed systems are Ubuntu 24.04.5 on both architectures,
 macOS 14.8.9 arm64 and macOS 15.7.9 amd64. The last does not establish macOS 14
-Intel support; retain the full minimum-OS gate. v0.1.6 remains latest stable.
+Intel support; retain the full minimum-OS gate. v0.1.6 held the Latest designation at that milestone.
 
 Keep the mandatory operator pilot in Q5 of
 specs/001-go-runtime-conversion.md:484. Q1 at
@@ -8652,7 +8652,7 @@ Record actual source, harness, OS, asset digests, scenario counts and failures.
 Publication is not a passing qualification. Preserve the tag and signed assets
 if a failure requires a later correction; do not silently replace them.
 
-Create a prerelease with explicit `--latest=false`; v0.1.6 remains latest stable.
+Create a prerelease with explicit `--latest=false`; v0.1.6 held the Latest designation at that milestone.
 Use the already reviewed Go 1.27.4 toolchain without changing dependencies.
 The [official Go release history](https://go.dev/doc/devel/release), fetched
 2026-11-15, confirms Go 1.27.4 was released 2026-11-10. The
@@ -9074,3 +9074,56 @@ project rules that affect the private paths. A missing rule appended at the end
 can supersede an earlier root negation. Reuse a root rule for the lock only if
 the lowercase lock remains ignored on both case-sensitive and case-insensitive
 checkouts. A conflicting project rule must be reported before editing the file.
+
+## Decision 178 (2026-11-20 UTC): promote the qualified Go factory to stable
+
+Publish v0.2.0 from the merged adopter pilot at
+`5d6dbb0e0a0ef32113f200ef80cb7578bfb92f4c`. The operator approved the stable
+release and Latest designation after merging PR #189. v0.1.6 stayed Latest
+during signing. All four native targets passed the published qualification, and the signed
+installer ran in a fresh project and the v0.1.6 adopter pilot before GitHub
+marked v0.2.0 Latest on 2026-11-20. Use the same exact stable tag as the public
+installer default. Preserve explicit historical release selection and require
+a reviewed migration digest and quiescence to activate the Go installation.
+
+## Decision 179 (2026-11-20 UTC): ground the public homepage in the stable release
+
+Describe shipped capabilities using the v0.2.0 CLI, tagged implementation and
+published qualification reports. Use the signed adopter exercise only for its
+observed fixture and platform. Show exact-version setup and migration commands
+that work independently of the hosted installer default. Label roadmap proposals
+as planned. Apply the same evidence standard to the terminal example, metadata,
+language packs, role controls, cost claims and analytics preference text.
+
+Use a responsive editorial layout with system typefaces and an interactive
+qualification graphic. Every tile represents one of the five passing scenarios
+per native target. Keep the CLI output, target selector, evidence and install
+commands readable without JavaScript. The site uses text assets for its design
+so the existing review lane can cover the entire change under ADR 0100.
+
+The homepage should answer the adopter’s first question: what would I otherwise
+have to assemble by hand? Lead with project setup, language packs, harness roles,
+CI and upgrades, then show where checks, usage reports and optional model runs
+fit. Link readers to maintained guides for operating v0.2.0 and to immutable
+release artifacts for evidence. Update current instructions across the repository
+while retaining the dates, baselines and results of historical decisions and pilots.
+At release cutover, match the page title, social metadata, structured version,
+install examples and qualification links to the newly published artifacts.
+Describe the metrics log’s actual fields: hooks supply the reason text, so a
+custom hook can place sensitive data there. The metrics command sends no events.
+Record the packaged prereq limitation observed with Go-pack initialization: a
+two-part generated minimum fails comparison, and an explicit three-part project
+minimum allows the same checker to compare the installed toolchain.
+
+Post-publication audit, 2026-11-22. Pin the Go tag in the quick start so copies
+of the installer from different revisions select the same release. The v0.1.6
+handoff omits Go preview flags when it invokes the legacy updater. Direct readers
+of the signed scaffold to the maintained command and upgrade guides. Document
+the installed check runner’s actual commit range and use a nonrecursive product
+test command in configuration examples. Only promise recovery arguments in a
+report when the controller can establish the inputs and direction for a preview.
+The initialized scaffold contains only part of the upstream documentation.
+For guides and project files absent from that scaffold, use links to the
+maintained factory repository. A corrected scaffold belongs in a new release:
+installed Go projects record the exact predecessor revision and the upgrader
+checks it when it reacquires the published predecessor.

@@ -2,9 +2,9 @@
 
 **In short**
 
-- Controls live in shell hooks that block, not prompts that ask. The principle is due to Birgitte Böckeler (Thoughtworks).
+- The Go CLI and shared hooks can reject a specific action or artifact. The principle is due to Birgitte Böckeler (Thoughtworks).
 - The Verification Contract: you may only claim what you have observed. Three claim levels, eight rules.
-- Roles are split so the agent that writes tests never writes implementation — and the split is hook-enforced.
+- Roles assign test writing, implementation and review to separate jobs. An edit hook can block the implementer from changing configured test paths.
 - This file explains why the rules exist. The rulebook agents actually read is [FACTORY_RULES.md](FACTORY_RULES.md).
 
 New to the vocabulary? See [GLOSSARY.md](GLOSSARY.md).
@@ -31,17 +31,14 @@ what the architecture already is:
   deterministic — the hook that checks what crosses and exits non-zero if it is
   wrong. Coordination is code, not a conversation.
 - A **verifier** sits on an edge and tries to kill a finding before it reaches
-  the answer. That is the **reviewer** role — adversarial by design, and never
-  the same model that wrote the code (generator/evaluator separation).
+  the answer. That is the **reviewer** role — a separate assignment from implementation. You can assign the two roles
+  different models or let them inherit the harness's model.
 - **Tiering models per node** — cheap for mechanical work, expensive for judgment
   — is the **economy cost profile**, routing each role to a model tier.
 
-So "graph engineering" is not a new discipline to bolt on. The factory is already
-a graph: roles are the nodes, gates are the verified edges, the reviewer is the
-skeptic, models tier by role — and it runs the same on Claude Code, opencode, and
-Codex because the roles are canonical. What a workflow *recipe* adds, when you
-want it, is making one specific composition explicit and lintable; the substrate
-is the roles and gates you already have.
+The factory ships plain-text [workflow recipes](WORKFLOWS.md). A recipe names
+the jobs, dependencies and verifier so the harness can coordinate them using
+its own tools. Resumable graph execution is [on the roadmap](FEATURE_ROADMAP.md).
 
 ## Computational controls beat inferential ones
 
@@ -94,7 +91,7 @@ Rule 3 deserves its own paragraph because it's the one that has saved us most of
 break the thing  ->  check FAILS  ->  revert  ->  check PASSES
 ```
 
-A check you've only seen pass may be passing vacuously. We had a dead pipeline that read an empty stream, and a grep satisfied by a comment mentioning the required call — both real, both in [PATTERNS.md](PATTERNS.md). So every hook ships with a break/fix fixture, and `factory-init` proves the installed gates fire before declaring adoption successful.
+A check you've only seen pass may be passing vacuously. We had a dead pipeline that read an empty stream, and a grep satisfied by a comment mentioning the required call — both real, both in [PATTERNS.md](PATTERNS.md). In v0.2.0, initialization runs the same fourteen core gate pairs as `./factory selftest`. Add a break/fix case to the project suite when you write your own gate.
 
 ### Read back state after mutating it
 
@@ -113,26 +110,33 @@ spec-writer ──> tests ──> implementer ──> code ──> reviewer ─�
                      denied      (test-edit-denial.sh, exit 2)
 ```
 
-| Role | Model | Constraint |
+| Role | Configured tier | Job |
 |---|---|---|
-| spec-writer | frontier | writes acceptance tests only, never implementation |
-| implementer | default | makes failing tests pass; cannot edit test files |
-| refactorer | default | cleans up under green tests; also cannot edit tests |
-| reviewer | frontier, never the code's author | edit permission denied entirely; output is findings for a human |
-| wiki-maintainer | — | reads immutable sources, writes the wiki layer; bash denied, every edit lands as a reviewed PR |
+| spec-writer | frontier | Write independent acceptance tests. |
+| implementer | default | Make the tests pass. |
+| refactorer | default or economy | Improve the implementation under passing tests. |
+| reviewer | frontier | Inspect the change and return findings. |
+| wiki-maintainer | default or economy | Update the wiki from its sources for human review. |
 
-The separation is only real because it's hook-enforced. Telling a session "you are the implementer, don't touch tests" is an inferential control; `test-edit-denial.sh` in the write path is the computational one.
+The test-edit hook checks the explicit `implementer` role and the project's
+configured test path patterns. A missing role or empty pattern list permits the
+edit. Native harness permissions also apply. Model tiers can resolve to the same
+model. [Hook conditions](HOOKS.md#test-edit-denialsh).
 
 ## One canonical config, generated adapters
 
-opencode is the canonical harness. `opencode.json` and `.opencode/agent/*.md` are the source of truth; `scripts/sync-claude.sh` and `scripts/sync-codex.sh` generate the Claude Code and Codex configurations. CI runs the sync and fails if the committed files drift, so a hand-edited adapter can't ship.
+OpenCode provides the canonical role definitions in `.opencode/agent/*.md`.
+After editing them or the model tiers in `factory.yaml`, run
+`./factory sync all` and inspect the OpenCode, Claude Code and Codex configuration
+diff. Run `./factory eval structural --harness=codex` to check the resulting
+Codex wiring locally. The other selectors are `claude` and `opencode`.
 
 ### The two config layers
 
 Project-specific values are split across two mechanisms, for two different reasons. It helps to see the split plainly.
 
 - **Enforcement values are read at runtime.** `protected_paths`, `test_file_patterns`, `check_command`, `citation_prefix`, and `docs_root` live in `factory.yaml`. The hooks read them at runtime through `scripts/lib/config.sh`, so the hook scripts stay byte-identical across every adopter — nothing in them is edited at install time.
-- **Identity and model values are substituted once.** The project name, the GitHub owner, and the model strings in `opencode.json` and the agent `.md` files are substituted a single time, at install, by `factory-init`. This is not a stylistic choice: `opencode.json` can't read `factory.yaml`, so the harness config has no way to pull those values at runtime. They have to be baked in when the files are copied.
+- **Identity and model values are written into harness files.** Initialization fills in project identity and generates the harness configuration. Running `./factory sync all` applies later role and model changes.
 
 Two layers, two reasons: runtime config keeps hooks identical and upgradable; install-time substitution fills in the values the harness config can't look up for itself.
 
@@ -146,9 +150,9 @@ CI           ──────────────> hooks
 
 ## Runtime configuration: factory.yaml
 
-Project-specific values — protected paths, test file patterns, the decision-log location, the citation prefix — live in `factory.yaml` at the repo root, read at runtime by `scripts/lib/config.sh`. The format is deliberately constrained (flat `key: value`, space-separated lists, no nesting) so the parser stays a few lines of shell. Anything more expressive belongs in a hook.
+Project-specific values — protected paths, test file patterns, the decision-log location, the citation prefix — live in `factory.yaml` at the repo root, read by the Go runtime and through the shell hooks' `scripts/lib/config.sh` adapter. The format uses flat `key: value` entries and space-separated lists. Anything more expressive belongs in a hook.
 
-This replaced an earlier install-time placeholder-substitution scheme, for a reason worth recording. Substituted placeholders fork every adopter from the template at install time, so upgrades required diff archaeology, and the template's own hooks couldn't run (or be tested) in the template repo itself. With runtime config, hook files stay byte-identical between template and adopters, upgrades are file copies, and the template dogfoods its own gates. Key reference in [ADAPTING.md](ADAPTING.md).
+This replaced an earlier install-time placeholder-substitution scheme, for a reason worth recording. Substituted placeholders fork every adopter from the template at install time, so upgrades required diff archaeology, and the template's own hooks couldn't run (or be tested) in the template repo itself. With runtime config, adopters can share a hook implementation. The v0.2.0 upgrade checks file ownership and offers a reviewable migration with recovery. Key reference in [ADAPTING.md](ADAPTING.md).
 
 ## Decisions before code
 
@@ -158,6 +162,6 @@ Every decision about the factory goes in `docs/DECISION_LOG.md` before the code 
 
 At session end, lessons worth keeping go to `memory/lessons/NNN-*.md` with provenance — a file and line, a fetched URL with date, or "observed YYYY-MM-DD via \<action\>". A lesson without provenance is worse than no lesson; it becomes a stale fact asserted with confidence.
 
-The template ships exactly one lesson (`001-verification-contract.md`) to prove the pattern; adopters accumulate their own from there.
+A fresh v0.2.0 installation seeds one lesson (`001-verification-contract.md`) to prove the pattern; adopters accumulate their own from there.
 
 The loop closes by escalation: a per-turn reminder flag, a session-end check that records pending lessons (`loop-close-check.sh`), and a push block (`pending-lessons-push-block.sh`) that turns the ignorable nudge into a gate.

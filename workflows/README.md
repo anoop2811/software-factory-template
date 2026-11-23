@@ -22,4 +22,4 @@ Each `## <node>` block declares:
   `role: code`).
 
 See the shipped `review-diamond.md` and `eval-fanout.md`, and
-[docs/WORKFLOWS.md](../docs/WORKFLOWS.md) for how each harness runs a recipe.
+[docs/WORKFLOWS.md](https://github.com/anoop2811/software-factory-template/blob/main/docs/WORKFLOWS.md) for how each harness runs a recipe.

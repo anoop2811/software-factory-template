@@ -1,6 +1,6 @@
 # Go loop fingerprint foundation
 
-[ADR-0073](../adr/0073-go-loop-fingerprint-foundation.md) introduces a private,
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0073](../adr/0073-go-loop-fingerprint-foundation.md) introduces a private,
 read-only compiled fingerprint boundary. It establishes the identity required
 for future loop checkpoint freshness; it does not execute or resume a loop.
 

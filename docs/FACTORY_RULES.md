@@ -12,7 +12,7 @@ If you write "every field participates in the derived value" in a spec, you also
 
 ## The hooks
 
-Per-hook detail — fire conditions, exit codes, failure output — is in [HOOKS.md](HOOKS.md). The map:
+Per-hook detail — fire conditions, exit codes, failure output — is in [HOOKS.md](https://github.com/anoop2811/software-factory-template/blob/main/docs/HOOKS.md). The map:
 
 | Hook | Enforces | Runs in |
 |---|---|---|
@@ -27,7 +27,7 @@ Per-hook detail — fire conditions, exit codes, failure output — is in [HOOKS
 | `scripts/hooks/pending-lessons-push-block.sh` | No push while a lesson reminder or staleness flag is unaddressed. | pre-push, CI |
 | `scripts/hooks/loop-close-check.sh` | Nothing — a session-end nudge that writes `memory/PENDING-LESSONS.md`. | opencode `dispose` hook |
 | `packs/go/hooks/ginkgo-only-check.sh` | (Go pack) one testing dialect: Ginkgo v2 + Gomega, stdlib `testing` only in the `RunSpecs` bootstrap. | CI, `make check` |
-| `docs/examples/hooks/field-coverage-check.sh` | Example only, not an active gate: a struct's coverage function includes every non-excluded field. Copy and adapt. | nothing by default |
+| [Template field-coverage example](https://github.com/anoop2811/software-factory-template/blob/v0.2.0/docs/examples/hooks/field-coverage-check.sh) | Example only, not an active gate: a struct's coverage function includes every non-excluded field. Copy and adapt. | nothing by default |
 
 Boundaries worth remembering:
 
@@ -37,7 +37,7 @@ Boundaries worth remembering:
 
 ## Structural rules
 
-**Generator/evaluator separation.** The agent that writes the spec doesn't write the implementation; the agent that writes the tests doesn't write the implementation; the agent that writes the implementation doesn't write the tests. Enforced by `test-edit-denial.sh`, by role separation in the agent definitions (spec-writer = frontier model, implementer = default model), and by `FACTORY_AGENT_ROLE` set explicitly in each agent's environment.
+**Generator/evaluator separation.** Assign test design, implementation and review to separate roles. The test-edit hook blocks the explicitly identified implementer on configured test paths. Model tiers can inherit or select the same model. The hook checks the role and target path.
 
 **Go tests use Ginkgo v2 and Gomega only.** The `testing` package exists only in each package's `RunSpecs` bootstrap; specs use Ginkgo nodes, parameterized cases use `DescribeTable`, assertions use Gomega. Enforced by `ginkgo-only-check.sh`.
 
@@ -72,7 +72,7 @@ This contract exists because across four review rounds on the original factory, 
 
 1. **No claim without execution.** Every "verified" line cites the exact command run in THIS session and pastes its real output. Didn't run it? Write "written but NOT verified" — always acceptable. A false "verified" never is.
 2. **Verify at the level of the claim.** Testing a component doesn't verify the system wrapping it. "The harness blocks test edits" requires watching the harness block a test edit; a run of the shell script it calls is evidence about the script. Name the level your evidence actually reaches.
-3. **Every check must be seen to fail.** break → FAIL → revert → PASS on the exact defect it exists to catch. A check only seen passing may be passing vacuously (dead pipeline, satisfied by a comment — both happened; see [PATTERNS.md](PATTERNS.md)). This is TDD's red phase applied to enforcement.
+3. **Every check must be seen to fail.** break → FAIL → revert → PASS on the exact defect it exists to catch. A check only seen passing may be passing vacuously (dead pipeline, satisfied by a comment — both happened; see [PATTERNS.md](https://github.com/anoop2811/software-factory-template/blob/main/docs/PATTERNS.md)). This is TDD's red phase applied to enforcement.
 4. **Never use an unverified API surface.** A signature, option, config key, or event shape not confirmed from current docs, types, or source in this session is a hypothesis. And after confirming the types, still run the code — types don't prove runtime behavior.
 5. **Read back state after mutating it.** Confirm the end state with an independent read (`git ls-files`, `git status`, `cat`) before claiming it. A later command can silently undo what the success message described.
 6. **Comments and names are not behavior.** Never write a comment describing what code does in place of making the code do it. Never let a checker be satisfiable by strings or comments.

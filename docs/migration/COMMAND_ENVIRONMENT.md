@@ -1,6 +1,6 @@
 # Go command environment qualification
 
-[ADR-0077](../adr/0077-go-command-environment.md) governs shared configuration
+**Historical implementation checkpoint.** This records the component before stable cutover. For installed v0.2.0 behavior, see the [CLI and migration guides](README.md). [ADR-0077](../adr/0077-go-command-environment.md) governs shared configuration
 and model routing for the private compiled budget and loop commands. It is the
 first of three milestones in the remaining G2 integration/retirement package.
 The 30-package progress denominator remains unchanged.

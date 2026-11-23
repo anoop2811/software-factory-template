@@ -1,15 +1,53 @@
 # Go replacement release readiness
 
-This is the delivery checklist for the approved conversion specification, not a
-second feature roadmap. Source implementation progress and release readiness are
-different measurements. The last recorded fixed source-plan score is 60.7% at
-merged PR #124; it is a historical score, not a new estimate for later work.
+## Stable v0.2.0
 
-The supported initial upgrade inputs are v0.1.6 and immutable Bash baseline
-76952eaa63aebd1ecd282f5ab51dd7c3627cb497. Unknown/customized installations are
-preserved and reported. The spec remains authoritative for scope and exceptions.
+The operator selected the merge of [PR #189](https://github.com/anoop2811/software-factory-template/pull/189)
+for v0.2.0. On 2026-11-20 the GitHub Latest endpoint returned v0.2.0 after the published qualification and signed pilot. The [stable release](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0)
+identifies the downloads. The [publication workflow](https://github.com/anoop2811/software-factory-template/actions/runs/44789814756)
+passed all 20 scenarios on Linux and macOS, on amd64 and arm64. The [downloadable reports](https://github.com/anoop2811/software-factory-template/releases/download/v0.2.0/factory-qualification-v0.2.0-44789814756.tar.gz) preserve the run, target, signer subjects and scenario outcomes.
+The [published installation instructions](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0) pin the tag explicitly. Existing projects choose when to apply the upgrade.
+See the [v0.1.6 upgrade guide](../UPGRADING.md) for preview, confirmation and recovery.
+
+### Signed adopter pilot, 2026-11-20 UTC
+
+The operator-approved pilot used a private application fixture. These are local
+observations, with per-command logs retained on the operator’s machine.
+On macOS arm64, a fresh Git project and a disposable copy of the supported
+v0.1.6 adopter both ran the public installer with `--ref v0.2.0`. The bootstrap,
+installation image and runtime archive passed checksum and GitHub attestation
+checks for the tag and merge commit. Both installed binaries matched the one
+in the signed macOS arm64 image (SHA-256
+`a68e7df6e0f59523c95a69d1319fd33d6e10618c696743ce0085c36970310c68`).
+
+| Exercise | Observed outcome |
+|---|---|
+| Fresh init and confirmed v0.1.6 upgrade | Both installations reported `14 shipped gates proved, 0 failed`. The adopter preview had zero blockers and conflicts. The upgrade preserved all 103 application files, configuration, HEAD and index. |
+| Temporary application feature | The installed `./factory check` passed at baseline, caught the new failing test, passed all 13 frontend tests after implementation, and passed the original 12 after reversal. All 103 adopter product files matched their pre-exercise contents and modes after reversal. |
+| Failed rollback and recovery | With a required legacy tool unavailable, rollback returned 2 and left all 295 observed active paths unchanged. After restoring the tool, forward recovery and a fresh rollback succeeded. The transaction committed, 195 legacy files matched their original content and modes, and the restored Bash metrics command returned valid JSON. The root ignore-file update retained the private lock. |
+
+The SHA-256 identifiers below correspond to the private structured outcome
+records used for these local observations. The public qualification archive
+above contains the independent hosted results for all four platforms.
+
+| Operator receipt | SHA-256 |
+|---|---|
+| Forward migration | `c788c701e18b3d31805449ae02f91916b43aeaa4d250ee97d088650ed08e575b` |
+| Temporary feature and reversal | `0ced46272df4046395b8131b1974b8bb19767ef9764252f9ef84fdb27f8fd0db` |
+| Refusal, recovery and rollback | `018d3b8a26dcae7fcda93325def9df2a466813a62df09b05378a48762afb46ce` |
+
+The tagged source also passed 28 inventory and historical compatibility specs.
+The fixed conversion inventory contains 21 command adapters, seven shell
+libraries and four retired Python runtime modules. The original adopter checkout
+was outside the exercise. Earlier pilot findings and fixture scope are recorded
+in the [adopter pilot history](RC4_ADOPTER_PILOT.md).
+
+The entries below record the checklist at earlier delivery milestones.
+Their open items and installer pins describe the state at each milestone.
 
 ## Completed source prerequisites
+
+Historical snapshot before stable promotion.
 
 - Native source commands exist for init, doctor, report, metrics, review-lane,
   configuration migration, budgets and loops.
@@ -47,7 +85,7 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
 - Ordinary shell-installer init/upgrade requests with an exact stable Go ref
   reuse authenticated bootstrap acquisition and the native stable owner. The
   shell checks stable publisher metadata before first execution and carries one
-  explicit ref into Go. Bare fetch stays Git-only; the public v0.1.6 pin remains.
+  explicit ref into Go. At that checkpoint, bare fetch stayed Git-only and the public installer still selected v0.1.6.
   See [ADR 0124](../adr/0124-ordinary-authenticated-go-installer-bootstrap.md).
 - The tracked developer launcher builds and enters the existing native Cobra
   command; direct init/upgrade scripts forward to the same owners. Branch
@@ -77,19 +115,19 @@ preserved and reported. The spec remains authoritative for scope and exceptions.
   recovery source engines are qualified and merged.
 
 The whole-installation consumer and explicit stable Go installer refs can select
-an authenticated Go runtime. Current source and direct init/upgrade entrypoints
-use Go; the public installer default remains v0.1.6. Bare fetch executes no
-downloaded code. Stable activation and final release qualification remain separate.
+an authenticated Go runtime. At this milestone, the source and direct init/upgrade
+commands used Go while the public installer still selected v0.1.6. Bare fetch executed no
+downloaded code. Stable activation and final qualification followed later.
 Explicit candidate delivery is described in [GO_CANDIDATE_HANDOFF.md](GO_CANDIDATE_HANDOFF.md).
 
-## Current release candidate
+## Fourth release candidate (historical)
 
 [v0.2.0-rc.4](https://github.com/anoop2811/software-factory-template/releases/tag/v0.2.0-rc.4)
 was published on 2026-11-16 UTC from
 [PR #185's reviewed merge](https://github.com/anoop2811/software-factory-template/pull/185)
 `c51e0ae520839076c7245f2de7e396e4c3e546fe`. The PR passed all 46 checks;
 the merged source passed all 47 reported checks, including four native bundles.
-The release remains a prerelease and v0.1.6 remains Latest stable.
+RC4 was published as a prerelease. v0.1.6 was Latest at the time.
 
 R5 is complete: live published-asset qualification passed five criteria on each
 of four native targets, twenty criterion executions in total, in
@@ -129,7 +167,7 @@ arm64 and macOS 15.7.9 amd64, under the then-approved macOS 14 floor. Decision
 128 (2026-10-30) now sets macOS 15+ on both architectures; macOS 14 is no longer
 supported. At that checkpoint, a new candidate needed native qualification at
 the revised minimums. RC4 supplies that evidence above; RC3's original evidence
-and immutable assets remain historical. v0.1.6 remains latest stable.
+and immutable assets remain historical. v0.1.6 was Latest at that milestone.
 
 RC1 and RC2 remain unchanged and marked unqualified for migration. RC3 corrects
 their recorded failures; its passing published results are separate evidence.
@@ -151,6 +189,8 @@ fresh published qualification. RC3's original twenty passes do not qualify a
 later binary; its source, tag and assets remain unchanged.
 
 ## Required release gates
+
+Historical checklist from candidate qualification. See the stable result above.
 
 - [x] Complete committed source-image bundle and fixed legacy reference catalogs,
       with shared validation and authenticated closed-world payload custody.
@@ -297,6 +337,8 @@ and budgets remain explicit.
 
 ## Installed doctor correction
 
+Historical snapshot of the work remaining after the doctor correction.
+
 An isolated local adopter rehearsal exposed a sourceable-library permission
 mismatch in native doctor. Decision 112 corrects it while retaining executable
 requirements for invoked hooks. Independent criteria include an actual qualified
@@ -309,7 +351,7 @@ remain distinct from that source qualification. RC4 now supplies the minimum-OS
 evidence; the mandatory operator pilot, default cutover and final audit remain
 open requirements within R6 and R7.
 
-## Pending operator input
+## Operator input at the rehearsal milestone
 
 An isolated rehearsal has run against the operator-selected adopter; its detailed
 records remain local. A genuine v0.1.6 fixture migrated, while the actual older
@@ -319,19 +361,19 @@ checkout. Its reconciliation is separate adopter work. Decision 111 permits a
 separately labeled supported installation containing unchanged real application
 code as the pilot fixture.
 
-Q5 still requires an agreed evidence period/exit criteria and operator acceptance
-of a representative supported-project pilot using the current candidate. Earlier
+At this rehearsal, Q5 still required agreed exit criteria and operator acceptance
+of a representative supported-project pilot using that candidate. Earlier
 local rehearsal findings are historical evidence; passing application tests alone
 does not establish a completed current-release upgrade/workflow/recovery pilot or
 permit default cutover. No minimum calendar duration is specified.
 
-## Current installation-consumer qualification
+## Installation-consumer qualification at PR #125
 
 PR #125 merged on 2026-10-17 after all fifteen reported checks passed. It adds
 the opt-in go-hybrid-v1 whole upgrade, rollback and interrupted-recovery paths
 specified in docs/adr/0098-whole-installation-upgrade-and-rollback.md:14. This
 closes those three source prerequisites above; default bootstrap and replacement
-release gates remain open. For PR #125, the advisory model review skipped the oversized diff
+release gates were still open then. For PR #125, the advisory model review skipped the oversized diff
 and Copilot had no quota, so neither is claimed as completed model review.
 
 The completed orchestration implementation and its qualification are tracked in

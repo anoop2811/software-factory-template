@@ -9171,3 +9171,11 @@ private timing control while keeping exclusive creation and conservative
 retention. Rollback, runtime, compiler, suite and job limits keep their
 existing values.
 [Local-upgrade failure](https://github.com/anoop2811/software-factory-template/actions/runs/45107131014/job/137473530802)
+
+## Decision 182 (2026-11-23 UTC): publish a homepage link-preview image
+
+Publish a version-independent, 1200 × 627 PNG beside the website assets. Link
+to its absolute HTTPS URL in the initial HTML so a social crawler can fetch
+the artwork without executing JavaScript. Keep the editable artwork alongside
+the export. Use the same card and description for Open Graph and X.
+[LinkedIn website sharing requirements](https://www.linkedin.com/help/linkedin/answer/a521928)

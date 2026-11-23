@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="627" viewBox="0 0 1200 627">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="627" viewBox="0 0 1200 627">
   <title>Software AI Factory. Your repo, ready for coding agents.</title>
-  <desc>Codex, Claude Code and OpenCode. Three illustrated layers stack into a terminal.</desc>
+  <desc>Codex, Claude Code and OpenCode. Four illustrated layers stack into a terminal.</desc>
   <defs>
     <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
       <circle cx="2" cy="2" r="1.5" fill="#87a99c" opacity=".42"/>
@@ -29,10 +29,10 @@
   <text x="62" y="550" fill="#244f43" font-family="Avenir Next, sans-serif" font-size="31" font-weight="600">Codex   ·   Claude Code   ·   OpenCode</text>
 
   <g transform="translate(828 145)">
-    <use href="#layer" y="161" color="#6d9c89"/>
-    <use href="#layer" y="113" color="#8cb8a4"/>
-    <use href="#layer" y="65" color="#b4d39e"/>
-    <use href="#layer" y="17" color="#dbf684"/>
+    <use href="#layer" xlink:href="#layer" y="161" color="#6d9c89"/>
+    <use href="#layer" xlink:href="#layer" y="113" color="#8cb8a4"/>
+    <use href="#layer" xlink:href="#layer" y="65" color="#b4d39e"/>
+    <use href="#layer" xlink:href="#layer" y="17" color="#dbf684"/>
     <g transform="matrix(1 .483 -1 .483 151 19)" fill="none" stroke="#173e34" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter">
       <path d="m34 62 20 18-20 18m36-1h41"/>
     </g>

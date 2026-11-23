@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   build:
+    # Fork PRs targeting this repository run here too. Template copies own their sites.
     if: github.repository == 'anoop2811/software-factory-template'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -41,7 +42,7 @@ jobs:
           # The Pages packager dereferences links. Only publish files from this tree.
           while IFS= read -r -d '' link; do
             target=$(realpath -e -- "$link")
-            [[ $target == "$stage/"* && -f $target ]] || { echo "Invalid Pages link: $link" >&2; exit 1; }
+            [[ $target == "$stage/"* && -f $target ]] || { echo "Pages link must target a regular file inside the staged site: $link" >&2; exit 1; }
             cp --remove-destination -- "$target" "$link"
           done < <(find "$stage" -type l -print0)
           cd "$stage"

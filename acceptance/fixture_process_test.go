@@ -99,7 +99,8 @@ func handoffCooperativeProcess(cwd string, environment map[string]string, input 
 	return handoffCooperativeProcessWithin(fixtureCommandTimeout, cwd, environment, input, retainedRoots, program, args...)
 }
 
-// Only confirmations rebuilding two Go images select the longer command budget.
+// Apply the caller's qualification allowance to both the outer watchdog and
+// the cooperative supervisor. Other handoffs use fixtureCommandTimeout.
 // per docs/DECISION_LOG.md:9151.
 func handoffCooperativeProcessWithin(allowance time.Duration, cwd string, environment map[string]string, input string, retainedRoots []string, program string, args ...string) cliResult {
 	GinkgoHelper()

@@ -576,7 +576,14 @@ var _ = Describe("Go explicit local source upgrade", Ordered, ContinueOnFailure,
 		Expect(applied.stderr).To(ContainSubstring(localUpgradeApplyMarker))
 		timing, err := os.ReadFile(ready + ".timing")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(timing)).To(ContainSubstring(`"phase":"preflight-end"`))
+		var phases []string
+		for line := range bytes.Lines(timing) {
+			var receipt localUpgradeWorkerReceipt
+			Expect(json.Unmarshal(line, &receipt)).To(Succeed())
+			Expect(receipt.Root).To(Equal(root))
+			phases = append(phases, receipt.Phase)
+		}
+		Expect(phases).To(ContainElement("preflight-end"))
 		localInitDescriptor(root, fixture.revision)
 		Expect(os.ReadFile(filepath.Join(root, ".factory/loops.json"))).To(Equal(modern))
 		Expect(os.ReadFile(filepath.Join(root, ".factory/backups/operator-held/witness"))).To(Equal([]byte("do not advance release retention\n")))

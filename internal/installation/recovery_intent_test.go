@@ -1,8 +1,10 @@
 package installation
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"slices"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -57,4 +59,48 @@ var _ = Describe("Recovery after an interrupted direction change", func() {
 		restored := installationComponentImage(root, "active", old)
 		Expect(entry.recognizesPrepared(restored, true, false, reversing)).To(BeTrue())
 	})
+
+	DescribeTable("persists both active and staged file receipts across a fresh journal read", func(reverse bool, direction, phase string) {
+		ctx := context.Background()
+		owner := rollbackPendingComponent()
+		const path = ".factory/bin/factory-runtime"
+		index := slices.IndexFunc(owner.record.Entries, func(row journalEntry) bool { return row.Path == path })
+		Expect(index).To(BeNumerically(">=", 0))
+		entry := &owner.record.Entries[index]
+		active, _, err := observe(ctx, owner.tree, path, leafLimit(path))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(active).NotTo(BeNil())
+		next := []byte("replacement runtime")
+		installationComponentWrite(owner.root, "replacement", next, 0700)
+		staged := installationComponentImage(owner.root, "replacement", next)
+		owner.record.Purpose, owner.record.Direction = "recovery", direction
+		owner.record.Phase, owner.record.Outcome = "applying", "pending"
+		entry.Action, entry.PreparedAfter = "replace", active
+		entry.Before, entry.ExpectedAfter = active, staged
+		if reverse {
+			entry.Before, entry.ExpectedAfter = staged, active
+		}
+		entry.prepareIntent(Action{Action: "replace", Before: active, After: staged}, reverse)
+		Expect(owner.save(ctx)).To(Succeed())
+		readRow := func() journalEntry {
+			GinkgoHelper()
+			record, err := readJournalEvidence(ctx, owner.tree, owner.record.MigrationID, false)
+			Expect(err).NotTo(HaveOccurred())
+			return record.Entries[index]
+		}
+		intent := readRow()
+		Expect(intent.Phase).To(Equal(phase))
+		Expect(intent.ObservedAfter).To(Equal(installationComponentImage(owner.root, path, []byte(preparationComponentChild))))
+		Expect(intent.PreparedAfter).To(BeNil())
+
+		Expect(owner.preparedSaver(path)(ctx, staged)).To(Succeed())
+		intent = readRow()
+		Expect(intent.ObservedAfter).To(Equal(active))
+		Expect(intent.PreparedAfter).To(Equal(staged))
+		Expect(os.Rename(filepath.Join(owner.root, "replacement"), filepath.Join(owner.root, path))).To(Succeed())
+		published := installationComponentImage(owner.root, path, next)
+		atBefore := imageEqual(published, intent.Before, false)
+		atAfter := imageEqual(published, intent.ExpectedAfter, false)
+		Expect(intent.recognizesPrepared(published, atBefore, atAfter, &owner.record)).To(BeTrue())
+	}, Entry("forward recovery", false, "forward", "prepared"), Entry("reverse recovery", true, "reverse", "reverse_prepared"))
 })

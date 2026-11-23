@@ -9162,8 +9162,8 @@ transition. Absence of sufficient identity evidence still requires reconciliatio
 [CI failure](https://github.com/anoop2811/software-factory-template/actions/runs/45107131014/job/137473530766)
 
 The separate local-source macOS job took about 82 seconds to enter the selected
-worker. Its 90-second test watchdog cancelled preflight before a journal or
-pending marker existed. The next example encountered the first example's
+worker. Preflight was still running at the 90-second deadline. The supervisor
+returned after 91.4 seconds, before a journal or pending marker existed. The next example encountered the first example's
 retained timing control. For the two healthy Go-predecessor source upgrades,
 bound the complete confirmation with the existing 180-second qualification
 allowance for commands rebuilding both images. Give each adopter its own

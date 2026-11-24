@@ -9194,3 +9194,9 @@ files or materialized exports from another system. Preview and local search
 have no model cost. The proposed factory-managed delivery path binds a run to
 the reviewed context. This decision commissions the draft. Design approval,
 implementation and acceptance evidence are separate milestones.
+
+For work tracked across product and engineering tools, let the project's exporter own record types,
+field choices and relationship mappings. It emits ordinary v1 sources and a bounded request for one
+ticket. This preserves team terminology and upstream citations while keeping credentials and tracker
+synchronization outside the runtime. Qualify this boundary with both Aha!–Jira mapping patterns, a
+custom Jira type and a Linear example in [Spec 003](../specs/003-task-context-and-skills.md#work-item-mappings).

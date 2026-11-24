@@ -42,10 +42,10 @@ Each row identifies the functional requirement it proves.
 | AC2 · [FR2–3](#fr2 "specs/003-task-context-and-skills.md:56") | Given two teams with a local ID `refund` and an external producer's catalog for `PAY-42`, select one qualified ID plus the exported requirement | Only those entries appear. The export has a local path, line range, content hash and upstream revision. An exporter built independently of factory code passes offline validation. Duplicate namespaces and missing IDs fail with a diagnostic. |
 | AC3 · [FR3–4](#fr3 "specs/003-task-context-and-skills.md:60") | Given an on-call procedure and a migration procedure, list skills, then select only the migration skill | Listing shows metadata only. The selected body appears once in the preview. An embedded command and a link to another file are displayed as text and cause zero executions or file inclusions. |
 | AC4 · [FR5–6](#fr5 "specs/003-task-context-and-skills.md:74") | Given a service scope, a shared explicitly selected contract, tied search matches and a byte cap, run local retrieval | The shared contract survives. Only eligible in-scope matches follow in deterministic order. Inspecting the preview accounts for every considered candidate. An exact fit passes. One byte under the required size blocks delivery. A search match pointing to an untracked draft is omitted and explicit selection can include it. |
-| AC5 · [FR6–8](#fr6 "specs/003-task-context-and-skills.md:82") | Preview a request, then change selected bytes without committing, retarget its catalog entry, or change an input used by a selected summary | A managed run with the old digest refuses before budget reservation or harness launch. Restoring identical inputs restores the digest. A captured harness input contains exactly the approved context bytes even if the file changes after validation. |
-| AC6 · [FR7–8](#fr7 "specs/003-task-context-and-skills.md:92") | Run the same approved request against each of three instrumented CLI substitutes | All receive the same context bytes exactly once. Existing task instructions, role restrictions, hook preflight and budget admission still apply. A blocked budget causes zero agent launches. With a near-limit prompt, reject combined input overflow without a reservation or truncation, including when only the Codex role prefix tips it over. |
-| AC7 · [FR1, FR6–8](#fr1 "specs/003-task-context-and-skills.md:52") | Request an ignored credential fixture, escaping path, symlink, special file, malformed catalog, unsupported version or unreadable required range | The command fails with a useful reason, emits no partial payload and never prints or records fixture contents. A filename containing terminal controls displays safely. A mock delimiter inside source text decodes as text. A legacy run without context options exercises its existing behavior. |
-| AC8 · [FR9](#fr9 "specs/003-task-context-and-skills.md:109") | Given an original spec and an optional summary, preview first without summaries, then explicitly request the summary, then modify the original | First preview includes the requested original, second labels the summary and cites the original, third rejects the stale binding. Changing only the range in the original locator also blocks. Explicit summary plus search for the same ID includes only the summary. Each preview makes zero model requests. |
+| AC5 · [FR6–8](#fr6 "specs/003-task-context-and-skills.md:83") | Preview a request, then change selected bytes without committing, retarget its catalog entry, or change an input used by a selected summary | A managed run with the old digest refuses before budget reservation or harness launch. Restoring identical inputs restores the digest. A captured harness input contains exactly the approved context bytes even if the file changes after validation. |
+| AC6 · [FR7–8](#fr7 "specs/003-task-context-and-skills.md:93") | Run the same approved request against each of three instrumented CLI substitutes | All receive the same context bytes exactly once. Existing task instructions, role restrictions, hook preflight and budget admission still apply. A blocked budget causes zero agent launches. With a near-limit prompt, reject combined input overflow without a reservation or truncation, including when only the Codex role prefix tips it over. |
+| AC7 · [FR1, FR6–8](#fr1 "specs/003-task-context-and-skills.md:52") | Request an ignored credential fixture, escaping path, symlink, hard-linked file, special file, malformed catalog, unsupported version or unreadable required range | The command fails with a useful reason, emits no partial payload and never prints or records fixture contents. A filename containing terminal controls displays safely. A mock delimiter inside source text decodes as text. A legacy run without context options exercises its existing behavior. |
+| AC8 · [FR9](#fr9 "specs/003-task-context-and-skills.md:110") | Given an original spec and an optional summary, preview first without summaries, then explicitly request the summary, then modify the original | First preview includes the requested original, second labels the summary and cites the original, third rejects the stale binding. Changing only the range in the original locator also blocks. Explicit summary plus search for the same ID includes only the summary. Each preview makes zero model requests. |
 
 ## 5. Functional Requirements
 
@@ -76,7 +76,8 @@ Each row identifies the functional requirement it proves.
   simple case folding. Require at least one matching word. Rank by number of distinct query words matched,
   descending, then qualified ID ascending. Use the requested repo-relative directory scope and descendant
   scopes by path component. The root scope covers the worktree. Explicit selections may name a shared item
-  outside the search scope. Search reads only matching tracked sources. Record an untracked, missing or
+  outside the search scope. Only catalog metadata is searched. Matching entries supply their declared
+  file/range as context. A file without a catalog entry is available by explicit path only. Record an untracked, missing or
   ineligible optional match as omitted without exposing its body. Search never activates a skill. A valid
   search with no eligible matches adds nothing and reports why. Delivery of an empty selection is blocked.
 - <a id="fr6"></a>**FR6 · Bound and explain.** Direct files, named sources and named skills are required. Pack these first
@@ -101,7 +102,7 @@ Each row identifies the functional requirement it proves.
   untracked files. Apply Git's ignore rules to untracked inputs. Always exclude Git metadata and the
   factory's private `.factory/` state. Apply the same containment, type and eligibility checks to
   catalogs, requests, originals and summary files. Refuse absolute paths, traversal, symlink components,
-  hard-linked input files, binary/NUL or invalid UTF-8 content and nonregular files. Bind eligibility
+  hard-linked input files (another name may be outside the checkout), binary/NUL or invalid UTF-8 content and nonregular files. Bind eligibility
   checks to the opened file to tolerate concurrent replacements safely. Reject unknown schema versions,
   ambiguous IDs, duplicate keys and out-of-range selectors. Raw task material goes only to the explicit
   preview output or selected harness. Any extra context fields in logs or budget records contain only
@@ -149,8 +150,8 @@ Example catalog at `team/payments.context.json`, produced by hand or by a team's
 across loaded catalogs. IDs are unique within it. Omitting `lines` selects the whole file and omitting
 `scope` means `.`. Optional `tags` is an array of strings. An optional `origin` requires both fields shown above and
 is never dereferenced. A source’s optional `summary` contains a local `path` and a `for` object supplied
-when the summary is produced. `for` records the qualified `id`, original `path`, `lines` (null for the
-entire file), full-file `sha256`, and the original `origin` object or null. Require equality with the
+when the summary is produced. `for` records the qualified `id`, original `path`, resolved `lines` (inclusive range, null only for an
+empty file, as in a citation), full-file `sha256`, and the original `origin` object or null. Require equality with the
 current source identity before using a summary. Skills cannot define summaries. Unknown fields in a v1
 request or catalog are errors to catch misspelled selectors.
 
@@ -202,7 +203,8 @@ payload below is 206 bytes, excluding the Markdown newline. The preview digest i
 {"items":[{"citations":[{"lines":[1,1],"path":"docs/refund.txt","sha256":"53cac814f776c9c4b85666d5569ecc2c0439ff9474a48a0d17e5f01728dee921"}],"kind":"source","representation":"original","text":"Refund\n"}]}
 ```
 
-To reproduce this ASCII-only vector, save the JSON line above as `payload.json` and run:
+The command below reproduces only this ASCII/integer example. Use RFC 8785 canonicalization for general
+inputs. Save the JSON line above as `payload.json` and run the command locally.
 
 ```sh
 jq -cjS '{version:1,request:{version:1,catalogs:[],select:[{file:"docs/refund.txt"}],max_bytes:32768},declarations:[],payload:.}' payload.json | shasum -a 256

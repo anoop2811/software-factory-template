@@ -9200,3 +9200,9 @@ field choices and relationship mappings. It emits ordinary v1 sources and a boun
 ticket. This preserves team terminology and upstream citations while keeping credentials and tracker
 synchronization outside the runtime. Qualify this boundary with both Aha!–Jira mapping patterns, a
 custom Jira type and a Linear example in [Spec 003](../specs/003-task-context-and-skills.md#work-item-mappings).
+
+Prioritize one usable, digest-bound Codex handoff before expanding retrieval. Qualify generated
+Markdown catalogs on the factory's lessons and decisions, and measure developer outcomes with a
+paired golden task. Bind optional skill audiences to the launcher's actual role. Preserve private loop
+storage and native skill ownership. The next bounded loop integration can reuse the delivery contract;
+the separate memory proposal owns writing, superseding and exporting reviewed records.

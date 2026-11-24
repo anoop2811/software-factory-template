@@ -9184,3 +9184,13 @@ publishing source when adopting this workflow and run it on main. The artifact
 retains the existing static root, including the installer and custom domain.
 [LinkedIn website sharing requirements](https://www.linkedin.com/help/linkedin/answer/a521928)
 and [GitHub Pages publishing](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+
+## Decision 183 (2026-11-24 UTC): draft a portable task context and skills contract
+
+Record the proposed contract for the P1 roadmap item in
+[Spec 003](../specs/003-task-context-and-skills.md). Teams keep their own spec
+formats and procedures. A versioned, declarative catalog can refer to local
+files or materialized exports from another system. Preview and local search
+have no model cost. The proposed factory-managed delivery path binds a run to
+the reviewed context. This decision commissions the draft. Design approval,
+implementation and acceptance evidence are separate milestones.

@@ -16,7 +16,7 @@ estimates. Update only from observed acceptance results.
 |---|---|---|---|---|---|
 | P0 — First | Budgeting and observability | Run plan, enforced invocation limits, truthful usage metadata and reports | Task/session limits; estimate warning or stop; JSON export | No model calls for reporting; unknown usage stays unknown | 100% — shipped in v0.2.0, deterministic acceptance (Decision 46) |
 | P1 | Loop engineering | Bounded implement/test/review/repair, progress detection and checkpoints | Manual, bounded repair, explicitly unattended | Manual first; limited opt-in attempts | 100% — shipped in v0.2.0, deterministic acceptance (Decision 47) |
-| P1 | Context engineering and Skills | Task-specific context and on-demand procedures | Explicit files, local retrieval, optional summaries | Local selection and bounded context | 0% |
+| P1 | Context engineering and Skills | [Task-specific context and on-demand procedures](../specs/003-task-context-and-skills.md) | Explicit files, local retrieval, optional summaries | Local selection and bounded context | 0% |
 | P1 | Memory engineering | Searchable scoped memory, provenance, freshness and handoffs | Off, session, project, explicitly shared team | Local files and lexical search | 0% |
 | P1 | Harness engineering | Capability probes, isolation and evidence tied to tested code | Existing gates, isolated execution, stricter boundaries | Shared scripts and native controls | 0% |
 | P2 — Next | Graph engineering | Executable resumable recipes, typed handoffs and deterministic aggregation | Serial, bounded parallel, task-specific graphs | One active role; preserve role separation | 0% |

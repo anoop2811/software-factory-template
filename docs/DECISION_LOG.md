@@ -9222,3 +9222,8 @@ and its required module versions. Run the existing pinned vulnerability scanner 
 qualification, after input validation and before vet, race tests, build and lint. A new advisory can
 affect an unchanged module graph. A documentation-only diff must still receive a fresh scan.
 [Go advisory](https://pkg.go.dev/vuln/GO-2026-5026) · [Linux and macOS qualification](https://github.com/anoop2811/software-factory-template/actions/runs/45678749638)
+
+During local race-enabled package qualification, the captured-PATH test reached its one-second
+deadline while checking the probe's working directory. Exercise this success case with the
+documented ten-second Git probe allowance. Separate cancellation tests cover early termination.
+[Loop probe contract](adr/0073-go-loop-fingerprint-foundation.md#private-resource-qualification)

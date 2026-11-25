@@ -260,6 +260,7 @@ var _ = Describe("Loop probe resource boundaries", func() {
 })
 
 var _ = Describe("Loop captured probe environment", func() {
+	// per docs/adr/0073-go-loop-fingerprint-foundation.md:96
 	// per docs/adr/0073-go-loop-fingerprint-foundation.md:99
 	It("resolves relative captured PATH from caller cwd and preserves that cwd", func() {
 		caller, err := os.Getwd()
@@ -270,7 +271,7 @@ var _ = Describe("Loop captured probe environment", func() {
 		Expect(os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\nexec /bin/pwd\n"), 0700)).To(Succeed()) // #nosec G306 -- fixed test-owned probe fixture must be owner-executable; no external code is installed.
 		environment := loopTestEnvironment()
 		environment["PATH"] = relative
-		output, status, err := probe(context.Background(), environment, time.Second, []string{"git"}, nil)
+		output, status, err := probe(context.Background(), environment, 10*time.Second, []string{"git"}, nil)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(status).To(BeZero())
 		Expect(strings.TrimSpace(string(output))).To(Equal(caller))

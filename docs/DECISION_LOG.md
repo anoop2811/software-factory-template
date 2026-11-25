@@ -9213,3 +9213,12 @@ including an unconfirmed delivery. Keep task approval, test results and permissi
 separate from that evidence. Propose one bounded work order through to a draft PR as the first
 [graph-engineering pilot](FEATURE_ROADMAP.md#work-order-pilot). Its controller can reuse the budget
 and loop contracts. Spec 003 can earn acceptance using independent managed invocations.
+
+## Decision 184 (2026-11-25 UTC): surface reachable Go advisories early in qualification
+
+Five completed Go qualification runs on PR #193 reported the same reachable advisory through the
+review client's proxy configuration. Use the first patched `golang.org/x/net` release, v0.57.0,
+and its required module versions. Run the existing pinned vulnerability scanner once per source
+qualification, after input validation and before vet, race tests, build and lint. A new advisory can
+affect an unchanged module graph. A documentation-only diff must still receive a fresh scan.
+[Go advisory](https://pkg.go.dev/vuln/GO-2026-5026) · [Linux and macOS qualification](https://github.com/anoop2811/software-factory-template/actions/runs/45678749638)

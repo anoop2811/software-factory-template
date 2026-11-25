@@ -179,13 +179,13 @@ go-runtime-source-check:
 		UNFORMATTED="$$(printf '%s\n' "$$GO_DIRS" | while IFS= read -r GO_DIR; do gofmt -l "$$GO_DIR" || exit 1; done)" || exit 1; \
 		test -z "$$UNFORMATTED" || { printf 'gofmt required:\n%s\n' "$$UNFORMATTED" >&2; exit 1; }; \
 	bash -c '. "$$1"' "$$PWD/scripts/hooks/ginkgo-only-check.sh" "$$PWD/packs/go/hooks/ginkgo-only-check.sh"; \
+	govulncheck ./...; \
 	go vet ./...; \
 	$(call go_runtime_dispatch,source)
 	@BUILD_DIR="$$(mktemp -d)" || exit 1; trap 'rm -rf "$$BUILD_DIR"' EXIT HUP INT TERM; \
 		go build -o "$$BUILD_DIR/factory" ./cmd/factory
 	golangci-lint run --config packs/go/.golangci.yml ./...
 	gosec ./...
-	govulncheck ./...
 
 
 # docs/adr/0151-reliable-ci-qualification.md:35 -- checks always execute before image publication.

@@ -800,6 +800,23 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
 	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	It("executes disjoint feature partitions while retaining every source quality stage", func() {
+		// per docs/DECISION_LOG.md:9222
+		By("stopping before expensive package qualification when the vulnerability scan fails", func() {
+			fixture := sourceGateMakeFixture()
+			writeFixture(filepath.Join(fixture.root, "tools", "govulncheck"), []byte(`#!/bin/sh
+printf 'govulncheck %s\n' "$*" >> "$SOURCE_GATE_QUALITY_LOG"
+exit 3
+`), 0700)
+			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP=packages", nil)
+			Expect(status).NotTo(BeZero())
+			var scans []string
+			Expect(quality).To(ContainElement(HavePrefix("govulncheck "), &scans))
+			Expect(scans).To(Equal([]string{"govulncheck ./..."}))
+			Expect(quality).NotTo(ContainElement(BeElementOf("golangci-lint", "gosec")))
+			for _, call := range calls {
+				Expect(call.Args[0]).NotTo(BeElementOf("vet", "test", "build"), "unexpected qualification command: %v", call.Args)
+			}
+		})
 		sourceGatePreparedExecutionProof()
 		// per docs/adr/0148-transactional-installed-ci-migration.md:671
 		for _, group := range []string{"packages", "base-acceptance"} {

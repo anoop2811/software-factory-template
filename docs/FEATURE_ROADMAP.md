@@ -45,6 +45,11 @@ and the [bounded loop](LOOPS.md#acceptance-contract). The plan shows the outcome
 and approval points with zero model calls. If the order declares several independent outcomes,
 return it for a scope decision before launching an agent. One observable behavior fits one PR.
 
+A local ticket export can supply that work order. For example, a Jira Story can carry its linked
+Aha! product requirement, and a Linear Issue can carry its Project scope and Initiative objective. Follow the team's
+[work-item mapping](../specs/003-task-context-and-skills.md#work-item-mappings). The assigned ticket
+sets the scope. A reviewer can trace its criteria to the exported record and revision.
+
 For a behavior change, have the spec-writer establish an independent test and record its expected
 failure before handing it to the implementer. Reuse the loop for implementation, checks, review
 and bounded repair. For a docs-only change, use the relevant document checks. Select extra roles

@@ -388,6 +388,15 @@ closing its input early. The implementer's confirmed delivery must still be attr
 alone. A reviewer inspecting the two records must be able to tell whose delivery is unconfirmed.
 Exercise this case offline as each native adapter ships.
 
+Once catalog delivery is available, reuse the [AC9 tracker fixtures](#work-item-mappings) for this
+handoff. In the first profile the work order is Jira Story `PAY-142` (“Show the refund date”).
+Its Epic `PAY-100`, linked Aha! Feature `REF-12` and Initiative `INIT-3` explain the requirement.
+The four sibling tickets supply no work for this run. In the second profile the assigned record
+keeps the team's `Delivery Slice` label and its direct Feature link. For Linear, run the same
+case with Issue `ENG-8`, both with its Project and Initiative and as a standalone Issue.
+For each fixture, compare the captured source citations for both roles with the export's selected
+record references and immutable revisions. The reviewer-only procedure still has its own citation.
+
 A future PR can refer to those individual runs through the team's approved channel. A context digest
 identifies the selected material. The independent failing test, subsequent passing check, tested
 source snapshot and review verdict each need their own evidence. Publishing requires separate consent.

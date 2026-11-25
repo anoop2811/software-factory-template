@@ -21,6 +21,7 @@ import (
 
 const installedReviewPath = ".github/workflows/adversarial-review.yml"
 const installedReviewHeader = "# Managed by: factory review-lane. Remove with: ./factory review-lane disable\n"
+const installedReviewPredecessorRevision = "3794e6cc8fa66eb02504e753b0ad11955f5cf85a"
 
 // per docs/adr/0154-installed-review-workflow-migration.md:66
 func installedReviewAsset(image defaultInitImage, path string) []byte {
@@ -112,8 +113,7 @@ func buildInstalledReviewPredecessor(source, destination string, args ...string)
 // per docs/adr/0154-installed-review-workflow-migration.md:59
 func installedReviewGo(f *defaultUpgradeJourneyFixtures) (defaultUpgradeProject, string) {
 	GinkgoHelper()
-	const revision = "3794e6cc8fa66eb02504e753b0ad11955f5cf85a"
-	before := immutableInstallationImage(f.invoker, revision, defaultUpgradeTag, buildInstalledReviewPredecessor)
+	before := immutableInstallationImage(f.invoker, installedReviewPredecessorRevision, defaultUpgradeTag, buildInstalledReviewPredecessor)
 	old, oldDriver := handoffNativeFixture(before)
 	writeFixture(filepath.Join(old.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+defaultUpgradeTag+"-"+old.target), before.binary, 0600)
 	writeFixture(filepath.Join(old.environment["HANDOFF_ASSETS"], "factory-installation-"+defaultUpgradeTag+"-"+old.target+".tar.gz"), before.archive, 0600)
@@ -134,12 +134,12 @@ func installedReviewGo(f *defaultUpgradeJourneyFixtures) (defaultUpgradeProject,
 	const newAPI = `  api) case "$2" in *` + defaultUpgradeTag + `) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
 	Expect(strings.Count(string(data), oldAPI)).To(Equal(1))
 	writeFixture(provider, []byte(strings.Replace(string(data), oldAPI, newAPI, 1)), 0700)
-	surface.environment["HANDOFF_OLD_REVISION"] = revision
+	surface.environment["HANDOFF_OLD_REVISION"] = installedReviewPredecessorRevision
 	writeFixture(filepath.Join(surface.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+defaultUpgradeTag+"-"+surface.target), before.binary, 0600)
 	writeFixture(filepath.Join(surface.environment["HANDOFF_ASSETS"], "factory-installation-"+defaultUpgradeTag+"-"+surface.target+".tar.gz"), before.archive, 0600)
 	image := defaultInitImage{binary: before.binary, archive: before.archive}
 	image.result.Archive = before.archivePath
-	return defaultUpgradeProject{f: surface, driver: driver, root: root, beforeVersion: defaultUpgradeTag, before: image, inputs: append([]string{}, installationInputs...)}, revision
+	return defaultUpgradeProject{f: surface, driver: driver, root: root, beforeVersion: defaultUpgradeTag, before: image, inputs: append([]string{}, installationInputs...)}, installedReviewPredecessorRevision
 }
 
 // The review row itself, not an earlier factory.yml row, is the crash witness.

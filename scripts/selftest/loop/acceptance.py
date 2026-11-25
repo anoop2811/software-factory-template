@@ -149,10 +149,13 @@ class Fixture:
                 args += ["--prompt-file", str(self.prompt)]
         return args + list(extra)
 
+    def run_process(self, verb="run", fixture="normal", **options):
+        return subprocess.run(self.command(verb, **options), cwd=self.root,
+                              env=dict(self.environment, LOOP_FIXTURE_MODE=fixture),
+                              capture_output=True, text=True, timeout=25)
+
     def run(self, verb="run", fixture="normal", expected=0, **options):
-        result = subprocess.run(self.command(verb, **options), cwd=self.root,
-                                env=dict(self.environment, LOOP_FIXTURE_MODE=fixture),
-                                capture_output=True, text=True, timeout=25)
+        result = self.run_process(verb, fixture, **options)
         require(result.returncode != 0 if expected is None else result.returncode == expected,
                 "exit {} expected {}: {}{}".format(result.returncode, expected, result.stdout, result.stderr))
         return result
@@ -510,8 +513,22 @@ def repeated_failure(f):
 @test("loop attempt limit counts the first implementation and preserves failed changes")
 def attempts(f):
     f.config(loop_max_attempts="1")
-    f.run(fixture="check_repair", expected=None)
-    require(f.roles() == ["implementer", "check"], "loop initial attempt not counted")
+    result = f.run_process(fixture="check_repair")
+    ledger = f.root / ".factory/loops.json"
+    runs = json.loads(ledger.read_text())["runs"] if ledger.is_file() else []
+    record = next((row for row in runs if row["session"] == "session" and row["task"] == "task"), {})
+    checks = [event.get("exit_code") for event in record.get("evidence", []) if event["kind"] == "check"]
+    observed = (result.returncode, record.get("status"), record.get("outcome"), record.get("attempts"), f.roles(), checks)
+    # Emit only controller state, role names and classified diagnostics. Child output can contain task material.
+    reason = (record.get("stop_reason", "") + " " + result.stderr).lower()
+    category = record.get("outcome")
+    if category in (None, "handoff"):
+        category = next((word for word in ("snapshot", "unconfirmed", "readiness", "cli lacks required flags",
+                                           "cli help", "preflight", "timeout", "time limit", "invocation",
+                                           "governing", "budget", "lock") if word in reason), "unknown")
+    require(observed == (2, "stopped", "attempt_limit", 1, ["implementer", "check"], [1]),
+            "expected one failed check before attempt exhaustion; "
+            f"exit/status/outcome/attempts/roles/check exits={observed!r}, reason category={category}")
     require((f.root / "product.txt").read_text() == "bad\n", "failure discarded working tree")
 
 

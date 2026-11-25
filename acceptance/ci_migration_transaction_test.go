@@ -19,6 +19,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const ciMigrationPredecessorRevision = "24712604cbe98dc2df087b73910141defb68f745"
+
 // per docs/adr/0148-transactional-installed-ci-migration.md:35
 func ciTransactionSetting(root, key, value string) {
 	GinkgoHelper()
@@ -338,8 +340,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 	// per docs/adr/0148-transactional-installed-ci-migration.md:81
 	// per docs/adr/0148-transactional-installed-ci-migration.md:103
 	It("refreshes the actual merged predecessor recipe and restores its generated workflow after settings change", func() {
-		const revision = "24712604cbe98dc2df087b73910141defb68f745"
-		before := historicalInstallationImage(fixtures.invoker, revision, defaultUpgradeTag)
+		before := historicalInstallationImage(fixtures.invoker, ciMigrationPredecessorRevision, defaultUpgradeTag)
 		oldSurface, oldDriver := handoffNativeFixture(before)
 		writeFixture(filepath.Join(oldSurface.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+defaultUpgradeTag+"-"+oldSurface.target), before.binary, 0600)
 		writeFixture(filepath.Join(oldSurface.environment["HANDOFF_ASSETS"], "factory-installation-"+defaultUpgradeTag+"-"+oldSurface.target+".tar.gz"), before.archive, 0600)
@@ -350,7 +351,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		Expect(initialized.status).To(BeZero(), "%+v", initialized)
 		oldWorkflow, err := os.ReadFile(filepath.Join(root, ".github/workflows/factory.yml"))
 		Expect(err).NotTo(HaveOccurred())
-		Expect(string(oldWorkflow)).To(ContainSubstring(revision))
+		Expect(string(oldWorkflow)).To(ContainSubstring(ciMigrationPredecessorRevision))
 		surface, driver := fixtures.surface(defaultUpgradeNextTag)
 		providerPath := filepath.Join(surface.root, "host tools/gh")
 		provider, err := os.ReadFile(providerPath)
@@ -359,7 +360,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		newAPI := `  api) case "$2" in *` + defaultUpgradeTag + `) printf '%s\n' "$HANDOFF_OLD_REVISION" ;; *) printf '%s\n' "$HANDOFF_REVISION" ;; esac ;;`
 		Expect(strings.Count(string(provider), oldAPI)).To(Equal(1))
 		writeFixture(providerPath, []byte(strings.Replace(string(provider), oldAPI, newAPI, 1)), 0700)
-		surface.environment["HANDOFF_OLD_REVISION"] = revision
+		surface.environment["HANDOFF_OLD_REVISION"] = ciMigrationPredecessorRevision
 		writeFixture(filepath.Join(surface.environment["HANDOFF_ASSETS"], "factory-bootstrap-"+defaultUpgradeTag+"-"+surface.target), before.binary, 0600)
 		writeFixture(filepath.Join(surface.environment["HANDOFF_ASSETS"], "factory-installation-"+defaultUpgradeTag+"-"+surface.target+".tar.gz"), before.archive, 0600)
 		oldImage := defaultInitImage{binary: before.binary, archive: before.archive}
@@ -381,7 +382,7 @@ var _ = Describe("Whole installation upgrade release candidate handoff initializ
 		rollback := fixtures.rollbackArgs(p, defaultUpgradeNextTag, ids[0])
 		for index, value := range rollback {
 			if value == "--before-revision" {
-				rollback[index+1] = revision
+				rollback[index+1] = ciMigrationPredecessorRevision
 			}
 		}
 		reverse := handoffProposal(handoffNativeProcess(root, surface.environment, "", driver, append(append([]string{}, rollback...), "--dry-run", "--json")...))

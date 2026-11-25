@@ -9235,3 +9235,10 @@ immutable revision before running acceptance. Keep those locks in a temporary di
 their contents after download, and preserve the historical compiler assignments and offline probes.
 The shipping runtime continues to build and scan with its own locks.
 [Cold-cache source failure](https://github.com/anoop2811/software-factory-template/actions/runs/45683204871/job/139451292848)
+
+One macOS historical loop run reported an unexpected role sequence without recording the sequence
+or the reason the controller stopped. Eighty isolated repetitions on macOS did not reproduce it.
+Keep the frozen controller and the single-attempt contract. Require exit 2, the attempt-limit
+checkpoint, one failed check, the expected roles and the preserved edit. On failure, record
+the observed state and a reason category while keeping prompt and subprocess text out of CI logs.
+[Historical loop run](https://github.com/anoop2811/software-factory-template/actions/runs/45685414009/job/139456594923)

@@ -815,8 +815,9 @@ exit 3
 			var scans []string
 			Expect(quality).To(ContainElement(HavePrefix("govulncheck "), &scans))
 			Expect(scans).To(Equal([]string{"govulncheck ./..."}))
-			Expect(quality).NotTo(ContainElement(BeElementOf("golangci-lint", "gosec")))
+			Expect(quality).NotTo(ContainElement(MatchRegexp(`^(golangci-lint|gosec)([[:space:]]|$)`)))
 			for _, call := range calls {
+				Expect(call.Args).NotTo(BeEmpty(), "recorded Go invocation has no arguments: %+v", call)
 				Expect(call.Args[0]).NotTo(BeElementOf("vet", "test", "build"), "unexpected qualification command: %v", call.Args)
 			}
 		})
@@ -1371,7 +1372,7 @@ func sourceGateAssertHistoricalModules(step sourceGateWorkflowStep) {
 	groups := map[string][]string{
 		"base-acceptance":   {historicalDispatcherRevision},
 		"historical-recipe": {recipeRC3Revision, minimalInventoryPredecessor, minimalInventoryGeneration},
-		"ci-migration":      {"24712604cbe98dc2df087b73910141defb68f745", "3794e6cc8fa66eb02504e753b0ad11955f5cf85a"},
+		"ci-migration":      {ciMigrationPredecessorRevision, installedReviewPredecessorRevision},
 	}
 	conditions := []string{}
 	for group, revisions := range groups {
@@ -1387,8 +1388,17 @@ func sourceGateAssertHistoricalModules(step sourceGateWorkflowStep) {
 		}
 		fixture := sourceGateMakeFixture()
 		scratch := GinkgoT().TempDir()
-		status, calls, _ := sourceGateRun(fixture, "set -eo pipefail\n"+step.Run, []string{"RUNNER_TEMP=" + scratch, "QUALIFICATION_GROUP=" + group})
+		trace := filepath.Join(fixture.root, "historical-git.trace")
+		status, calls, _ := sourceGateRun(fixture, "set -eo pipefail\n"+step.Run, []string{"RUNNER_TEMP=" + scratch, "QUALIFICATION_GROUP=" + group, "GIT_TRACE=" + trace})
 		Expect(status).To(BeZero(), group)
+		// Several genuine predecessors have identical locks. Confirm each selected
+		// revision supplied its objects even when the digest pair is shared.
+		gitCalls, err := os.ReadFile(trace)
+		Expect(err).NotTo(HaveOccurred())
+		for _, revision := range revisions {
+			Expect(string(gitCalls)).To(ContainSubstring(revision + ":go.mod"))
+			Expect(string(gitCalls)).To(ContainSubstring(revision + ":go.sum"))
+		}
 		seen := map[[2]string]bool{}
 		for _, call := range calls {
 			Expect(call.Args).To(HaveLen(4))

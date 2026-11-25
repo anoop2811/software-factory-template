@@ -321,8 +321,8 @@ payload below is 206 bytes, excluding the Markdown newline. The preview digest i
 ```
 
 Save the JSON line above as `payload.json`. These commands reproduce the source hash, canonical byte
-count and preview digest for this ASCII/integer fixture. On systems with GNU coreutils, substitute
-`sha256sum` for `shasum -a 256`. General inputs require RFC 8785 serialization.
+count and preview digest for this ASCII/integer fixture only. On systems with GNU coreutils, substitute
+`sha256sum` for `shasum -a 256`. The implementation must use RFC 8785 canonicalization for general inputs.
 
 ```sh
 printf 'Refund\n' | shasum -a 256
@@ -342,6 +342,13 @@ For this file-only request, a cap of 206 admits the payload and 205 refuses it. 
 default cap changes the normalized request and its digest, even if the admitted bytes stay the same.
 
 ## 8. API Contract
+
+With the catalog slice (60%), publish `schemas/context/v1/request.schema.json` and
+`schemas/context/v1/catalog.schema.json` in the factory source distribution using
+[JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-12). Put valid and structurally
+invalid producer examples under `schemas/context/v1/examples/valid/` and `invalid/` respectively.
+Run each example against its schema offline. Validate filesystem eligibility, cross-catalog
+uniqueness and role admission at the public CLI boundaries described below.
 
 Proposed public surface, using the existing `./factory` entry point:
 

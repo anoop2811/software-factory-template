@@ -9206,3 +9206,10 @@ Markdown catalogs on the factory's lessons and decisions, and measure developer 
 paired golden task. Bind optional skill audiences to the launcher's actual role. Preserve private loop
 storage and native skill ownership. The next bounded loop integration can reuse the delivery contract;
 the separate memory proposal owns writing, superseding and exporting reviewed records.
+
+Draft refinement, 2026-11-25 UTC. A work order can pass through several roles before a reviewer
+sees its PR. Spec 003 must let the reviewer trace each role's context to its own invocation,
+including an unconfirmed delivery. Keep task approval, test results and permission to publish
+separate from that evidence. Propose one bounded work order through to a draft PR as the first
+[graph-engineering pilot](FEATURE_ROADMAP.md#work-order-pilot). Its controller can reuse the budget
+and loop contracts. Spec 003 can earn acceptance using independent managed invocations.

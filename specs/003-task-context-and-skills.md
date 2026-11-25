@@ -1,6 +1,6 @@
 # Task context and on-demand skills
 
-**Spec 003 · Draft for maintainer review · 2026-11-24**
+**Spec 003 · Draft for maintainer review · Updated 2026-11-25**
 
 Direction from Anoop Gopalakrishnan. Draft by Codex. Decision 183. Implementation progress 0%.
 
@@ -51,7 +51,7 @@ Each row identifies the functional requirement it proves.
 | AC9 · [FR10](#fr10 "specs/003-task-context-and-skills.md:135") | Export the fixtures in [Work-item mappings](#work-item-mappings) for one assigned ticket, then preview the emitted request offline | For both Aha!–Jira profiles and for Linear, the preview contains the expected records, native labels and revision-bound citations in order. Exercise a custom Jira type, an optional absent parent, an ambiguous counterpart and a ticket with four siblings. Check export failures separately from factory preview failures. |
 | AC10 · [FR11](#fr11 "specs/003-task-context-and-skills.md:140") | Generate catalogs twice over a pinned checkout's lessons and decision log, reversing the file arguments. Insert a line above a pinned section so its old line range still exists but returns different bytes. | Both original outputs match byte for byte. Offline validation names the stale ID, required preview refuses and optional search omits it. Regeneration restores selection of the intended heading with its new range. Exercise an edit after the section, CRLF, a fenced pseudo-heading and a duplicate heading. |
 | AC11 · [FR4](#fr4 "specs/003-task-context-and-skills.md:76") | Select a reviewer-only skill and a tracker source containing a fake instruction to change policy. Preview for the reviewer, then try both a reviewer and an implementer launch with that request. | Capture the real adapter input with a substitute CLI. Only the reviewer receives the selected procedure. The ticket text remains inside a source item under the evidence instruction. The role mismatch refuses before reservation or launch. No factory tool is executed by parsing either item. |
-| AC12 · [FR7](#fr7 "specs/003-task-context-and-skills.md:106") | Run two children with the same context digest. One reads the complete framed input. The other closes its input before a write larger than the pipe capacity completes and exits successfully. | Only the first invocation records a confirmed complete write. The second remains unconfirmed even with exit code zero. Reviewers can distinguish the two run IDs. |
+| AC12 · [FR7](#fr7 "specs/003-task-context-and-skills.md:106") | Run two children with the same context digest. One reads the complete framed input. The other closes its input before a write larger than the pipe capacity completes and exits successfully. Also exercise the [multi-role handoff](#work-order-evidence) on one work order. | Only the first invocation records a confirmed complete write. The second remains unconfirmed even with exit code zero. A reviewer can identify each role, digest and delivery outcome by its own run ID. |
 
 ## 5. Functional Requirements
 
@@ -372,6 +372,26 @@ model or use of a citation is unobserved. To reproduce a preview that used untra
 the reviewer needs an authorized exact snapshot. Report reproduction as unavailable if it cannot
 be shared. A trailer alone is a lookup key. Manual handoffs produce no managed delivery evidence.
 
+### Work-order evidence
+
+Take one approved work order, `PAY-42`, with one observable refund behavior. The work order can be
+a Markdown file or a locally exported ticket. Its acceptance criterion is evidence for both the
+implementer and the reviewer. Only the reviewer selects the team's review procedure. Each role
+previews its own request. The operator supplies the task instructions separately and selects the
+matching role on each managed launch, as in [budget run](../docs/BUDGETS.md#interface-and-configuration).
+
+For AC12, run those two role-specific requests independently under the same task ID using substitute
+harness CLIs. Capture both inputs. The refund criterion must reach both, and the selected procedure
+must appear only in the reviewer's input. Using the existing budget and context records, identify
+each invocation by run ID, resolved role, context digest and delivery outcome. Repeat with the reviewer
+closing its input early. The implementer's confirmed delivery must still be attributable to that run
+alone. A reviewer inspecting the two records must be able to tell whose delivery is unconfirmed.
+Exercise this case offline as each native adapter ships.
+
+A future PR can refer to those individual runs through the team's approved channel. A context digest
+identifies the selected material. The independent failing test, subsequent passing check, tested
+source snapshot and review verdict each need their own evidence. Publishing requires separate consent.
+
 ## 9. Out of Scope
 
 Provider-specific API clients and authentication, arbitrary executable plugins, remote URL fetching, a
@@ -388,6 +408,9 @@ immediately before each launch, including after a worktree edit. A stale pair st
 the next reservation. Preserve elapsed time, prior evidence and attempt counts. Manual loops stay
 check-only and terminal bounded checkpoints retain their current resume policy. Prove these cases
 against the existing [loop contract](../docs/LOOPS.md) before claiming loop integration.
+
+The proposed [work-order pilot](../docs/FEATURE_ROADMAP.md#work-order-pilot) consumes these role-specific
+handoffs. Graph engineering owns sequencing roles, preparing PR evidence and any authorized publication.
 
 ### Memory handoff
 

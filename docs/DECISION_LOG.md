@@ -9227,3 +9227,11 @@ During local race-enabled package qualification, the captured-PATH test reached 
 deadline while checking the probe's working directory. Exercise this success case with the
 documented ten-second Git probe allowance. Separate cancellation tests cover early termination.
 [Loop probe contract](adr/0073-go-loop-fingerprint-foundation.md#private-resource-qualification)
+
+The first downstream run with the patched dependencies exposed a stale test fixture. Pair current
+Go source with its current `go.mod` and `go.sum` when overlaying it on historical scaffold data.
+For tests that actually build historical binaries, provision the modules from each fixture's
+immutable revision before running acceptance. Keep those locks in a temporary directory, check
+their contents after download, and preserve the historical compiler assignments and offline probes.
+The shipping runtime continues to build and scan with its own locks.
+[Cold-cache source failure](https://github.com/anoop2811/software-factory-template/actions/runs/45683204871/job/139451292848)

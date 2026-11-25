@@ -452,12 +452,6 @@ var _ = Describe("Go source runtime entrypoints review adapters", func() {
 		environment["GOPROXY"] = sourceReviewModuleProxy(caches["GOMODCACHE"], temporary, environment)
 		writeFixture(environment["FACTORY_CONFIG"], []byte("model_provider: openrouter\nreview_model: fixture/model\n"), 0600)
 		sourceReviewAdapter(root, "adversarial-review.sh")
-		for _, path := range []string{"go.mod", "go.sum"} {
-			body, err := os.ReadFile(filepath.Join("..", path))
-			Expect(err).NotTo(HaveOccurred())
-			writeFixture(filepath.Join(root, path), body, 0600)
-		}
-		imageGit(root, "add", "go.mod", "go.sum")
 		workflow := ciReviewLoadWorkflow("packs/review-lane/review-pr.yml")
 		var selected, preparation []ciReviewStep
 		var selection ciReviewStep

@@ -236,7 +236,7 @@ var sourceGateCases = []struct {
 // either partition. It does not execute product tests, builds, models or downloads.
 // per docs/adr/0098-whole-installation-upgrade-and-rollback.md:539
 const sourceGateRecordingGo = `#!/usr/bin/env python3
-import json,os,pathlib,re,subprocess,sys
+import hashlib,json,os,pathlib,re,subprocess,sys
 args=sys.argv[1:]
 record={'args':args,'selected':[],'group':''}
 module='github.com/anoop2811/software-factory-template'
@@ -254,12 +254,14 @@ record['prepared']=is_precompiled
 if is_preparer:
  record['group']='prepared-prepare' if 'prepare' in args else 'prepared-verify'
 is_helper=bool(args and args[0]=='run' and './internal/qualification/cmd/worker-count' in args)
-if args==['mod','download']:
+if args==['mod','download'] or (len(args)==4 and args[0]=='-C' and args[2:]==['mod','download']):
  record['group']='module-setup'
  record['toolchain']=os.environ.get('GOTOOLCHAIN','')
+ directory=pathlib.Path(args[1]) if args[0]=='-C' else pathlib.Path.cwd()
+ record['locks']=[hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ['go.mod','go.sum']]
  lock=os.environ.get('SOURCE_GATE_MUTATE_LOCK','')
  if lock in ['go.mod','go.sum']:
-  target=pathlib.Path(lock);target.write_text(target.read_text()+'\nfixture changed the lockfile\n')
+  target=directory/lock;target.write_text(target.read_text()+'\nfixture changed the lockfile\n')
 if is_helper:
  record['group']='worker-plan'
  record['requested']=os.environ.get('GO_RUNTIME_TEST_PROCS','')
@@ -315,16 +317,17 @@ type sourceGateFixture struct {
 }
 
 type sourceGateCall struct {
-	Prepared  bool     `json:"prepared"`
-	Args      []string `json:"args"`
-	Selected  []string `json:"selected"`
-	Group     string   `json:"group"`
-	Focus     string   `json:"focus"`
-	Skip      string   `json:"skip"`
-	Requested string   `json:"requested"`
-	Maximum   string   `json:"maximum"`
-	Plan      string   `json:"plan"`
-	Toolchain string   `json:"toolchain"`
+	Prepared  bool      `json:"prepared"`
+	Args      []string  `json:"args"`
+	Selected  []string  `json:"selected"`
+	Group     string    `json:"group"`
+	Focus     string    `json:"focus"`
+	Skip      string    `json:"skip"`
+	Requested string    `json:"requested"`
+	Maximum   string    `json:"maximum"`
+	Plan      string    `json:"plan"`
+	Toolchain string    `json:"toolchain"`
+	Locks     [2]string `json:"locks"`
 }
 
 var sourceGateWorkerHelperPath string
@@ -800,6 +803,24 @@ var _ = Describe("Go source qualification scheduling", func() {
 	// per docs/adr/0148-transactional-installed-ci-migration.md:488
 	// per docs/adr/0148-transactional-installed-ci-migration.md:515
 	It("executes disjoint feature partitions while retaining every source quality stage", func() {
+		// per docs/DECISION_LOG.md:9222
+		By("stopping before expensive package qualification when the vulnerability scan fails", func() {
+			fixture := sourceGateMakeFixture()
+			writeFixture(filepath.Join(fixture.root, "tools", "govulncheck"), []byte(`#!/bin/sh
+printf 'govulncheck %s\n' "$*" >> "$SOURCE_GATE_QUALITY_LOG"
+exit 3
+`), 0700)
+			status, calls, quality := sourceGateRun(fixture, "make go-runtime-source-check GO_RUNTIME_TEST_GROUP=packages", nil)
+			Expect(status).NotTo(BeZero())
+			var scans []string
+			Expect(quality).To(ContainElement(HavePrefix("govulncheck "), &scans))
+			Expect(scans).To(Equal([]string{"govulncheck ./..."}))
+			Expect(quality).NotTo(ContainElement(MatchRegexp(`^(golangci-lint|gosec)([[:space:]]|$)`)))
+			for _, call := range calls {
+				Expect(call.Args).NotTo(BeEmpty(), "recorded Go invocation has no arguments: %+v", call)
+				Expect(call.Args[0]).NotTo(BeElementOf("vet", "test", "build"), "unexpected qualification command: %v", call.Args)
+			}
+		})
 		sourceGatePreparedExecutionProof()
 		// per docs/adr/0148-transactional-installed-ci-migration.md:671
 		for _, group := range []string{"packages", "base-acceptance"} {
@@ -1341,6 +1362,76 @@ type sourceGateWorkflowJob struct {
 	Env   map[string]string        `yaml:"env"`
 }
 
+// Exercise the hosted step against the actual fixture manifests and a recording Go.
+// per docs/DECISION_LOG.md:9233
+func sourceGateAssertHistoricalModules(step sourceGateWorkflowStep) {
+	GinkgoHelper()
+	shell := "bash"
+	Expect(step.Shell).To(Equal(&shell))
+	Expect(step.Env).To(HaveKeyWithValue("QUALIFICATION_GROUP", "${{ matrix.group }}"))
+	groups := map[string][]string{
+		"base-acceptance":   {historicalDispatcherRevision},
+		"historical-recipe": {recipeRC3Revision, minimalInventoryPredecessor, minimalInventoryGeneration},
+		"ci-migration":      {ciMigrationPredecessorRevision, installedReviewPredecessorRevision},
+	}
+	conditions := []string{}
+	for group, revisions := range groups {
+		conditions = append(conditions, "matrix.group == '"+group+"'")
+		expected := map[[2]string]bool{}
+		for _, revision := range revisions {
+			var pair [2]string
+			for i, name := range []string{"go.mod", "go.sum"} {
+				body := imageGit("..", "show", revision+":"+name)
+				pair[i] = fmt.Sprintf("%x", sha256.Sum256([]byte(body)))
+			}
+			expected[pair] = true
+		}
+		fixture := sourceGateMakeFixture()
+		scratch := GinkgoT().TempDir()
+		trace := filepath.Join(fixture.root, "historical-git.trace")
+		status, calls, _ := sourceGateRun(fixture, "set -eo pipefail\n"+step.Run, []string{"RUNNER_TEMP=" + scratch, "QUALIFICATION_GROUP=" + group, "GIT_TRACE=" + trace})
+		Expect(status).To(BeZero(), group)
+		// Several genuine predecessors have identical locks. Confirm each selected
+		// revision supplied its objects even when the digest pair is shared.
+		gitCalls, err := os.ReadFile(trace)
+		Expect(err).NotTo(HaveOccurred())
+		for _, revision := range revisions {
+			Expect(string(gitCalls)).To(ContainSubstring(revision + ":go.mod"))
+			Expect(string(gitCalls)).To(ContainSubstring(revision + ":go.sum"))
+		}
+		seen := map[[2]string]bool{}
+		for _, call := range calls {
+			Expect(call.Args).To(HaveLen(4))
+			Expect(call.Args).To(Equal([]string{"-C", call.Args[1], "mod", "download"}))
+			Expect(call.Toolchain).To(Equal("local"))
+			relative, err := filepath.Rel(scratch, call.Args[1])
+			Expect(err).NotTo(HaveOccurred())
+			Expect(filepath.IsLocal(relative) && relative != ".").To(BeTrue(), "locks must use private runner scratch: %q", call.Args[1])
+			seen[call.Locks] = true
+		}
+		Expect(seen).To(Equal(expected), "locked module pairs for %s", group)
+	}
+	Expect(strings.Split(step.If, " || ")).To(ConsistOf(conditions))
+	for _, failure := range []string{"missing lock", "download", "go.mod", "go.sum"} {
+		fixture := sourceGateMakeFixture()
+		scratch := GinkgoT().TempDir()
+		env := []string{"RUNNER_TEMP=" + scratch, "QUALIFICATION_GROUP=ci-migration"}
+		firstDownload := 1
+		switch failure {
+		case "missing lock":
+			writeFixture(filepath.Join(fixture.root, "tools", "git"), []byte("#!/bin/sh\nexit 47\n"), 0700)
+			firstDownload = 0
+		case "download":
+			env = append(env, "SOURCE_GATE_FAIL_GROUP=module-setup")
+		default:
+			env = append(env, "SOURCE_GATE_MUTATE_LOCK="+failure)
+		}
+		status, calls, _ := sourceGateRun(fixture, "set -eo pipefail\n"+step.Run, env)
+		Expect(calls).To(HaveLen(firstDownload), "stop before any subsequent download after %s", failure)
+		Expect(status).NotTo(BeZero(), "historical setup must reject %s", failure)
+	}
+}
+
 var _ = Describe("Go source qualification workflow partition", func() {
 	// per docs/adr/0151-reliable-ci-qualification.md:35
 	// per docs/adr/0151-reliable-ci-qualification.md:79
@@ -1572,6 +1663,10 @@ var _ = Describe("Go source qualification workflow partition", func() {
 				module := byName["Provision locked modules for source workflow qualification"]
 				Expect(module).To(Equal(sourceGateWorkflowStep{Name: "Provision locked modules for source workflow qualification", If: "matrix.group == 'source-entrypoints'", Run: "GOTOOLCHAIN=local go mod download\ngit diff --exit-code -- go.mod go.sum\n"}))
 				Expect(positions[module.Name]).To(BeNumerically("<", positions[runner.Name]))
+				historicalModules := byName["Provision locked modules for historical fixtures"]
+				Expect(historicalModules.Run).NotTo(BeEmpty(), "immutable historical builds must have their own module locks available on cold CI")
+				Expect(positions[historicalModules.Name]).To(Equal(positions[runner.Name] - 1))
+				sourceGateAssertHistoricalModules(historicalModules)
 				Expect(artifact.With).To(Equal(map[string]any{"name": "go-runtime-${{ matrix.group }}-${{ runner.os }}-${{ runner.arch }}", "path": "${{ runner.temp }}/factory-go-reports/", "if-no-files-found": "warn", "retention-days": 7}))
 				for _, hit := range []string{"true", "false", ""} {
 					fixture := sourceGateMakeFixture()

@@ -9184,3 +9184,61 @@ publishing source when adopting this workflow and run it on main. The artifact
 retains the existing static root, including the installer and custom domain.
 [LinkedIn website sharing requirements](https://www.linkedin.com/help/linkedin/answer/a521928)
 and [GitHub Pages publishing](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+
+## Decision 183 (2026-11-24 UTC): draft a portable task context and skills contract
+
+Record the proposed contract for the P1 roadmap item in
+[Spec 003](../specs/003-task-context-and-skills.md). Teams keep their own spec
+formats and procedures. A versioned, declarative catalog can refer to local
+files or materialized exports from another system. Preview and local search
+have no model cost. The proposed factory-managed delivery path binds a run to
+the reviewed context. This decision commissions the draft. Design approval,
+implementation and acceptance evidence are separate milestones.
+
+For work tracked across product and engineering tools, let the project's exporter own record types,
+field choices and relationship mappings. It emits ordinary v1 sources and a bounded request for one
+ticket. This preserves team terminology and upstream citations while keeping credentials and tracker
+synchronization outside the runtime. Qualify this boundary with both Aha!–Jira mapping patterns, a
+custom Jira type and a Linear example in [Spec 003](../specs/003-task-context-and-skills.md#work-item-mappings).
+
+Prioritize one usable, digest-bound Codex handoff before expanding retrieval. Qualify generated
+Markdown catalogs on the factory's lessons and decisions, and measure developer outcomes with a
+paired golden task. Bind optional skill audiences to the launcher's actual role. Preserve private loop
+storage and native skill ownership. The next bounded loop integration can reuse the delivery contract;
+the separate memory proposal owns writing, superseding and exporting reviewed records.
+
+Draft refinement, 2026-11-25 UTC. A work order can pass through several roles before a reviewer
+sees its PR. Spec 003 must let the reviewer trace each role's context to its own invocation,
+including an unconfirmed delivery. Keep task approval, test results and permission to publish
+separate from that evidence. Propose one bounded work order through to a draft PR as the first
+[graph-engineering pilot](FEATURE_ROADMAP.md#work-order-pilot). Its controller can reuse the budget
+and loop contracts. Spec 003 can earn acceptance using independent managed invocations.
+
+## Decision 184 (2026-11-25 UTC): surface reachable Go advisories early in qualification
+
+Five completed Go qualification runs on PR #193 reported the same reachable advisory through the
+review client's proxy configuration. Use the first patched `golang.org/x/net` release, v0.57.0,
+and its required module versions. Run the existing pinned vulnerability scanner once per source
+qualification, after input validation and before vet, race tests, build and lint. A new advisory can
+affect an unchanged module graph. A documentation-only diff must still receive a fresh scan.
+[Go advisory](https://pkg.go.dev/vuln/GO-2026-5026) · [Linux and macOS qualification](https://github.com/anoop2811/software-factory-template/actions/runs/45678749638)
+
+During local race-enabled package qualification, the captured-PATH test reached its one-second
+deadline while checking the probe's working directory. Exercise this success case with the
+documented ten-second Git probe allowance. Separate cancellation tests cover early termination.
+[Loop probe contract](adr/0073-go-loop-fingerprint-foundation.md#private-resource-qualification)
+
+The first downstream run with the patched dependencies exposed a stale test fixture. Pair current
+Go source with its current `go.mod` and `go.sum` when overlaying it on historical scaffold data.
+For tests that actually build historical binaries, provision the modules from each fixture's
+immutable revision before running acceptance. Keep those locks in a temporary directory, check
+their contents after download, and preserve the historical compiler assignments and offline probes.
+The shipping runtime continues to build and scan with its own locks.
+[Cold-cache source failure](https://github.com/anoop2811/software-factory-template/actions/runs/45683204871/job/139451292848)
+
+One macOS historical loop run reported an unexpected role sequence without recording the sequence
+or the reason the controller stopped. Eighty isolated repetitions on macOS did not reproduce it.
+Keep the frozen controller and the single-attempt contract. Require exit 2, the attempt-limit
+checkpoint, one failed check, the expected roles and the preserved edit. On failure, record
+the observed state and a reason category while keeping prompt and subprocess text out of CI logs.
+[Historical loop run](https://github.com/anoop2811/software-factory-template/actions/runs/45685414009/job/139456594923)

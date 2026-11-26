@@ -193,6 +193,29 @@ jobs:
         run: |
           GOTOOLCHAIN=local go mod download
           git diff --exit-code -- go.mod go.sum
+      # docs/DECISION_LOG.md:9233 -- acquire immutable fixture inputs before offline builds.
+      - name: Provision locked modules for historical fixtures
+        if: matrix.group == 'base-acceptance' || matrix.group == 'historical-recipe' || matrix.group == 'ci-migration'
+        shell: bash
+        env:
+          QUALIFICATION_GROUP: ${{ matrix.group }}
+        run: |
+          case "$QUALIFICATION_GROUP" in
+            base-acceptance) revisions=(00f6ef995ec4aab4c3fac2f65ca0b31008a849d7) ;;
+            historical-recipe) revisions=(95486ecdd3868a319a0e6362ee99cafd8f154200 9be9d0333d018c51dfccea18da966e6138e380ab 777af3871acf1fb09a71c526834a68d46118b1f2) ;;
+            ci-migration) revisions=(24712604cbe98dc2df087b73910141defb68f745 3794e6cc8fa66eb02504e753b0ad11955f5cf85a) ;;
+            *) exit 2 ;;
+          esac
+          locks=$(mktemp -d "$RUNNER_TEMP/historical-modules.XXXXXX")
+          trap 'rm -rf "$locks"' EXIT
+          for revision in "${revisions[@]}"; do
+            git show "$revision:go.mod" > "$locks/go.mod"
+            git show "$revision:go.sum" > "$locks/go.sum"
+            GOWORK=off GOTOOLCHAIN=local go -C "$locks" mod download
+            for file in go.mod go.sum; do
+              git show "$revision:$file" | cmp - "$locks/$file"
+            done
+          done
       # docs/adr/0151-reliable-ci-qualification.md:40 -- verify before running cached programs.
       - name: Run prepared acceptance qualification
         run: make go-runtime-ci-acceptance GO_RUNTIME_TEST_TIMEOUT=25m GO_RUNTIME_TEST_GROUP=${{ matrix.group }} GO_RUNTIME_TEST_PROCS=auto GO_RUNTIME_REPORT_DIR="$RUNNER_TEMP/factory-go-reports"

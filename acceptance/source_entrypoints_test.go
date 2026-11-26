@@ -37,6 +37,14 @@ func newSourceEntrypointFixture() sourceEntrypointFixture {
 	imageGit(root, "config", "gc.autoDetach", "false")
 	imageGit(root, "config", "maintenance.auto", "false")
 	imageGit(root, "config", "core.fsmonitor", "false")
+	// The source workflow compares its downloaded module files with the Git index.
+	// per docs/adr/0135-go-source-review-entrypoints.md:81
+	for _, name := range []string{"go.mod", "go.sum"} {
+		body, err := os.ReadFile(filepath.Join(repository, name))
+		Expect(err).NotTo(HaveOccurred())
+		writeFixture(filepath.Join(root, name), body, 0644)
+	}
+	imageGit(root, "add", "--", "go.mod", "go.sum")
 	for _, path := range []string{"factory", "scripts/factory-init.sh", "scripts/factory-upgrade.sh", "scripts/hooks/copy-manifest-check.sh", ".gitignore"} {
 		data, err := os.ReadFile(filepath.Join(repository, path))
 		Expect(err).NotTo(HaveOccurred())
@@ -285,6 +293,13 @@ var _ = Describe("Go source runtime entrypoints", func() {
 	// per docs/adr/0126-go-source-launcher-and-direct-init-upgrade.md:146
 	It("enters the existing native command surface from a private source checkout without changing its caller", func() {
 		f := newSourceEntrypointFixture()
+		// per docs/adr/0135-go-source-review-entrypoints.md:81
+		for _, name := range []string{"go.mod", "go.sum"} {
+			current, err := os.ReadFile(filepath.Join("..", name))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.ReadFile(filepath.Join(f.root, name))).To(Equal(current), "current source module input %s", name)
+		}
+		Expect(imageGit(f.root, "diff", "--exit-code", "--", "go.mod", "go.sum")).To(BeEmpty())
 		control := filepath.Join(filepath.Dir(f.root), "independent native control")
 		writeFixture(control, candidateBinary, 0700)
 		native := handoffNativeProcess(f.caller, f.environment, "", control, "help")

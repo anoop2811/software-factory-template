@@ -318,6 +318,12 @@ var _ = Describe("Go source runtime entrypoints", func() {
 		Expect(output).NotTo(BeEmpty())
 		Expect(strings.HasPrefix(string(output), "#!")).To(BeFalse(), "developer output must be the real compiled runtime")
 		AddReportEntry("source-entrypoint.developer-output", fmt.Sprintf("%x", sha256.Sum256(output)), ReportEntryVisibilityNever)
+		// per specs/003-task-context-and-skills.md:43
+		project := GinkgoT().TempDir()
+		imageGit(project, "init", "--quiet")
+		writeFixture(filepath.Join(project, "docs", "refund.txt"), []byte("Refund\n"), 0600)
+		preview := handoffNativeProcess(project, f.environment, "", filepath.Join(f.root, "factory"), "context", "preview", "--file", "docs/refund.txt", "--json")
+		Expect(fileContextJSON(preview).Digest).To(Equal(refundContextDigest))
 		alias := filepath.Join(filepath.Dir(f.root), "logical source alias")
 		Expect(os.Mkdir(alias, 0700)).To(Succeed())
 		Expect(os.Symlink(filepath.Join(f.root, "scripts"), filepath.Join(alias, "scripts"))).To(Succeed())

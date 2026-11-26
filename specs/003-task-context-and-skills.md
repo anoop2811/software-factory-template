@@ -1,6 +1,6 @@
 # Task context and on-demand skills
 
-**Spec 003 · Draft for maintainer review · Updated 2026-11-25**
+**Spec 003 · Approved for incremental implementation · Updated 2026-11-26**
 
 Direction from Anoop Gopalakrishnan. Draft by Codex. Decision 183. Implementation progress 0%.
 
@@ -462,9 +462,10 @@ to the exported file. A future memory writer and loop exporter each require thei
 
 ## 10. Open Questions
 
-Before the first slice, choose the payload cap (proposed default 32 KiB, maximum 1 MiB) and publish
-the separate limits for bytes read per file and per request, candidate count and diagnostic size.
-Qualify each at its limit and just over it. The payload cap alone cannot bound those operations.
+[Decision 185](../docs/DECISION_LOG.md#decision-185-2026-11-26-utc-deliver-explicit-whole-file-context-preview-first)
+sets the file preview's default payload cap (32 KiB), maximum (1 MiB), raw file and request limits,
+selection count and diagnostic size. Qualify each at its boundary. Set the separate search-candidate
+limit when catalog retrieval is introduced.
 Use the factory's lesson and decision collections as the real local corpus and the independently
 produced ticket export as a different input format. A maintainer recruits an external team before
 claiming independent adopter usability. The factory rehearsal alone supplies internal evidence.

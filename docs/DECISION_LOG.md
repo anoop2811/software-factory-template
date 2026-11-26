@@ -9242,3 +9242,20 @@ Keep the frozen controller and the single-attempt contract. Require exit 2, the 
 checkpoint, one failed check, the expected roles and the preserved edit. On failure, record
 the observed state and a reason category while keeping prompt and subprocess text out of CI logs.
 [Historical loop run](https://github.com/anoop2811/software-factory-template/actions/runs/45685414009/job/139456594923)
+
+## Decision 185 (2026-11-26 UTC): deliver explicit whole-file context preview first
+
+Implement [Spec 003](../specs/003-task-context-and-skills.md#8-api-contract) in independently
+reviewable changes. The first exposes `factory context preview --file PATH` with repeatable files,
+human or JSON output, and an optional `--max-bytes`. Read the selected worktree locally and produce
+the same v1 consent digest that a file-only request will produce. Retain selection order in the
+request, and include identical files once in the payload. Use Go's standard RFC 8785 canonicalizer.
+
+Use a 32 KiB default and a 1 MiB maximum for the canonical payload. Bound raw input separately to
+1 MiB per file, 4 MiB across distinct files, and 128 selections including repeats. Limit failure
+diagnostics to 1 KiB including the newline. Apply the worktree privacy and file-identity rules to
+the first public reader. A blocked selection emits no partial preview.
+
+The next boundaries are file-only request documents with line ranges, then explicitly selected
+catalog skills with role checks. The 20% milestone requires all three changes and their acceptance
+evidence. Managed harness delivery follows separately.

@@ -59,6 +59,7 @@ Usage: factory <command> [args]
               estimate (factory report --clear resets the block log)
   budget      Plan, bound, and report opt-in Codex/Claude/OpenCode invocations
   loop        Run manual checks or opt-in bounded implementation and repair
+  context     Preview selected project files with citations and a digest
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 

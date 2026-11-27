@@ -18,6 +18,7 @@ import (
 	"github.com/anoop2811/software-factory-template/internal/adversarialreviewcmd"
 	"github.com/anoop2811/software-factory-template/internal/checkcmd"
 	"github.com/anoop2811/software-factory-template/internal/configuredcmd"
+	"github.com/anoop2811/software-factory-template/internal/contextcmd"
 	"github.com/anoop2811/software-factory-template/internal/doctorcmd"
 	"github.com/anoop2811/software-factory-template/internal/evalcmd"
 	"github.com/anoop2811/software-factory-template/internal/installationcmd"
@@ -64,6 +65,7 @@ Usage: factory <command> [args]
               estimate (factory report --clear resets the block log)
   budget      Plan, bound, and report opt-in Codex/Claude/OpenCode invocations
   loop        Run manual checks or opt-in bounded implementation and repair
+  context     Preview selected project files with citations and a digest
   migrate-config  Move a legacy factory.config into factory.yaml (--dry-run to preview)
   help        Show this message
 
@@ -80,6 +82,7 @@ var commands = map[string]struct{}{
 	"report":         {},
 	"budget":         {},
 	"loop":           {},
+	"context":        {},
 	"metrics":        {},
 	"review-lane":    {},
 	"migrate-config": {},
@@ -122,7 +125,7 @@ func Run(ctx context.Context, args []string) int {
 	// New orchestration owns cancellation until every child has been reconciled.
 	// docs/adr/0099-native-factory-orchestration.md:81.
 	switch command {
-	case "sync", "prereq", "check", "eval", "review", "selftest":
+	case "sync", "prereq", "check", "eval", "review", "selftest", "context":
 		var stop context.CancelFunc
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -156,6 +159,10 @@ func Run(ctx context.Context, args []string) int {
 			DisableFlagParsing: true,
 			Args:               cobra.ArbitraryArgs,
 			RunE: func(cmd *cobra.Command, forwarded []string) error {
+				if name == "context" {
+					status = contextcmd.Run(cmd.Context(), forwarded, os.Stdout, os.Stderr)
+					return nil
+				}
 				// A separately provisioned owner prepares missing checkout custody.
 				// docs/adr/0143-ci-checkout-preparation.md:20.
 				if name == "ci" {

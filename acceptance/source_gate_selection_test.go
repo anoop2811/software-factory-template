@@ -1069,7 +1069,9 @@ exit 3
 		// per docs/DECISION_LOG.md:8842
 		// Three public rollback preflight scenarios join the installation partition.
 		// per docs/DECISION_LOG.md:9021
-		expectedCounts := map[string]int{"base": 3109, "installation": 104, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 8, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 127}
+		// Four explicit-file preview cases join the base partition.
+		// per docs/DECISION_LOG.md:9249
+		expectedCounts := map[string]int{"base": 3113, "installation": 104, "release-handoff": 26, "release-retention": 18, "release-ci": 28, "initialized-ci": 8, "ci-migration": 25, "historical-recipe": 20, "local-init": 10, "local-upgrade": 7, "local-upgrade-predecessor": 2, "local-upgrade-go": 2, "local-recovery": 2, "default-init": 10, "default-upgrade": 14, "source-entrypoints": 127}
 		expectedTotal := 0
 		for _, count := range expectedCounts {
 			expectedTotal += count

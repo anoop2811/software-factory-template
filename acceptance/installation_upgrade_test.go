@@ -1280,6 +1280,12 @@ var _ = Describe("Whole installation upgrade semantic consumer", Ordered, Contin
 			html, err := os.ReadFile(filepath.Join(application, ".factory/metrics.html"))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(html)).To(ContainSubstring("<html"))
+			// per specs/003-task-context-and-skills.md:43
+			By("previewing the application worktree from the same installed factory", func() {
+				writeFixture(filepath.Join(application, "docs", "refund.txt"), []byte("Refund\n"), 0600)
+				preview := imageProcess(application, nil, filepath.Join(installed.root, "factory"), "context", "preview", "--file", "docs/refund.txt", "--json")
+				Expect(fileContextJSON(preview).Digest).To(Equal(refundContextDigest))
+			})
 		case "review-lane":
 			writeFixture(filepath.Join(application, "factory.yaml"), []byte("review_lane: off\n"), 0600)
 			out = imageProcess(application, nil, filepath.Join(installed.root, "factory"), "review-lane", "enable")

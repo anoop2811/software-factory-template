@@ -2,6 +2,7 @@
 package contextcmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -67,12 +68,12 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			var data []byte
 			if asJSON {
 				data, err = json.Marshal(p)
-				if err != nil {
-					return err
-				}
 				data = append(data, '\n')
 			} else {
-				data = []byte(p.human())
+				data, err = p.human()
+			}
+			if err != nil {
+				return err
 			}
 			return output.WriteEvent(cmd.Context(), stdout, data)
 		},
@@ -105,20 +106,24 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	return status
 }
 
-func (p preview) human() string {
-	var out strings.Builder
+func (p preview) human() ([]byte, error) {
+	var out bytes.Buffer
 	fmt.Fprintf(&out, "Context preview · %d payload bytes · %d omitted\nDigest %s\n", p.PayloadBytes, len(p.Omitted), p.Digest)
-	for i, item := range p.Payload.Items {
-		c := item.Citations[0]
-		fmt.Fprintf(&out, "\nSource evidence (%s): %s", p.Included[i].Reason, safeName(c.Path))
-		if c.Lines != nil {
-			fmt.Fprintf(&out, " lines %d–%d", c.Lines[0], c.Lines[1])
+	for _, entry := range p.Included {
+		if entry.ItemIndex < 0 || entry.ItemIndex >= len(p.Payload.Items) || len(entry.Citations) == 0 {
+			return nil, errors.New("incomplete context preview")
 		}
-		fmt.Fprintf(&out, "\nSHA-256 %s\n", c.SHA256)
-		for line := range strings.Lines(item.Text) {
+		for _, c := range entry.Citations {
+			fmt.Fprintf(&out, "\nSource evidence (%s): %s", entry.Reason, safeName(c.Path))
+			if c.Lines != nil {
+				fmt.Fprintf(&out, " lines %d–%d", c.Lines[0], c.Lines[1])
+			}
+			fmt.Fprintf(&out, "\nSHA-256 %s\n", c.SHA256)
+		}
+		for line := range strings.Lines(p.Payload.Items[entry.ItemIndex].Text) {
 			quoted := strconv.Quote(strings.TrimSuffix(line, "\n"))
 			fmt.Fprintf(&out, "  | %s\n", quoted[1:len(quoted)-1])
 		}
 	}
-	return out.String()
+	return out.Bytes(), nil
 }

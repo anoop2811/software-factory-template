@@ -260,10 +260,11 @@ func readSources(ctx context.Context, paths []string) ([]sourceFile, error) {
 			return nil, err
 		}
 		stat, err := sourceStat(f, name)
-		pinned = append(pinned, pinnedSource{name, f, stat})
 		if err != nil {
+			_ = f.Close()
 			return nil, err
 		}
+		pinned = append(pinned, pinnedSource{name, f, stat})
 		total += stat.Size
 		if total > totalLimit {
 			return nil, invalid("total read limit (%d) exceeded by %s", totalLimit, safeName(name))

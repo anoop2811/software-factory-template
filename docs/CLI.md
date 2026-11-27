@@ -23,8 +23,11 @@ factory context preview --file docs/refunds.md --max-bytes 8192 --json
 
 Every path starts at the worktree root, even when you run the command from a subdirectory. Preview
 reads whole files from the working copy, including explicitly selected, non-ignored untracked files.
-The output identifies each excerpt, its line range and SHA-256, the canonical payload size, and the
-digest for the complete selection. Repeating a path includes its text once. Inspect the evidence
+The output identifies each excerpt, its line range and SHA-256, and the canonical payload size.
+The digest covers the payload and the request, including selection order and the effective
+`--max-bytes`. Changing the cap changes the digest even when the excerpts are identical.
+Repeating a path includes its text once. The command reserves the path components `.git` and
+`.factory` case-insensitively on every filesystem. Inspect the evidence
 before pasting it into a client. Preview makes zero model calls and creates no factory state.
 
 The default payload allowance is 32 KiB. Set `--max-bytes` to a value from 1 byte to 1 MiB.

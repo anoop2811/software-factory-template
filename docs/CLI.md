@@ -26,14 +26,16 @@ reads whole files from the working copy, including explicitly selected, non-igno
 The output identifies each excerpt, its line range and SHA-256, and the canonical payload size.
 The digest covers the payload and the request, including selection order and the effective
 `--max-bytes`. Changing the cap changes the digest even when the excerpts are identical.
-Repeating a path includes its text once. The command reserves the path components `.git` and
-`.factory` case-insensitively on every filesystem. Inspect the evidence
-before pasting it into a client. Preview makes zero model calls and creates no factory state.
+Repeating a path includes its text once. Select regular UTF-8 text files with a single hard link.
+Preview refuses symlinks anywhere in the selected path, special files and files containing NUL bytes.
+The command reserves the path components `.git` and `.factory` case-insensitively on every filesystem.
+Inspect the evidence before pasting it into a client. Preview makes zero model calls and creates no factory state.
 
 The default payload allowance is 32 KiB. Set `--max-bytes` to a value from 1 byte to 1 MiB.
 Up to 128 selections may name at most 1 MiB per file and 4 MiB of distinct file bytes in total.
 A blocked selection exits 2 with a diagnostic of at most 1 KiB and emits no partial preview.
-An operational read failure exits 1. See [Spec 003](../specs/003-task-context-and-skills.md#8-api-contract)
+An operational read failure exits 1. If Git warns while checking file eligibility, preview stops.
+Check that the repository index and Git ignore files are readable. See [Spec 003](../specs/003-task-context-and-skills.md#8-api-contract)
 for the JSON fields and the subsequent request-file, skill and managed-delivery milestones.
 
 ## Command map

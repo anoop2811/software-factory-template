@@ -294,8 +294,15 @@ func readSources(ctx context.Context, paths []string) ([]sourceFile, error) {
 		if err := p.check(ctx, tree); err != nil {
 			return nil, err
 		}
-		if readErr != nil || int64(len(data)) != p.stat.Size {
+		if readErr != nil {
+			// A PathError can contain an unquoted filename. Report only its OS cause.
+			if errno, ok := errors.AsType[unix.Errno](readErr); ok {
+				return nil, fmt.Errorf("cannot read file %s: %w", safeName(p.name), errno)
+			}
 			return nil, fmt.Errorf("cannot read file %s", safeName(p.name))
+		}
+		if int64(len(data)) != p.stat.Size {
+			return nil, fmt.Errorf("unexpected byte count reading %s", safeName(p.name))
 		}
 		if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 			return nil, invalid("expected UTF-8 text without NUL in %s", safeName(p.name))

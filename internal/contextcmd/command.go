@@ -4,7 +4,6 @@ package contextcmd
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -67,7 +66,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			}
 			var data []byte
 			if asJSON {
-				data, err = json.Marshal(p)
+				data, err = canonical(p)
 				data = append(data, '\n')
 			} else {
 				data, err = p.human()

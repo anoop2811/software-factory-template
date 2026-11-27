@@ -464,7 +464,7 @@ to the exported file. A future memory writer and loop exporter each require thei
 
 [Decision 185](../docs/DECISION_LOG.md#decision-185-2026-11-26-utc-deliver-explicit-whole-file-context-preview-first)
 sets the file preview's default payload cap (32 KiB), maximum (1 MiB), raw file and request limits,
-selection count and diagnostic size. Qualify each at its boundary. Set the separate search-candidate
+selection count and diagnostic size. Qualify each at its limit and just over it. Set the separate search-candidate
 limit when catalog retrieval is introduced.
 Use the factory's lesson and decision collections as the real local corpus and the independently
 produced ticket export as a different input format. A maintainer recruits an external team before

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"unicode/utf8"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -81,14 +82,14 @@ var _ = Describe("File context preview", func() {
 		Expect(preview.Version).To(Equal(1))
 		Expect(preview.Digest).To(Equal(refundContextDigest))
 		Expect(preview.PayloadBytes).To(Equal(206))
-		Expect(string(preview.Payload)).To(MatchJSON(`{"items":[{"citations":[{"lines":[1,1],"path":"docs/refund.txt","sha256":"53cac814f776c9c4b85666d5569ecc2c0439ff9474a48a0d17e5f01728dee921"}],"kind":"source","representation":"original","text":"Refund\n"}]}`))
+		Expect(string(preview.Payload)).To(Equal(`{"items":[{"citations":[{"lines":[1,1],"path":"docs/refund.txt","sha256":"53cac814f776c9c4b85666d5569ecc2c0439ff9474a48a0d17e5f01728dee921"}],"kind":"source","representation":"original","text":"Refund\n"}]}`))
 		Expect(preview.Included).To(HaveLen(1))
 		Expect(preview.Included[0].Reason).To(Equal("explicit"))
 		Expect(preview.Included[0].ItemIndex).To(BeZero())
 		Expect(preview.Included[0].Citations).To(HaveLen(1))
 		Expect(preview.Omitted).To(Equal([]json.RawMessage{}))
 		exact := fileContextJSON(invoke(bin, cwd, "factory", "", append(args, "--max-bytes", "206")...))
-		Expect(string(exact.Payload)).To(MatchJSON(string(preview.Payload)))
+		Expect(exact.Payload).To(Equal(preview.Payload))
 		Expect(exact.Digest).NotTo(Equal(preview.Digest))
 		over := invoke(bin, cwd, "factory", "", append(args, "--max-bytes", "205")...)
 		fileContextRefusal(over)
@@ -108,9 +109,11 @@ var _ = Describe("File context preview", func() {
 		two := fileContextJSON(invoke(bin, repo, "factory", "", append(args, "--json")...))
 		// JCS uses literal UTF-8 for U+2028 and HTML characters. CR, LF and ESC are escaped.
 		Expect(two.PayloadBytes).To(Equal(431))
+		Expect(two.Payload).To(HaveLen(two.PayloadBytes))
+		Expect(string(two.Payload)).To(ContainSubstring("customer <ok> & café\u2028"))
 		Expect(two.Digest).To(Equal("f6b92c8f1c2a7a0efbd2a872c65fcaf1121919d198435f3602542eaf136d0909"))
 		duplicates := fileContextJSON(invoke(bin, repo, "factory", "", append(args, "--file", path, "--json")...))
-		Expect(string(two.Payload)).To(MatchJSON(string(duplicates.Payload)))
+		Expect(two.Payload).To(Equal(duplicates.Payload))
 		Expect(two.Digest).NotTo(Equal(duplicates.Digest))
 		var payload struct {
 			Items []struct {
@@ -237,6 +240,23 @@ var _ = Describe("File context preview", func() {
 		Expect(fileContextJSON(run(repeated...)).PayloadBytes).To(BeNumerically("<", 41*1024))
 		fileContextRefusal(run(append(repeated, "medium")...))
 		fileContextRefusal(run(strings.Repeat("oversized-name", 300)))
+		// Derive the message overhead from a short rejected path, so its wording may evolve.
+		const invalidPath = "../sentinel"
+		sample := run(invalidPath)
+		fileContextRefusal(sample)
+		Expect(sample.stderr).To(ContainSubstring(invalidPath))
+		Expect(sample.stderr).To(HaveSuffix("\n"))
+		const tail = "éa"
+		atLimit := invalidPath + strings.Repeat("a", 1024-len(sample.stderr)-len(tail)) + tail
+		expected := strings.Replace(sample.stderr, invalidPath, atLimit, 1)
+		exactDiagnostic := run(atLimit)
+		fileContextRefusal(exactDiagnostic)
+		Expect(exactDiagnostic.stderr).To(Equal(expected))
+		Expect(exactDiagnostic.stderr).To(HaveLen(1024))
+		overDiagnostic := run(atLimit + "a")
+		fileContextRefusal(overDiagnostic)
+		Expect(utf8.ValidString(overDiagnostic.stderr)).To(BeTrue())
+		Expect(overDiagnostic.stderr).To(HaveSuffix("\n"))
 		for _, cap := range []string{"0", "-1", "nonnumeric", "1048577"} {
 			fileContextRefusal(invoke(bin, repo, "factory", "", "context", "preview", "--file", "one", "--max-bytes", cap))
 		}
